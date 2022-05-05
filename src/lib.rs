@@ -12,10 +12,6 @@ impl Menu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled))
-    }
-
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W>(&self, w: &W)
     where
@@ -40,8 +36,13 @@ impl Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled))
+    pub fn add_text_item<F: FnMut(&mut TextMenuItem) + 'static>(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        f: F,
+    ) -> TextMenuItem {
+        TextMenuItem(self.0.add_text_item(label, enabled, f))
     }
 }
 

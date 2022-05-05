@@ -14,12 +14,15 @@ fn main() {
     let mut file_menu = menu_bar.add_submenu("File", true);
     let mut edit_menu = menu_bar.add_submenu("Edit", true);
 
-    let _open_item = file_menu.add_text_item("Open", true);
-    let mut save_item = file_menu.add_text_item("Save", true);
-    let _quit_item = file_menu.add_text_item("Quit", true);
+    let _open_item = file_menu.add_text_item("Open", true, |_| {});
+    let _save_item = file_menu.add_text_item("Save", true, |i| {
+        i.set_enabled(false);
+        i.set_label("Save disabled");
+    });
+    let _quit_item = file_menu.add_text_item("Quit", true, |_| {});
 
-    let _copy_item = edit_menu.add_text_item("Copy", true);
-    let _cut_item = edit_menu.add_text_item("Cut", true);
+    let _copy_item = edit_menu.add_text_item("Copy", true, |_| {});
+    let _cut_item = edit_menu.add_text_item("Cut", true, |_| {});
 
     #[cfg(target_os = "windows")]
     menu_bar.init_for_hwnd(window.hwnd() as _);
@@ -31,9 +34,7 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => {
-                save_item.set_enabled(false);
-            }
+            } => *control_flow = ControlFlow::Exit,
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
