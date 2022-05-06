@@ -1,9 +1,7 @@
+use crate::util::Counter;
+use gtk::{prelude::*, Orientation};
 use parking_lot::Mutex;
 use std::sync::Arc;
-
-use gtk::{prelude::*, Orientation};
-
-use crate::util::Counter;
 
 const COUNTER: Counter = Counter::new();
 
@@ -12,18 +10,27 @@ enum MenuEntryType {
     Text,
 }
 
+/// Generic shared type describing a menu entry. It can be one of [`MenuEntryType`]
 struct MenuEntry {
     label: String,
     enabled: bool,
-    entries: Option<Vec<Arc<Mutex<MenuEntry>>>>,
-    etype: MenuEntryType,
+    r#type: MenuEntryType,
     item_id: Option<u64>,
-    menu_gtk_items: Option<Arc<Mutex<Vec<(gtk::MenuItem, gtk::Menu)>>>>,
+    // NOTE(amrbashir): because gtk doesn't allow using the same `gtk::MenuItem`
+    // multiple times, and thus can't be used in multiple windows, each entry
+    // keeps a vector of a `gtk::MenuItem` or a tuple of `gtk::MenuItem` and `gtk::Menu`
+    // and push to it every time `Menu::init_for_gtk_window` is called.
     item_gtk_items: Option<Arc<Mutex<Vec<gtk::MenuItem>>>>,
+    menu_gtk_items: Option<Arc<Mutex<Vec<(gtk::MenuItem, gtk::Menu)>>>>,
+    entries: Option<Vec<Arc<Mutex<MenuEntry>>>>,
 }
 
 struct InnerMenu {
     entries: Vec<Arc<Mutex<MenuEntry>>>,
+    // NOTE(amrbashir): because gtk doesn't allow using the same `gtk::MenuBar` and `gtk::Box`
+    // multiple times, and thus can't be used in multiple windows, entry
+    // keeps a vector of a tuple of `gtk::MenuBar` and `gtk::Box`
+    // and push to it every time `Menu::init_for_gtk_window` is called.
     gtk_items: Vec<(gtk::MenuBar, gtk::Box)>,
 }
 
@@ -39,23 +46,17 @@ impl Menu {
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         let label = label.as_ref().to_string();
-        let gtk_items = Arc::new(Mutex::new(Vec::new()));
         let entry = Arc::new(Mutex::new(MenuEntry {
             label: label.clone(),
             enabled,
             entries: Some(Vec::new()),
-            etype: MenuEntryType::Submenu,
+            r#type: MenuEntryType::Submenu,
             item_id: None,
-            menu_gtk_items: Some(gtk_items.clone()),
+            menu_gtk_items: Some(Arc::new(Mutex::new(Vec::new()))),
             item_gtk_items: None,
         }));
         self.0.lock().entries.push(entry.clone());
-        Submenu {
-            label,
-            enabled,
-            entry,
-            gtk_items,
-        }
+        Submenu(entry)
     }
 
     pub fn init_for_gtk_window<W>(&self, w: &W)
@@ -80,7 +81,7 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(gtk_menu: &M, entries: &Vec<Arc<M
         let gtk_item = gtk::MenuItem::with_label(&entry.label);
         gtk_menu.append(&gtk_item);
         gtk_item.set_sensitive(entry.enabled);
-        if let MenuEntryType::Submenu = entry.etype {
+        if let MenuEntryType::Submenu = entry.r#type {
             let gtk_menu = gtk::Menu::new();
             gtk_item.set_submenu(Some(&gtk_menu));
             add_entries_to_menu(&gtk_menu, entry.entries.as_ref().unwrap());
@@ -101,118 +102,77 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(gtk_menu: &M, entries: &Vec<Arc<M
 }
 
 #[derive(Clone)]
-pub struct Submenu {
-    label: String,
-    enabled: bool,
-    entry: Arc<Mutex<MenuEntry>>,
-    gtk_items: Arc<Mutex<Vec<(gtk::MenuItem, gtk::Menu)>>>,
-}
+pub struct Submenu(Arc<Mutex<MenuEntry>>);
 
 impl Submenu {
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
-        for (item, _) in self.gtk_items.lock().iter() {
+        let mut entry = self.0.lock();
+        for (item, _) in entry.menu_gtk_items.as_ref().unwrap().lock().iter() {
             item.set_label(&label);
         }
-
-        self.label = label.clone();
-        self.entry.lock().label = label;
+        entry.label = label;
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        for (item, _) in self.gtk_items.lock().iter() {
+        let mut entry = self.0.lock();
+        entry.enabled = true;
+        for (item, _) in entry.menu_gtk_items.as_ref().unwrap().lock().iter() {
             item.set_sensitive(enabled);
         }
-
-        self.enabled = enabled;
-        self.entry.lock().enabled = enabled;
     }
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
-        let label = label.as_ref().to_string();
-        let gtk_items = Arc::new(Mutex::new(Vec::new()));
         let entry = Arc::new(Mutex::new(MenuEntry {
-            label: label.clone(),
+            label: label.as_ref().to_string(),
             enabled,
             entries: Some(Vec::new()),
-            etype: MenuEntryType::Submenu,
+            r#type: MenuEntryType::Submenu,
             item_id: None,
-            menu_gtk_items: Some(gtk_items.clone()),
+            menu_gtk_items: Some(Arc::new(Mutex::new(Vec::new()))),
             item_gtk_items: None,
         }));
-        self.entry
-            .lock()
-            .entries
-            .as_mut()
-            .unwrap()
-            .push(entry.clone());
-        Submenu {
-            label,
-            enabled,
-            entry,
-            gtk_items,
-        }
+        self.0.lock().entries.as_mut().unwrap().push(entry.clone());
+        Submenu(entry)
     }
 
     pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        let id = COUNTER.next();
-        let label = label.as_ref().to_string();
-        let gtk_items = Arc::new(Mutex::new(Vec::new()));
         let entry = Arc::new(Mutex::new(MenuEntry {
-            label: label.clone(),
+            label: label.as_ref().to_string(),
             enabled,
             entries: None,
-            etype: MenuEntryType::Text,
-            item_id: Some(id),
+            r#type: MenuEntryType::Text,
+            item_id: Some(COUNTER.next()),
             menu_gtk_items: None,
-            item_gtk_items: Some(gtk_items.clone()),
+            item_gtk_items: Some(Arc::new(Mutex::new(Vec::new()))),
         }));
-        self.entry
-            .lock()
-            .entries
-            .as_mut()
-            .unwrap()
-            .push(entry.clone());
-        TextMenuItem {
-            label,
-            enabled,
-            entry,
-            gtk_items,
-            id,
-        }
+        self.0.lock().entries.as_mut().unwrap().push(entry.clone());
+        TextMenuItem(entry)
     }
 }
 
 #[derive(Clone)]
-pub struct TextMenuItem {
-    label: String,
-    enabled: bool,
-    entry: Arc<Mutex<MenuEntry>>,
-    gtk_items: Arc<Mutex<Vec<gtk::MenuItem>>>,
-    id: u64,
-}
+pub struct TextMenuItem(Arc<Mutex<MenuEntry>>);
 
 impl TextMenuItem {
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
-        for item in self.gtk_items.lock().iter() {
+        let mut entry = self.0.lock();
+        for item in entry.item_gtk_items.as_ref().unwrap().lock().iter() {
             item.set_label(&label);
         }
-
-        self.label = label.clone();
-        self.entry.lock().label = label;
+        entry.label = label;
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        for item in self.gtk_items.lock().iter() {
+        let mut entry = self.0.lock();
+        for item in entry.item_gtk_items.as_ref().unwrap().lock().iter() {
             item.set_sensitive(enabled);
         }
-
-        self.enabled = enabled;
-        self.entry.lock().enabled = enabled;
+        entry.enabled = enabled;
     }
 
     pub fn id(&self) -> u64 {
-        self.id
+        self.0.lock().item_id.unwrap()
     }
 }
