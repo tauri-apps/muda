@@ -1,4 +1,4 @@
-//! menu-rs is a cross-platform menu creation library.
+//! minit is a cross-platform menu creation library.
 //!
 //! # Creating root menus
 //!

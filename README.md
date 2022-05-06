@@ -1,4 +1,4 @@
-# menu-rs
+# minit 
 
 Cross-platform menu creation library.
 
