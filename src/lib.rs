@@ -1,5 +1,20 @@
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use once_cell::sync::Lazy;
+
 mod platform_impl;
 mod util;
+
+static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
+
+/// Event channel for receiving menu events.
+pub fn menu_event_receiver<'a>() -> &'a Receiver<MenuEvent> {
+    &MENU_CHANNEL.1
+}
+
+/// Describes a menu event emitted when a menu item is activated
+pub struct MenuEvent {
+    pub id: u64,
+}
 
 pub struct Menu(platform_impl::Menu);
 
@@ -36,13 +51,8 @@ impl Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    pub fn add_text_item<F: FnMut(&mut TextMenuItem) + 'static>(
-        &mut self,
-        label: impl AsRef<str>,
-        enabled: bool,
-        f: F,
-    ) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled, f))
+    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
+        TextMenuItem(self.0.add_text_item(label, enabled))
     }
 }
 

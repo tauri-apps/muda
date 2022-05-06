@@ -1,5 +1,5 @@
 use parking_lot::Mutex;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use gtk::{prelude::*, Orientation};
 
@@ -17,7 +17,6 @@ struct MenuEntry {
     enabled: bool,
     entries: Option<Vec<Arc<Mutex<MenuEntry>>>>,
     etype: MenuEntryType,
-    item_handler: Option<Rc<RefCell<dyn FnMut(&mut crate::TextMenuItem) + 'static>>>,
     item_id: Option<u64>,
     menu_gtk_items: Option<Arc<Mutex<Vec<(gtk::MenuItem, gtk::Menu)>>>>,
     item_gtk_items: Option<Arc<Mutex<Vec<gtk::MenuItem>>>>,
@@ -46,7 +45,6 @@ impl Menu {
             enabled,
             entries: Some(Vec::new()),
             etype: MenuEntryType::Submenu,
-            item_handler: None,
             item_id: None,
             menu_gtk_items: Some(gtk_items.clone()),
             item_gtk_items: None,
@@ -78,7 +76,6 @@ impl Menu {
 
 fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(gtk_menu: &M, entries: &Vec<Arc<Mutex<MenuEntry>>>) {
     for entry in entries {
-        let entry_clone = entry.clone();
         let mut entry = entry.lock();
         let gtk_item = gtk::MenuItem::with_label(&entry.label);
         gtk_menu.append(&gtk_item);
@@ -94,18 +91,9 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(gtk_menu: &M, entries: &Vec<Arc<M
                 .lock()
                 .push((gtk_item, gtk_menu));
         } else {
-            let handler = Rc::clone(&entry.item_handler.as_mut().unwrap());
-            let item = TextMenuItem {
-                label: entry.label.clone(),
-                enabled: entry.enabled,
-                id: entry.item_id.unwrap(),
-                entry: entry_clone,
-                gtk_items: entry.item_gtk_items.as_ref().unwrap().clone(),
-            };
+            let id = entry.item_id.unwrap_or_default();
             gtk_item.connect_activate(move |_| {
-                let mut handler = handler.borrow_mut();
-                let mut item = crate::TextMenuItem(item.clone());
-                handler(&mut item);
+                let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
             });
             entry.item_gtk_items.as_mut().unwrap().lock().push(gtk_item);
         }
@@ -148,7 +136,6 @@ impl Submenu {
             enabled,
             entries: Some(Vec::new()),
             etype: MenuEntryType::Submenu,
-            item_handler: None,
             item_id: None,
             menu_gtk_items: Some(gtk_items.clone()),
             item_gtk_items: None,
@@ -167,12 +154,7 @@ impl Submenu {
         }
     }
 
-    pub fn add_text_item<F: FnMut(&mut crate::TextMenuItem) + 'static>(
-        &mut self,
-        label: impl AsRef<str>,
-        enabled: bool,
-        f: F,
-    ) -> TextMenuItem {
+    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
         let id = COUNTER.next();
         let label = label.as_ref().to_string();
         let gtk_items = Arc::new(Mutex::new(Vec::new()));
@@ -181,7 +163,6 @@ impl Submenu {
             enabled,
             entries: None,
             etype: MenuEntryType::Text,
-            item_handler: Some(Rc::new(RefCell::new(f))),
             item_id: Some(id),
             menu_gtk_items: None,
             item_gtk_items: Some(gtk_items.clone()),

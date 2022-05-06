@@ -1,4 +1,4 @@
-use menu_rs::Menu;
+use menu_rs::{menu_event_receiver, Menu};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -9,12 +9,8 @@ use tao::{
     window::WindowBuilder,
 };
 
-enum UserEvent {
-    MenuEvent(u64),
-}
-
 fn main() {
-    let event_loop = EventLoop::<UserEvent>::with_user_event();
+    let event_loop = EventLoop::new();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let window2 = WindowBuilder::new().build(&event_loop).unwrap();
@@ -23,19 +19,13 @@ fn main() {
     let mut file_menu = menu_bar.add_submenu("File", true);
     let mut edit_menu = menu_bar.add_submenu("Edit", true);
 
-    let mut open_item = file_menu.add_text_item("Open", true, |_| {});
+    let mut open_item = file_menu.add_text_item("Open", true);
 
-    let proxy = event_loop.create_proxy();
-    let mut counter = 0;
-    let save_item = file_menu.add_text_item("Save", true, move |i| {
-        counter += 1;
-        i.set_label(format!("Save triggered {} times", counter));
-        let _ = proxy.send_event(UserEvent::MenuEvent(i.id()));
-    });
-    let _quit_item = file_menu.add_text_item("Quit", true, |_| {});
+    let mut save_item = file_menu.add_text_item("Save", true);
+    let _quit_item = file_menu.add_text_item("Quit", true);
 
-    let _copy_item = edit_menu.add_text_item("Copy", true, |_| {});
-    let _cut_item = edit_menu.add_text_item("Cut", true, |_| {});
+    let _copy_item = edit_menu.add_text_item("Copy", true);
+    let _cut_item = edit_menu.add_text_item("Cut", true);
 
     #[cfg(target_os = "windows")]
     {
@@ -48,9 +38,28 @@ fn main() {
         menu_bar.init_for_gtk_window(window2.gtk_window());
     }
 
+    let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
+    let counter = 0;
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
+
+        if let Ok(event) = menu_channel.try_recv() {
+            match event.id {
+                _ if event.id == save_item.id() => {
+                    println!("Save menu item triggered");
+
+                    save_item.set_label(format!("Save triggered {counter} times"));
+                    if !open_item_disabled {
+                        println!("Open item disabled!");
+                        open_item.set_enabled(false);
+                        open_item_disabled = true;
+                    }
+                }
+                _ => {}
+            }
+        }
 
         match event {
             Event::WindowEvent {
@@ -60,20 +69,6 @@ fn main() {
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
-
-            Event::UserEvent(e) => match e {
-                UserEvent::MenuEvent(id) => {
-                    if id == save_item.id() {
-                        println!("Save menu item triggered");
-
-                        if !open_item_disabled {
-                            println!("Open item disabled!");
-                            open_item.set_enabled(false);
-                            open_item_disabled = true;
-                        }
-                    }
-                }
-            },
             _ => (),
         }
     })

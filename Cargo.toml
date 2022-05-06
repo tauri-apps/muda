@@ -3,15 +3,20 @@ name = "menu-rs"
 version = "0.0.0"
 edition = "2021"
 
-[target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.34", features = [
+[dependencies]
+crossbeam-channel = "0.5"
+once_cell = "1.10"
+
+[target.'cfg(target_os = "windows")'.dependencies.windows-sys]
+version = "0.34"
+features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Foundation",
-    "Win32_Graphics_Gdi"
-] }
+    "Win32_Graphics_Gdi",
+]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-parking_lot = "0.12.0"
+parking_lot = "0.12"
 gtk = "0.15"
 
 [dev-dependencies]
