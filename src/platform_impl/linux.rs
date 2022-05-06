@@ -105,6 +105,10 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(gtk_menu: &M, entries: &Vec<Arc<M
 pub struct Submenu(Arc<Mutex<MenuEntry>>);
 
 impl Submenu {
+    pub fn label(&self) -> String {
+        self.0.lock().label.clone()
+    }
+
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.lock();
@@ -112,6 +116,10 @@ impl Submenu {
             item.set_label(&label);
         }
         entry.label = label;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.lock().enabled
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
@@ -155,6 +163,10 @@ impl Submenu {
 pub struct TextMenuItem(Arc<Mutex<MenuEntry>>);
 
 impl TextMenuItem {
+    pub fn label(&self) -> String {
+        self.0.lock().label.clone()
+    }
+
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.lock();
@@ -162,6 +174,10 @@ impl TextMenuItem {
             item.set_label(&label);
         }
         entry.label = label;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.lock().enabled
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {

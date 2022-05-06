@@ -40,8 +40,16 @@ impl Menu {
 pub struct Submenu(platform_impl::Submenu);
 
 impl Submenu {
+    pub fn label(&self) -> String {
+        self.0.label()
+    }
+
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         self.0.set_label(label)
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.enabled()
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
@@ -60,8 +68,16 @@ impl Submenu {
 pub struct TextMenuItem(platform_impl::TextMenuItem);
 
 impl TextMenuItem {
+    pub fn label(&self) -> String {
+        self.0.label()
+    }
+
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         self.0.set_label(label)
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.enabled()
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
