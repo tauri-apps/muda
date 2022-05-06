@@ -48,9 +48,9 @@ fn main() {
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
                 _ if event.id == save_item.id() => {
-                    println!("Save menu item triggered");
+                    println!("Save menu item activated!");
                     counter += 1;
-                    save_item.set_label(format!("Save triggered {counter} times"));
+                    save_item.set_label(format!("Save activated {counter} times"));
 
                     if !open_item_disabled {
                         println!("Open item disabled!");
