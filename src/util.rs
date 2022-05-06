@@ -29,3 +29,10 @@ pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
 pub fn LOWORD(dword: u32) -> u16 {
     (dword & 0xFFFF) as u16
 }
+
+#[cfg(target_os = "windows")]
+pub fn wchar_ptr_to_string(wchar: windows_sys::core::PWSTR) -> String {
+    let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(wchar) } as usize;
+    let wchar_slice = unsafe { std::slice::from_raw_parts(wchar, len) };
+    String::from_utf16_lossy(wchar_slice)
+}

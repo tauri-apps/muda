@@ -1,13 +1,14 @@
 #![cfg(target_os = "windows")]
 
-use crate::util::{encode_wide, Counter, LOWORD};
+use crate::util::{encode_wide, wchar_ptr_to_string, Counter, LOWORD};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
         Shell::{DefSubclassProc, SetWindowSubclass},
         WindowsAndMessaging::{
-            AppendMenuW, CreateMenu, EnableMenuItem, SetMenu, SetMenuItemInfoW, MENUITEMINFOW,
-            MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MIIM_STRING, WM_COMMAND,
+            AppendMenuW, CreateMenu, EnableMenuItem, GetMenuItemInfoW, SetMenu, SetMenuItemInfoW,
+            MENUITEMINFOW, MFS_DISABLED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MIIM_STATE,
+            MIIM_STRING, WM_COMMAND,
         },
     },
 };
@@ -36,8 +37,6 @@ impl Menu {
             )
         };
         Submenu {
-            label: label.as_ref().to_string(),
-            enabled,
             hmenu,
             parent_hmenu: self.0,
         }
@@ -53,34 +52,49 @@ impl Menu {
 
 #[derive(Clone)]
 pub struct Submenu {
-    label: String,
-    enabled: bool,
     hmenu: isize,
     parent_hmenu: isize,
 }
 
 impl Submenu {
     pub fn label(&self) -> String {
-        self.label.clone()
-    }
-
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
-        self.label = label.as_ref().to_string();
+        let mut label = Vec::<u16>::new();
 
         let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
         info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
         info.fMask = MIIM_STRING;
-        info.dwTypeData = encode_wide(&self.label).as_mut_ptr();
+        info.dwTypeData = label.as_mut_ptr();
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.hmenu as _, false.into(), &mut info) };
+
+        info.cch += 1;
+        info.dwTypeData = Vec::with_capacity(info.cch as usize).as_mut_ptr();
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.hmenu as _, false.into(), &mut info) };
+
+        wchar_ptr_to_string(info.dwTypeData)
+    }
+
+    pub fn set_label(&mut self, label: impl AsRef<str>) {
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_STRING;
+        info.dwTypeData = encode_wide(label.as_ref()).as_mut_ptr();
 
         unsafe { SetMenuItemInfoW(self.parent_hmenu, self.hmenu as u32, false.into(), &info) };
     }
 
     pub fn enabled(&self) -> bool {
-        self.enabled
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_STATE;
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.hmenu as _, false.into(), &mut info) };
+
+        (info.fState & MFS_DISABLED) == 0
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
         unsafe {
             EnableMenuItem(
                 self.parent_hmenu,
@@ -105,8 +119,6 @@ impl Submenu {
             )
         };
         Submenu {
-            label: label.as_ref().to_string(),
-            enabled,
             hmenu,
             parent_hmenu: self.hmenu,
         }
@@ -127,8 +139,6 @@ impl Submenu {
             )
         };
         TextMenuItem {
-            label: label.as_ref().to_string(),
-            enabled,
             id,
             parent_hmenu: self.hmenu,
         }
@@ -137,34 +147,53 @@ impl Submenu {
 
 #[derive(Clone)]
 pub struct TextMenuItem {
-    label: String,
-    enabled: bool,
     id: u64,
     parent_hmenu: isize,
 }
 
 impl TextMenuItem {
     pub fn label(&self) -> String {
-        self.label.clone()
-    }
-
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
-        self.label = label.as_ref().to_string();
+        let mut label = Vec::<u16>::new();
 
         let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
         info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
         info.fMask = MIIM_STRING;
-        info.dwTypeData = encode_wide(&self.label).as_mut_ptr();
+        info.dwTypeData = label.as_mut_ptr();
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.id as _, false.into(), &mut info) };
+
+        info.cch += 1;
+        info.dwTypeData = Vec::with_capacity(info.cch as usize).as_mut_ptr();
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.id as _, false.into(), &mut info) };
+
+        wchar_ptr_to_string(info.dwTypeData)
+            .split("\t")
+            .next()
+            .unwrap_or_default()
+            .to_string()
+    }
+
+    pub fn set_label(&mut self, label: impl AsRef<str>) {
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_STRING;
+        info.dwTypeData = encode_wide(label.as_ref()).as_mut_ptr();
 
         unsafe { SetMenuItemInfoW(self.parent_hmenu, self.id as u32, false.into(), &info) };
     }
 
     pub fn enabled(&self) -> bool {
-        self.enabled
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_STATE;
+
+        unsafe { GetMenuItemInfoW(self.parent_hmenu, self.id as _, false.into(), &mut info) };
+
+        (info.fState & MFS_DISABLED) == 0
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
         unsafe {
             EnableMenuItem(
                 self.parent_hmenu,
