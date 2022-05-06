@@ -3,6 +3,12 @@ name = "minit"
 version = "0.0.0"
 description = "Cross-platform menu creation library."
 edition = "2021"
+keywords = ["windowing", "menu"]
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+repository = "https://github.com/amrbashir/minit"
+documentation = "https://docs.rs/minit"
+categories = ["gui"]
 
 [dependencies]
 crossbeam-channel = "0.5"

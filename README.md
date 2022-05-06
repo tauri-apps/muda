@@ -1,6 +1,6 @@
 # minit 
 
-Cross-platform menu creation library.
+Cross-platform menu creation library and management in Rust.
 
 ## Example
 
