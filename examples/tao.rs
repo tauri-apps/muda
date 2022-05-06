@@ -40,7 +40,7 @@ fn main() {
 
     let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
-    let counter = 0;
+    let mut counter = 0;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -49,8 +49,9 @@ fn main() {
             match event.id {
                 _ if event.id == save_item.id() => {
                     println!("Save menu item triggered");
-
+                    counter += 1;
                     save_item.set_label(format!("Save triggered {counter} times"));
+
                     if !open_item_disabled {
                         println!("Open item disabled!");
                         open_item.set_enabled(false);

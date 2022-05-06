@@ -1,9 +1,11 @@
+#![cfg(target_os = "linux")]
+
 use crate::util::Counter;
 use gtk::{prelude::*, Orientation};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-const COUNTER: Counter = Counter::new();
+static COUNTER: Counter = Counter::new();
 
 enum MenuEntryType {
     Submenu,

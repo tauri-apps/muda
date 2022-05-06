@@ -34,6 +34,11 @@ impl Menu {
     {
         self.0.init_for_gtk_window(w)
     }
+
+    #[cfg(target_os = "windows")]
+    pub fn init_for_hwnd(&self, hwnd: isize) {
+        self.0.init_for_hwnd(hwnd)
+    }
 }
 
 #[derive(Clone)]

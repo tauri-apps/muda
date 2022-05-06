@@ -11,7 +11,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut menu_bar = Menu::new();
     let mut file_menu = menu_bar.add_submenu("File", true);
@@ -28,12 +28,12 @@ fn main() {
     #[cfg(target_os = "windows")]
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(window2.hwnd() as _);
+        menu_bar.init_for_hwnd(_window2.hwnd() as _);
     }
 
     let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
-    let counter = 0;
+    let mut counter = 0;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -42,8 +42,9 @@ fn main() {
             match event.id {
                 _ if event.id == save_item.id() => {
                     println!("Save menu item triggered");
-
+                    counter += 1;
                     save_item.set_label(format!("Save triggered {counter} times"));
+
                     if !open_item_disabled {
                         println!("Open item disabled!");
                         open_item.set_enabled(false);
