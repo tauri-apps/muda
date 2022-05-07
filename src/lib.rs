@@ -1,5 +1,4 @@
-//! minit is a cross-platform menu creation library.
-//!
+//! muda is a menu utilities library for Desktop Applications.
 //! # Creating root menus
 //!
 //! Before you can add submenus and menu items, you first need a root or a base menu.

@@ -1,13 +1,13 @@
 [package]
-name = "minit"
+name = "muda"
 version = "0.0.0"
-description = "Cross-platform menu creation library."
+description = "Menu utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
-repository = "https://github.com/amrbashir/minit"
-documentation = "https://docs.rs/minit"
+repository = "https://github.com/amrbashir/muda"
+documentation = "https://docs.rs/muda"
 categories = ["gui"]
 
 [dependencies]

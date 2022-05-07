@@ -1,6 +1,6 @@
-# minit 
+# muda 
 
-Cross-platform menu creation library and management in Rust.
+Menu utilities for Desktop Applications.
 
 ## Example
 

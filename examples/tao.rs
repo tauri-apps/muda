@@ -1,4 +1,4 @@
-use minit::{menu_event_receiver, Menu};
+use muda::{menu_event_receiver, Menu};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
