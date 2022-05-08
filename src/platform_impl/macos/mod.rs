@@ -23,9 +23,22 @@ impl Menu {
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         let mut sub_menu = Submenu(Menu::new());
-        sub_menu.set_label(label);
+        sub_menu.set_label(label.as_ref());
         sub_menu.set_enabled(enabled);
+        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:));
+
+        unsafe {
+            item.ns_menu_item.setSubmenu_(sub_menu.0 .0);
+            self.0.addItem_(item.ns_menu_item);
+        }
+
         sub_menu
+    }
+
+    pub fn init_for_nsapp(&self) {
+        unsafe {
+            NSApp().setMainMenu_(self.0);
+        }
     }
 }
 

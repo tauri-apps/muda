@@ -20,6 +20,8 @@ let cut_item = file_menu.add_text_item("Cut", true);
 menu.init_for_hwnd(window.hwnd() as isize);
 #[cfg(target_os = "linux")]
 menu.init_for_gtk_window(&gtk_window);
+#[cfg(target_os = "macos")]
+menu.init_for_nsapp();
 ```
 Then listen for the events
 ```rs

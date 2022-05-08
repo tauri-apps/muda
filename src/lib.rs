@@ -40,6 +40,8 @@
 //! menu.init_for_hwnd(window.hwnd() as isize);
 //! #[cfg(target_os = "linux")]
 //! menu.init_for_gtk_window(&gtk_window);
+//! #[cfg(target_os = "macos")]
+//! menu.init_for_nsapp();
 //! ```
 //!
 //! # Processing menu events
@@ -117,6 +119,12 @@ impl Menu {
     #[cfg(target_os = "windows")]
     pub fn init_for_hwnd(&self, hwnd: isize) {
         self.0.init_for_hwnd(hwnd)
+    }
+
+    /// Adds this menu to NSApp.
+    #[cfg(target_os = "macos")]
+    pub fn init_for_nsapp(&self) {
+        self.0.init_for_nsapp()
     }
 }
 

@@ -31,6 +31,11 @@ fn main() {
         menu_bar.init_for_hwnd(_window2.hwnd() as _);
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        menu_bar.init_for_nsapp();
+    }
+
     let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
     let mut counter = 0;

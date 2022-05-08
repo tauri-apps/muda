@@ -38,6 +38,11 @@ fn main() {
         menu_bar.init_for_gtk_window(window2.gtk_window());
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        menu_bar.init_for_nsapp();
+    }
+
     let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
     let mut counter = 0;
