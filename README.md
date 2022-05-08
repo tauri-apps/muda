@@ -1,6 +1,6 @@
 # muda 
 
-Menu utilities for Desktop Applications.
+Menu Utilities for Desktop Applications.
 
 ## Example
 
