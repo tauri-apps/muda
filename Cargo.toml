@@ -1,7 +1,7 @@
 [package]
 name = "muda"
 version = "0.0.0"
-description = "Menu utilities for Desktop Applications"
+description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
 license = "Apache-2.0 OR MIT"
