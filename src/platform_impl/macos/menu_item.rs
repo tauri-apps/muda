@@ -1,6 +1,6 @@
 use cocoa::{
-    appkit::{NSButton, NSEventModifierFlags, NSMenuItem},
-    base::{id, nil, NO, YES},
+    appkit::NSButton,
+    base::{id, nil, BOOL, NO, YES},
     foundation::NSString,
 };
 use objc::{
@@ -10,6 +10,7 @@ use objc::{
     runtime::{Class, Object, Sel},
     sel, sel_impl,
 };
+use std::ffi::CStr;
 use std::sync::Once;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -73,19 +74,36 @@ impl TextMenuItem {
     }
 
     pub fn label(&self) -> String {
-        todo!()
+        unsafe {
+            let title = msg_send![self.ns_menu_item, title];
+            std::str::from_utf8(CStr::from_ptr(title).to_bytes())
+                .unwrap()
+                .to_string()
+        }
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
-        todo!()
+        unsafe {
+            let title = NSString::alloc(nil).init_str(label.as_ref());
+            self.ns_menu_item.setTitle_(title);
+        }
     }
 
     pub fn enabled(&self) -> bool {
-        todo!()
+        unsafe {
+            let enabled: BOOL = msg_send![self.ns_menu_item, enabled];
+            enabled
+        }
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        todo!()
+        unsafe {
+            let status = match enabled {
+                true => YES,
+                false => NO,
+            };
+            let () = msg_send![self.ns_menu_item, setEnabled: status];
+        }
     }
 
     pub fn id(&self) -> u64 {
