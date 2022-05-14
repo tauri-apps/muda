@@ -10,7 +10,7 @@ use objc::{
     runtime::{Class, Object, Sel},
     sel, sel_impl,
 };
-use std::ffi::CStr;
+use std::slice;
 use std::sync::Once;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -75,10 +75,11 @@ impl TextMenuItem {
 
     pub fn label(&self) -> String {
         unsafe {
-            let title = msg_send![self.ns_menu_item, title];
-            std::str::from_utf8(CStr::from_ptr(title).to_bytes())
-                .unwrap()
-                .to_string()
+            let title: id = msg_send![self.ns_menu_item, title];
+            let data = title.UTF8String() as *const u8;
+            let len = title.len();
+
+            String::from_utf8_lossy(slice::from_raw_parts(data, len)).to_string()
         }
     }
 
