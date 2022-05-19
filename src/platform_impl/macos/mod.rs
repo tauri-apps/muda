@@ -22,15 +22,20 @@ impl Menu {
     }
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
-        let mut sub_menu = Submenu(Menu::new());
-        sub_menu.set_label(label.as_ref());
-        sub_menu.set_enabled(enabled);
-        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:));
+        let menu = Menu::new();
+        let menu_item = TextMenuItem::new(
+            "",
+            enabled,
+            sel!(fireMenubarAction:),
+        );
 
         unsafe {
-            item.ns_menu_item.setSubmenu_(sub_menu.0 .0);
-            self.0.addItem_(item.ns_menu_item);
+            menu_item.ns_menu_item.setSubmenu_(menu.0);
+            self.0.addItem_(menu_item.ns_menu_item);
         }
+
+        let mut sub_menu = Submenu { menu, menu_item };
+        sub_menu.set_label(label);
 
         sub_menu
     }
@@ -43,34 +48,40 @@ impl Menu {
 }
 
 #[derive(Debug, Clone)]
-pub struct Submenu(Menu);
+pub struct Submenu {
+    pub(crate) menu: Menu,
+    pub(crate) menu_item: TextMenuItem,
+}
 
 impl Submenu {
     pub fn label(&self) -> String {
-        todo!()
+        self.menu_item.label()
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
+        self.menu_item.set_label(label.as_ref().to_string());
         unsafe {
             let menu_title = NSString::alloc(nil).init_str(label.as_ref());
-            let () = msg_send![self.0 .0, setTitle: menu_title];
+            let () = msg_send![self.menu.0, setTitle: menu_title];
         }
     }
 
     pub fn enabled(&self) -> bool {
-        true
+        self.menu_item.enabled()
     }
 
-    pub fn set_enabled(&mut self, _enabled: bool) {}
+    pub fn set_enabled(&mut self, _enabled: bool) {
+        self.menu_item.set_enabled(_enabled)
+    }
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
-        self.0.add_submenu(label, enabled)
+        self.menu.add_submenu(label, enabled)
     }
 
     pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
         let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:));
         unsafe {
-            self.0 .0.addItem_(item.ns_menu_item);
+            self.menu.0.addItem_(item.ns_menu_item);
         }
         item
     }
