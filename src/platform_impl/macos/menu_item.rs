@@ -92,7 +92,7 @@ impl TextMenuItem {
 
     pub fn enabled(&self) -> bool {
         unsafe {
-            let enabled: BOOL = msg_send![self.ns_menu_item, enabled];
+            let enabled: BOOL = msg_send![self.ns_menu_item, isEnabled];
             enabled
         }
     }
