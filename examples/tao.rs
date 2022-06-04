@@ -19,13 +19,14 @@ fn main() {
     let mut file_menu = menu_bar.add_submenu("File", true);
     let mut edit_menu = menu_bar.add_submenu("Edit", true);
 
-    let mut open_item = file_menu.add_text_item("Open", true);
+    let mut open_item = file_menu.add_text_item("Open", true, false);
 
-    let mut save_item = file_menu.add_text_item("Save", true);
-    let _quit_item = file_menu.add_text_item("Quit", true);
+    let mut save_item = file_menu.add_text_item("Save", true, false);
+    let _quit_item = file_menu.add_text_item("Quit", true, false);
 
-    let _copy_item = edit_menu.add_text_item("Copy", true);
-    let _cut_item = edit_menu.add_text_item("Cut", true);
+    let mut selected_item = edit_menu.add_text_item("Toggle Selected", true, true);
+    let _copy_item = edit_menu.add_text_item("Copy", true, false);
+    let _cut_item = edit_menu.add_text_item("Cut", true, false);
 
     #[cfg(target_os = "windows")]
     {
@@ -62,6 +63,10 @@ fn main() {
                         open_item.set_enabled(false);
                         open_item_disabled = true;
                     }
+                }
+                _ if event.id == selected_item.id() => {
+                    let selected = selected_item.selected();
+                    selected_item.set_selected(!selected);
                 }
                 _ => {}
             }

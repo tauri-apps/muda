@@ -9,12 +9,12 @@ Create the root menu and add submenus and men items.
 let mut menu = Menu::new();
 
 let file_menu = menu.add_submenu("File", true);
-let open_item = file_menu.add_text_item("Open", true);
-let save_item = file_menu.add_text_item("Save", true);
+let open_item = file_menu.add_text_item("Open", true, false);
+let save_item = file_menu.add_text_item("Save", true, false);
 
 let edit_menu = menu.add_submenu("Edit", true);
-let copy_item = file_menu.add_text_item("Copy", true);
-let cut_item = file_menu.add_text_item("Cut", true);
+let copy_item = file_menu.add_text_item("Copy", true, false);
+let cut_item = file_menu.add_text_item("Cut", true, false);
 
 #[cfg(target_os = "windows")]
 menu.init_for_hwnd(window.hwnd() as isize);
