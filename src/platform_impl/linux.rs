@@ -146,7 +146,12 @@ impl Submenu {
         Submenu(entry)
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        selected: bool,
+    ) -> TextMenuItem {
         let entry = Arc::new(Mutex::new(MenuEntry {
             label: label.as_ref().to_string(),
             enabled,
@@ -188,6 +193,14 @@ impl TextMenuItem {
             item.set_sensitive(enabled);
         }
         entry.enabled = enabled;
+    }
+
+    pub fn selected(&self) -> bool {
+        todo!()
+    }
+
+    pub fn set_selected(&self, is_selected: bool) {
+        todo!()
     }
 
     pub fn id(&self) -> u64 {

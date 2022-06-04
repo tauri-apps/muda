@@ -58,7 +58,7 @@ pub struct TextMenuItem {
 }
 
 impl TextMenuItem {
-    pub fn new(label: impl AsRef<str>, enabled: bool, selector: Sel) -> Self {
+    pub fn new(label: impl AsRef<str>, enabled: bool, selected: bool, selector: Sel) -> Self {
         let (id, ns_menu_item) = make_menu_item(label.as_ref(), selector);
 
         unsafe {
@@ -67,6 +67,10 @@ impl TextMenuItem {
 
             if !enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+
+            if selected {
+                let () = msg_send![ns_menu_item, setState: 1_isize];
             }
         }
 
@@ -104,6 +108,23 @@ impl TextMenuItem {
                 false => NO,
             };
             let () = msg_send![self.ns_menu_item, setEnabled: status];
+        }
+    }
+
+    pub fn selected(&self) -> bool {
+        unsafe {
+            let selected: BOOL = msg_send![self.ns_menu_item, state];
+            selected
+        }
+    }
+
+    pub fn set_selected(&self, is_selected: bool) {
+        let state = match is_selected {
+            true => 1_isize,
+            false => 0_isize,
+        };
+        unsafe {
+            let () = msg_send![self.ns_menu_item, setState: state];
         }
     }
 

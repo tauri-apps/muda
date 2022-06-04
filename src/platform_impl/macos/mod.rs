@@ -23,11 +23,7 @@ impl Menu {
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         let menu = Menu::new();
-        let menu_item = TextMenuItem::new(
-            "",
-            enabled,
-            sel!(fireMenubarAction:),
-        );
+        let menu_item = TextMenuItem::new("", enabled, false, sel!(fireMenubarAction:));
 
         unsafe {
             menu_item.ns_menu_item.setSubmenu_(menu.0);
@@ -78,8 +74,13 @@ impl Submenu {
         self.menu.add_submenu(label, enabled)
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:));
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        selected: bool,
+    ) -> TextMenuItem {
+        let item = TextMenuItem::new(label, enabled, selected, sel!(fireMenubarAction:));
         unsafe {
             self.menu.0.addItem_(item.ns_menu_item);
         }

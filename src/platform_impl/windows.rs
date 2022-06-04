@@ -124,7 +124,12 @@ impl Submenu {
         }
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        selected: bool,
+    ) -> TextMenuItem {
         let id = COUNTER.next();
         let mut flags = MF_POPUP;
         if !enabled {
@@ -201,6 +206,14 @@ impl TextMenuItem {
                 if enabled { MF_ENABLED } else { MF_DISABLED },
             )
         };
+    }
+
+    pub fn selected(&self) -> bool {
+        todo!()
+    }
+
+    pub fn set_selected(&self, is_selected: bool) {
+        todo!()
     }
 
     pub fn id(&self) -> u64 {

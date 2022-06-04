@@ -159,8 +159,13 @@ impl Submenu {
     }
 
     /// Creates a new [`TextMenuItem`] whithin this submenu.
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled))
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        selected: bool,
+    ) -> TextMenuItem {
+        TextMenuItem(self.0.add_text_item(label, enabled, selected))
     }
 }
 
@@ -187,6 +192,16 @@ impl TextMenuItem {
     /// Enables or disables the menu item.
     pub fn set_enabled(&mut self, enabled: bool) {
         self.0.set_enabled(enabled)
+    }
+
+    /// Gets the menu item's current selected state.
+    pub fn selected(&self) -> bool {
+        self.0.selected()
+    }
+
+    /// Select or unselect the menu item.
+    pub fn set_selected(&mut self, selected: bool) {
+        self.0.set_selected(selected)
     }
 
     /// Gets the unique id for this menu item.
