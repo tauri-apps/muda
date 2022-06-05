@@ -31,8 +31,8 @@ pub fn LOWORD(dword: u32) -> u16 {
 }
 
 #[cfg(target_os = "windows")]
-pub fn wchar_ptr_to_string(wchar: windows_sys::core::PWSTR) -> String {
-    let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(wchar) } as usize;
-    let wchar_slice = unsafe { std::slice::from_raw_parts(wchar, len) };
-    String::from_utf16_lossy(wchar_slice)
+pub fn decode_wide(w_str: *mut u16) -> String {
+    let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(w_str) } as usize;
+    let w_str_slice = unsafe { std::slice::from_raw_parts(w_str, len) };
+    String::from_utf16_lossy(w_str_slice)
 }

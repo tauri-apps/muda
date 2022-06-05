@@ -1,6 +1,6 @@
 #![cfg(target_os = "windows")]
 
-use crate::util::{encode_wide, wchar_ptr_to_string, Counter, LOWORD};
+use crate::util::{decode_wide, encode_wide, Counter, LOWORD};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
@@ -72,7 +72,7 @@ impl Submenu {
 
         unsafe { GetMenuItemInfoW(self.parent_hmenu, self.hmenu as _, false.into(), &mut info) };
 
-        wchar_ptr_to_string(info.dwTypeData)
+        decode_wide(info.dwTypeData)
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
@@ -167,7 +167,7 @@ impl TextMenuItem {
 
         unsafe { GetMenuItemInfoW(self.parent_hmenu, self.id as _, false.into(), &mut info) };
 
-        wchar_ptr_to_string(info.dwTypeData)
+        decode_wide(info.dwTypeData)
             .split("\t")
             .next()
             .unwrap_or_default()
