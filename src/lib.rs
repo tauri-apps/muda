@@ -106,9 +106,17 @@ impl Menu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    /// Adds this menu to a [`gtk::Window`].
+    /// Adds this menu to a [`gtk::Window`]
+    ///
+    /// This method adds a [`gtk::Box`] then adds a [`gtk::MenuBar`] as its first child and returns the [`gtk::Box`].
+    /// So if more widgets need to be added, then [`gtk::prelude::BoxExt::pack_start`] or
+    /// similiar methods should be used on the returned [`gtk::Box`].
+    ///
+    /// ## Safety:
+    ///
+    /// This should be called before anything is added to the window.
     #[cfg(target_os = "linux")]
-    pub fn init_for_gtk_window<W>(&self, w: &W)
+    pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
         W: gtk::prelude::IsA<gtk::Container>,
     {

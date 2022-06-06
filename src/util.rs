@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct Counter(AtomicU64);
@@ -11,7 +13,6 @@ impl Counter {
         self.0.fetch_add(1, Ordering::Relaxed)
     }
 
-    #[allow(unused)]
     pub fn current(&self) -> u64 {
         self.0.load(Ordering::Relaxed)
     }

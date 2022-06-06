@@ -3,7 +3,7 @@
 use crate::util::Counter;
 use gtk::{prelude::*, Orientation};
 use parking_lot::Mutex;
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 static COUNTER: Counter = Counter::new();
 
@@ -33,7 +33,7 @@ struct InnerMenu {
     // multiple times, and thus can't be used in multiple windows, entry
     // keeps a vector of a tuple of `gtk::MenuBar` and `gtk::Box`
     // and push to it every time `Menu::init_for_gtk_window` is called.
-    gtk_items: Vec<(gtk::MenuBar, gtk::Box)>,
+    gtk_items: Vec<(gtk::MenuBar, Rc<gtk::Box>)>,
 }
 
 pub struct Menu(Arc<Mutex<InnerMenu>>);
@@ -61,7 +61,7 @@ impl Menu {
         Submenu(entry)
     }
 
-    pub fn init_for_gtk_window<W>(&self, w: &W)
+    pub fn init_for_gtk_window<W>(&self, w: &W) -> Rc<gtk::Box>
     where
         W: IsA<gtk::Container>,
     {
@@ -73,7 +73,12 @@ impl Menu {
         w.add(&vbox);
         vbox.show_all();
 
+        let vbox = Rc::new(vbox);
+        let vbox_c = Rc::clone(&vbox);
+
         self.0.lock().gtk_items.push((menu_bar, vbox));
+
+        vbox_c
     }
 }
 
