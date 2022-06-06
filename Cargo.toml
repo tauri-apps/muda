@@ -25,7 +25,6 @@ features = [
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-parking_lot = "0.12"
 gtk = "0.15"
 
 [target.'cfg(target_os = "macos")'.dependencies]
