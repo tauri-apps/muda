@@ -1,11 +1,14 @@
-#![cfg(target_os = "linux")]
+mod accelerator;
 
 use crate::util::Counter;
 use gtk::{prelude::*, Orientation};
 use std::{cell::RefCell, rc::Rc};
 
+use self::accelerator::{to_gtk_accelerator, to_gtk_menemenoic};
+
 static COUNTER: Counter = Counter::new();
 
+#[derive(PartialEq, Eq)]
 enum MenuEntryType {
     Submenu,
     Text,
@@ -17,6 +20,7 @@ struct MenuEntry {
     enabled: bool,
     r#type: MenuEntryType,
     item_id: Option<u64>,
+    accelerator: Option<String>,
     // NOTE(amrbashir): because gtk doesn't allow using the same `gtk::MenuItem`
     // multiple times, and thus can't be used in multiple windows, each entry
     // keeps a vector of a `gtk::MenuItem` or a tuple of `gtk::MenuItem` and `gtk::Menu`
@@ -33,6 +37,7 @@ struct InnerMenu {
     // keeps a vector of a tuple of `gtk::MenuBar` and `gtk::Box`
     // and push to it every time `Menu::init_for_gtk_window` is called.
     gtk_items: Vec<(gtk::MenuBar, Rc<gtk::Box>)>,
+    accel_group: gtk::AccelGroup,
 }
 
 pub struct Menu(Rc<RefCell<InnerMenu>>);
@@ -42,6 +47,7 @@ impl Menu {
         Self(Rc::new(RefCell::new(InnerMenu {
             entries: Vec::new(),
             gtk_items: Vec::new(),
+            accel_group: gtk::AccelGroup::new(),
         })))
     }
 
@@ -53,6 +59,7 @@ impl Menu {
             entries: Some(Vec::new()),
             r#type: MenuEntryType::Submenu,
             item_id: None,
+            accelerator: None,
             menu_gtk_items: Some(Rc::new(RefCell::new(Vec::new()))),
             item_gtk_items: None,
         }));
@@ -63,9 +70,12 @@ impl Menu {
     pub fn init_for_gtk_window<W>(&self, w: &W) -> Rc<gtk::Box>
     where
         W: IsA<gtk::Container>,
+        W: IsA<gtk::Window>,
     {
+        let mut inner = self.0.borrow_mut();
         let menu_bar = gtk::MenuBar::new();
-        add_entries_to_menu(&menu_bar, &self.0.borrow().entries);
+        add_entries_to_menu(&menu_bar, &inner.entries, &inner.accel_group);
+        w.add_accel_group(&inner.accel_group);
 
         let vbox = gtk::Box::new(Orientation::Vertical, 0);
         vbox.pack_start(&menu_bar, false, false, 0);
@@ -75,7 +85,7 @@ impl Menu {
         let vbox = Rc::new(vbox);
         let vbox_c = Rc::clone(&vbox);
 
-        self.0.borrow_mut().gtk_items.push((menu_bar, vbox));
+        inner.gtk_items.push((menu_bar, vbox));
 
         vbox_c
     }
@@ -84,16 +94,17 @@ impl Menu {
 fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
     gtk_menu: &M,
     entries: &Vec<Rc<RefCell<MenuEntry>>>,
+    accel_group: &gtk::AccelGroup,
 ) {
     for entry in entries {
         let mut entry = entry.borrow_mut();
-        let gtk_item = gtk::MenuItem::with_label(&entry.label);
+        let gtk_item = gtk::MenuItem::with_mnemonic(&to_gtk_menemenoic(&entry.label));
         gtk_menu.append(&gtk_item);
         gtk_item.set_sensitive(entry.enabled);
-        if let MenuEntryType::Submenu = entry.r#type {
+        if entry.r#type == MenuEntryType::Submenu {
             let gtk_menu = gtk::Menu::new();
             gtk_item.set_submenu(Some(&gtk_menu));
-            add_entries_to_menu(&gtk_menu, entry.entries.as_ref().unwrap());
+            add_entries_to_menu(&gtk_menu, entry.entries.as_ref().unwrap(), accel_group);
             entry
                 .menu_gtk_items
                 .as_mut()
@@ -101,6 +112,17 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
                 .borrow_mut()
                 .push((gtk_item, gtk_menu));
         } else {
+            if let Some(accelerator) = &entry.accelerator {
+                let (key, modifiers) = gtk::accelerator_parse(&to_gtk_accelerator(accelerator));
+                gtk_item.add_accelerator(
+                    "activate",
+                    accel_group,
+                    key,
+                    modifiers,
+                    gtk::AccelFlags::VISIBLE,
+                );
+            }
+
             let id = entry.item_id.unwrap_or_default();
             gtk_item.connect_activate(move |_| {
                 let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
@@ -151,6 +173,7 @@ impl Submenu {
             entries: Some(Vec::new()),
             r#type: MenuEntryType::Submenu,
             item_id: None,
+            accelerator: None,
             menu_gtk_items: Some(Rc::new(RefCell::new(Vec::new()))),
             item_gtk_items: None,
         }));
@@ -163,13 +186,19 @@ impl Submenu {
         Submenu(entry)
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        accelerator: Option<&str>,
+    ) -> TextMenuItem {
         let entry = Rc::new(RefCell::new(MenuEntry {
-            label: label.as_ref().to_string(),
+            label: to_gtk_menemenoic(label),
             enabled,
             entries: None,
             r#type: MenuEntryType::Text,
             item_id: Some(COUNTER.next()),
+            accelerator: accelerator.map(|s| s.to_string()),
             menu_gtk_items: None,
             item_gtk_items: Some(Rc::new(RefCell::new(Vec::new()))),
         }));

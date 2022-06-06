@@ -72,6 +72,7 @@ impl Submenu {
 
         unsafe { GetMenuItemInfoW(self.parent_hmenu, self.hmenu as _, false.into(), &mut info) };
 
+        // TOOD: check if it returns the label containing an ambersand and make gtk comply to that
         decode_wide(info.dwTypeData)
     }
 
@@ -167,6 +168,7 @@ impl TextMenuItem {
 
         unsafe { GetMenuItemInfoW(self.parent_hmenu, self.id as _, false.into(), &mut info) };
 
+        // TOOD: check if it returns the label containing an ambersand and make gtk comply to that
         decode_wide(info.dwTypeData)
             .split("\t")
             .next()

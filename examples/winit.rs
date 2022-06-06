@@ -14,16 +14,16 @@ fn main() {
     let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut menu_bar = Menu::new();
-    let mut file_menu = menu_bar.add_submenu("File", true);
-    let mut edit_menu = menu_bar.add_submenu("Edit", true);
+    let mut file_menu = menu_bar.add_submenu("&File", true);
+    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
 
-    let mut open_item = file_menu.add_text_item("Open", true);
+    let mut open_item = file_menu.add_text_item("&Open", true, None);
 
-    let mut save_item = file_menu.add_text_item("Save", true);
-    let _quit_item = file_menu.add_text_item("Quit", true);
+    let mut save_item = file_menu.add_text_item("&Save", true, Some("CommandOrCtrl+S"));
+    let _quit_item = file_menu.add_text_item("&Quit", true, None);
 
-    let _copy_item = edit_menu.add_text_item("Copy", true);
-    let _cut_item = edit_menu.add_text_item("Cut", true);
+    let _copy_item = edit_menu.add_text_item("&Copy", true, None);
+    let _cut_item = edit_menu.add_text_item("C&ut", true, None);
 
     #[cfg(target_os = "windows")]
     {
@@ -43,7 +43,7 @@ fn main() {
                 _ if event.id == save_item.id() => {
                     println!("Save menu item activated!");
                     counter += 1;
-                    save_item.set_label(format!("Save activated {counter} times"));
+                    save_item.set_label(format!("&Save activated {counter} times"));
 
                     if !open_item_disabled {
                         println!("Open item disabled!");
@@ -59,7 +59,7 @@ fn main() {
             #[cfg(target_os = "macos")]
             Event::NewEvents(winit::event::StartCause::Init) => {
                 menu_bar.init_for_nsapp();
-            },
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..

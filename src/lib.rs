@@ -102,6 +102,13 @@ impl Menu {
     }
 
     /// Creates a new [`Submenu`] whithin this menu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
+    /// and the `&` character is not displayed on menu label.
+    /// Then the menu can be activated by press `Alt+F`.
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
@@ -119,6 +126,7 @@ impl Menu {
     pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
         W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.0.init_for_gtk_window(w)
     }
@@ -162,13 +170,32 @@ impl Submenu {
     }
 
     /// Creates a new [`Submenu`] whithin this submenu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
+    /// and the `&` character is not displayed on menu label.
+    /// Then the menu can be activated by press `F` when its parent menu is active.
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
     /// Creates a new [`TextMenuItem`] whithin this submenu.
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled))
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu item label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
+    /// and the `&` character is not displayed on menu item label.
+    /// Then the menu item can be activated by press `S` when its parent menu is active.
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        accelerator: Option<&str>,
+    ) -> TextMenuItem {
+        TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
     }
 }
 
