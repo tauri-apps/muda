@@ -1,6 +1,6 @@
 mod accelerator;
 
-use crate::util::Counter;
+use crate::counter::Counter;
 use gtk::{prelude::*, Orientation};
 use std::{cell::RefCell, rc::Rc};
 
@@ -40,6 +40,7 @@ struct InnerMenu {
     accel_group: gtk::AccelGroup,
 }
 
+#[derive(Clone)]
 pub struct Menu(Rc<RefCell<InnerMenu>>);
 
 impl Menu {

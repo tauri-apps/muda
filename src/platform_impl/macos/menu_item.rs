@@ -1,3 +1,4 @@
+use crate::counter::Counter;
 use cocoa::{
     appkit::NSButton,
     base::{id, nil, BOOL, NO, YES},
@@ -17,43 +18,11 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-/// Identifier of a custom menu item.
-///
-/// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
-/// identifies its origin.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MenuId(pub u64);
-
-impl From<MenuId> for u64 {
-    fn from(s: MenuId) -> u64 {
-        s.0
-    }
-}
-
-impl MenuId {
-    /// Return an empty `MenuId`.
-    pub const EMPTY: MenuId = MenuId(0);
-
-    /// Create new `MenuId` from a String.
-    pub fn new(unique_string: &str) -> MenuId {
-        MenuId(hash_string_to_u64(unique_string))
-    }
-
-    /// Whenever this menu is empty.
-    pub fn is_empty(self) -> bool {
-        Self::EMPTY == self
-    }
-}
-
-fn hash_string_to_u64(title: &str) -> u64 {
-    let mut s = DefaultHasher::new();
-    title.to_uppercase().hash(&mut s);
-    s.finish() as u64
-}
+static COUNTER: Counter = Counter::new();
 
 #[derive(Debug, Clone)]
 pub struct TextMenuItem {
-    pub(crate) id: MenuId,
+    pub(crate) id: u64,
     pub(crate) ns_menu_item: id,
 }
 
@@ -62,7 +31,7 @@ impl TextMenuItem {
         let (id, ns_menu_item) = make_menu_item(label.as_ref(), selector);
 
         unsafe {
-            (&mut *ns_menu_item).set_ivar(MENU_IDENTITY, id.0);
+            (&mut *ns_menu_item).set_ivar(MENU_IDENTITY, id);
             let () = msg_send![&*ns_menu_item, setTarget:&*ns_menu_item];
 
             if !enabled {
@@ -108,7 +77,7 @@ impl TextMenuItem {
     }
 
     pub fn id(&self) -> u64 {
-        self.id.0
+        self.id
     }
 }
 
@@ -119,7 +88,7 @@ pub fn make_menu_item(
     //menu_type: MenuType,
 ) -> (MenuId, *mut Object) {
     let alloc = make_menu_item_alloc();
-    let menu_id = MenuId::new(title);
+    let menu_id = COUNTER.next();
 
     unsafe {
         let title = NSString::alloc(nil).init_str(title);

@@ -32,5 +32,5 @@ cocoa = "0.24"
 objc = "0.2"
 
 [dev-dependencies]
-winit = "0.26"
+winit = { git = "https://github.com/rust-windowing/winit" }
 tao = { git = "https://github.com/tauri-apps/tao", branch = "muda/disable-gtk-menu-creation" }

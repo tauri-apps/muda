@@ -62,8 +62,8 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::Lazy;
 
+mod counter;
 mod platform_impl;
-mod util;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
 
@@ -93,6 +93,7 @@ pub struct MenuEvent {
 /// let file_menu = menu.add_submenu("File", true);
 /// let edit_menu = menu.add_submenu("Edit", true);
 /// ```
+#[derive(Clone)]
 pub struct Menu(platform_impl::Menu);
 
 impl Menu {
@@ -132,9 +133,39 @@ impl Menu {
     }
 
     /// Adds this menu to a win32 window.
+    ///
+    /// ##  Note about accelerators:
+    ///
+    /// For accelerators to work, the event loop needs to call
+    /// [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
+    /// with the [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) returned from [`Menu::haccel`]
+    ///
+    /// #### Example:
+    /// ```
+    /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW };
+    /// let menu = Menu::new();
+    /// unsafe {
+    ///     let msg: MSG = std::mem::zeroed();
+    ///     while GetMessageW(&mut msg, 0, 0, 0) == 1 {
+    ///         let translated = TranslateAcceleratorW(msg.hwnd, menu.haccel(), msg);
+    ///         if !translated {
+    ///             TranslateMessage(&msg);
+    ///             DispatchMessageW(&msg);
+    ///         }
+    ///     }
+    /// }
+    /// ```
     #[cfg(target_os = "windows")]
     pub fn init_for_hwnd(&self, hwnd: isize) {
         self.0.init_for_hwnd(hwnd)
+    }
+
+    /// Returns The [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) associated with this menu
+    /// It can be used with [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
+    /// in the event loop to enable accelerators
+    #[cfg(target_os = "windows")]
+    pub fn haccel(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HACCEL {
+        self.0.haccel()
     }
 
     /// Adds this menu to NSApp.
@@ -144,8 +175,8 @@ impl Menu {
     }
 }
 
-#[derive(Clone)]
 /// This is a submenu within another [`Submenu`] or [`Menu`].
+#[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
 impl Submenu {
