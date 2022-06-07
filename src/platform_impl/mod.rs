@@ -1,10 +1,10 @@
 pub use self::platform_impl::*;
 
 #[cfg(target_os = "windows")]
-#[path = "windows.rs"]
+#[path = "windows/mod.rs"]
 mod platform_impl;
 #[cfg(target_os = "linux")]
-#[path = "linux.rs"]
+#[path = "linux/mod.rs"]
 mod platform_impl;
 #[cfg(target_os = "macos")]
 #[path = "macos/mod.rs"]

@@ -62,8 +62,8 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::Lazy;
 
+mod counter;
 mod platform_impl;
-mod util;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
 
@@ -93,6 +93,7 @@ pub struct MenuEvent {
 /// let file_menu = menu.add_submenu("File", true);
 /// let edit_menu = menu.add_submenu("Edit", true);
 /// ```
+#[derive(Clone)]
 pub struct Menu(platform_impl::Menu);
 
 impl Menu {
@@ -102,6 +103,13 @@ impl Menu {
     }
 
     /// Creates a new [`Submenu`] whithin this menu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
+    /// and the `&` character is not displayed on menu label.
+    /// Then the menu can be activated by press `Alt+F`.
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
@@ -119,14 +127,45 @@ impl Menu {
     pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
         W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.0.init_for_gtk_window(w)
     }
 
     /// Adds this menu to a win32 window.
+    ///
+    /// ##  Note about accelerators:
+    ///
+    /// For accelerators to work, the event loop needs to call
+    /// [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
+    /// with the [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) returned from [`Menu::haccel`]
+    ///
+    /// #### Example:
+    /// ```
+    /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW };
+    /// let menu = Menu::new();
+    /// unsafe {
+    ///     let msg: MSG = std::mem::zeroed();
+    ///     while GetMessageW(&mut msg, 0, 0, 0) == 1 {
+    ///         let translated = TranslateAcceleratorW(msg.hwnd, menu.haccel(), msg);
+    ///         if !translated {
+    ///             TranslateMessage(&msg);
+    ///             DispatchMessageW(&msg);
+    ///         }
+    ///     }
+    /// }
+    /// ```
     #[cfg(target_os = "windows")]
     pub fn init_for_hwnd(&self, hwnd: isize) {
         self.0.init_for_hwnd(hwnd)
+    }
+
+    /// Returns The [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) associated with this menu
+    /// It can be used with [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
+    /// in the event loop to enable accelerators
+    #[cfg(target_os = "windows")]
+    pub fn haccel(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HACCEL {
+        self.0.haccel()
     }
 
     /// Adds this menu to NSApp.
@@ -136,8 +175,8 @@ impl Menu {
     }
 }
 
-#[derive(Clone)]
 /// This is a submenu within another [`Submenu`] or [`Menu`].
+#[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
 impl Submenu {
@@ -162,13 +201,32 @@ impl Submenu {
     }
 
     /// Creates a new [`Submenu`] whithin this submenu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
+    /// and the `&` character is not displayed on menu label.
+    /// Then the menu can be activated by press `F` when its parent menu is active.
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
     /// Creates a new [`TextMenuItem`] whithin this submenu.
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled))
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: The menu item label can containt `&` to indicate which letter should get a generated accelerator.
+    /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
+    /// and the `&` character is not displayed on menu item label.
+    /// Then the menu item can be activated by press `S` when its parent menu is active.
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        accelerator: Option<&str>,
+    ) -> TextMenuItem {
+        TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
     }
 }
 
