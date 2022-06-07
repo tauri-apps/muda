@@ -123,6 +123,10 @@ impl Menu {
     /// ## Safety:
     ///
     /// This should be called before anything is added to the window.
+    ///
+    /// ## Panics:
+    ///
+    /// Panics if the gtk event loop hasn't been initialized on the thread.
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
@@ -168,10 +172,68 @@ impl Menu {
         self.0.haccel()
     }
 
-    /// Adds this menu to NSApp.
+    /// Removes this menu from a [`gtk::Window`]
+    ///
+    /// ## Panics:
+    ///
+    /// Panics if the window doesn't have a menu created by this crate.
+    #[cfg(target_os = "linux")]
+    pub fn remove_for_gtk_window<W>(&self, w: &W)
+    where
+        W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        self.0.remove_for_gtk_window(w)
+    }
+
+    /// Removes this menu from a win32 window
+    #[cfg(target_os = "windows")]
+    pub fn remove_for_hwnd(&self, hwnd: isize) {
+        self.0.remove_for_hwnd(hwnd)
+    }
+
+    /// Hides this menu from a [`gtk::Window`]
+    #[cfg(target_os = "linux")]
+    pub fn hide_for_gtk_window<W>(&self, w: &W)
+    where
+        W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        self.0.hide_for_gtk_window(w)
+    }
+
+    /// Hides this menu from a win32 window
+    #[cfg(target_os = "windows")]
+    pub fn hide_for_hwnd(&self, hwnd: isize) {
+        self.0.hide_for_hwnd(hwnd)
+    }
+
+    /// Shows this menu from a [`gtk::Window`]
+    #[cfg(target_os = "linux")]
+    pub fn show_for_gtk_window<W>(&self, w: &W)
+    where
+        W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        self.0.show_for_gtk_window(w)
+    }
+
+    /// Shows this menu from a win32 window
+    #[cfg(target_os = "windows")]
+    pub fn show_for_hwnd(&self, hwnd: isize) {
+        self.0.show_for_hwnd(hwnd)
+    }
+
+    /// Adds this menu to an NSApp.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
         self.0.init_for_nsapp()
+    }
+
+    /// Removes this menu from an NSApp.
+    #[cfg(target_os = "macos")]
+    pub fn remove_for_nsapp(&self) {
+        self.0.remove_for_nsapp()
     }
 }
 

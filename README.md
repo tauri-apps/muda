@@ -1,4 +1,4 @@
-# muda 
+# muda
 
 Menu Utilities for Desktop Applications.
 
