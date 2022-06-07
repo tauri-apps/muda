@@ -11,9 +11,10 @@ use windows_sys::Win32::{
     UI::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
-            AppendMenuW, CreateAcceleratorTableW, CreateMenu, EnableMenuItem, GetMenuItemInfoW,
-            SetMenu, SetMenuItemInfoW, ACCEL, HACCEL, HMENU, MENUITEMINFOW, MFS_DISABLED,
-            MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MIIM_STATE, MIIM_STRING, WM_COMMAND,
+            AppendMenuW, CreateAcceleratorTableW, CreateMenu, DrawMenuBar, EnableMenuItem,
+            GetMenuItemInfoW, SetMenu, SetMenuItemInfoW, ACCEL, HACCEL, HMENU, MENUITEMINFOW,
+            MFS_DISABLED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MIIM_STATE, MIIM_STRING,
+            WM_COMMAND,
         },
     },
 };
@@ -66,6 +67,7 @@ impl Menu {
         unsafe {
             SetMenu(hwnd, self.0.borrow().hmenu);
             SetWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID, 0);
+            DrawMenuBar(hwnd);
         };
     }
 
@@ -84,18 +86,21 @@ impl Menu {
         unsafe {
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             SetMenu(hwnd, 0);
+            DrawMenuBar(hwnd);
         }
     }
 
     pub fn hide_for_hwnd(&self, hwnd: isize) {
         unsafe {
             SetMenu(hwnd, 0);
+            DrawMenuBar(hwnd);
         }
     }
 
     pub fn show_for_hwnd(&self, hwnd: isize) {
         unsafe {
             SetMenu(hwnd, self.0.borrow().hmenu);
+            DrawMenuBar(hwnd);
         }
     }
 }
