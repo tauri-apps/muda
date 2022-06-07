@@ -9,7 +9,7 @@ use util::{decode_wide, encode_wide, LOWORD};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
-        Shell::{DefSubclassProc, SetWindowSubclass},
+        Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, EnableMenuItem, GetMenuItemInfoW,
             SetMenu, SetMenuItemInfoW, ACCEL, HACCEL, HMENU, MENUITEMINFOW, MFS_DISABLED,
@@ -21,6 +21,7 @@ use windows_sys::Win32::{
 use self::accelerator::parse_accelerator;
 
 static COUNTER: Counter = Counter::new_with_start(563);
+const MENU_SUBCLASS_ID: usize = 232;
 
 struct InnerMenu {
     hmenu: HMENU,
@@ -64,7 +65,7 @@ impl Menu {
     pub fn init_for_hwnd(&self, hwnd: isize) {
         unsafe {
             SetMenu(hwnd, self.0.borrow().hmenu);
-            SetWindowSubclass(hwnd, Some(menu_subclass_proc), 22, 0);
+            SetWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID, 0);
         };
     }
 
@@ -77,6 +78,25 @@ impl Menu {
         inner.haccel = unsafe {
             CreateAcceleratorTableW(inner.accelerators.as_ptr(), inner.accelerators.len() as _)
         };
+    }
+
+    pub fn remove_for_hwnd(&self, hwnd: isize) {
+        unsafe {
+            RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+            SetMenu(hwnd, 0);
+        }
+    }
+
+    pub fn hide_for_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SetMenu(hwnd, 0);
+        }
+    }
+
+    pub fn show_for_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SetMenu(hwnd, self.0.borrow().hmenu);
+        }
     }
 }
 

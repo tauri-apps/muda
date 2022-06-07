@@ -1,10 +1,9 @@
 mod accelerator;
 
 use crate::counter::Counter;
+use accelerator::{to_gtk_accelerator, to_gtk_menemenoic};
 use gtk::{prelude::*, Orientation};
-use std::{cell::RefCell, rc::Rc};
-
-use self::accelerator::{to_gtk_accelerator, to_gtk_menemenoic};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 static COUNTER: Counter = Counter::new();
 
@@ -36,7 +35,7 @@ struct InnerMenu {
     // multiple times, and thus can't be used in multiple windows, entry
     // keeps a vector of a tuple of `gtk::MenuBar` and `gtk::Box`
     // and push to it every time `Menu::init_for_gtk_window` is called.
-    gtk_items: Vec<(gtk::MenuBar, Rc<gtk::Box>)>,
+    gtk_items: HashMap<isize, (Option<gtk::MenuBar>, Rc<gtk::Box>)>,
     accel_group: gtk::AccelGroup,
 }
 
@@ -47,7 +46,7 @@ impl Menu {
     pub fn new() -> Self {
         Self(Rc::new(RefCell::new(InnerMenu {
             entries: Vec::new(),
-            gtk_items: Vec::new(),
+            gtk_items: HashMap::new(),
             accel_group: gtk::AccelGroup::new(),
         })))
     }
@@ -74,21 +73,82 @@ impl Menu {
         W: IsA<gtk::Window>,
     {
         let mut inner = self.0.borrow_mut();
-        let menu_bar = gtk::MenuBar::new();
-        add_entries_to_menu(&menu_bar, &inner.entries, &inner.accel_group);
+
+        // This is the first time this method has been called on a window
+        if inner.gtk_items.get(&(w.as_ptr() as _)).is_none() {
+            let menu_bar = gtk::MenuBar::new();
+            let vbox = gtk::Box::new(Orientation::Vertical, 0);
+            w.add(&vbox);
+            inner
+                .gtk_items
+                .insert(w.as_ptr() as _, (Some(menu_bar), Rc::new(vbox)));
+        }
+
+        if let Some((menu_bar, vbox)) = inner.gtk_items.get(&(w.as_ptr() as _)) {
+            // This is NOT the first time this method has been called on a window.
+            // So it already contains a `gtk::Box` but it doesn't have a `gtk::MenuBar`
+            // because it was probably removed using `Menu::remove_for_gtk_window`
+            // so we only need to create the menubar
+            if menu_bar.is_none() {
+                let vbox = Rc::clone(vbox);
+                inner
+                    .gtk_items
+                    .insert(w.as_ptr() as _, (Some(gtk::MenuBar::new()), vbox));
+            }
+        }
+
+        let (menu_bar, vbox) = inner.gtk_items.get(&(w.as_ptr() as _)).unwrap();
+
+        add_entries_to_menu(
+            menu_bar.as_ref().unwrap(),
+            &inner.entries,
+            &inner.accel_group,
+        );
         w.add_accel_group(&inner.accel_group);
 
-        let vbox = gtk::Box::new(Orientation::Vertical, 0);
-        vbox.pack_start(&menu_bar, false, false, 0);
-        w.add(&vbox);
+        vbox.pack_start(menu_bar.as_ref().unwrap(), false, false, 0);
         vbox.show_all();
 
-        let vbox = Rc::new(vbox);
-        let vbox_c = Rc::clone(&vbox);
+        Rc::clone(vbox)
+    }
 
-        inner.gtk_items.push((menu_bar, vbox));
+    pub fn remove_for_gtk_window<W>(&self, w: &W)
+    where
+        W: IsA<gtk::Container>,
+        W: IsA<gtk::Window>,
+    {
+        let mut inner = self.0.borrow_mut();
 
-        vbox_c
+        if let Some((menu_bar, vbox)) = inner.gtk_items.get(&(w.as_ptr() as _)) {
+            vbox.remove(menu_bar.as_ref().unwrap());
+            w.remove_accel_group(&inner.accel_group);
+            let vbox = Rc::clone(vbox);
+            inner.gtk_items.insert(w.as_ptr() as _, (None, vbox));
+        }
+    }
+
+    pub fn hide_for_gtk_window<W>(&self, w: &W)
+    where
+        W: IsA<gtk::Container>,
+        W: IsA<gtk::Window>,
+    {
+        if let Some((menu_bar, _)) = self.0.borrow().gtk_items.get(&(w.as_ptr() as isize)) {
+            if let Some(menu_bar) = menu_bar {
+                menu_bar.hide();
+            }
+        }
+    }
+
+    pub fn show_for_gtk_window<W>(&self, w: &W)
+    where
+        W: IsA<gtk::Container>,
+        W: IsA<gtk::Window>,
+    {
+        if let Some((menu_bar, _)) = self.0.borrow().gtk_items.get(&(w.as_ptr() as isize)) {
+            if let Some(menu_bar) = menu_bar {
+                menu_bar.show_all();
+            }
+        }
     }
 }
 

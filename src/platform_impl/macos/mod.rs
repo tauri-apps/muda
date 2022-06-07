@@ -41,6 +41,12 @@ impl Menu {
             NSApp().setMainMenu_(self.0);
         }
     }
+
+    pub fn remove_for_nsapp(&self) {
+        unsafe {
+            NSApp().setMainMenu_(std::ptr::null_mut());
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
