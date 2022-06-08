@@ -21,7 +21,8 @@ features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_UI_Shell",
-    "Win32_Globalization"
+    "Win32_Globalization",
+    "Win32_UI_Input_KeyboardAndMouse"
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -33,4 +34,4 @@ objc = "0.2"
 
 [dev-dependencies]
 winit = { git = "https://github.com/rust-windowing/winit" }
-tao = { git = "https://github.com/tauri-apps/tao", branch = "muda/disable-gtk-menu-creation" }
+tao = { git = "https://github.com/tauri-apps/tao", branch = "muda" }

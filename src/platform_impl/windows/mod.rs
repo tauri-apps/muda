@@ -3,17 +3,19 @@
 mod accelerator;
 mod util;
 
-use crate::counter::Counter;
+use crate::{counter::Counter, NativeMenuItem};
 use std::{cell::RefCell, rc::Rc};
 use util::{decode_wide, encode_wide, LOWORD};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
+        Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYEVENTF_KEYUP, VK_CONTROL},
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
-            AppendMenuW, CreateAcceleratorTableW, CreateMenu, DrawMenuBar, EnableMenuItem,
-            GetMenuItemInfoW, SetMenu, SetMenuItemInfoW, ACCEL, HACCEL, HMENU, MENUITEMINFOW,
-            MFS_DISABLED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MIIM_STATE, MIIM_STRING,
+            AppendMenuW, CloseWindow, CreateAcceleratorTableW, CreateMenu, DrawMenuBar,
+            EnableMenuItem, GetMenuItemInfoW, PostQuitMessage, SetMenu, SetMenuItemInfoW,
+            ShowWindow, ACCEL, HACCEL, HMENU, MENUITEMINFOW, MFS_DISABLED, MF_DISABLED, MF_ENABLED,
+            MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MIIM_STATE, MIIM_STRING, SW_MINIMIZE,
             WM_COMMAND,
         },
     },
@@ -21,6 +23,7 @@ use windows_sys::Win32::{
 
 use self::accelerator::parse_accelerator;
 
+const COUNTER_START: u64 = 563;
 static COUNTER: Counter = Counter::new_with_start(563);
 const MENU_SUBCLASS_ID: usize = 232;
 
@@ -189,7 +192,7 @@ impl Submenu {
         accelerator: Option<&str>,
     ) -> TextMenuItem {
         let id = COUNTER.next();
-        let mut flags = MF_POPUP;
+        let mut flags = MF_STRING;
         if !enabled {
             flags |= MF_GRAYED;
         }
@@ -217,6 +220,28 @@ impl Submenu {
             id,
             parent_hmenu: self.hmenu,
         }
+    }
+
+    pub fn add_native_item(&mut self, item: NativeMenuItem) {
+        let (label, flags) = match item {
+            NativeMenuItem::Copy => ("&Copy\tCtrl+C", MF_STRING),
+            NativeMenuItem::Cut => ("Cu&t\tCtrl+X", MF_STRING),
+            NativeMenuItem::Paste => ("&Paste\tCtrl+V", MF_STRING),
+            NativeMenuItem::SelectAll => ("Select&All", MF_STRING),
+            NativeMenuItem::Separator => ("", MF_SEPARATOR),
+            NativeMenuItem::Minimize => ("&Minimize", MF_STRING),
+            NativeMenuItem::CloseWindow => ("Close", MF_STRING),
+            NativeMenuItem::Quit => ("Exit", MF_STRING),
+            _ => return,
+        };
+        unsafe {
+            AppendMenuW(
+                self.hmenu,
+                flags,
+                item.id() as _,
+                encode_wide(label).as_ptr(),
+            )
+        };
     }
 }
 
@@ -302,10 +327,120 @@ unsafe extern "system" fn menu_subclass_proc(
     _uidsubclass: usize,
     _dwrefdata: usize,
 ) -> LRESULT {
-    let id = LOWORD(wparam as _);
-    if msg == WM_COMMAND && 0 < id && (id as u64) < COUNTER.current() {
-        let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id: id as _ });
-    };
+    if msg == WM_COMMAND {
+        let id = LOWORD(wparam as _) as u64;
+
+        // Custom menu items
+        if COUNTER_START < id && id < COUNTER.current() {
+            let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+            return 0;
+        };
+
+        // Native menu items
+        if NativeMenuItem::is_native(id) {
+            let native_item = NativeMenuItem::from_id(id);
+            match native_item {
+                NativeMenuItem::Copy => {
+                    execute_edit_command(EditCommand::Copy);
+                }
+                NativeMenuItem::Cut => {
+                    execute_edit_command(EditCommand::Cut);
+                }
+                NativeMenuItem::Paste => {
+                    execute_edit_command(EditCommand::Paste);
+                }
+                NativeMenuItem::SelectAll => {
+                    execute_edit_command(EditCommand::SelectAll);
+                }
+                NativeMenuItem::Minimize => {
+                    ShowWindow(hwnd, SW_MINIMIZE);
+                }
+                NativeMenuItem::CloseWindow => {
+                    CloseWindow(hwnd);
+                }
+                NativeMenuItem::Quit => {
+                    PostQuitMessage(0);
+                }
+                _ => unreachable!(),
+            }
+            return 0;
+        }
+    }
 
     DefSubclassProc(hwnd, msg, wparam, lparam)
+}
+
+enum EditCommand {
+    Copy,
+    Cut,
+    Paste,
+    SelectAll,
+}
+
+fn execute_edit_command(command: EditCommand) {
+    let key = match command {
+        EditCommand::Copy => 0x43,      // c
+        EditCommand::Cut => 0x58,       // x
+        EditCommand::Paste => 0x56,     // v
+        EditCommand::SelectAll => 0x41, // a
+    };
+
+    unsafe {
+        let mut inputs: [INPUT; 4] = std::mem::zeroed();
+        inputs[0].r#type = INPUT_KEYBOARD;
+        inputs[0].Anonymous.ki.wVk = VK_CONTROL;
+        inputs[2].Anonymous.ki.dwFlags = 0;
+
+        inputs[1].r#type = INPUT_KEYBOARD;
+        inputs[1].Anonymous.ki.wVk = key;
+        inputs[2].Anonymous.ki.dwFlags = 0;
+
+        inputs[2].r#type = INPUT_KEYBOARD;
+        inputs[2].Anonymous.ki.wVk = key;
+        inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
+
+        inputs[3].r#type = INPUT_KEYBOARD;
+        inputs[3].Anonymous.ki.wVk = VK_CONTROL;
+        inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
+
+        let ret = SendInput(4, &inputs as *const _, std::mem::size_of::<INPUT>() as _);
+        dbg!(ret);
+    }
+}
+
+impl NativeMenuItem {
+    fn id(&self) -> u64 {
+        match self {
+            NativeMenuItem::Copy => 301,
+            NativeMenuItem::Cut => 302,
+            NativeMenuItem::Paste => 303,
+            NativeMenuItem::SelectAll => 304,
+            NativeMenuItem::Separator => 305,
+            NativeMenuItem::Minimize => 306,
+            NativeMenuItem::CloseWindow => 307,
+            NativeMenuItem::Quit => 308,
+            _ => unreachable!(),
+        }
+    }
+
+    fn is_native(id: u64) -> bool {
+        match id {
+            301..=308 => true,
+            _ => false,
+        }
+    }
+
+    fn from_id(id: u64) -> NativeMenuItem {
+        match id {
+            301 => NativeMenuItem::Copy,
+            302 => NativeMenuItem::Cut,
+            303 => NativeMenuItem::Paste,
+            304 => NativeMenuItem::SelectAll,
+            305 => NativeMenuItem::Separator,
+            306 => NativeMenuItem::Minimize,
+            307 => NativeMenuItem::CloseWindow,
+            308 => NativeMenuItem::Quit,
+            _ => unreachable!(),
+        }
+    }
 }

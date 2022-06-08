@@ -290,6 +290,10 @@ impl Submenu {
     ) -> TextMenuItem {
         TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
     }
+
+    pub fn add_native_item(&mut self, item: NativeMenuItem) {
+        self.0.add_native_item(item)
+    }
 }
 
 /// This is a Text menu item within a [`Submenu`].
@@ -321,4 +325,124 @@ impl TextMenuItem {
     pub fn id(&self) -> u64 {
         self.0.id()
     }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub enum NativeMenuItem {
+    /// A native “About” menu item.
+    ///
+    /// The first value is the application name, and the second is its metadata.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **macOS**: the metadata is ignore.
+    /// - **Windows**: Unsupported.
+    About(String, AboutMetadata),
+    /// A native “hide the app” menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Hide,
+    /// A native “hide all other windows" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    HideOthers,
+    /// A native "Show all windows for this app" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    ShowAll,
+    /// A native "Services" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Services,
+    /// A native "Close current window" menu item.
+    CloseWindow,
+    /// A native "Quit///
+    Quit,
+    /// A native "Copy" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Copy" keyboard shortcut for your app.
+    Copy,
+    /// A native "Cut" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Cut" keyboard shortcut for your app.
+    Cut,
+    /// A native "Paste" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Paste" keyboard shortcut for your app.
+    Paste,
+    /// A native "Undo" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Undo" keyboard shortcut for your app.
+    /// - **Windows / Linux**: Unsupported.
+    Undo,
+    /// A native "Redo" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Redo" keyboard shortcut for your app.
+    /// - **Windows / Linux**: Unsupported.
+    Redo,
+    /// A native "Select All" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Select All" keyboard shortcut for your app.
+    /// - **Linux**: Unsupported.
+    SelectAll,
+    /// A native "Enter fullscreen" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    EnterFullScreen,
+    /// A native "Minimize current window" menu item.
+    Minimize,
+    /// A native "Zoom" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Zoom,
+    /// Represends a Separator in the menu.
+    Separator,
+}
+
+/// Application metadata for the [`NativeMenuItem::About`].
+///
+/// ## Platform-specific
+///
+/// - **macOS**: The metadata is ignored.
+#[derive(Debug, Clone, Default)]
+pub struct AboutMetadata {
+    /// The application name.
+    pub version: Option<String>,
+    /// The authors of the application.
+    pub authors: Option<Vec<String>>,
+    /// Application comments.
+    pub comments: Option<String>,
+    /// The copyright of the application.
+    pub copyright: Option<String>,
+    /// The license of the application.
+    pub license: Option<String>,
+    /// The application website.
+    pub website: Option<String>,
+    /// The website label.
+    pub website_label: Option<String>,
 }
