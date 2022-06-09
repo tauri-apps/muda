@@ -327,47 +327,51 @@ unsafe extern "system" fn menu_subclass_proc(
     _uidsubclass: usize,
     _dwrefdata: usize,
 ) -> LRESULT {
+    let mut ret = -1;
     if msg == WM_COMMAND {
         let id = LOWORD(wparam as _) as u64;
 
         // Custom menu items
         if COUNTER_START < id && id < COUNTER.current() {
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
-            return 0;
+            ret = 0;
         };
 
         // Native menu items
-        if NativeMenuItem::is_native(id) {
-            let native_item = NativeMenuItem::from_id(id);
-            match native_item {
-                NativeMenuItem::Copy => {
+        if NativeMenuItem::is_id_of_native(id) {
+            ret = 0;
+            match id {
+                _ if id == NativeMenuItem::Copy.id() => {
                     execute_edit_command(EditCommand::Copy);
                 }
-                NativeMenuItem::Cut => {
+                _ if id == NativeMenuItem::Cut.id() => {
                     execute_edit_command(EditCommand::Cut);
                 }
-                NativeMenuItem::Paste => {
+                _ if id == NativeMenuItem::Paste.id() => {
                     execute_edit_command(EditCommand::Paste);
                 }
-                NativeMenuItem::SelectAll => {
+                _ if id == NativeMenuItem::SelectAll.id() => {
                     execute_edit_command(EditCommand::SelectAll);
                 }
-                NativeMenuItem::Minimize => {
+                _ if id == NativeMenuItem::Minimize.id() => {
                     ShowWindow(hwnd, SW_MINIMIZE);
                 }
-                NativeMenuItem::CloseWindow => {
+                _ if id == NativeMenuItem::CloseWindow.id() => {
                     CloseWindow(hwnd);
                 }
-                NativeMenuItem::Quit => {
+                _ if id == NativeMenuItem::Quit.id() => {
                     PostQuitMessage(0);
                 }
                 _ => unreachable!(),
             }
-            return 0;
         }
     }
 
-    DefSubclassProc(hwnd, msg, wparam, lparam)
+    if ret == -1 {
+        DefSubclassProc(hwnd, msg, wparam, lparam)
+    } else {
+        ret
+    }
 }
 
 enum EditCommand {
@@ -423,24 +427,7 @@ impl NativeMenuItem {
         }
     }
 
-    fn is_native(id: u64) -> bool {
-        match id {
-            301..=308 => true,
-            _ => false,
-        }
-    }
-
-    fn from_id(id: u64) -> NativeMenuItem {
-        match id {
-            301 => NativeMenuItem::Copy,
-            302 => NativeMenuItem::Cut,
-            303 => NativeMenuItem::Paste,
-            304 => NativeMenuItem::SelectAll,
-            305 => NativeMenuItem::Separator,
-            306 => NativeMenuItem::Minimize,
-            307 => NativeMenuItem::CloseWindow,
-            308 => NativeMenuItem::Quit,
-            _ => unreachable!(),
-        }
+    fn is_id_of_native(id: u64) -> bool {
+        (301..=308).contains(&id)
     }
 }
