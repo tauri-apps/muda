@@ -114,7 +114,7 @@ impl Menu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    /// Adds this menu to a [`gtk::Window`]
+    /// Adds this menu to a [`gtk::ApplicationWindow`]
     ///
     /// This method adds a [`gtk::Box`] then adds a [`gtk::MenuBar`] as its first child and returns the [`gtk::Box`].
     /// So if more widgets need to be added, then [`gtk::prelude::BoxExt::pack_start`] or
@@ -130,6 +130,7 @@ impl Menu {
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Container>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
@@ -172,15 +173,11 @@ impl Menu {
         self.0.haccel()
     }
 
-    /// Removes this menu from a [`gtk::Window`]
-    ///
-    /// ## Panics:
-    ///
-    /// Panics if the window doesn't have a menu created by this crate.
+    /// Removes this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn remove_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.0.remove_for_gtk_window(w)
@@ -192,12 +189,11 @@ impl Menu {
         self.0.remove_for_hwnd(hwnd)
     }
 
-    /// Hides this menu from a [`gtk::Window`]
+    /// Hides this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn hide_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
         self.0.hide_for_gtk_window(w)
     }
@@ -208,12 +204,11 @@ impl Menu {
         self.0.hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu from a [`gtk::Window`]
+    /// Shows this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn show_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
         self.0.show_for_gtk_window(w)
     }
@@ -372,18 +367,21 @@ pub enum NativeMenuItem {
     /// ## Platform-specific:
     ///
     /// - **macOS**: macOS require this menu item to enable "Copy" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
     Copy,
     /// A native "Cut" menu item.
     ///
     /// ## Platform-specific:
     ///
     /// - **macOS**: macOS require this menu item to enable "Cut" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
     Cut,
     /// A native "Paste" menu item.
     ///
     /// ## Platform-specific:
     ///
     /// - **macOS**: macOS require this menu item to enable "Paste" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
     Paste,
     /// A native "Undo" menu item.
     ///
@@ -404,7 +402,7 @@ pub enum NativeMenuItem {
     /// ## Platform-specific:
     ///
     /// - **macOS**: macOS require this menu item to enable "Select All" keyboard shortcut for your app.
-    /// - **Linux**: Unsupported.
+    /// - **Linux Wayland**: Not implmeneted.
     SelectAll,
     /// A native "Enter fullscreen" menu item.
     ///

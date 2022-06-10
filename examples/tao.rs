@@ -1,4 +1,4 @@
-use muda::{menu_event_receiver, Menu};
+use muda::{menu_event_receiver, Menu, NativeMenuItem};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -16,16 +16,19 @@ fn main() {
     let window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut menu_bar = Menu::new();
+
     let mut file_menu = menu_bar.add_submenu("&File", true);
-    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
-
     let mut open_item = file_menu.add_text_item("&Open", true, None);
-
     let mut save_item = file_menu.add_text_item("&Save", true, Some("CommandOrCtrl+S"));
-    let _quit_item = file_menu.add_text_item("&Quit", true, None);
+    file_menu.add_native_item(NativeMenuItem::Minimize);
+    file_menu.add_native_item(NativeMenuItem::CloseWindow);
+    file_menu.add_native_item(NativeMenuItem::Quit);
 
-    let _copy_item = edit_menu.add_text_item("&Copy", true, None);
-    let _cut_item = edit_menu.add_text_item("C&ut", true, None);
+    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
+    edit_menu.add_native_item(NativeMenuItem::Cut);
+    edit_menu.add_native_item(NativeMenuItem::Copy);
+    edit_menu.add_native_item(NativeMenuItem::Paste);
+    edit_menu.add_native_item(NativeMenuItem::SelectAll);
 
     #[cfg(target_os = "windows")]
     {
@@ -38,17 +41,27 @@ fn main() {
         menu_bar.init_for_gtk_window(window2.gtk_window());
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        menu_bar.init_for_nsapp();
-    }
-
     let menu_channel = menu_event_receiver();
     let mut open_item_disabled = false;
     let mut counter = 0;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
+
+        match event {
+            #[cfg(target_os = "macos")]
+            Event::NewEvents(tao::event::StartCause::Init) => {
+                menu_bar.init_for_nsapp();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::MainEventsCleared => {
+                // window.request_redraw();
+            }
+            _ => (),
+        }
 
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
@@ -65,17 +78,6 @@ fn main() {
                 }
                 _ => {}
             }
-        }
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            _ => (),
         }
     })
 }
