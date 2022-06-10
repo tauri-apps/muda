@@ -114,7 +114,7 @@ impl Menu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    /// Adds this menu to a [`gtk::Window`]
+    /// Adds this menu to a [`gtk::ApplicationWindow`]
     ///
     /// This method adds a [`gtk::Box`] then adds a [`gtk::MenuBar`] as its first child and returns the [`gtk::Box`].
     /// So if more widgets need to be added, then [`gtk::prelude::BoxExt::pack_start`] or
@@ -130,6 +130,7 @@ impl Menu {
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W>(&self, w: &W) -> std::rc::Rc<gtk::Box>
     where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Container>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
@@ -172,15 +173,11 @@ impl Menu {
         self.0.haccel()
     }
 
-    /// Removes this menu from a [`gtk::Window`]
-    ///
-    /// ## Panics:
-    ///
-    /// Panics if the window doesn't have a menu created by this crate.
+    /// Removes this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn remove_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.0.remove_for_gtk_window(w)
@@ -192,12 +189,11 @@ impl Menu {
         self.0.remove_for_hwnd(hwnd)
     }
 
-    /// Hides this menu from a [`gtk::Window`]
+    /// Hides this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn hide_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
         self.0.hide_for_gtk_window(w)
     }
@@ -208,12 +204,11 @@ impl Menu {
         self.0.hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu from a [`gtk::Window`]
+    /// Shows this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn show_for_gtk_window<W>(&self, w: &W)
     where
-        W: gtk::prelude::IsA<gtk::Container>,
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
         self.0.show_for_gtk_window(w)
     }
@@ -290,6 +285,10 @@ impl Submenu {
     ) -> TextMenuItem {
         TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
     }
+
+    pub fn add_native_item(&mut self, item: NativeMenuItem) {
+        self.0.add_native_item(item)
+    }
 }
 
 /// This is a Text menu item within a [`Submenu`].
@@ -321,4 +320,127 @@ impl TextMenuItem {
     pub fn id(&self) -> u64 {
         self.0.id()
     }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub enum NativeMenuItem {
+    /// A native “About” menu item.
+    ///
+    /// The first value is the application name, and the second is its metadata.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **macOS**: the metadata is ignore.
+    /// - **Windows**: Not implemented.
+    About(String, AboutMetadata),
+    /// A native “hide the app” menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Hide,
+    /// A native “hide all other windows" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    HideOthers,
+    /// A native "Show all windows for this app" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    ShowAll,
+    /// A native "Services" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Services,
+    /// A native "Close current window" menu item.
+    CloseWindow,
+    /// A native "Quit///
+    Quit,
+    /// A native "Copy" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Copy" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
+    Copy,
+    /// A native "Cut" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Cut" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
+    Cut,
+    /// A native "Paste" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Paste" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
+    Paste,
+    /// A native "Undo" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Undo" keyboard shortcut for your app.
+    /// - **Windows / Linux**: Unsupported.
+    Undo,
+    /// A native "Redo" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Redo" keyboard shortcut for your app.
+    /// - **Windows / Linux**: Unsupported.
+    Redo,
+    /// A native "Select All" menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: macOS require this menu item to enable "Select All" keyboard shortcut for your app.
+    /// - **Linux Wayland**: Not implmeneted.
+    SelectAll,
+    /// A native "Enter fullscreen" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    EnterFullScreen,
+    /// A native "Minimize current window" menu item.
+    Minimize,
+    /// A native "Zoom" menu item.
+    ///
+    /// ## platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    Zoom,
+    /// Represends a Separator in the menu.
+    Separator,
+}
+
+/// Application metadata for the [`NativeMenuItem::About`].
+///
+/// ## Platform-specific
+///
+/// - **macOS**: The metadata is ignored.
+#[derive(Debug, Clone, Default)]
+pub struct AboutMetadata {
+    /// The application name.
+    pub version: Option<String>,
+    /// The authors of the application.
+    pub authors: Option<Vec<String>>,
+    /// Application comments.
+    pub comments: Option<String>,
+    /// The copyright of the application.
+    pub copyright: Option<String>,
+    /// The license of the application.
+    pub license: Option<String>,
+    /// The application website.
+    pub website: Option<String>,
+    /// The website label.
+    pub website_label: Option<String>,
 }

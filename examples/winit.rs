@@ -1,4 +1,4 @@
-use muda::{menu_event_receiver, Menu};
+use muda::{menu_event_receiver, Menu, NativeMenuItem};
 #[cfg(target_os = "macos")]
 use winit::platform::macOS::EventLoopExtMacOS;
 #[cfg(target_os = "windows")]
@@ -36,15 +36,17 @@ fn main() {
     let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut file_menu = menu_bar.add_submenu("&File", true);
-    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
-
-    let mut open_item = file_menu.add_text_item("&Open", true, Some("Ctrl+O"));
-
+    let mut open_item = file_menu.add_text_item("&Open", true, None);
     let mut save_item = file_menu.add_text_item("&Save", true, Some("CommandOrCtrl+S"));
-    let _quit_item = file_menu.add_text_item("&Quit", true, None);
+    file_menu.add_native_item(NativeMenuItem::Minimize);
+    file_menu.add_native_item(NativeMenuItem::CloseWindow);
+    file_menu.add_native_item(NativeMenuItem::Quit);
 
-    let _copy_item = edit_menu.add_text_item("&Copy", true, Some("Ctrl+C"));
-    let _cut_item = edit_menu.add_text_item("C&ut", true, None);
+    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
+    edit_menu.add_native_item(NativeMenuItem::Cut);
+    edit_menu.add_native_item(NativeMenuItem::Copy);
+    edit_menu.add_native_item(NativeMenuItem::Paste);
+    edit_menu.add_native_item(NativeMenuItem::SelectAll);
 
     #[cfg(target_os = "windows")]
     {
@@ -64,6 +66,21 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
+        match event {
+            #[cfg(target_os = "macos")]
+            Event::NewEvents(winit::event::StartCause::Init) => {
+                menu_bar.init_for_nsapp();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::MainEventsCleared => {
+                window.request_redraw();
+            }
+            _ => (),
+        }
+
         if let Ok(event) = menu_channel.try_recv() {
             match event.id {
                 _ if event.id == save_item.id() => {
@@ -79,21 +96,6 @@ fn main() {
                 }
                 _ => {}
             }
-        }
-
-        match event {
-            #[cfg(target_os = "macos")]
-            Event::NewEvents(winit::event::StartCause::Init) => {
-                menu_bar.init_for_nsapp();
-            }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            _ => (),
         }
     })
 }
