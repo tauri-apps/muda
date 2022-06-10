@@ -332,7 +332,7 @@ pub enum NativeMenuItem {
     /// ## platform-specific:
     ///
     /// - **macOS**: the metadata is ignore.
-    /// - **Windows**: Unsupported.
+    /// - **Windows**: Not implemented.
     About(String, AboutMetadata),
     /// A native “hide the app” menu item.
     ///
