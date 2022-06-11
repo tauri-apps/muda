@@ -1,4 +1,4 @@
-use muda::{menu_event_receiver, AboutMetadata, Menu, NativeMenuItem};
+use muda::{menu_event_receiver, Menu, NativeMenuItem};
 #[cfg(target_os = "macos")]
 use winit::platform::macOS::EventLoopExtMacOS;
 #[cfg(target_os = "windows")]
@@ -44,18 +44,6 @@ fn main() {
 
     let mut edit_menu = menu_bar.add_submenu("&Edit", true);
     edit_menu.add_native_item(NativeMenuItem::Cut);
-    edit_menu.add_native_item(NativeMenuItem::About(
-        "Winit".into(),
-        AboutMetadata {
-            version: Some("0.2.1".to_string()),
-            authors: Some(vec!["amrbashire".into(), "wusyong".into()]),
-            comments: Some("Heloadja; ffa\nasfkjakldhgjkljafsd".to_string()),
-            copyright: Some("Copyrright 2020".to_string()),
-            license: Some("MIT".to_string()),
-            website_label: Some("tauri".to_string()),
-            website: Some("https://tauri.studio".to_string()),
-        },
-    ));
     edit_menu.add_native_item(NativeMenuItem::Copy);
     edit_menu.add_native_item(NativeMenuItem::Paste);
     edit_menu.add_native_item(NativeMenuItem::SelectAll);
