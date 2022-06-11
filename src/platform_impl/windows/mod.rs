@@ -4,7 +4,8 @@ mod accelerator;
 mod util;
 
 use crate::{counter::Counter, NativeMenuItem};
-use std::{cell::RefCell, rc::Rc};
+use once_cell::sync::Lazy;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use util::{decode_wide, encode_wide, LOWORD};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
@@ -13,19 +14,21 @@ use windows_sys::Win32::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             AppendMenuW, CloseWindow, CreateAcceleratorTableW, CreateMenu, DrawMenuBar,
-            EnableMenuItem, GetMenuItemInfoW, PostQuitMessage, SetMenu, SetMenuItemInfoW,
-            ShowWindow, ACCEL, HACCEL, HMENU, MENUITEMINFOW, MFS_DISABLED, MF_DISABLED, MF_ENABLED,
-            MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MIIM_STATE, MIIM_STRING, SW_MINIMIZE,
-            WM_COMMAND,
+            EnableMenuItem, GetMenuItemInfoW, MessageBoxW, PostQuitMessage, SetMenu,
+            SetMenuItemInfoW, ShowWindow, ACCEL, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
+            MFS_DISABLED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING,
+            MIIM_STATE, MIIM_STRING, SW_MINIMIZE, WM_COMMAND,
         },
     },
 };
 
 use self::accelerator::parse_accelerator;
 
-const COUNTER_START: u64 = 563;
-static COUNTER: Counter = Counter::new_with_start(563);
-const MENU_SUBCLASS_ID: usize = 232;
+const MENU_SUBCLASS_ID: usize = 200;
+const COUNTER_START: u64 = 1000;
+static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
+const ABOUT_COUNTER_START: u64 = 400;
+static ABOUT_COUNTER: Counter = Counter::new_with_start(ABOUT_COUNTER_START);
 
 struct InnerMenu {
     hmenu: HMENU,
@@ -107,6 +110,8 @@ impl Menu {
         }
     }
 }
+
+static mut ABOUT_MENU_ITEMS: Lazy<HashMap<u64, NativeMenuItem>> = Lazy::new(|| HashMap::new());
 
 #[derive(Clone)]
 pub struct Submenu {
@@ -232,6 +237,19 @@ impl Submenu {
             NativeMenuItem::Minimize => ("&Minimize", MF_STRING),
             NativeMenuItem::CloseWindow => ("Close", MF_STRING),
             NativeMenuItem::Quit => ("Exit", MF_STRING),
+            NativeMenuItem::About(ref app_name, _) => {
+                let id = ABOUT_COUNTER.next();
+                unsafe {
+                    AppendMenuW(
+                        self.hmenu,
+                        MF_STRING,
+                        id as _,
+                        encode_wide(format!("About {}", app_name)).as_ptr(),
+                    );
+                    ABOUT_MENU_ITEMS.insert(id, item);
+                }
+                return;
+            }
             _ => return,
         };
         unsafe {
@@ -332,7 +350,7 @@ unsafe extern "system" fn menu_subclass_proc(
         let id = LOWORD(wparam as _) as u64;
 
         // Custom menu items
-        if COUNTER_START < id && id < COUNTER.current() {
+        if COUNTER_START <= id && id <= COUNTER.current() {
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
             ret = 0;
         };
@@ -361,6 +379,39 @@ unsafe extern "system" fn menu_subclass_proc(
                 }
                 _ if id == NativeMenuItem::Quit.id() => {
                     PostQuitMessage(0);
+                }
+                _ if ABOUT_MENU_ITEMS.get(&id).is_some() => {
+                    let item = ABOUT_MENU_ITEMS.get(&id).unwrap();
+                    if let NativeMenuItem::About(app_name, metadata) = item {
+                        MessageBoxW(
+                            hwnd,
+                            encode_wide(format!(
+                                r#"
+{}
+
+version: {}
+authors: {}
+license: {}
+website: {} {}
+
+{}
+
+{}
+                                "#,
+                                app_name,
+                                metadata.version.as_deref().unwrap_or_default(),
+                                metadata.authors.as_deref().unwrap_or_default().join(","),
+                                metadata.license.as_deref().unwrap_or_default(),
+                                metadata.website_label.as_deref().unwrap_or_default(),
+                                metadata.website.as_deref().unwrap_or_default(),
+                                metadata.comments.as_deref().unwrap_or_default(),
+                                metadata.copyright.as_deref().unwrap_or_default(),
+                            ))
+                            .as_ptr(),
+                            encode_wide(format!("About {}", &app_name)).as_ptr(),
+                            MB_ICONINFORMATION,
+                        );
+                    }
                 }
                 _ => unreachable!(),
             }
@@ -407,8 +458,7 @@ fn execute_edit_command(command: EditCommand) {
         inputs[3].Anonymous.ki.wVk = VK_CONTROL;
         inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
-        let ret = SendInput(4, &inputs as *const _, std::mem::size_of::<INPUT>() as _);
-        dbg!(ret);
+        SendInput(4, &inputs as *const _, std::mem::size_of::<INPUT>() as _);
     }
 }
 
@@ -428,6 +478,6 @@ impl NativeMenuItem {
     }
 
     fn is_id_of_native(id: u64) -> bool {
-        (301..=308).contains(&id)
+        (301..=308).contains(&id) || (ABOUT_COUNTER_START <= id && id <= ABOUT_COUNTER.current())
     }
 }

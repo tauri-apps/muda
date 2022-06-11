@@ -516,6 +516,46 @@ impl NativeMenuItem {
                 item.show();
                 gtk_menu.append(&item);
             }
+            NativeMenuItem::About(app_name, metadata) => {
+                let app_name = app_name.clone();
+                let metadata = metadata.clone();
+                let item = gtk::MenuItem::with_label(&format!("About {}", app_name));
+                item.connect_activate(move |_| {
+                    let mut builder = gtk::builders::AboutDialogBuilder::new()
+                        .program_name(&app_name)
+                        .modal(true)
+                        .resizable(false);
+
+                    if let Some(version) = &metadata.version {
+                        builder = builder.version(version);
+                    }
+                    if let Some(authors) = &metadata.authors {
+                        builder = builder.authors(authors.clone());
+                    }
+                    if let Some(comments) = &metadata.comments {
+                        builder = builder.comments(comments);
+                    }
+                    if let Some(copyright) = &metadata.copyright {
+                        builder = builder.copyright(copyright);
+                    }
+                    if let Some(license) = &metadata.license {
+                        builder = builder.license(license);
+                    }
+                    if let Some(website) = &metadata.website {
+                        builder = builder.website(website);
+                    }
+                    if let Some(website_label) = &metadata.website_label {
+                        builder = builder.website_label(website_label);
+                    }
+                    let about = builder.build();
+                    about.run();
+                    unsafe {
+                        about.destroy();
+                    }
+                });
+                item.show();
+                gtk_menu.append(&item);
+            }
             _ => {}
         }
     }
