@@ -323,7 +323,7 @@ impl TextMenuItem {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum NativeMenuItem {
     /// A native “About” menu item.
     ///
@@ -427,7 +427,7 @@ pub enum NativeMenuItem {
 /// ## Platform-specific
 ///
 /// - **macOS**: The metadata is ignored.
-#[derive(Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct AboutMetadata {
     /// The application name.
     pub version: Option<String>,

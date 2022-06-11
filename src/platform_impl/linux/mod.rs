@@ -8,34 +8,25 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 static COUNTER: Counter = Counter::new();
 
 /// Generic shared type describing a menu entry. It can be one of [`MenuEntryType`]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MenuEntry {
     label: String,
     enabled: bool,
     r#type: MenuEntryType,
     item_id: Option<u64>,
     accelerator: Option<String>,
-    native_menu_item: Option<NativeMenuItem>,
-    // NOTE(amrbashir): because gtk doesn't allow using the same [`gtk::MenuItem`]
-    // multiple times, and thus can't be used in multiple windows, each entry
-    // keeps a vector of a [`gtk::MenuItem`] or a tuple of [`gtk::MenuItem`] and [`gtk::Menu`] if its a menu
-    // and push to it every time [`Menu::init_for_gtk_window`] is called.
-    native_items: Option<Vec<gtk::MenuItem>>,
-    native_menus: Option<Vec<(gtk::MenuItem, gtk::Menu)>>,
     entries: Option<Vec<Rc<RefCell<MenuEntry>>>>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
 enum MenuEntryType {
-    Submenu,
-    Text,
-    Native,
-}
-
-impl Default for MenuEntryType {
-    fn default() -> Self {
-        MenuEntryType::Text
-    }
+    // NOTE(amrbashir): because gtk doesn't allow using the same [`gtk::MenuItem`]
+    // multiple times, and thus can't be used in multiple windows, each entry
+    // keeps a vector of a [`gtk::MenuItem`] or a tuple of [`gtk::MenuItem`] and [`gtk::Menu`] if its a menu
+    // and push to it every time [`Menu::init_for_gtk_window`] is called.
+    Submenu(Vec<(gtk::MenuItem, gtk::Menu)>),
+    Text(Vec<gtk::MenuItem>),
+    Native(NativeMenuItem),
 }
 
 struct InnerMenu {
@@ -67,9 +58,9 @@ impl Menu {
             label: label.clone(),
             enabled,
             entries: Some(Vec::new()),
-            r#type: MenuEntryType::Submenu,
-            native_menus: Some(Vec::new()),
-            ..Default::default()
+            r#type: MenuEntryType::Submenu(Vec::new()),
+            item_id: Default::default(),
+            accelerator: None,
         }));
 
         let mut inner = self.0.borrow_mut();
@@ -77,12 +68,10 @@ impl Menu {
             if let Some(menu_bar) = menu_bar {
                 let (item, submenu) = create_gtk_submenu(&label, enabled);
                 menu_bar.append(&item);
-                entry
-                    .borrow_mut()
-                    .native_menus
-                    .as_mut()
-                    .unwrap()
-                    .push((item, submenu));
+                let mut native_menus = entry.borrow_mut();
+                if let MenuEntryType::Submenu(m) = &mut native_menus.r#type {
+                    m.push((item, submenu));
+                }
             }
         }
 
@@ -199,8 +188,10 @@ impl Submenu {
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.borrow_mut();
-        for (item, _) in entry.native_menus.as_ref().unwrap() {
-            item.set_label(&to_gtk_menemenoic(&label));
+        if let MenuEntryType::Submenu(native_menus) = &mut entry.r#type {
+            for (item, _) in native_menus {
+                item.set_label(&to_gtk_menemenoic(&label));
+            }
         }
         entry.label = label;
     }
@@ -212,8 +203,10 @@ impl Submenu {
     pub fn set_enabled(&mut self, enabled: bool) {
         let mut entry = self.0.borrow_mut();
         entry.enabled = true;
-        for (item, _) in entry.native_menus.as_ref().unwrap() {
-            item.set_sensitive(enabled);
+        if let MenuEntryType::Submenu(native_menus) = &mut entry.r#type {
+            for (item, _) in native_menus {
+                item.set_sensitive(enabled);
+            }
         }
     }
 
@@ -224,21 +217,20 @@ impl Submenu {
             label: label.clone(),
             enabled,
             entries: Some(Vec::new()),
-            r#type: MenuEntryType::Submenu,
-            native_menus: Some(Vec::new()),
-            ..Default::default()
+            r#type: MenuEntryType::Submenu(Vec::new()),
+            item_id: Default::default(),
+            accelerator: None,
         }));
 
         let mut inner = self.0.borrow_mut();
-        for (_, menu) in inner.native_menus.as_ref().unwrap() {
-            let (item, submenu) = create_gtk_submenu(&label, enabled);
-            menu.append(&item);
-            entry
-                .borrow_mut()
-                .native_menus
-                .as_mut()
-                .unwrap()
-                .push((item, submenu));
+        if let MenuEntryType::Submenu(native_menus) = &mut inner.r#type {
+            for (_, menu) in native_menus {
+                let (item, submenu) = create_gtk_submenu(&label, enabled);
+                menu.append(&item);
+                if let MenuEntryType::Submenu(menus) = &mut entry.borrow_mut().r#type {
+                    menus.push((item, submenu));
+                }
+            }
         }
 
         inner.entries.as_mut().unwrap().push(entry.clone());
@@ -257,25 +249,28 @@ impl Submenu {
         let entry = Rc::new(RefCell::new(MenuEntry {
             label: label.clone(),
             enabled,
-            r#type: MenuEntryType::Text,
+            r#type: MenuEntryType::Text(Vec::new()),
             item_id: Some(id),
             accelerator: accelerator.map(|s| s.to_string()),
-            native_items: Some(Vec::new()),
-            ..Default::default()
+            entries: None,
         }));
 
         let mut inner = self.0.borrow_mut();
 
-        for (_, menu) in inner.native_menus.as_ref().unwrap() {
-            let item = create_gtk_text_menu_item(
-                &label,
-                enabled,
-                &accelerator.map(|s| s.to_string()),
-                id,
-                &*self.1,
-            );
-            menu.append(&item);
-            entry.borrow_mut().native_items.as_mut().unwrap().push(item);
+        if let MenuEntryType::Submenu(native_menus) = &mut inner.r#type {
+            for (_, menu) in native_menus {
+                let item = create_gtk_text_menu_item(
+                    &label,
+                    enabled,
+                    &accelerator.map(|s| s.to_string()),
+                    id,
+                    &*self.1,
+                );
+                menu.append(&item);
+                if let MenuEntryType::Text(native_items) = &mut entry.borrow_mut().r#type {
+                    native_items.push(item);
+                }
+            }
         }
 
         inner.entries.as_mut().unwrap().push(entry.clone());
@@ -285,14 +280,19 @@ impl Submenu {
     pub fn add_native_item(&mut self, item: NativeMenuItem) {
         let mut inner = self.0.borrow_mut();
 
-        for (_, menu) in inner.native_menus.as_ref().unwrap() {
-            item.add_to_gtk_menu(menu);
+        if let MenuEntryType::Submenu(native_menus) = &mut inner.r#type {
+            for (_, menu) in native_menus {
+                item.add_to_gtk_menu(menu);
+            }
         }
 
         let entry = Rc::new(RefCell::new(MenuEntry {
-            r#type: MenuEntryType::Native,
-            native_menu_item: Some(item),
-            ..Default::default()
+            r#type: MenuEntryType::Native(item),
+            label: Default::default(),
+            enabled: Default::default(),
+            item_id: Default::default(),
+            accelerator: Default::default(),
+            entries: Default::default(),
         }));
         inner.entries.as_mut().unwrap().push(entry);
     }
@@ -309,8 +309,10 @@ impl TextMenuItem {
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.borrow_mut();
-        for item in entry.native_items.as_ref().unwrap() {
-            item.set_label(&to_gtk_menemenoic(&label));
+        if let MenuEntryType::Text(native_items) = &mut entry.r#type {
+            for item in native_items {
+                item.set_label(&to_gtk_menemenoic(&label));
+            }
         }
         entry.label = label;
     }
@@ -321,8 +323,10 @@ impl TextMenuItem {
 
     pub fn set_enabled(&mut self, enabled: bool) {
         let mut entry = self.0.borrow_mut();
-        for item in entry.native_items.as_ref().unwrap() {
-            item.set_sensitive(enabled);
+        if let MenuEntryType::Text(native_items) = &mut entry.r#type {
+            for item in native_items {
+                item.set_sensitive(enabled);
+            }
         }
         entry.enabled = enabled;
     }
@@ -339,14 +343,14 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
 ) {
     for entry in entries {
         let mut entry = entry.borrow_mut();
-        match entry.r#type {
-            MenuEntryType::Submenu => {
+        let (item, submenu) = match &entry.r#type {
+            MenuEntryType::Submenu(_) => {
                 let (item, submenu) = create_gtk_submenu(&entry.label, entry.enabled);
                 gtk_menu.append(&item);
                 add_entries_to_menu(&submenu, entry.entries.as_ref().unwrap(), accel_group);
-                entry.native_menus.as_mut().unwrap().push((item, submenu));
+                (Some(item), Some(submenu))
             }
-            MenuEntryType::Text => {
+            MenuEntryType::Text(_) => {
                 let item = create_gtk_text_menu_item(
                     &entry.label,
                     entry.enabled,
@@ -355,14 +359,23 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
                     accel_group,
                 );
                 gtk_menu.append(&item);
-                entry.native_items.as_mut().unwrap().push(item);
+                (Some(item), None)
             }
-            MenuEntryType::Native => entry
-                .native_menu_item
-                .as_ref()
-                .unwrap()
-                .add_to_gtk_menu(gtk_menu),
-        }
+            MenuEntryType::Native(native_menu_item) => {
+                native_menu_item.add_to_gtk_menu(gtk_menu);
+                (None, None)
+            }
+        };
+
+        match &mut entry.r#type {
+            MenuEntryType::Submenu(native_menus) => {
+                native_menus.push((item.unwrap(), submenu.unwrap()));
+            }
+            MenuEntryType::Text(native_items) => {
+                native_items.push(item.unwrap());
+            }
+            MenuEntryType::Native(_) => {}
+        };
     }
 }
 
