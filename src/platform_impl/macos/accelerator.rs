@@ -4,9 +4,7 @@ use cocoa::appkit::NSEventModifierFlags;
 pub fn remove_mnemonic(string: impl AsRef<str>) -> String {
     string
         .as_ref()
-        .replace("&&", "[~~]")
         .replace("&", "")
-        .replace("[~~]", "&")
 }
 
 /// Returns a tuple of (Key, Modifier)
