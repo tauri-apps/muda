@@ -97,4 +97,9 @@ impl Submenu {
         }
         item
     }
+
+    pub fn add_native_item(&mut self, _item: NativeMenuItem) {
+        // TODO
+        return;
+    }
 }
