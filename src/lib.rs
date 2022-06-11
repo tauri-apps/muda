@@ -106,7 +106,7 @@ impl Menu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu label can containt `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
     /// and the `&` character is not displayed on menu label.
     /// Then the menu can be activated by press `Alt+F`.
@@ -261,7 +261,7 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu label can containt `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
     /// and the `&` character is not displayed on menu label.
     /// Then the menu can be activated by press `F` when its parent menu is active.
@@ -273,7 +273,7 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: The menu item label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu item label can containt `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
     /// and the `&` character is not displayed on menu item label.
     /// Then the menu item can be activated by press `S` when its parent menu is active.
@@ -331,32 +331,32 @@ pub enum NativeMenuItem {
     ///
     /// ## platform-specific:
     ///
-    /// - **macOS**: the metadata is ignore.
-    /// - **Windows**: Not implemented.
+    /// - **macOS:** the metadata is ignore.
+    /// - **Windows:** Not implemented.
     About(String, AboutMetadata),
     /// A native “hide the app” menu item.
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     Hide,
     /// A native “hide all other windows" menu item.
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     HideOthers,
     /// A native "Show all windows for this app" menu item.
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     ShowAll,
     /// A native "Services" menu item.
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     Services,
     /// A native "Close current window" menu item.
     CloseWindow,
@@ -366,49 +366,49 @@ pub enum NativeMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Copy" keyboard shortcut for your app.
-    /// - **Linux Wayland**: Not implmeneted.
+    /// - **macOS:** macOS require this menu item to enable "Copy" keyboard shortcut for your app.
+    /// - **Linux Wayland:** Not implmeneted.
     Copy,
     /// A native "Cut" menu item.
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Cut" keyboard shortcut for your app.
-    /// - **Linux Wayland**: Not implmeneted.
+    /// - **macOS:** macOS require this menu item to enable "Cut" keyboard shortcut for your app.
+    /// - **Linux Wayland:** Not implmeneted.
     Cut,
     /// A native "Paste" menu item.
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Paste" keyboard shortcut for your app.
-    /// - **Linux Wayland**: Not implmeneted.
+    /// - **macOS:** macOS require this menu item to enable "Paste" keyboard shortcut for your app.
+    /// - **Linux Wayland:** Not implmeneted.
     Paste,
     /// A native "Undo" menu item.
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Undo" keyboard shortcut for your app.
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS:** macOS require this menu item to enable "Undo" keyboard shortcut for your app.
+    /// - **Windows / Linux:** Unsupported.
     Undo,
     /// A native "Redo" menu item.
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Redo" keyboard shortcut for your app.
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS:** macOS require this menu item to enable "Redo" keyboard shortcut for your app.
+    /// - **Windows / Linux:** Unsupported.
     Redo,
     /// A native "Select All" menu item.
     ///
     /// ## Platform-specific:
     ///
-    /// - **macOS**: macOS require this menu item to enable "Select All" keyboard shortcut for your app.
-    /// - **Linux Wayland**: Not implmeneted.
+    /// - **macOS:** macOS require this menu item to enable "Select All" keyboard shortcut for your app.
+    /// - **Linux Wayland:** Not implmeneted.
     SelectAll,
     /// A native "Enter fullscreen" menu item.
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     EnterFullScreen,
     /// A native "Minimize current window" menu item.
     Minimize,
@@ -416,7 +416,7 @@ pub enum NativeMenuItem {
     ///
     /// ## platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     Zoom,
     /// Represends a Separator in the menu.
     Separator,
@@ -426,7 +426,7 @@ pub enum NativeMenuItem {
 ///
 /// ## Platform-specific
 ///
-/// - **macOS**: The metadata is ignored.
+/// - **macOS:** The metadata is ignored.
 #[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct AboutMetadata {
     /// The application name.

@@ -516,6 +516,7 @@ impl NativeMenuItem {
                 item.show();
                 gtk_menu.append(&item);
             }
+            // TODO about native menu item
             _ => {}
         }
     }
