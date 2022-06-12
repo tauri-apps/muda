@@ -277,7 +277,7 @@ impl Submenu {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TextMenuItem {
     id: u64,
     parent_hmenu: HMENU,
@@ -351,7 +351,7 @@ impl TextMenuItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CheckMenuItem(TextMenuItem);
 
 impl CheckMenuItem {

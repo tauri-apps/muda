@@ -8,13 +8,14 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 static COUNTER: Counter = Counter::new();
 
 /// Generic shared type describing a menu entry. It can be one of [`MenuEntryType`]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct MenuEntry {
     label: String,
     enabled: bool,
-    r#type: MenuEntryType,
-    item_id: Option<u64>,
+    checked: bool,
+    id: u64,
     accelerator: Option<String>,
+    r#type: MenuEntryType,
     entries: Option<Vec<Rc<RefCell<MenuEntry>>>>,
 }
 
@@ -26,7 +27,14 @@ enum MenuEntryType {
     // and push to it every time [`Menu::init_for_gtk_window`] is called.
     Submenu(Vec<(gtk::MenuItem, gtk::Menu)>),
     Text(Vec<gtk::MenuItem>),
+    Check(Vec<gtk::CheckMenuItem>),
     Native(NativeMenuItem),
+}
+
+impl Default for MenuEntryType {
+    fn default() -> Self {
+        Self::Text(Default::default())
+    }
 }
 
 struct InnerMenu {
@@ -59,8 +67,7 @@ impl Menu {
             enabled,
             entries: Some(Vec::new()),
             r#type: MenuEntryType::Submenu(Vec::new()),
-            item_id: Default::default(),
-            accelerator: None,
+            ..Default::default()
         }));
 
         let mut inner = self.0.borrow_mut();
@@ -218,8 +225,7 @@ impl Submenu {
             enabled,
             entries: Some(Vec::new()),
             r#type: MenuEntryType::Submenu(Vec::new()),
-            item_id: Default::default(),
-            accelerator: None,
+            ..Default::default()
         }));
 
         let mut inner = self.0.borrow_mut();
@@ -250,9 +256,9 @@ impl Submenu {
             label: label.clone(),
             enabled,
             r#type: MenuEntryType::Text(Vec::new()),
-            item_id: Some(id),
+            id,
             accelerator: accelerator.map(|s| s.to_string()),
-            entries: None,
+            ..Default::default()
         }));
 
         let mut inner = self.0.borrow_mut();
@@ -288,13 +294,52 @@ impl Submenu {
 
         let entry = Rc::new(RefCell::new(MenuEntry {
             r#type: MenuEntryType::Native(item),
-            label: Default::default(),
-            enabled: Default::default(),
-            item_id: Default::default(),
-            accelerator: Default::default(),
-            entries: Default::default(),
+            ..Default::default()
         }));
         inner.entries.as_mut().unwrap().push(entry);
+    }
+
+    pub fn add_check_item<S: AsRef<str>>(
+        &mut self,
+        label: S,
+        enabled: bool,
+        checked: bool,
+        accelerator: Option<&str>,
+    ) -> CheckMenuItem {
+        let label = label.as_ref().to_string();
+        let id = COUNTER.next();
+
+        let entry = Rc::new(RefCell::new(MenuEntry {
+            label: label.clone(),
+            enabled,
+            checked,
+            r#type: MenuEntryType::Check(Vec::new()),
+            id,
+            accelerator: accelerator.map(|s| s.to_string()),
+            ..Default::default()
+        }));
+
+        let mut inner = self.0.borrow_mut();
+
+        if let MenuEntryType::Submenu(native_menus) = &mut inner.r#type {
+            for (_, menu) in native_menus {
+                let item = create_gtk_check_menu_item(
+                    &label,
+                    enabled,
+                    checked,
+                    &accelerator.map(|s| s.to_string()),
+                    id,
+                    &*self.1,
+                );
+                menu.append(&item);
+                if let MenuEntryType::Check(native_items) = &mut entry.borrow_mut().r#type {
+                    native_items.push(item);
+                }
+            }
+        }
+
+        inner.entries.as_mut().unwrap().push(entry.clone());
+        CheckMenuItem(entry)
     }
 }
 
@@ -332,7 +377,68 @@ impl TextMenuItem {
     }
 
     pub fn id(&self) -> u64 {
-        self.0.borrow().item_id.unwrap()
+        self.0.borrow().id
+    }
+}
+
+#[derive(Clone)]
+pub struct CheckMenuItem(Rc<RefCell<MenuEntry>>);
+
+impl CheckMenuItem {
+    pub fn label(&self) -> String {
+        self.0.borrow().label.clone()
+    }
+
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
+        let label = label.as_ref().to_string();
+        let mut entry = self.0.borrow_mut();
+        if let MenuEntryType::Text(native_items) = &mut entry.r#type {
+            for item in native_items {
+                item.set_label(&to_gtk_menemenoic(&label));
+            }
+        }
+        entry.label = label;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.borrow().enabled
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        let mut entry = self.0.borrow_mut();
+        if let MenuEntryType::Check(native_items) = &mut entry.r#type {
+            for item in native_items {
+                item.set_sensitive(enabled);
+            }
+        }
+        entry.enabled = enabled;
+    }
+
+    pub fn checked(&self) -> bool {
+        let entry = self.0.borrow();
+        let mut checked = entry.checked;
+        if let MenuEntryType::Check(native_items) = &entry.r#type {
+            if let Some(item) = native_items.get(0) {
+              checked = item.is_active();
+            }
+        }
+
+        checked
+
+    }
+
+    pub fn set_checked(&mut self, checked: bool) {
+        let mut entry = self.0.borrow_mut();
+        if let MenuEntryType::Check(native_items) = &mut entry.r#type {
+            for item in native_items {
+                item.set_active(checked);
+            }
+        }
+        entry.checked = checked;
+    }
+
+    pub fn id(&self) -> u64 {
+        self.0.borrow().id
     }
 }
 
@@ -343,7 +449,7 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
 ) {
     for entry in entries {
         let mut entry = entry.borrow_mut();
-        let (item, submenu) = match &entry.r#type {
+        let (item, submenu) = match &mut entry.r#type {
             MenuEntryType::Submenu(_) => {
                 let (item, submenu) = create_gtk_submenu(&entry.label, entry.enabled);
                 gtk_menu.append(&item);
@@ -355,11 +461,23 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
                     &entry.label,
                     entry.enabled,
                     &entry.accelerator,
-                    entry.item_id.unwrap(),
+                    entry.id,
                     accel_group,
                 );
                 gtk_menu.append(&item);
                 (Some(item), None)
+            }
+            MenuEntryType::Check(_) => {
+                let item = create_gtk_check_menu_item(
+                    &entry.label,
+                    entry.enabled,
+                    entry.checked,
+                    &entry.accelerator,
+                    entry.id,
+                    accel_group,
+                );
+                gtk_menu.append(&item);
+                (Some(item.upcast::<gtk::MenuItem>()), None)
             }
             MenuEntryType::Native(native_menu_item) => {
                 native_menu_item.add_to_gtk_menu(gtk_menu);
@@ -373,6 +491,9 @@ fn add_entries_to_menu<M: IsA<gtk::MenuShell>>(
             }
             MenuEntryType::Text(native_items) => {
                 native_items.push(item.unwrap());
+            }
+             MenuEntryType::Check(native_items) => {
+                native_items.push(item.unwrap().downcast().unwrap());
             }
             MenuEntryType::Native(_) => {}
         };
@@ -397,6 +518,34 @@ fn create_gtk_text_menu_item(
 ) -> gtk::MenuItem {
     let item = gtk::MenuItem::with_mnemonic(&to_gtk_menemenoic(label));
     item.set_sensitive(enabled);
+    if let Some(accelerator) = accelerator {
+        let (key, modifiers) = gtk::accelerator_parse(&to_gtk_accelerator(accelerator));
+        item.add_accelerator(
+            "activate",
+            accel_group,
+            key,
+            modifiers,
+            gtk::AccelFlags::VISIBLE,
+        );
+    }
+    item.connect_activate(move |_| {
+        let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+    });
+    item.show();
+    item
+}
+
+fn create_gtk_check_menu_item(
+    label: &str,
+    enabled: bool,
+    checked: bool,
+    accelerator: &Option<String>,
+    id: u64,
+    accel_group: &gtk::AccelGroup,
+) -> gtk::CheckMenuItem {
+    let item = gtk::CheckMenuItem::with_mnemonic(&to_gtk_menemenoic(label));
+    item.set_sensitive(enabled);
+    item.set_active(checked);
     if let Some(accelerator) = accelerator {
         let (key, modifiers) = gtk::accelerator_parse(&to_gtk_accelerator(accelerator));
         item.add_accelerator(
