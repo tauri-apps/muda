@@ -12,7 +12,7 @@ use objc::{
     runtime::{Class, Object, Sel},
     sel, sel_impl,
 };
-use std::slice;
+use std::rc::Rc;
 use std::sync::Once;
 
 static COUNTER: Counter = Counter::new();
@@ -21,6 +21,7 @@ static COUNTER: Counter = Counter::new();
 pub struct TextMenuItem {
     pub(crate) id: u64,
     pub(crate) ns_menu_item: id,
+    label: Rc<str>,
 }
 
 impl TextMenuItem {
@@ -30,7 +31,7 @@ impl TextMenuItem {
         selector: Sel,
         accelerator: Option<&str>,
     ) -> Self {
-        let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(label), selector, accelerator);
+        let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(&label), selector, accelerator);
 
         unsafe {
             (&mut *ns_menu_item).set_ivar(MENU_IDENTITY, id);
@@ -40,25 +41,23 @@ impl TextMenuItem {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
-
-        Self { id, ns_menu_item }
+        Self {
+            id,
+            ns_menu_item,
+            label: Rc::from(label.as_ref()),
+        }
     }
 
     pub fn label(&self) -> String {
-        unsafe {
-            let title: id = msg_send![self.ns_menu_item, title];
-            let data = title.UTF8String() as *const u8;
-            let len = title.len();
-
-            String::from_utf8_lossy(slice::from_raw_parts(data, len)).to_string()
-        }
+        self.label.to_string()
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         unsafe {
-            let title = NSString::alloc(nil).init_str(&remove_mnemonic(label));
+            let title = NSString::alloc(nil).init_str(&remove_mnemonic(&label));
             self.ns_menu_item.setTitle_(title);
         }
+        self.label = Rc::from(label.as_ref());
     }
 
     pub fn enabled(&self) -> bool {
