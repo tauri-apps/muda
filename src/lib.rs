@@ -106,11 +106,11 @@ impl Menu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu label can contain `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
     /// and the `&` character is not displayed on menu label.
     /// Then the menu can be activated by press `Alt+F`.
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
@@ -232,7 +232,7 @@ impl Menu {
     }
 }
 
-/// This is a submenu within another [`Submenu`] or [`Menu`].
+/// This is a Submenu within another [`Submenu`] or [`Menu`].
 #[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
@@ -243,7 +243,7 @@ impl Submenu {
     }
 
     /// Sets a new label for the submenu.
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         self.0.set_label(label)
     }
 
@@ -261,11 +261,11 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** The menu label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu label can contain `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
     /// and the `&` character is not displayed on menu label.
     /// Then the menu can be activated by press `F` when its parent menu is active.
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
@@ -273,21 +273,33 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** The menu item label can containt `&` to indicate which letter should get a generated accelerator.
+    /// - **Windows / Linux:** The menu item label can contain `&` to indicate which letter should get a generated accelerator.
     /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
     /// and the `&` character is not displayed on menu item label.
     /// Then the menu item can be activated by press `S` when its parent menu is active.
-    pub fn add_text_item(
+    pub fn add_text_item<S: AsRef<str>>(
         &mut self,
-        label: impl AsRef<str>,
+        label: S,
         enabled: bool,
         accelerator: Option<&str>,
     ) -> TextMenuItem {
         TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
     }
 
+    /// Creates a new [`NativeMenuItem`] within this submenu.
     pub fn add_native_item(&mut self, item: NativeMenuItem) {
         self.0.add_native_item(item)
+    }
+
+    /// Creates a new [`CheckMenuItem`] within this submenu.
+    pub fn add_check_item<S: AsRef<str>>(
+        &mut self,
+        label: S,
+        enabled: bool,
+        checked: bool,
+        accelerator: Option<&str>,
+    ) -> CheckMenuItem {
+        CheckMenuItem(self.0.add_check_item(label, enabled, checked, accelerator))
     }
 }
 
@@ -302,7 +314,7 @@ impl TextMenuItem {
     }
 
     /// Sets a new label for the menu item.
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         self.0.set_label(label)
     }
 
@@ -322,6 +334,48 @@ impl TextMenuItem {
     }
 }
 
+/// This is a Check menu item within a [`Submenu`].
+#[derive(Clone)]
+pub struct CheckMenuItem(platform_impl::CheckMenuItem);
+
+impl CheckMenuItem {
+    /// Gets the menu item's current label.
+    pub fn label(&self) -> String {
+        self.0.label()
+    }
+
+    /// Sets a new label for the menu item.
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
+        self.0.set_label(label)
+    }
+
+    /// Gets the menu item's current state, whether enabled or not.
+    pub fn enabled(&self) -> bool {
+        self.0.enabled()
+    }
+
+    /// Enables or disables the menu item.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.0.set_enabled(enabled)
+    }
+
+    /// Gets the menu item's current state, whether checked or not.
+    pub fn checked(&self) -> bool {
+        self.0.checked()
+    }
+
+    /// Enables or disables the menu item.
+    pub fn set_checked(&mut self, checked: bool) {
+        self.0.set_checked(checked)
+    }
+
+    /// Gets the unique id for this menu item.
+    pub fn id(&self) -> u64 {
+        self.0.id()
+    }
+}
+
+/// This is a Native menu item within a [`Submenu`] with a predefined behavior.
 #[non_exhaustive]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum NativeMenuItem {

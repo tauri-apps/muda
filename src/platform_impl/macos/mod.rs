@@ -25,7 +25,7 @@ impl Menu {
         }
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let menu = Menu::new();
         let menu_item = TextMenuItem::new("", enabled, sel!(fireMenubarAction:), None);
 
@@ -64,7 +64,7 @@ impl Submenu {
         self.menu_item.label()
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         let label = remove_mnemonic(label);
         self.menu_item.set_label(&label);
         unsafe {
@@ -81,13 +81,13 @@ impl Submenu {
         self.menu_item.set_enabled(_enabled)
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         self.menu.add_submenu(label, enabled)
     }
 
-    pub fn add_text_item(
+    pub fn add_text_item<S: AsRef<str>>(
         &mut self,
-        label: impl AsRef<str>,
+        label: S,
         enabled: bool,
         accelerator: Option<&str>,
     ) -> TextMenuItem {

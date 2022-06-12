@@ -25,8 +25,8 @@ pub struct TextMenuItem {
 }
 
 impl TextMenuItem {
-    pub fn new(
-        label: impl AsRef<str>,
+    pub fn new<S: AsRef<str>>(
+        label: S,
         enabled: bool,
         selector: Sel,
         accelerator: Option<&str>,
@@ -52,7 +52,7 @@ impl TextMenuItem {
         self.label.to_string()
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         unsafe {
             let title = NSString::alloc(nil).init_str(&remove_mnemonic(&label));
             self.ns_menu_item.setTitle_(title);

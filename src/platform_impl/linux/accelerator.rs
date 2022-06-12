@@ -1,4 +1,4 @@
-pub fn to_gtk_menemenoic(string: impl AsRef<str>) -> String {
+pub fn to_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
         .replace("&&", "[~~]")
@@ -6,7 +6,7 @@ pub fn to_gtk_menemenoic(string: impl AsRef<str>) -> String {
         .replace("[~~]", "&&")
 }
 
-pub fn to_gtk_accelerator(accelerator: impl AsRef<str>) -> String {
+pub fn to_gtk_accelerator<S: AsRef<str>>(accelerator: S) -> String {
     let accelerator = accelerator.as_ref();
     let mut s = accelerator.split("+");
     let count = s.clone().count();

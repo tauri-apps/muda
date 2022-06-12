@@ -51,7 +51,7 @@ impl Menu {
         })))
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let label = label.as_ref().to_string();
 
         let entry = Rc::new(RefCell::new(MenuEntry {
@@ -185,7 +185,7 @@ impl Submenu {
         self.0.borrow().label.clone()
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.borrow_mut();
         if let MenuEntryType::Submenu(native_menus) = &mut entry.r#type {
@@ -210,7 +210,7 @@ impl Submenu {
         }
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let label = label.as_ref().to_string();
 
         let entry = Rc::new(RefCell::new(MenuEntry {
@@ -237,9 +237,9 @@ impl Submenu {
         Submenu(entry, Rc::clone(&self.1))
     }
 
-    pub fn add_text_item(
+    pub fn add_text_item<S: AsRef<str>>(
         &mut self,
-        label: impl AsRef<str>,
+        label: S,
         enabled: bool,
         accelerator: Option<&str>,
     ) -> TextMenuItem {
@@ -306,7 +306,7 @@ impl TextMenuItem {
         self.0.borrow().label.clone()
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         let label = label.as_ref().to_string();
         let mut entry = self.0.borrow_mut();
         if let MenuEntryType::Text(native_items) = &mut entry.r#type {

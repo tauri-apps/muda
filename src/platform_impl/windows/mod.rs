@@ -16,19 +16,17 @@ use windows_sys::Win32::{
             AppendMenuW, CloseWindow, CreateAcceleratorTableW, CreateMenu, DrawMenuBar,
             EnableMenuItem, GetMenuItemInfoW, MessageBoxW, PostQuitMessage, SetMenu,
             SetMenuItemInfoW, ShowWindow, ACCEL, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
-            MFS_DISABLED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING,
-            MIIM_STATE, MIIM_STRING, SW_MINIMIZE, WM_COMMAND,
+            MFS_CHECKED, MFS_DISABLED, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP,
+            MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_STATE, MIIM_STRING, SW_MINIMIZE,
+            WM_COMMAND,
         },
     },
 };
 
 use self::accelerator::parse_accelerator;
 
-const MENU_SUBCLASS_ID: usize = 200;
 const COUNTER_START: u64 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
-const ABOUT_COUNTER_START: u64 = 400;
-static ABOUT_COUNTER: Counter = Counter::new_with_start(ABOUT_COUNTER_START);
 
 struct InnerMenu {
     hmenu: HMENU,
@@ -48,7 +46,7 @@ impl Menu {
         })))
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let hmenu = unsafe { CreateMenu() };
         let mut flags = MF_POPUP;
         if !enabled {
@@ -111,7 +109,10 @@ impl Menu {
     }
 }
 
+const ABOUT_COUNTER_START: u64 = 400;
+static ABOUT_COUNTER: Counter = Counter::new_with_start(ABOUT_COUNTER_START);
 static mut ABOUT_MENU_ITEMS: Lazy<HashMap<u64, NativeMenuItem>> = Lazy::new(|| HashMap::new());
+static mut CHECK_MENU_ITEMS: Lazy<Vec<CheckMenuItem>> = Lazy::new(|| Vec::new());
 
 #[derive(Clone)]
 pub struct Submenu {
@@ -140,7 +141,7 @@ impl Submenu {
         decode_wide(info.dwTypeData)
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
         info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
         info.fMask = MIIM_STRING;
@@ -169,7 +170,7 @@ impl Submenu {
         };
     }
 
-    pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
+    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let hmenu = unsafe { CreateMenu() };
         let mut flags = MF_POPUP;
         if !enabled {
@@ -190,9 +191,9 @@ impl Submenu {
         }
     }
 
-    pub fn add_text_item(
+    pub fn add_text_item<S: AsRef<str>>(
         &mut self,
-        label: impl AsRef<str>,
+        label: S,
         enabled: bool,
         accelerator: Option<&str>,
     ) -> TextMenuItem {
@@ -261,9 +262,22 @@ impl Submenu {
             )
         };
     }
+
+    pub fn add_check_item<S: AsRef<str>>(
+        &mut self,
+        label: S,
+        enabled: bool,
+        checked: bool,
+        accelerator: Option<&str>,
+    ) -> CheckMenuItem {
+        let mut item = CheckMenuItem(self.add_text_item(label, enabled, accelerator));
+        item.set_checked(checked);
+        unsafe { CHECK_MENU_ITEMS.push(item.clone()) };
+        item
+    }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TextMenuItem {
     id: u64,
     parent_hmenu: HMENU,
@@ -296,7 +310,7 @@ impl TextMenuItem {
         decode_wide(info.dwTypeData)
     }
 
-    pub fn set_label(&mut self, label: impl AsRef<str>) {
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
         let mut label = label.as_ref().to_string();
         let prev_label = self.label_with_accel();
         if let Some(accel_str) = prev_label.split("\t").nth(1) {
@@ -337,6 +351,54 @@ impl TextMenuItem {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct CheckMenuItem(TextMenuItem);
+
+impl CheckMenuItem {
+    pub fn label(&self) -> String {
+        self.0.label()
+    }
+
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
+        self.0.set_label(label)
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.0.enabled()
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.0.set_enabled(enabled)
+    }
+
+    pub fn checked(&self) -> bool {
+        let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+        info.fMask = MIIM_STATE;
+
+        unsafe { GetMenuItemInfoW(self.0.parent_hmenu, self.0.id as _, false.into(), &mut info) };
+
+        !((info.fState & MFS_CHECKED) == 0)
+    }
+
+    pub fn set_checked(&mut self, checked: bool) {
+        use windows_sys::Win32::UI::WindowsAndMessaging;
+        unsafe {
+            WindowsAndMessaging::CheckMenuItem(
+                self.0.parent_hmenu,
+                self.0.id as _,
+                if checked { MF_CHECKED } else { MF_UNCHECKED },
+            )
+        };
+    }
+
+    pub fn id(&self) -> u64 {
+        self.0.id()
+    }
+}
+
+const MENU_SUBCLASS_ID: usize = 200;
+
 unsafe extern "system" fn menu_subclass_proc(
     hwnd: HWND,
     msg: u32,
@@ -351,6 +413,12 @@ unsafe extern "system" fn menu_subclass_proc(
 
         // Custom menu items
         if COUNTER_START <= id && id <= COUNTER.current() {
+            // Toggle check menu items
+            // TODO: check the behavior in gtk
+            if let Some(item) = CHECK_MENU_ITEMS.iter_mut().find(|i| i.id() == id) {
+                item.set_checked(!item.checked());
+            }
+
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
             ret = 0;
         };
