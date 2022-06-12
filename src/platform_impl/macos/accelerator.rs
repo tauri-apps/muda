@@ -2,9 +2,7 @@ use cocoa::appkit::NSEventModifierFlags;
 
 /// Mnemonic is deprecated since macOS 10
 pub fn remove_mnemonic(string: impl AsRef<str>) -> String {
-    string
-        .as_ref()
-        .replace("&", "")
+    string.as_ref().replace("&", "")
 }
 
 /// Returns a tuple of (Key, Modifier)

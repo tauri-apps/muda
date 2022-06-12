@@ -1,7 +1,7 @@
 use windows_sys::Win32::UI::WindowsAndMessaging::{FALT, FCONTROL, FSHIFT, FVIRTKEY};
 
 /// Returns a tuple of (Key, Modifier, a string representation to be used in menu items)
-pub fn parse_accelerator(accelerator: impl AsRef<str>) -> (u16, u32, String) {
+pub fn parse_accelerator<S: AsRef<str>>(accelerator: S) -> (u16, u32, String) {
     let accelerator = accelerator.as_ref();
     let mut s = accelerator.split("+");
     let count = s.clone().count();

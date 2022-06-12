@@ -1,5 +1,5 @@
 #[cfg(target_os = "windows")]
-pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
     std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
         .chain(std::iter::once(0))
         .collect()
