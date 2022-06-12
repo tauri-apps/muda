@@ -1,3 +1,7 @@
+mod accelerator;
+mod menu_item;
+
+use crate::NativeMenuItem;
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem},
     base::{id, nil, NO},
@@ -5,9 +9,9 @@ use cocoa::{
 };
 use objc::{msg_send, sel, sel_impl};
 
-mod menu_item;
 pub use menu_item::TextMenuItem;
-use menu_item::*;
+
+use self::accelerator::remove_mnemonic;
 
 #[derive(Debug, Clone)]
 pub struct Menu(id);
@@ -23,7 +27,7 @@ impl Menu {
 
     pub fn add_submenu(&mut self, label: impl AsRef<str>, enabled: bool) -> Submenu {
         let menu = Menu::new();
-        let menu_item = TextMenuItem::new("", enabled, sel!(fireMenubarAction:));
+        let menu_item = TextMenuItem::new("", enabled, sel!(fireMenubarAction:), None);
 
         unsafe {
             menu_item.ns_menu_item.setSubmenu_(menu.0);
@@ -61,9 +65,10 @@ impl Submenu {
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
-        self.menu_item.set_label(label.as_ref().to_string());
+        let label = remove_mnemonic(label);
+        self.menu_item.set_label(&label);
         unsafe {
-            let menu_title = NSString::alloc(nil).init_str(label.as_ref());
+            let menu_title = NSString::alloc(nil).init_str(&label);
             let () = msg_send![self.menu.0, setTitle: menu_title];
         }
     }
@@ -80,11 +85,21 @@ impl Submenu {
         self.menu.add_submenu(label, enabled)
     }
 
-    pub fn add_text_item(&mut self, label: impl AsRef<str>, enabled: bool) -> TextMenuItem {
-        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:));
+    pub fn add_text_item(
+        &mut self,
+        label: impl AsRef<str>,
+        enabled: bool,
+        accelerator: Option<&str>,
+    ) -> TextMenuItem {
+        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:), accelerator);
         unsafe {
             self.menu.0.addItem_(item.ns_menu_item);
         }
         item
+    }
+
+    pub fn add_native_item(&mut self, _item: NativeMenuItem) {
+        // TODO
+        return;
     }
 }

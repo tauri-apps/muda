@@ -1,6 +1,7 @@
 use crate::counter::Counter;
+use crate::platform_impl::platform_impl::accelerator::{parse_accelerator, remove_mnemonic};
 use cocoa::{
-    appkit::NSButton,
+    appkit::{NSButton, NSEventModifierFlags, NSMenuItem},
     base::{id, nil, BOOL, NO, YES},
     foundation::NSString,
 };
@@ -11,12 +12,8 @@ use objc::{
     runtime::{Class, Object, Sel},
     sel, sel_impl,
 };
-use std::slice;
+use std::rc::Rc;
 use std::sync::Once;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
 
 static COUNTER: Counter = Counter::new();
 
@@ -24,11 +21,17 @@ static COUNTER: Counter = Counter::new();
 pub struct TextMenuItem {
     pub(crate) id: u64,
     pub(crate) ns_menu_item: id,
+    label: Rc<str>,
 }
 
 impl TextMenuItem {
-    pub fn new(label: impl AsRef<str>, enabled: bool, selector: Sel) -> Self {
-        let (id, ns_menu_item) = make_menu_item(label.as_ref(), selector);
+    pub fn new(
+        label: impl AsRef<str>,
+        enabled: bool,
+        selector: Sel,
+        accelerator: Option<&str>,
+    ) -> Self {
+        let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(&label), selector, accelerator);
 
         unsafe {
             (&mut *ns_menu_item).set_ivar(MENU_IDENTITY, id);
@@ -38,25 +41,23 @@ impl TextMenuItem {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
-
-        Self { id, ns_menu_item }
+        Self {
+            id,
+            ns_menu_item,
+            label: Rc::from(label.as_ref()),
+        }
     }
 
     pub fn label(&self) -> String {
-        unsafe {
-            let title: id = msg_send![self.ns_menu_item, title];
-            let data = title.UTF8String() as *const u8;
-            let len = title.len();
-
-            String::from_utf8_lossy(slice::from_raw_parts(data, len)).to_string()
-        }
+        self.label.to_string()
     }
 
     pub fn set_label(&mut self, label: impl AsRef<str>) {
         unsafe {
-            let title = NSString::alloc(nil).init_str(label.as_ref());
+            let title = NSString::alloc(nil).init_str(&remove_mnemonic(&label));
             self.ns_menu_item.setTitle_(title);
         }
+        self.label = Rc::from(label.as_ref());
     }
 
     pub fn enabled(&self) -> bool {
@@ -81,18 +82,13 @@ impl TextMenuItem {
     }
 }
 
-pub fn make_menu_item(
-    title: &str,
-    selector: Sel,
-    //key_equivalent: Option<key::KeyEquivalent>,
-    //menu_type: MenuType,
-) -> (MenuId, *mut Object) {
+pub fn make_menu_item(title: &str, selector: Sel, accelerator: Option<&str>) -> (u64, *mut Object) {
     let alloc = make_menu_item_alloc();
     let menu_id = COUNTER.next();
 
     unsafe {
         let title = NSString::alloc(nil).init_str(title);
-        let menu_item = make_menu_item_from_alloc(alloc, title, selector); //, key_equivalent, menu_type);
+        let menu_item = make_menu_item_from_alloc(alloc, title, selector, accelerator);
 
         (menu_id, menu_item)
     }
@@ -138,26 +134,26 @@ fn make_menu_item_from_alloc(
     alloc: *mut Object,
     title: *mut Object,
     selector: Sel,
-    //key_equivalent: Option<key::KeyEquivalent>,
-    //menu_type: MenuType,
+    accelerator: Option<&str>,
 ) -> *mut Object {
     unsafe {
-        // let (key, masks) = match key_equivalent {
-        //   Some(ke) => (
-        //     NSString::alloc(nil).init_str(ke.key),
-        //     ke.masks.unwrap_or_else(NSEventModifierFlags::empty),
-        //   ),
-        //   None => (
-        //     NSString::alloc(nil).init_str(""),
-        //     NSEventModifierFlags::empty(),
-        //   ),
-        // };
-        let key = NSString::alloc(nil).init_str("");
+        let (key_equivalent, masks) = match accelerator {
+            Some(accelerator) => {
+                let (key, mods) = parse_accelerator(accelerator);
+                let key = NSString::alloc(nil).init_str(&key);
+                (key, mods)
+            }
+            None => (
+                NSString::alloc(nil).init_str(""),
+                NSEventModifierFlags::empty(),
+            ),
+        };
 
         // allocate our item to our class
-        let item: id = msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key];
+        let item: id =
+            msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key_equivalent];
+        item.setKeyEquivalentModifierMask_(masks);
 
-        // item.setKeyEquivalentModifierMask_(masks);
         item
     }
 }
