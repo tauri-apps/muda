@@ -18,13 +18,13 @@ use std::sync::Once;
 static COUNTER: Counter = Counter::new();
 
 #[derive(Debug, Clone)]
-pub struct TextMenuItem {
+pub struct MenuItem {
     pub(crate) id: u64,
     pub(crate) ns_menu_item: id,
     label: Rc<str>,
 }
 
-impl TextMenuItem {
+impl MenuItem {
     pub fn new<S: AsRef<str>>(
         label: S,
         enabled: bool,

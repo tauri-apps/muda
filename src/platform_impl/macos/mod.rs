@@ -9,7 +9,7 @@ use cocoa::{
 };
 use objc::{msg_send, sel, sel_impl};
 
-pub use menu_item::TextMenuItem;
+pub use menu_item::MenuItem;
 
 use self::accelerator::remove_mnemonic;
 
@@ -27,7 +27,7 @@ impl Menu {
 
     pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
         let menu = Menu::new();
-        let menu_item = TextMenuItem::new("", enabled, sel!(fireMenubarAction:), None);
+        let menu_item = MenuItem::new("", enabled, sel!(fireMenubarAction:), None);
 
         unsafe {
             menu_item.ns_menu_item.setSubmenu_(menu.0);
@@ -56,7 +56,7 @@ impl Menu {
 #[derive(Debug, Clone)]
 pub struct Submenu {
     pub(crate) menu: Menu,
-    pub(crate) menu_item: TextMenuItem,
+    pub(crate) menu_item: MenuItem,
 }
 
 impl Submenu {
@@ -85,13 +85,13 @@ impl Submenu {
         self.menu.add_submenu(label, enabled)
     }
 
-    pub fn add_text_item<S: AsRef<str>>(
+    pub fn add_item<S: AsRef<str>>(
         &mut self,
         label: S,
         enabled: bool,
         accelerator: Option<&str>,
-    ) -> TextMenuItem {
-        let item = TextMenuItem::new(label, enabled, sel!(fireMenubarAction:), accelerator);
+    ) -> MenuItem {
+        let item = MenuItem::new(label, enabled, sel!(fireMenubarAction:), accelerator);
         unsafe {
             self.menu.0.addItem_(item.ns_menu_item);
         }

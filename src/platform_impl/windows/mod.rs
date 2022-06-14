@@ -191,12 +191,12 @@ impl Submenu {
         }
     }
 
-    pub fn add_text_item<S: AsRef<str>>(
+    pub fn add_item<S: AsRef<str>>(
         &mut self,
         label: S,
         enabled: bool,
         accelerator: Option<&str>,
-    ) -> TextMenuItem {
+    ) -> MenuItem {
         let id = COUNTER.next();
         let mut flags = MF_STRING;
         if !enabled {
@@ -222,7 +222,7 @@ impl Submenu {
         }
 
         unsafe { AppendMenuW(self.hmenu, flags, id as _, encode_wide(label).as_ptr()) };
-        TextMenuItem {
+        MenuItem {
             id,
             parent_hmenu: self.hmenu,
         }
@@ -270,7 +270,7 @@ impl Submenu {
         checked: bool,
         accelerator: Option<&str>,
     ) -> CheckMenuItem {
-        let mut item = CheckMenuItem(self.add_text_item(label, enabled, accelerator));
+        let mut item = CheckMenuItem(self.add_item(label, enabled, accelerator));
         item.set_checked(checked);
         unsafe { CHECK_MENU_ITEMS.push(item.clone()) };
         item
@@ -278,12 +278,12 @@ impl Submenu {
 }
 
 #[derive(Clone)]
-pub struct TextMenuItem {
+pub struct MenuItem {
     id: u64,
     parent_hmenu: HMENU,
 }
 
-impl TextMenuItem {
+impl MenuItem {
     pub fn label(&self) -> String {
         self.label_with_accel()
             .split("\t")
@@ -352,7 +352,7 @@ impl TextMenuItem {
 }
 
 #[derive(Clone)]
-pub struct CheckMenuItem(TextMenuItem);
+pub struct CheckMenuItem(MenuItem);
 
 impl CheckMenuItem {
     pub fn label(&self) -> String {

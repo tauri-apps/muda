@@ -17,7 +17,7 @@
 //!
 //! # Aadding menu items and submenus within another submenu
 //!
-//! Once you have a [`Submenu`] you can star creating more [`Submenu`]s or [`TextMenuItem`]s.
+//! Once you have a [`Submenu`] you can star creating more [`Submenu`]s or [`MenuItem`]s.
 //! ```no_run
 //! let mut menu = Menu::new();
 //!
@@ -67,12 +67,9 @@ mod platform_impl;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
 
-/// A type alias to the receiver of the menu events channel.
-pub type MenuEventReceiver = Receiver<MenuEvent>;
-
-/// Gets a reference to the event channel's [MenuEventReceiver]
+/// Gets a reference to the event channel's [Receiver<MenuEvent>]
 /// which can be used to listen for menu events.
-pub fn menu_event_receiver<'a>() -> &'a MenuEventReceiver {
+pub fn menu_event_receiver<'a>() -> &'a Receiver<MenuEvent> {
     &MENU_CHANNEL.1
 }
 
@@ -269,7 +266,7 @@ impl Submenu {
         Submenu(self.0.add_submenu(label, enabled))
     }
 
-    /// Creates a new [`TextMenuItem`] whithin this submenu.
+    /// Creates a new [`MenuItem`] whithin this submenu.
     ///
     /// ## Platform-specific:
     ///
@@ -277,13 +274,13 @@ impl Submenu {
     /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
     /// and the `&` character is not displayed on menu item label.
     /// Then the menu item can be activated by press `S` when its parent menu is active.
-    pub fn add_text_item<S: AsRef<str>>(
+    pub fn add_item<S: AsRef<str>>(
         &mut self,
         label: S,
         enabled: bool,
         accelerator: Option<&str>,
-    ) -> TextMenuItem {
-        TextMenuItem(self.0.add_text_item(label, enabled, accelerator))
+    ) -> MenuItem {
+        MenuItem(self.0.add_item(label, enabled, accelerator))
     }
 
     /// Creates a new [`NativeMenuItem`] within this submenu.
@@ -303,11 +300,11 @@ impl Submenu {
     }
 }
 
-/// This is a Text menu item within a [`Submenu`].
+/// This is a normal menu item within a [`Submenu`].
 #[derive(Clone)]
-pub struct TextMenuItem(platform_impl::TextMenuItem);
+pub struct MenuItem(platform_impl::MenuItem);
 
-impl TextMenuItem {
+impl MenuItem {
     /// Gets the menu item's current label.
     pub fn label(&self) -> String {
         self.0.label()
@@ -334,7 +331,7 @@ impl TextMenuItem {
     }
 }
 
-/// This is a Check menu item within a [`Submenu`].
+/// This is a menu item with a checkmark icon within a [`Submenu`].
 #[derive(Clone)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 

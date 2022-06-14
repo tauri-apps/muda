@@ -18,8 +18,8 @@ fn main() {
     let mut menu_bar = Menu::new();
 
     let mut file_menu = menu_bar.add_submenu("&File", true);
-    let mut open_item = file_menu.add_text_item("&Open", true, None);
-    let mut save_item = file_menu.add_text_item("&Save", true, Some("CommandOrCtrl+S"));
+    let mut open_item = file_menu.add_item("&Open", true, None);
+    let mut save_item = file_menu.add_item("&Save", true, Some("CommandOrCtrl+S"));
     file_menu.add_native_item(NativeMenuItem::Minimize);
     file_menu.add_native_item(NativeMenuItem::CloseWindow);
     file_menu.add_native_item(NativeMenuItem::Quit);
