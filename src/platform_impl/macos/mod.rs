@@ -1,6 +1,7 @@
 mod accelerator;
 mod menu_item;
 
+use crate::platform_impl::platform_impl::menu_item::make_menu_item;
 use crate::NativeMenuItem;
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem},
@@ -9,6 +10,8 @@ use cocoa::{
 };
 use objc::{msg_send, sel, sel_impl};
 
+use self::accelerator::remove_mnemonic;
+pub use menu_item::CheckMenuItem;
 pub use menu_item::MenuItem;
 
 use self::accelerator::remove_mnemonic;
@@ -98,8 +101,23 @@ impl Submenu {
         item
     }
 
-    pub fn add_native_item(&mut self, _item: NativeMenuItem) {
-        // TODO
-        return;
+    pub fn add_check_item<S: AsRef<str>>(
+        &mut self,
+        label: S,
+        enabled: bool,
+        checked: bool,
+        accelerator: Option<&str>,
+    ) -> CheckMenuItem {
+        let item = CheckMenuItem::new(
+            label,
+            enabled,
+            checked,
+            sel!(fireMenubarAction:),
+            accelerator,
+        );
+        unsafe {
+            self.menu.0.addItem_(item.ns_menu_item);
+        }
+        item
     }
 }

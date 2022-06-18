@@ -82,6 +82,93 @@ impl MenuItem {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct CheckMenuItem {
+    pub(crate) id: u64,
+    pub(crate) ns_menu_item: id,
+    label: Rc<str>,
+}
+
+impl CheckMenuItem {
+    pub fn new<S: AsRef<str>>(
+        label: S,
+        enabled: bool,
+        checked: bool,
+        selector: Sel,
+        accelerator: Option<&str>,
+    ) -> Self {
+        let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(&label), selector, accelerator);
+
+        unsafe {
+            (&mut *ns_menu_item).set_ivar(MENU_IDENTITY, id);
+            let () = msg_send![&*ns_menu_item, setTarget:&*ns_menu_item];
+
+            if !enabled {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+
+            if checked {
+                let () = msg_send![ns_menu_item, setState: 1_isize];
+            }
+        }
+        Self {
+            id,
+            ns_menu_item,
+            label: Rc::from(label.as_ref()),
+        }
+    }
+
+    pub fn label(&self) -> String {
+        self.label.to_string()
+    }
+
+    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
+        unsafe {
+            let title = NSString::alloc(nil).init_str(&remove_mnemonic(&label));
+            self.ns_menu_item.setTitle_(title);
+        }
+        self.label = Rc::from(label.as_ref());
+    }
+
+    pub fn enabled(&self) -> bool {
+        unsafe {
+            let enabled: BOOL = msg_send![self.ns_menu_item, isEnabled];
+            enabled == YES
+        }
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        unsafe {
+            let status = match enabled {
+                true => YES,
+                false => NO,
+            };
+            let () = msg_send![self.ns_menu_item, setEnabled: status];
+        }
+    }
+
+    pub fn checked(&self) -> bool {
+        unsafe {
+            let checked: isize = msg_send![self.ns_menu_item, state];
+            checked == 1_isize
+        }
+    }
+
+    pub fn set_checked(&mut self, checked: bool) {
+        unsafe {
+            let state = match checked {
+                true => 1_isize,
+                false => 0_isize,
+            };
+            let () = msg_send![self.ns_menu_item, setState: state];
+        }
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+}
+
 pub fn make_menu_item(title: &str, selector: Sel, accelerator: Option<&str>) -> (u64, *mut Object) {
     let alloc = make_menu_item_alloc();
     let menu_id = COUNTER.next();
