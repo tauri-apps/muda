@@ -454,12 +454,12 @@ pub enum NativeMenuItem {
     /// - **macOS:** macOS require this menu item to enable "Select All" keyboard shortcut for your app.
     /// - **Linux Wayland:** Not implmeneted.
     SelectAll,
-    /// A native "Enter fullscreen" menu item.
+    /// A native "Toggle fullscreen" menu item.
     ///
     /// ## platform-specific:
     ///
     /// - **Windows / Linux:** Unsupported.
-    EnterFullScreen,
+    ToggleFullScreen,
     /// A native "Minimize current window" menu item.
     Minimize,
     /// A native "Zoom" menu item.
