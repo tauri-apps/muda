@@ -125,8 +125,8 @@ impl Submenu {
             NativeMenuItem::ShowAll => {
                 make_menu_item("Show All", selector("unhideAllApplications:"), None)
             }
-            NativeMenuItem::EnterFullScreen => make_menu_item(
-                "Enter Full Screen",
+            NativeMenuItem::ToggleFullScreen => make_menu_item(
+                "Toggle Full Screen",
                 selector("toggleFullScreen:"),
                 Some("Ctrl+F"),
             ),
