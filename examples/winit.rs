@@ -1,6 +1,6 @@
 use muda::{menu_event_receiver, Menu, NativeMenuItem};
 #[cfg(target_os = "macos")]
-use winit::platform::macOS::EventLoopExtMacOS;
+use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
@@ -26,11 +26,11 @@ fn main() {
             }
         });
     }
+    #[cfg(target_os = "macos")]
+    event_loop_builder.with_default_menu(false);
 
     #[allow(unused_mut)]
     let mut event_loop = event_loop_builder.build();
-    #[cfg(target_os = "macos")]
-    event_loop.enable_default_menu_creation(false);
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
