@@ -1,4 +1,5 @@
 mod accelerator;
+mod keycode;
 mod menu_item;
 
 use crate::platform_impl::platform_impl::menu_item::make_menu_item;
@@ -13,6 +14,8 @@ use objc::{class, msg_send, sel, sel_impl};
 use self::accelerator::remove_mnemonic;
 pub use menu_item::CheckMenuItem;
 pub use menu_item::MenuItem;
+pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
+
 
 #[derive(Debug, Clone)]
 pub struct Menu(id);
