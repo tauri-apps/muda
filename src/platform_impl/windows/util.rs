@@ -1,3 +1,5 @@
+use windows_sys::Win32::UI::TextServices::HKL;
+
 #[cfg(target_os = "windows")]
 pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
     std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
@@ -16,4 +18,11 @@ pub fn decode_wide(w_str: *mut u16) -> String {
     let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(w_str) } as usize;
     let w_str_slice = unsafe { std::slice::from_raw_parts(w_str, len) };
     String::from_utf16_lossy(w_str_slice)
+}
+
+/// Implementation of the `PRIMARYLANGID` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
+  ((hkl as usize) & 0x3FF) as u32
 }

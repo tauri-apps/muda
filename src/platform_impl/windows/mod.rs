@@ -1,6 +1,7 @@
 #![cfg(target_os = "windows")]
 
 mod accelerator;
+mod keycode;
 mod util;
 
 use crate::{counter::Counter, NativeMenuItem};
@@ -24,6 +25,7 @@ use windows_sys::Win32::{
 };
 
 use self::accelerator::parse_accelerator;
+pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
 
 const COUNTER_START: u64 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
