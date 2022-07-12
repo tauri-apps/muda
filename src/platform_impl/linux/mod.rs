@@ -1,9 +1,12 @@
 mod accelerator;
+mod keycode;
 
 use crate::{counter::Counter, NativeMenuItem};
 use accelerator::{to_gtk_accelerator, to_gtk_menemenoic};
 use gtk::{prelude::*, Orientation};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
 
 static COUNTER: Counter = Counter::new();
 
