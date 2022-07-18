@@ -27,6 +27,7 @@ features = [
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.15"
 gtk = "0.15"
 libxdo = "0.6.0"
 

@@ -59,6 +59,7 @@
 //! }
 //! ```
 
+use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::Lazy;
 
@@ -279,7 +280,7 @@ impl Submenu {
         &mut self,
         label: S,
         enabled: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> MenuItem {
         MenuItem(self.0.add_item(label, enabled, accelerator))
     }
@@ -295,7 +296,7 @@ impl Submenu {
         label: S,
         enabled: bool,
         checked: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> CheckMenuItem {
         CheckMenuItem(self.0.add_check_item(label, enabled, checked, accelerator))
     }

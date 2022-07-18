@@ -42,67 +42,66 @@
 
 pub use keyboard_types::{Code, Modifiers};
 use std::{
-  borrow::Borrow,
-  collections::hash_map::DefaultHasher,
-  hash::{Hash, Hasher},
-  str::FromStr,
+    borrow::Borrow,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    str::FromStr,
 };
 
 /// Base `Accelerator` functions.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Accelerator {
-  id: Option<AcceleratorId>,
-  pub(crate) mods: Modifiers,
-  pub(crate) key: Code,
+    id: Option<AcceleratorId>,
+    pub(crate) mods: Modifiers,
+    pub(crate) key: Code,
 }
 
 impl Accelerator {
-  /// Creates a new accelerator to define keyboard shortcuts throughout your application.
-  pub fn new(mods: impl Into<Option<Modifiers>>, key: Code) -> Self {
-    Self {
-      id: None,
-      mods: mods.into().unwrap_or_else(Modifiers::empty),
-      key,
-    }
-  }
-
-  /// Assign a custom accelerator id.
-  pub fn with_id(mut self, id: AcceleratorId) -> Self {
-    self.id = Some(id);
-    self
-  }
-
-  /// Returns an identifier unique to the accelerator.
-  pub fn id(self) -> AcceleratorId {
-    if let Some(id) = self.id {
-      return id;
+    /// Creates a new accelerator to define keyboard shortcuts throughout your application.
+    pub fn new(mods: impl Into<Option<Modifiers>>, key: Code) -> Self {
+        Self {
+            id: None,
+            mods: mods.into().unwrap_or_else(Modifiers::empty),
+            key,
+        }
     }
 
-    AcceleratorId(hash_accelerator_to_u16(self))
-  }
+    /// Assign a custom accelerator id.
+    pub fn with_id(mut self, id: AcceleratorId) -> Self {
+        self.id = Some(id);
+        self
+    }
 
-  /// Returns `true` if this [`Code`] and [`Modifiers`] matches this `Accelerator`.
-  ///
-  /// [`Code`]: Code
-  /// [`Modifiers`]: crate::accelerator::Modifiers
-  pub fn matches(&self, modifiers: impl Borrow<Modifiers>, key: impl Borrow<Code>) -> bool {
-    // Should be a const but const bit_or doesn't work here.
-    let base_mods =
-      Modifiers::SHIFT | Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER;
-    let modifiers = modifiers.borrow();
-    let key = key.borrow();
-    self.mods == *modifiers & base_mods && self.key == *key
-  }
+    /// Returns an identifier unique to the accelerator.
+    pub fn id(self) -> AcceleratorId {
+        if let Some(id) = self.id {
+            return id;
+        }
+
+        AcceleratorId(hash_accelerator_to_u16(self))
+    }
+
+    /// Returns `true` if this [`Code`] and [`Modifiers`] matches this `Accelerator`.
+    ///
+    /// [`Code`]: Code
+    /// [`Modifiers`]: crate::accelerator::Modifiers
+    pub fn matches(&self, modifiers: impl Borrow<Modifiers>, key: impl Borrow<Code>) -> bool {
+        // Should be a const but const bit_or doesn't work here.
+        let base_mods = Modifiers::SHIFT | Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER;
+        let modifiers = modifiers.borrow();
+        let key = key.borrow();
+        self.mods == *modifiers & base_mods && self.key == *key
+    }
 }
 
 // Accelerator::from_str is available to be backward
 // compatible with tauri and it also open the option
 // to generate accelerator from string
 impl FromStr for Accelerator {
-  type Err = AcceleratorParseError;
-  fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
-    parse_accelerator(accelerator_string)
-  }
+    type Err = AcceleratorParseError;
+    fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
+        parse_accelerator(accelerator_string)
+    }
 }
 
 /// Represents the platform-agnostic keyboard modifiers, for command handling.
@@ -112,16 +111,16 @@ impl FromStr for Accelerator {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
 pub enum SysMods {
-  None,
-  Shift,
-  /// Command on macOS, and Ctrl on windows/linux
-  Cmd,
-  /// Command + Alt on macOS, Ctrl + Alt on windows/linux
-  AltCmd,
-  /// Command + Shift on macOS, Ctrl + Shift on windows/linux
-  CmdShift,
-  /// Command + Alt + Shift on macOS, Ctrl + Alt + Shift on windows/linux
-  AltCmdShift,
+    None,
+    Shift,
+    /// Command on macOS, and Ctrl on windows/linux
+    Cmd,
+    /// Command + Alt on macOS, Ctrl + Alt on windows/linux
+    AltCmd,
+    /// Command + Shift on macOS, Ctrl + Shift on windows/linux
+    CmdShift,
+    /// Command + Alt + Shift on macOS, Ctrl + Alt + Shift on windows/linux
+    AltCmdShift,
 }
 
 /// Represents the active modifier keys.
@@ -131,122 +130,122 @@ pub enum SysMods {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum RawMods {
-  None,
-  Alt,
-  Ctrl,
-  Meta,
-  Shift,
-  AltCtrl,
-  AltMeta,
-  AltShift,
-  CtrlShift,
-  CtrlMeta,
-  MetaShift,
-  AltCtrlMeta,
-  AltCtrlShift,
-  AltMetaShift,
-  CtrlMetaShift,
-  AltCtrlMetaShift,
+    None,
+    Alt,
+    Ctrl,
+    Meta,
+    Shift,
+    AltCtrl,
+    AltMeta,
+    AltShift,
+    CtrlShift,
+    CtrlMeta,
+    MetaShift,
+    AltCtrlMeta,
+    AltCtrlShift,
+    AltMetaShift,
+    CtrlMetaShift,
+    AltCtrlMetaShift,
 }
 
 // we do this so that Accelerator::new can accept `None` as an initial argument.
 impl From<SysMods> for Option<Modifiers> {
-  fn from(src: SysMods) -> Option<Modifiers> {
-    Some(src.into())
-  }
+    fn from(src: SysMods) -> Option<Modifiers> {
+        Some(src.into())
+    }
 }
 
 impl From<RawMods> for Option<Modifiers> {
-  fn from(src: RawMods) -> Option<Modifiers> {
-    Some(src.into())
-  }
+    fn from(src: RawMods) -> Option<Modifiers> {
+        Some(src.into())
+    }
 }
 
 impl From<RawMods> for Modifiers {
-  fn from(src: RawMods) -> Modifiers {
-    let (alt, ctrl, meta, shift) = match src {
-      RawMods::None => (false, false, false, false),
-      RawMods::Alt => (true, false, false, false),
-      RawMods::Ctrl => (false, true, false, false),
-      RawMods::Meta => (false, false, true, false),
-      RawMods::Shift => (false, false, false, true),
-      RawMods::AltCtrl => (true, true, false, false),
-      RawMods::AltMeta => (true, false, true, false),
-      RawMods::AltShift => (true, false, false, true),
-      RawMods::CtrlMeta => (false, true, true, false),
-      RawMods::CtrlShift => (false, true, false, true),
-      RawMods::MetaShift => (false, false, true, true),
-      RawMods::AltCtrlMeta => (true, true, true, false),
-      RawMods::AltMetaShift => (true, false, true, true),
-      RawMods::AltCtrlShift => (true, true, false, true),
-      RawMods::CtrlMetaShift => (false, true, true, true),
-      RawMods::AltCtrlMetaShift => (true, true, true, true),
-    };
-    let mut mods = Modifiers::empty();
-    mods.set(Modifiers::ALT, alt);
-    mods.set(Modifiers::CONTROL, ctrl);
-    mods.set(Modifiers::SUPER, meta);
-    mods.set(Modifiers::SHIFT, shift);
-    mods
-  }
+    fn from(src: RawMods) -> Modifiers {
+        let (alt, ctrl, meta, shift) = match src {
+            RawMods::None => (false, false, false, false),
+            RawMods::Alt => (true, false, false, false),
+            RawMods::Ctrl => (false, true, false, false),
+            RawMods::Meta => (false, false, true, false),
+            RawMods::Shift => (false, false, false, true),
+            RawMods::AltCtrl => (true, true, false, false),
+            RawMods::AltMeta => (true, false, true, false),
+            RawMods::AltShift => (true, false, false, true),
+            RawMods::CtrlMeta => (false, true, true, false),
+            RawMods::CtrlShift => (false, true, false, true),
+            RawMods::MetaShift => (false, false, true, true),
+            RawMods::AltCtrlMeta => (true, true, true, false),
+            RawMods::AltMetaShift => (true, false, true, true),
+            RawMods::AltCtrlShift => (true, true, false, true),
+            RawMods::CtrlMetaShift => (false, true, true, true),
+            RawMods::AltCtrlMetaShift => (true, true, true, true),
+        };
+        let mut mods = Modifiers::empty();
+        mods.set(Modifiers::ALT, alt);
+        mods.set(Modifiers::CONTROL, ctrl);
+        mods.set(Modifiers::SUPER, meta);
+        mods.set(Modifiers::SHIFT, shift);
+        mods
+    }
 }
 
 impl From<SysMods> for Modifiers {
-  fn from(src: SysMods) -> Modifiers {
-    let (alt, ctrl, meta, shift) = match src {
-      SysMods::None => (false, false, false, false),
-      SysMods::Shift => (false, false, false, true),
+    fn from(src: SysMods) -> Modifiers {
+        let (alt, ctrl, meta, shift) = match src {
+            SysMods::None => (false, false, false, false),
+            SysMods::Shift => (false, false, false, true),
 
-      #[cfg(target_os = "macos")]
-      SysMods::AltCmd => (true, false, true, false),
-      #[cfg(not(target_os = "macos"))]
-      SysMods::AltCmd => (true, true, false, false),
+            #[cfg(target_os = "macos")]
+            SysMods::AltCmd => (true, false, true, false),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::AltCmd => (true, true, false, false),
 
-      #[cfg(target_os = "macos")]
-      SysMods::AltCmdShift => (true, false, true, true),
-      #[cfg(not(target_os = "macos"))]
-      SysMods::AltCmdShift => (true, true, false, true),
+            #[cfg(target_os = "macos")]
+            SysMods::AltCmdShift => (true, false, true, true),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::AltCmdShift => (true, true, false, true),
 
-      #[cfg(target_os = "macos")]
-      SysMods::Cmd => (false, false, true, false),
-      #[cfg(not(target_os = "macos"))]
-      SysMods::Cmd => (false, true, false, false),
+            #[cfg(target_os = "macos")]
+            SysMods::Cmd => (false, false, true, false),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::Cmd => (false, true, false, false),
 
-      #[cfg(target_os = "macos")]
-      SysMods::CmdShift => (false, false, true, true),
-      #[cfg(not(target_os = "macos"))]
-      SysMods::CmdShift => (false, true, false, true),
-    };
-    let mut mods = Modifiers::empty();
-    mods.set(Modifiers::ALT, alt);
-    mods.set(Modifiers::CONTROL, ctrl);
-    mods.set(Modifiers::SUPER, meta);
-    mods.set(Modifiers::SHIFT, shift);
-    mods
-  }
+            #[cfg(target_os = "macos")]
+            SysMods::CmdShift => (false, false, true, true),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::CmdShift => (false, true, false, true),
+        };
+        let mut mods = Modifiers::empty();
+        mods.set(Modifiers::ALT, alt);
+        mods.set(Modifiers::CONTROL, ctrl);
+        mods.set(Modifiers::SUPER, meta);
+        mods.set(Modifiers::SHIFT, shift);
+        mods
+    }
 }
 
 impl From<SysMods> for RawMods {
-  fn from(src: SysMods) -> RawMods {
-    #[cfg(target_os = "macos")]
-    match src {
-      SysMods::None => RawMods::None,
-      SysMods::Shift => RawMods::Shift,
-      SysMods::Cmd => RawMods::Meta,
-      SysMods::AltCmd => RawMods::AltMeta,
-      SysMods::CmdShift => RawMods::MetaShift,
-      SysMods::AltCmdShift => RawMods::AltMetaShift,
+    fn from(src: SysMods) -> RawMods {
+        #[cfg(target_os = "macos")]
+        match src {
+            SysMods::None => RawMods::None,
+            SysMods::Shift => RawMods::Shift,
+            SysMods::Cmd => RawMods::Meta,
+            SysMods::AltCmd => RawMods::AltMeta,
+            SysMods::CmdShift => RawMods::MetaShift,
+            SysMods::AltCmdShift => RawMods::AltMetaShift,
+        }
+        #[cfg(not(target_os = "macos"))]
+        match src {
+            SysMods::None => RawMods::None,
+            SysMods::Shift => RawMods::Shift,
+            SysMods::Cmd => RawMods::Ctrl,
+            SysMods::AltCmd => RawMods::AltCtrl,
+            SysMods::CmdShift => RawMods::CtrlShift,
+            SysMods::AltCmdShift => RawMods::AltCtrlShift,
+        }
     }
-    #[cfg(not(target_os = "macos"))]
-    match src {
-      SysMods::None => RawMods::None,
-      SysMods::Shift => RawMods::Shift,
-      SysMods::Cmd => RawMods::Ctrl,
-      SysMods::AltCmd => RawMods::AltCtrl,
-      SysMods::CmdShift => RawMods::CtrlShift,
-      SysMods::AltCmdShift => RawMods::AltCtrlShift,
-    }
-  }
 }
 
 /// Identifier of an Accelerator.
@@ -254,219 +253,215 @@ impl From<SysMods> for RawMods {
 pub struct AcceleratorId(pub u16);
 
 impl From<AcceleratorId> for u16 {
-  fn from(s: AcceleratorId) -> u16 {
-    s.0
-  }
+    fn from(s: AcceleratorId) -> u16 {
+        s.0
+    }
 }
 
 impl From<AcceleratorId> for u32 {
-  fn from(s: AcceleratorId) -> u32 {
-    s.0 as u32
-  }
+    fn from(s: AcceleratorId) -> u32 {
+        s.0 as u32
+    }
 }
 
 impl From<AcceleratorId> for i32 {
-  fn from(s: AcceleratorId) -> i32 {
-    s.0 as i32
-  }
+    fn from(s: AcceleratorId) -> i32 {
+        s.0 as i32
+    }
 }
 
 impl AcceleratorId {
-  /// Return an empty `AcceleratorId`.
-  pub const EMPTY: AcceleratorId = AcceleratorId(0);
+    /// Return an empty `AcceleratorId`.
+    pub const EMPTY: AcceleratorId = AcceleratorId(0);
 
-  /// Create new `AcceleratorId` from a String.
-  pub fn new(accelerator_string: &str) -> AcceleratorId {
-    AcceleratorId(hash_string_to_u16(accelerator_string))
-  }
+    /// Create new `AcceleratorId` from a String.
+    pub fn new(accelerator_string: &str) -> AcceleratorId {
+        AcceleratorId(hash_string_to_u16(accelerator_string))
+    }
 
-  /// Whenever this menu is empty.
-  pub fn is_empty(self) -> bool {
-    Self::EMPTY == self
-  }
+    /// Whenever this menu is empty.
+    pub fn is_empty(self) -> bool {
+        Self::EMPTY == self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct AcceleratorParseError(String);
 
 impl std::fmt::Display for AcceleratorParseError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "[AcceleratorParseError]: {}", self.0)
-  }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[AcceleratorParseError]: {}", self.0)
+    }
 }
 
 fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, AcceleratorParseError> {
-  let mut mods = Modifiers::empty();
-  let mut key = Code::Unidentified;
+    let mut mods = Modifiers::empty();
+    let mut key = Code::Unidentified;
 
-  for raw in accelerator_string.to_uppercase().split('+') {
-    let token = raw.trim().to_string();
-    if token.is_empty() {
-      return Err(AcceleratorParseError(
-        "Unexpected empty token while parsing accelerator".into(),
-      ));
-    }
-
-    if key != Code::Unidentified {
-      // at this point we already parsed the modifiers and found a main key but
-      // the function received more then one main key or it is not in the right order
-      // examples:
-      // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
-      // 2. "Ctrl+C+Shift" => wrong order
-      return Err(AcceleratorParseError(format!(
-        "Unexpected accelerator string format: \"{}\"",
-        accelerator_string
-      )));
-    }
-
-    match token.as_str() {
-      "OPTION" | "ALT" => {
-        mods.set(Modifiers::ALT, true);
-      }
-      "CONTROL" | "CTRL" => {
-        mods.set(Modifiers::CONTROL, true);
-      }
-      "COMMAND" | "CMD" | "SUPER" => {
-        mods.set(Modifiers::SUPER, true);
-      }
-      "SHIFT" => {
-        mods.set(Modifiers::SHIFT, true);
-      }
-      "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
-        #[cfg(target_os = "macos")]
-        mods.set(Modifiers::SUPER, true);
-        #[cfg(not(target_os = "macos"))]
-        mods.set(Modifiers::CONTROL, true);
-      }
-      _ => {
-        if let Ok(code) = Code::from_str(token.to_uppercase().as_str()) {
-          match code {
-            Code::Unidentified => {
-              return Err(AcceleratorParseError(format!(
-                "Couldn't identify \"{}\" as a valid `Code`",
-                token
-              )))
-            }
-            _ => key = code,
-          }
+    for raw in accelerator_string.to_uppercase().split('+') {
+        let token = raw.trim().to_string();
+        if token.is_empty() {
+            return Err(AcceleratorParseError(
+                "Unexpected empty token while parsing accelerator".into(),
+            ));
         }
-      }
-    }
-  }
 
-  Ok(Accelerator {
-    // use the accelerator string as id
-    id: Some(AcceleratorId(hash_string_to_u16(accelerator_string))),
-    key,
-    mods,
-  })
+        if key != Code::Unidentified {
+            // at this point we already parsed the modifiers and found a main key but
+            // the function received more then one main key or it is not in the right order
+            // examples:
+            // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
+            // 2. "Ctrl+C+Shift" => wrong order
+            return Err(AcceleratorParseError(format!(
+                "Unexpected accelerator string format: \"{}\"",
+                accelerator_string
+            )));
+        }
+
+        match token.as_str() {
+            "OPTION" | "ALT" => {
+                mods.set(Modifiers::ALT, true);
+            }
+            "CONTROL" | "CTRL" => {
+                mods.set(Modifiers::CONTROL, true);
+            }
+            "COMMAND" | "CMD" | "SUPER" => {
+                mods.set(Modifiers::SUPER, true);
+            }
+            "SHIFT" => {
+                mods.set(Modifiers::SHIFT, true);
+            }
+            "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
+                #[cfg(target_os = "macos")]
+                mods.set(Modifiers::SUPER, true);
+                #[cfg(not(target_os = "macos"))]
+                mods.set(Modifiers::CONTROL, true);
+            }
+            _ => {
+                if let Ok(code) = Code::from_str(token.to_uppercase().as_str()) {
+                    match code {
+                        Code::Unidentified => {
+                            return Err(AcceleratorParseError(format!(
+                                "Couldn't identify \"{}\" as a valid `Code`",
+                                token
+                            )))
+                        }
+                        _ => key = code,
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Accelerator {
+        // use the accelerator string as id
+        id: Some(AcceleratorId(hash_string_to_u16(accelerator_string))),
+        key,
+        mods,
+    })
 }
 
 fn hash_string_to_u16(title: &str) -> u16 {
-  let mut s = DefaultHasher::new();
-  // we transform to uppercase to make sure
-  // if we write Shift instead of SHIFT it return
-  // the same ID
-  title.to_uppercase().hash(&mut s);
-  s.finish() as u16
+    let mut s = DefaultHasher::new();
+    // we transform to uppercase to make sure
+    // if we write Shift instead of SHIFT it return
+    // the same ID
+    title.to_uppercase().hash(&mut s);
+    s.finish() as u16
 }
 
 fn hash_accelerator_to_u16(hotkey: Accelerator) -> u16 {
-  let mut s = DefaultHasher::new();
-  hotkey.hash(&mut s);
-  s.finish() as u16
+    let mut s = DefaultHasher::new();
+    hotkey.hash(&mut s);
+    s.finish() as u16
 }
 
 #[test]
 fn test_parse_accelerator() {
-  assert_eq!(
-    parse_accelerator("CTRL+X").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("CTRL+X")),
-      mods: Modifiers::CONTROL,
-      key: Code::KeyX,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("SHIFT+C").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("SHIFT+C")),
-      mods: Modifiers::SHIFT,
-      key: Code::KeyC,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("CTRL+Z").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("CTRL+Z")),
-      mods: Modifiers::CONTROL,
-      key: Code::KeyZ,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("super+ctrl+SHIFT+alt+Up").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("super+ctrl+SHIFT+alt+Up")),
-      mods: Modifiers::SUPER
-        | Modifiers::CONTROL
-        | Modifiers::SHIFT
-        | Modifiers::ALT,
-      key: Code::ArrowUp,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("5").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("5")),
-      mods: Modifiers::empty(),
-      key: Code::Digit5,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("G").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("G")),
-      mods: Modifiers::empty(),
-      key: Code::KeyG,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("G").unwrap(),
-    Accelerator {
-      // id not with same uppercase should work
-      id: Some(AcceleratorId::new("g")),
-      mods: Modifiers::empty(),
-      key: Code::KeyG,
-    }
-  );
+    assert_eq!(
+        parse_accelerator("CTRL+X").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("CTRL+X")),
+            mods: Modifiers::CONTROL,
+            key: Code::KeyX,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("SHIFT+C").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("SHIFT+C")),
+            mods: Modifiers::SHIFT,
+            key: Code::KeyC,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("CTRL+Z").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("CTRL+Z")),
+            mods: Modifiers::CONTROL,
+            key: Code::KeyZ,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("super+ctrl+SHIFT+alt+Up").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("super+ctrl+SHIFT+alt+Up")),
+            mods: Modifiers::SUPER | Modifiers::CONTROL | Modifiers::SHIFT | Modifiers::ALT,
+            key: Code::ArrowUp,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("5").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("5")),
+            mods: Modifiers::empty(),
+            key: Code::Digit5,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("G").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("G")),
+            mods: Modifiers::empty(),
+            key: Code::KeyG,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("G").unwrap(),
+        Accelerator {
+            // id not with same uppercase should work
+            id: Some(AcceleratorId::new("g")),
+            mods: Modifiers::empty(),
+            key: Code::KeyG,
+        }
+    );
 
-  let acc = parse_accelerator("+G");
-  assert!(acc.is_err());
+    let acc = parse_accelerator("+G");
+    assert!(acc.is_err());
 
-  let acc = parse_accelerator("SHGSH+G");
-  assert!(acc.is_err());
+    let acc = parse_accelerator("SHGSH+G");
+    assert!(acc.is_err());
 
-  assert_eq!(
-    parse_accelerator("SHiFT+F12").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("SHIFT+F12")),
-      mods: Modifiers::SHIFT,
-      key: Code::F12,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("CmdOrCtrl+Space").unwrap(),
-    Accelerator {
-      id: Some(AcceleratorId::new("CmdOrCtrl+Space")),
-      #[cfg(target_os = "macos")]
-      mods: Modifiers::SUPER,
-      #[cfg(not(target_os = "macos"))]
-      mods: Modifiers::CONTROL,
-      key: Code::Space,
-    }
-  );
+    assert_eq!(
+        parse_accelerator("SHiFT+F12").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("SHIFT+F12")),
+            mods: Modifiers::SHIFT,
+            key: Code::F12,
+        }
+    );
+    assert_eq!(
+        parse_accelerator("CmdOrCtrl+Space").unwrap(),
+        Accelerator {
+            id: Some(AcceleratorId::new("CmdOrCtrl+Space")),
+            #[cfg(target_os = "macos")]
+            mods: Modifiers::SUPER,
+            #[cfg(not(target_os = "macos"))]
+            mods: Modifiers::CONTROL,
+            key: Code::Space,
+        }
+    );
 
-  let acc = parse_accelerator("CTRL+");
-  assert!(acc.is_err());
+    let acc = parse_accelerator("CTRL+");
+    assert!(acc.is_err());
 }
-

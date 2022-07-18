@@ -1,4 +1,8 @@
-use muda::{menu_event_receiver, Menu, NativeMenuItem};
+use keyboard_types::Code;
+use muda::{
+    accelerator::{Accelerator, SysMods},
+    menu_event_receiver, Menu, NativeMenuItem,
+};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "windows")]
@@ -37,7 +41,11 @@ fn main() {
 
     let mut file_menu = menu_bar.add_submenu("&File", true);
     let mut open_item = file_menu.add_item("&Open", true, None);
-    let mut save_item = file_menu.add_item("&Save", true, Some("CommandOrCtrl+S"));
+    let mut save_item = file_menu.add_item(
+        "&Save",
+        true,
+        Some(Accelerator::new(SysMods::Cmd, Code::KeyS)),
+    );
     file_menu.add_native_item(NativeMenuItem::Minimize);
     file_menu.add_native_item(NativeMenuItem::CloseWindow);
     file_menu.add_native_item(NativeMenuItem::Quit);

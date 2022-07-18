@@ -1,7 +1,7 @@
 mod accelerator;
 
-use crate::{counter::Counter, NativeMenuItem};
-use accelerator::{to_gtk_accelerator, to_gtk_menemenoic};
+use crate::{accelerator::Accelerator, counter::Counter, NativeMenuItem};
+use accelerator::{register_accelerator, to_gtk_menemenoic};
 use gtk::{prelude::*, Orientation};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -14,7 +14,7 @@ struct MenuEntry {
     enabled: bool,
     checked: bool,
     id: u64,
-    accelerator: Option<String>,
+    accelerator: Option<Accelerator>,
     r#type: MenuEntryType,
     entries: Option<Vec<Rc<RefCell<MenuEntry>>>>,
 }
@@ -247,7 +247,7 @@ impl Submenu {
         &mut self,
         label: S,
         enabled: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> MenuItem {
         let label = label.as_ref().to_string();
         let id = COUNTER.next();
@@ -257,7 +257,7 @@ impl Submenu {
             enabled,
             r#type: MenuEntryType::MenuItem(Vec::new()),
             id,
-            accelerator: accelerator.map(|s| s.to_string()),
+            accelerator: accelerator.clone(),
             ..Default::default()
         }));
 
@@ -265,13 +265,7 @@ impl Submenu {
 
         if let MenuEntryType::Submenu(native_menus) = &mut inner.r#type {
             for (_, menu) in native_menus {
-                let item = create_gtk_menu_item(
-                    &label,
-                    enabled,
-                    &accelerator.map(|s| s.to_string()),
-                    id,
-                    &*self.1,
-                );
+                let item = create_gtk_menu_item(&label, enabled, &accelerator, id, &*self.1);
                 menu.append(&item);
                 if let MenuEntryType::MenuItem(native_items) = &mut entry.borrow_mut().r#type {
                     native_items.push(item);
@@ -304,7 +298,7 @@ impl Submenu {
         label: S,
         enabled: bool,
         checked: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> CheckMenuItem {
         let label = label.as_ref().to_string();
         let id = COUNTER.next();
@@ -315,7 +309,7 @@ impl Submenu {
             checked,
             r#type: MenuEntryType::CheckMenuItem(Vec::new()),
             id,
-            accelerator: accelerator.map(|s| s.to_string()),
+            accelerator: accelerator.clone(),
             ..Default::default()
         }));
 
@@ -327,7 +321,7 @@ impl Submenu {
                     &label,
                     enabled,
                     checked,
-                    &accelerator.map(|s| s.to_string()),
+                    &accelerator,
                     id,
                     &*self.1,
                 );
@@ -511,21 +505,14 @@ fn create_gtk_submenu(label: &str, enabled: bool) -> (gtk::MenuItem, gtk::Menu) 
 fn create_gtk_menu_item(
     label: &str,
     enabled: bool,
-    accelerator: &Option<String>,
+    accelerator: &Option<Accelerator>,
     id: u64,
     accel_group: &gtk::AccelGroup,
 ) -> gtk::MenuItem {
     let item = gtk::MenuItem::with_mnemonic(&to_gtk_menemenoic(label));
     item.set_sensitive(enabled);
     if let Some(accelerator) = accelerator {
-        let (key, modifiers) = gtk::accelerator_parse(&to_gtk_accelerator(accelerator));
-        item.add_accelerator(
-            "activate",
-            accel_group,
-            key,
-            modifiers,
-            gtk::AccelFlags::VISIBLE,
-        );
+        register_accelerator(&item, accel_group, accelerator);
     }
     item.connect_activate(move |_| {
         let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
@@ -538,7 +525,7 @@ fn create_gtk_check_menu_item(
     label: &str,
     enabled: bool,
     checked: bool,
-    accelerator: &Option<String>,
+    accelerator: &Option<Accelerator>,
     id: u64,
     accel_group: &gtk::AccelGroup,
 ) -> gtk::CheckMenuItem {
@@ -546,14 +533,7 @@ fn create_gtk_check_menu_item(
     item.set_sensitive(enabled);
     item.set_active(checked);
     if let Some(accelerator) = accelerator {
-        let (key, modifiers) = gtk::accelerator_parse(&to_gtk_accelerator(accelerator));
-        item.add_accelerator(
-            "activate",
-            accel_group,
-            key,
-            modifiers,
-            gtk::AccelFlags::VISIBLE,
-        );
+        register_accelerator(&item, accel_group, accelerator);
     }
     item.connect_activate(move |_| {
         let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
