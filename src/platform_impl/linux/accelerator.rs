@@ -101,7 +101,7 @@ fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
     );
     result.set(
         gdk::ModifierType::META_MASK,
-        modifiers.contains(Modifiers::META),
+        modifiers.contains(Modifiers::SUPER),
     );
 
     result

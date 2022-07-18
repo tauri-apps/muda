@@ -1,5 +1,6 @@
+use crate::accelerator::Accelerator;
 use crate::counter::Counter;
-use crate::platform_impl::platform_impl::accelerator::{parse_accelerator, remove_mnemonic};
+use crate::platform_impl::platform_impl::accelerator::remove_mnemonic;
 use cocoa::{
     appkit::{NSButton, NSEventModifierFlags, NSMenuItem},
     base::{id, nil, BOOL, NO, YES},
@@ -29,7 +30,7 @@ impl MenuItem {
         label: S,
         enabled: bool,
         selector: Sel,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> Self {
         let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(&label), selector, accelerator);
 
@@ -95,7 +96,7 @@ impl CheckMenuItem {
         enabled: bool,
         checked: bool,
         selector: Sel,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> Self {
         let (id, ns_menu_item) = make_menu_item(&remove_mnemonic(&label), selector, accelerator);
 
@@ -169,7 +170,11 @@ impl CheckMenuItem {
     }
 }
 
-pub fn make_menu_item(title: &str, selector: Sel, accelerator: Option<&str>) -> (u64, *mut Object) {
+pub fn make_menu_item(
+    title: &str,
+    selector: Sel,
+    accelerator: Option<Accelerator>,
+) -> (u64, *mut Object) {
     let alloc = make_menu_item_alloc();
     let menu_id = COUNTER.next();
 
@@ -221,12 +226,13 @@ fn make_menu_item_from_alloc(
     alloc: *mut Object,
     title: *mut Object,
     selector: Sel,
-    accelerator: Option<&str>,
+    accelerator: Option<Accelerator>,
 ) -> *mut Object {
     unsafe {
         let (key_equivalent, masks) = match accelerator {
             Some(accelerator) => {
-                let (key, mods) = parse_accelerator(accelerator);
+                let key = accelerator.key_equivalent();
+                let mods = accelerator.key_modifier_mask();
                 let key = NSString::alloc(nil).init_str(&key);
                 (key, mods)
             }

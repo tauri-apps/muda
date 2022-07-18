@@ -1,13 +1,15 @@
 mod accelerator;
 mod menu_item;
 
-use crate::platform_impl::platform_impl::menu_item::make_menu_item;
+use crate::accelerator::{RawMods, SysMods};
 use crate::NativeMenuItem;
+use crate::{accelerator::Accelerator, platform_impl::platform_impl::menu_item::make_menu_item};
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO},
     foundation::{NSAutoreleasePool, NSString},
 };
+use keyboard_types::Code;
 use objc::{class, msg_send, sel, sel_impl};
 
 use self::accelerator::remove_mnemonic;
@@ -90,7 +92,7 @@ impl Submenu {
         &mut self,
         label: S,
         enabled: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> MenuItem {
         let item = MenuItem::new(label, enabled, sel!(fireMenubarAction:), accelerator);
         unsafe {
@@ -110,17 +112,25 @@ impl Submenu {
                     None,
                 )
             }
-            NativeMenuItem::CloseWindow => {
-                make_menu_item("Close Window", selector("performClose:"), Some("Command+W"))
-            }
-            NativeMenuItem::Quit => {
-                make_menu_item("Quit", selector("terminate:"), Some("Command+Q"))
-            }
-            NativeMenuItem::Hide => make_menu_item("Hide", selector("hide:"), Some("Command+H")),
+            NativeMenuItem::CloseWindow => make_menu_item(
+                "Close Window",
+                selector("performClose:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyW)),
+            ),
+            NativeMenuItem::Quit => make_menu_item(
+                "Quit",
+                selector("terminate:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyQ)),
+            ),
+            NativeMenuItem::Hide => make_menu_item(
+                "Hide",
+                selector("hide:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyH)),
+            ),
             NativeMenuItem::HideOthers => make_menu_item(
                 "Hide Others",
                 selector("hideOtherApplications:"),
-                Some("Alt+H"),
+                Some(Accelerator::new(RawMods::Alt, Code::KeyH)),
             ),
             NativeMenuItem::ShowAll => {
                 make_menu_item("Show All", selector("unhideAllApplications:"), None)
@@ -128,24 +138,44 @@ impl Submenu {
             NativeMenuItem::ToggleFullScreen => make_menu_item(
                 "Toggle Full Screen",
                 selector("toggleFullScreen:"),
-                Some("Ctrl+F"),
+                Some(Accelerator::new(RawMods::Ctrl, Code::KeyF)),
             ),
             NativeMenuItem::Minimize => make_menu_item(
                 "Minimize",
                 selector("performMiniaturize:"),
-                Some("Command+M"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyM)),
             ),
             NativeMenuItem::Zoom => make_menu_item("Zoom", selector("performZoom:"), None),
-            NativeMenuItem::Copy => make_menu_item("Copy", selector("copy:"), Some("Command+C")),
-            NativeMenuItem::Cut => make_menu_item("Cut", selector("cut:"), Some("Command+X")),
-            NativeMenuItem::Paste => make_menu_item("Paste", selector("paste:"), Some("Command+V")),
-            NativeMenuItem::Undo => make_menu_item("Undo", selector("undo:"), Some("Command+Z")),
-            NativeMenuItem::Redo => {
-                make_menu_item("Redo", selector("redo:"), Some("Command+Shift+Z"))
-            }
-            NativeMenuItem::SelectAll => {
-                make_menu_item("Select All", selector("selectAll:"), Some("Command+A"))
-            }
+            NativeMenuItem::Copy => make_menu_item(
+                "Copy",
+                selector("copy:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyC)),
+            ),
+            NativeMenuItem::Cut => make_menu_item(
+                "Cut",
+                selector("cut:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyX)),
+            ),
+            NativeMenuItem::Paste => make_menu_item(
+                "Paste",
+                selector("paste:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyV)),
+            ),
+            NativeMenuItem::Undo => make_menu_item(
+                "Undo",
+                selector("undo:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyZ)),
+            ),
+            NativeMenuItem::Redo => make_menu_item(
+                "Redo",
+                selector("redo:"),
+                Some(Accelerator::new(SysMods::CmdShift, Code::KeyZ)),
+            ),
+            NativeMenuItem::SelectAll => make_menu_item(
+                "Select All",
+                selector("selectAll:"),
+                Some(Accelerator::new(SysMods::Cmd, Code::KeyA)),
+            ),
             NativeMenuItem::Services => unsafe {
                 let (_, item) = make_menu_item("Services", sel!(fireMenubarAction:), None);
                 let app_class = class!(NSApplication);
@@ -165,7 +195,7 @@ impl Submenu {
         label: S,
         enabled: bool,
         checked: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> CheckMenuItem {
         let item = CheckMenuItem::new(
             label,
