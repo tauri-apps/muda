@@ -1,6 +1,6 @@
 use keyboard_types::Code;
 use muda::{
-    accelerator::{Accelerator, SysMods},
+    accelerator::{Accelerator, Mods},
     menu_event_receiver, Menu, NativeMenuItem,
 };
 #[cfg(target_os = "linux")]
@@ -26,7 +26,7 @@ fn main() {
     let mut save_item = file_menu.add_item(
         "&Save",
         true,
-        Some(Accelerator::new(SysMods::Cmd, Code::KeyS)),
+        Some(Accelerator::new(Mods::CtrlMeta, Code::KeyS)),
     );
     file_menu.add_native_item(NativeMenuItem::Minimize);
     file_menu.add_native_item(NativeMenuItem::CloseWindow);
