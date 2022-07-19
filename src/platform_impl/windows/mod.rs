@@ -3,7 +3,7 @@
 mod accelerator;
 mod util;
 
-use crate::{counter::Counter, NativeMenuItem};
+use crate::{accelerator::Accelerator, counter::Counter, NativeMenuItem};
 use once_cell::sync::Lazy;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use util::{decode_wide, encode_wide, LOWORD};
@@ -22,8 +22,6 @@ use windows_sys::Win32::{
         },
     },
 };
-
-use self::accelerator::parse_accelerator;
 
 const COUNTER_START: u64 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
@@ -195,7 +193,7 @@ impl Submenu {
         &mut self,
         label: S,
         enabled: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> MenuItem {
         let id = COUNTER.next();
         let mut flags = MF_STRING;
@@ -205,12 +203,8 @@ impl Submenu {
 
         let mut label = label.as_ref().to_string();
         if let Some(accelerator) = accelerator {
-            let (key, mods, accel_str) = parse_accelerator(accelerator);
-            let accel = ACCEL {
-                key,
-                fVirt: mods as _,
-                cmd: id as _,
-            };
+            let accel_str = accelerator.to_string();
+            let accel = accelerator.to_accel(id as u16);
 
             label.push_str("\t");
             label.push_str(&accel_str);
@@ -268,7 +262,7 @@ impl Submenu {
         label: S,
         enabled: bool,
         checked: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> CheckMenuItem {
         let mut item = CheckMenuItem(self.add_item(label, enabled, accelerator));
         item.set_checked(checked);
