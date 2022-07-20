@@ -1,108 +1,133 @@
 use cocoa::appkit::NSEventModifierFlags;
+use keyboard_types::{Code, Modifiers};
+
+use crate::accelerator::Accelerator;
 
 /// Mnemonic is deprecated since macOS 10
 pub fn remove_mnemonic(string: impl AsRef<str>) -> String {
     string.as_ref().replace("&", "")
 }
 
-/// Returns a tuple of (Key, Modifier)
-pub fn parse_accelerator(accelerator: impl AsRef<str>) -> (String, NSEventModifierFlags) {
-    let accelerator = accelerator.as_ref();
-    let mut s = accelerator.split("+");
-    let count = s.clone().count();
-    let (mod1, mod2, key) = {
-        if count == 2 {
-            (s.next().unwrap(), None, s.next().unwrap())
-        } else if count == 3 {
-            (
-                s.next().unwrap(),
-                Some(s.next().unwrap()),
-                s.next().unwrap(),
-            )
-        } else {
-            panic!("Unsupported accelerator format: {}", accelerator)
+impl Accelerator {
+    /// Return the string value of this hotkey, for use with Cocoa `NSResponder`
+    /// objects.
+    ///
+    /// Returns the empty string if no key equivalent is known.
+    pub fn key_equivalent(&self) -> String {
+        match self.key {
+            Code::KeyA => "a".into(),
+            Code::KeyB => "b".into(),
+            Code::KeyC => "c".into(),
+            Code::KeyD => "d".into(),
+            Code::KeyE => "e".into(),
+            Code::KeyF => "f".into(),
+            Code::KeyG => "g".into(),
+            Code::KeyH => "h".into(),
+            Code::KeyI => "i".into(),
+            Code::KeyJ => "j".into(),
+            Code::KeyK => "k".into(),
+            Code::KeyL => "l".into(),
+            Code::KeyM => "m".into(),
+            Code::KeyN => "n".into(),
+            Code::KeyO => "o".into(),
+            Code::KeyP => "p".into(),
+            Code::KeyQ => "q".into(),
+            Code::KeyR => "r".into(),
+            Code::KeyS => "s".into(),
+            Code::KeyT => "t".into(),
+            Code::KeyU => "u".into(),
+            Code::KeyV => "v".into(),
+            Code::KeyW => "w".into(),
+            Code::KeyX => "x".into(),
+            Code::KeyY => "y".into(),
+            Code::KeyZ => "z".into(),
+            Code::Digit0 => "0".into(),
+            Code::Digit1 => "1".into(),
+            Code::Digit2 => "2".into(),
+            Code::Digit3 => "3".into(),
+            Code::Digit4 => "4".into(),
+            Code::Digit5 => "5".into(),
+            Code::Digit6 => "6".into(),
+            Code::Digit7 => "7".into(),
+            Code::Digit8 => "8".into(),
+            Code::Digit9 => "9".into(),
+            Code::Comma => ",".into(),
+            Code::Minus => "-".into(),
+            Code::Period => ".".into(),
+            Code::Space => "\u{0020}".into(),
+            Code::Equal => "=".into(),
+            Code::Semicolon => ";".into(),
+            Code::Slash => "/".into(),
+            Code::Backslash => "\\".into(),
+            Code::Quote => "\'".into(),
+            Code::Backquote => "`".into(),
+            Code::BracketLeft => "[".into(),
+            Code::BracketRight => "]".into(),
+            Code::Tab => "⇥".into(),
+            Code::Escape => "\u{001b}".into(),
+            // from NSText.h
+            Code::Enter => "\u{0003}".into(),
+            Code::Backspace => "\u{0008}".into(),
+            Code::Delete => "\u{007f}".into(),
+            // from NSEvent.h
+            Code::Insert => "\u{F727}".into(),
+            Code::Home => "\u{F729}".into(),
+            Code::End => "\u{F72B}".into(),
+            Code::PageUp => "\u{F72C}".into(),
+            Code::PageDown => "\u{F72D}".into(),
+            Code::PrintScreen => "\u{F72E}".into(),
+            Code::ScrollLock => "\u{F72F}".into(),
+            Code::ArrowUp => "\u{F700}".into(),
+            Code::ArrowDown => "\u{F701}".into(),
+            Code::ArrowLeft => "\u{F702}".into(),
+            Code::ArrowRight => "\u{F703}".into(),
+            Code::F1 => "\u{F704}".into(),
+            Code::F2 => "\u{F705}".into(),
+            Code::F3 => "\u{F706}".into(),
+            Code::F4 => "\u{F707}".into(),
+            Code::F5 => "\u{F708}".into(),
+            Code::F6 => "\u{F709}".into(),
+            Code::F7 => "\u{F70A}".into(),
+            Code::F8 => "\u{F70B}".into(),
+            Code::F9 => "\u{F70C}".into(),
+            Code::F10 => "\u{F70D}".into(),
+            Code::F11 => "\u{F70E}".into(),
+            Code::F12 => "\u{F70F}".into(),
+            Code::F13 => "\u{F710}".into(),
+            Code::F14 => "\u{F711}".into(),
+            Code::F15 => "\u{F712}".into(),
+            Code::F16 => "\u{F713}".into(),
+            Code::F17 => "\u{F714}".into(),
+            Code::F18 => "\u{F715}".into(),
+            Code::F19 => "\u{F716}".into(),
+            Code::F20 => "\u{F717}".into(),
+            Code::F21 => "\u{F718}".into(),
+            Code::F22 => "\u{F719}".into(),
+            Code::F23 => "\u{F71A}".into(),
+            Code::F24 => "\u{F71B}".into(),
+            _ => {
+                #[cfg(debug_assertions)]
+                eprintln!("no key equivalent for {:?}", self);
+                "".into()
+            }
         }
-    };
-
-    let mut mods = NSEventModifierFlags::empty();
-    let mod1_flag = parse_mod(mod1);
-    mods |= mod1_flag;
-    if let Some(mod2) = mod2 {
-        let mod2_flag = parse_mod(mod2);
-        mods |= mod2_flag;
     }
 
-    let key_equivalent = parse_key(key);
-
-    (key_equivalent, mods)
-}
-
-fn parse_mod(modifier: &str) -> NSEventModifierFlags {
-    match modifier.to_uppercase().as_str() {
-        "SHIFT" => NSEventModifierFlags::NSShiftKeyMask,
-        "CONTROL" | "CTRL" => NSEventModifierFlags::NSControlKeyMask,
-        "OPTION" | "ALT" => NSEventModifierFlags::NSAlternateKeyMask,
-        "COMMAND" | "CMD" | "SUPER" | "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL"
-        | "CMDORCONTROL" => NSEventModifierFlags::NSCommandKeyMask,
-        _ => panic!("Unsupported modifier: {}", modifier),
-    }
-}
-
-fn parse_key(key: &str) -> String {
-    match key.to_uppercase().as_str() {
-        "SPACE" => "\u{0020}".into(),
-        "BACKSPACE" => "\u{0008}".into(),
-        "TAB" => "⇥".into(),
-        "ENTER" | "RETURN" => "\u{0003}".into(),
-        "ESC" | "ESCAPE" => "\u{001b}".into(),
-        "PAGEUP" => "\u{F72C}".into(),
-        "PAGEDOWN" => "\u{F72D}".into(),
-        "END" => "\u{F72B}".into(),
-        "HOME" => "\u{F729}".into(),
-        "LEFTARROW" => "\u{F702}".into(),
-        "UPARROW" => "\u{F700}".into(),
-        "RIGHTARROW" => "\u{F703}".into(),
-        "DOWNARROW" => "\u{F701}".into(),
-        "DELETE" => "\u{007f}".into(),
-        "0" => "0".into(),
-        "1" => "1".into(),
-        "2" => "2".into(),
-        "3" => "3".into(),
-        "4" => "4".into(),
-        "5" => "5".into(),
-        "6" => "6".into(),
-        "7" => "7".into(),
-        "8" => "8".into(),
-        "9" => "9".into(),
-        "A" => "a".into(),
-        "B" => "b".into(),
-        "C" => "c".into(),
-        "D" => "d".into(),
-        "E" => "e".into(),
-        "F" => "f".into(),
-        "G" => "g".into(),
-        "H" => "h".into(),
-        "I" => "i".into(),
-        "J" => "j".into(),
-        "K" => "k".into(),
-        "L" => "l".into(),
-        "M" => "m".into(),
-        "N" => "n".into(),
-        "O" => "o".into(),
-        "P" => "p".into(),
-        "Q" => "q".into(),
-        "R" => "r".into(),
-        "S" => "s".into(),
-        "T" => "t".into(),
-        "U" => "u".into(),
-        "V" => "v".into(),
-        "W" => "w".into(),
-        "X" => "x".into(),
-        "Y" => "y".into(),
-        "Z" => "z".into(),
-        "," => ",".into(),
-        "." => ".".into(),
-        "/" => "/".into(),
-        _ => panic!("Unsupported modifier: {}", key),
+    pub fn key_modifier_mask(&self) -> NSEventModifierFlags {
+        let mods: Modifiers = self.mods;
+        let mut flags = NSEventModifierFlags::empty();
+        if mods.contains(Modifiers::SHIFT) {
+            flags.insert(NSEventModifierFlags::NSShiftKeyMask);
+        }
+        if mods.contains(Modifiers::SUPER) {
+            flags.insert(NSEventModifierFlags::NSCommandKeyMask);
+        }
+        if mods.contains(Modifiers::ALT) {
+            flags.insert(NSEventModifierFlags::NSAlternateKeyMask);
+        }
+        if mods.contains(Modifiers::CONTROL) {
+            flags.insert(NSEventModifierFlags::NSControlKeyMask);
+        }
+        flags
     }
 }

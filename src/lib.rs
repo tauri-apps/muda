@@ -3,14 +3,14 @@
 //!
 //! Before you can add submenus and menu items, you first need a root or a base menu.
 //! ```no_run
-//! let mut menu = Menu::new();
+//! let mut menu = muda::Menu::new();
 //! ```
 //!
 //! # Adding submens to the root menu
 //!
 //! Once you have a root menu you can start adding [`Submenu`]s by using [`Menu::add_submenu`].
 //! ```no_run
-//! let mut menu = Menu::new();
+//! let mut menu = muda::Menu::new();
 //! let file_menu = menu.add_submenu("File", true);
 //! let edit_menu = menu.add_submenu("Edit", true);
 //! ```
@@ -19,22 +19,22 @@
 //!
 //! Once you have a [`Submenu`] you can star creating more [`Submenu`]s or [`MenuItem`]s.
 //! ```no_run
-//! let mut menu = Menu::new();
+//! let mut menu = muda::Menu::new();
 //!
-//! let file_menu = menu.add_submenu("File", true);
-//! let open_item = file_menu.add_text_item("Open", true);
-//! let save_item = file_menu.add_text_item("Save", true);
+//! let mut file_menu = menu.add_submenu("File", true);
+//! let open_item = file_menu.add_item("Open", true, None);
+//! let save_item = file_menu.add_item("Save", true, None);
 //!
-//! let edit_menu = menu.add_submenu("Edit", true);
-//! let copy_item = file_menu.add_text_item("Copy", true);
-//! let cut_item = file_menu.add_text_item("Cut", true);
+//! let mut edit_menu = menu.add_submenu("Edit", true);
+//! let copy_item = file_menu.add_item("Copy", true, None);
+//! let cut_item = file_menu.add_item("Cut", true, None);
 //! ```
 //!
 //! # Add your root menu to a Window (Windows and Linux Only)
 //!
 //! You can use [`Menu`] to display a top menu in a Window on Windows and Linux.
-//! ```no_run
-//! let mut menu = Menu::new();
+//! ```ignore
+//! let mut menu = muda::Menu::new();
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! menu.init_for_hwnd(window.hwnd() as isize);
@@ -48,8 +48,8 @@
 //!
 //! You can use [`menu_event_receiver`] to get a reference to the [`MenuEventReceiver`]
 //! which you can use to listen to events when a menu item is activated
-//! ```no_run
-//! if let Ok(event) = menu_event_receiver().try_recv() {
+//! ```ignore
+//! if let Ok(event) = muda::menu_event_receiver().try_recv() {
 //!     match event.id {
 //!         _ if event.id == save_item.id() => {
 //!             println!("Save menu item activated");
@@ -59,9 +59,11 @@
 //! }
 //! ```
 
+use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::Lazy;
 
+pub mod accelerator;
 mod counter;
 mod platform_impl;
 
@@ -85,8 +87,8 @@ pub struct MenuEvent {
 ///
 /// # Example
 ///
-/// ```
-/// let mut menu = Menu::new();
+/// ```no_run
+/// let mut menu = muda::Menu::new();
 /// let file_menu = menu.add_submenu("File", true);
 /// let edit_menu = menu.add_submenu("Edit", true);
 /// ```
@@ -278,7 +280,7 @@ impl Submenu {
         &mut self,
         label: S,
         enabled: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> MenuItem {
         MenuItem(self.0.add_item(label, enabled, accelerator))
     }
@@ -294,7 +296,7 @@ impl Submenu {
         label: S,
         enabled: bool,
         checked: bool,
-        accelerator: Option<&str>,
+        accelerator: Option<Accelerator>,
     ) -> CheckMenuItem {
         CheckMenuItem(self.0.add_check_item(label, enabled, checked, accelerator))
     }
