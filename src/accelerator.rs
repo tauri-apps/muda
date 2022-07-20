@@ -16,16 +16,16 @@
 //! # assert_eq!(accelerator, accelerator_with_raw_mods);
 //! ```
 //! or from `&str`, note that all modifiers
-//! have to be listed before the non-modifier key, `shift+alt+q` is legal,
+//! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
 //! ```
 //! # use muda::accelerator::{Accelerator, Mods};
 //! #
-//! let accelerator: Accelerator = "shift+alt+q".parse().unwrap();
+//! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
 //! #
 //! # // This assert exists to ensure a test breaks once the
 //! # // statement above about ordering is no longer valid.
-//! # assert!("shift+q+alt".parse::<Accelerator>().is_err());
+//! # assert!("shift+KeyQ+alt".parse::<Accelerator>().is_err());
 //! ```
 //!
 
