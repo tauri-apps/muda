@@ -44,7 +44,7 @@ fn main() {
     let mut save_item = file_menu.add_item(
         "&Save",
         true,
-        Some(Accelerator::new(Mods::CtrlMeta, Code::KeyS)),
+        Some(Accelerator::new(Mods::Ctrl, Code::KeyS)),
     );
     file_menu.add_native_item(NativeMenuItem::Minimize);
     file_menu.add_native_item(NativeMenuItem::CloseWindow);

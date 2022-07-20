@@ -81,6 +81,8 @@ pub enum Mods {
     None,
     Alt,
     Ctrl,
+    Command,
+    CommandOrCtrl,
     Meta,
     Shift,
     AltCtrl,
@@ -108,6 +110,11 @@ impl From<Mods> for Modifiers {
             Mods::None => (false, false, false, false),
             Mods::Alt => (true, false, false, false),
             Mods::Ctrl => (false, true, false, false),
+            Mods::Command => (false, false, true, false),
+            #[cfg(target_os = "macos")]
+            Mods::CommandOrCtrl => (false, false, true, false),
+            #[cfg(not(target_os = "macos"))]
+            Mods::CommandOrCtrl => (false, true, false, false),
             Mods::Meta => (false, false, true, false),
             Mods::Shift => (false, false, false, true),
             Mods::AltCtrl => (true, true, false, false),
