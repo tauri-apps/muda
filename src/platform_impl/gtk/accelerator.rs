@@ -11,12 +11,16 @@ pub fn to_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
         .replace("[~~]", "&&")
 }
 
-pub fn register_accelerator<M: IsA<gtk::Widget>>(
-    item: &M,
-    accel_group: &AccelGroup,
-    menu_key: &Accelerator,
-) {
-    let accel_key = match &menu_key.key {
+pub fn from_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
+    string
+        .as_ref()
+        .replace("__", "[~~]")
+        .replace("_", "&")
+        .replace("[~~]", "__")
+}
+
+pub fn parse_accelerator(accelerator: &Accelerator) -> Result<(gdk::ModifierType, u32), ()> {
+    let key = match &accelerator.key {
         Code::KeyA => 'A' as u32,
         Code::KeyB => 'B' as u32,
         Code::KeyC => 'C' as u32,
@@ -69,19 +73,24 @@ pub fn register_accelerator<M: IsA<gtk::Widget>>(
             if let Some(gdk_key) = key_to_raw_key(k) {
                 *gdk_key
             } else {
+                // TODO: better logging and error handling
                 dbg!("Cannot map key {:?}", k);
-                return;
+                return Err(());
             }
         }
     };
 
-    item.add_accelerator(
-        "activate",
-        accel_group,
-        accel_key,
-        modifiers_to_gdk_modifier_type(menu_key.mods),
-        gtk::AccelFlags::VISIBLE,
-    );
+    Ok((modifiers_to_gdk_modifier_type(accelerator.mods), key))
+}
+
+pub fn register_accelerator<M: IsA<gtk::Widget>>(
+    item: &M,
+    accel_group: &AccelGroup,
+    accelerator: &Accelerator,
+) {
+    if let Ok((mods, key)) = parse_accelerator(accelerator) {
+        item.add_accelerator("activate", accel_group, key, mods, gtk::AccelFlags::VISIBLE);
+    }
 }
 
 fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {

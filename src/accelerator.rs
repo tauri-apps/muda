@@ -41,9 +41,10 @@ pub struct Accelerator {
 
 impl Accelerator {
     /// Creates a new accelerator to define keyboard shortcuts throughout your application.
-    pub fn new(mods: impl Into<Option<Modifiers>>, key: Code) -> Self {
+    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::META`]/[`Modifiers::SUPER`]
+    pub fn new(mods: Option<Modifiers>, key: Code) -> Self {
         Self {
-            mods: mods.into().unwrap_or_else(Modifiers::empty),
+            mods: mods.unwrap_or_else(Modifiers::empty),
             key,
         }
     }
@@ -54,7 +55,11 @@ impl Accelerator {
     /// [`Modifiers`]: crate::accelerator::Modifiers
     pub fn matches(&self, modifiers: impl Borrow<Modifiers>, key: impl Borrow<Code>) -> bool {
         // Should be a const but const bit_or doesn't work here.
-        let base_mods = Modifiers::SHIFT | Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER;
+        let base_mods = Modifiers::SHIFT
+            | Modifiers::CONTROL
+            | Modifiers::ALT
+            | Modifiers::META
+            | Modifiers::SUPER;
         let modifiers = modifiers.borrow();
         let key = key.borrow();
         self.mods == *modifiers & base_mods && self.key == *key
@@ -68,73 +73,6 @@ impl FromStr for Accelerator {
     type Err = AcceleratorParseError;
     fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
         parse_accelerator(accelerator_string)
-    }
-}
-
-/// Represents the active modifier keys.
-///
-/// This is intended to be clearer than [`Modifiers`], when describing accelerators.
-///
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
-pub enum Mods {
-    None,
-    Alt,
-    Ctrl,
-    Command,
-    CommandOrCtrl,
-    Meta,
-    Shift,
-    AltCtrl,
-    AltMeta,
-    AltShift,
-    CtrlShift,
-    CtrlMeta,
-    MetaShift,
-    AltCtrlMeta,
-    AltCtrlShift,
-    AltMetaShift,
-    CtrlMetaShift,
-    AltCtrlMetaShift,
-}
-
-impl From<Mods> for Option<Modifiers> {
-    fn from(src: Mods) -> Option<Modifiers> {
-        Some(src.into())
-    }
-}
-
-impl From<Mods> for Modifiers {
-    fn from(src: Mods) -> Modifiers {
-        let (alt, ctrl, meta, shift) = match src {
-            Mods::None => (false, false, false, false),
-            Mods::Alt => (true, false, false, false),
-            Mods::Ctrl => (false, true, false, false),
-            Mods::Command => (false, false, true, false),
-            #[cfg(target_os = "macos")]
-            Mods::CommandOrCtrl => (false, false, true, false),
-            #[cfg(not(target_os = "macos"))]
-            Mods::CommandOrCtrl => (false, true, false, false),
-            Mods::Meta => (false, false, true, false),
-            Mods::Shift => (false, false, false, true),
-            Mods::AltCtrl => (true, true, false, false),
-            Mods::AltMeta => (true, false, true, false),
-            Mods::AltShift => (true, false, false, true),
-            Mods::CtrlMeta => (false, true, true, false),
-            Mods::CtrlShift => (false, true, false, true),
-            Mods::MetaShift => (false, false, true, true),
-            Mods::AltCtrlMeta => (true, true, true, false),
-            Mods::AltMetaShift => (true, false, true, true),
-            Mods::AltCtrlShift => (true, true, false, true),
-            Mods::CtrlMetaShift => (false, true, true, true),
-            Mods::AltCtrlMetaShift => (true, true, true, true),
-        };
-        let mut mods = Modifiers::empty();
-        mods.set(Modifiers::ALT, alt);
-        mods.set(Modifiers::CONTROL, ctrl);
-        mods.set(Modifiers::SUPER, meta);
-        mods.set(Modifiers::SHIFT, shift);
-        mods
     }
 }
 
@@ -179,14 +117,14 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
                 mods.set(Modifiers::CONTROL, true);
             }
             "COMMAND" | "CMD" | "SUPER" => {
-                mods.set(Modifiers::SUPER, true);
+                mods.set(Modifiers::META, true);
             }
             "SHIFT" => {
                 mods.set(Modifiers::SHIFT, true);
             }
             "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
                 #[cfg(target_os = "macos")]
-                mods.set(Modifiers::SUPER, true);
+                mods.set(Modifiers::META, true);
                 #[cfg(not(target_os = "macos"))]
                 mods.set(Modifiers::CONTROL, true);
             }

@@ -1,71 +1,15 @@
 //! muda is a Menu Utilities library for Desktop Applications.
-//! # Creating root menus
-//!
-//! Before you can add submenus and menu items, you first need a root or a base menu.
-//! ```no_run
-//! let mut menu = muda::Menu::new();
-//! ```
-//!
-//! # Adding submens to the root menu
-//!
-//! Once you have a root menu you can start adding [`Submenu`]s by using [`Menu::add_submenu`].
-//! ```no_run
-//! let mut menu = muda::Menu::new();
-//! let file_menu = menu.add_submenu("File", true);
-//! let edit_menu = menu.add_submenu("Edit", true);
-//! ```
-//!
-//! # Aadding menu items and submenus within another submenu
-//!
-//! Once you have a [`Submenu`] you can star creating more [`Submenu`]s or [`MenuItem`]s.
-//! ```no_run
-//! let mut menu = muda::Menu::new();
-//!
-//! let mut file_menu = menu.add_submenu("File", true);
-//! let open_item = file_menu.add_item("Open", true, None);
-//! let save_item = file_menu.add_item("Save", true, None);
-//!
-//! let mut edit_menu = menu.add_submenu("Edit", true);
-//! let copy_item = file_menu.add_item("Copy", true, None);
-//! let cut_item = file_menu.add_item("Cut", true, None);
-//! ```
-//!
-//! # Add your root menu to a Window (Windows and Linux Only)
-//!
-//! You can use [`Menu`] to display a top menu in a Window on Windows and Linux.
-//! ```ignore
-//! let mut menu = muda::Menu::new();
-//! // --snip--
-//! #[cfg(target_os = "windows")]
-//! menu.init_for_hwnd(window.hwnd() as isize);
-//! #[cfg(target_os = "linux")]
-//! menu.init_for_gtk_window(&gtk_window);
-//! #[cfg(target_os = "macos")]
-//! menu.init_for_nsapp();
-//! ```
-//!
-//! # Processing menu events
-//!
-//! You can use [`menu_event_receiver`] to get a reference to the [`MenuEventReceiver`]
-//! which you can use to listen to events when a menu item is activated
-//! ```ignore
-//! if let Ok(event) = muda::menu_event_receiver().try_recv() {
-//!     match event.id {
-//!         _ if event.id == save_item.id() => {
-//!             println!("Save menu item activated");
-//!         },
-//!         _ => {}
-//!     }
-//! }
-//! ```
 
 use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use internal::{MenuItem, MenuItemType};
 use once_cell::sync::Lazy;
+use predefined::PredfinedMenuItem;
 
 pub mod accelerator;
 mod counter;
 mod platform_impl;
+pub mod predefined;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
 
@@ -76,22 +20,12 @@ pub fn menu_event_receiver<'a>() -> &'a Receiver<MenuEvent> {
 }
 
 /// Describes a menu event emitted when a menu item is activated
+#[derive(Debug)]
 pub struct MenuEvent {
     /// Id of the menu item which triggered this event
     pub id: u64,
 }
 
-/// This is the root menu type to which you can add
-/// more submenus and later be add to the top of a window (on Windows and Linux)
-/// or used as the menubar menu (on macOS) or displayed as a popup menu.
-///
-/// # Example
-///
-/// ```no_run
-/// let mut menu = muda::Menu::new();
-/// let file_menu = menu.add_submenu("File", true);
-/// let edit_menu = menu.add_submenu("Edit", true);
-/// ```
 #[derive(Clone)]
 pub struct Menu(platform_impl::Menu);
 
@@ -101,16 +35,8 @@ impl Menu {
         Self(platform_impl::Menu::new())
     }
 
-    /// Creates a new [`Submenu`] whithin this menu.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows / Linux:** The menu label can contain `&` to indicate which letter should get a generated accelerator.
-    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
-    /// and the `&` character is not displayed on menu label.
-    /// Then the menu can be activated by press `Alt+F`.
-    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
-        Submenu(self.0.add_submenu(label, enabled))
+    pub fn add_menu_item(&self, item: &impl MenuItem) {
+        self.0.add_menu_item(item)
     }
 
     /// Adds this menu to a [`gtk::ApplicationWindow`]
@@ -231,268 +157,150 @@ impl Menu {
     }
 }
 
-/// This is a Submenu within another [`Submenu`] or [`Menu`].
 #[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
+unsafe impl MenuItem for Submenu {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Submenu
+    }
+    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
+        self
+    }
+}
+
 impl Submenu {
-    /// Gets the submenus's current label.
-    pub fn label(&self) -> String {
-        self.0.label()
+    pub fn new(text: &str, enabled: bool) -> Self {
+        Self(platform_impl::Submenu::new(text, enabled))
     }
 
-    /// Sets a new label for the submenu.
-    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
-        self.0.set_label(label)
+    pub fn add_menu_item(&self, item: &impl MenuItem) {
+        self.0.add_menu_item(item)
     }
 
-    /// Gets the submenu's current state, whether enabled or not.
-    pub fn enabled(&self) -> bool {
-        self.0.enabled()
+    pub fn text(&self) -> String {
+        self.0.text()
     }
 
-    /// Enables or disables the submenu
-    pub fn set_enabled(&mut self, enabled: bool) {
+    pub fn set_text(&self, text: &str) {
+        self.0.set_text(text)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0.is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
-    }
-
-    /// Creates a new [`Submenu`] whithin this submenu.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows / Linux:** The menu label can contain `&` to indicate which letter should get a generated accelerator.
-    /// For example, using `&File` for the File menu would result in the label gets an underline under the `F`,
-    /// and the `&` character is not displayed on menu label.
-    /// Then the menu can be activated by press `F` when its parent menu is active.
-    pub fn add_submenu<S: AsRef<str>>(&mut self, label: S, enabled: bool) -> Submenu {
-        Submenu(self.0.add_submenu(label, enabled))
-    }
-
-    /// Creates a new [`MenuItem`] whithin this submenu.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows / Linux:** The menu item label can contain `&` to indicate which letter should get a generated accelerator.
-    /// For example, using `&Save` for the save menu item would result in the label gets an underline under the `S`,
-    /// and the `&` character is not displayed on menu item label.
-    /// Then the menu item can be activated by press `S` when its parent menu is active.
-    pub fn add_item<S: AsRef<str>>(
-        &mut self,
-        label: S,
-        enabled: bool,
-        accelerator: Option<Accelerator>,
-    ) -> MenuItem {
-        MenuItem(self.0.add_item(label, enabled, accelerator))
-    }
-
-    /// Creates a new [`NativeMenuItem`] within this submenu.
-    pub fn add_native_item(&mut self, item: NativeMenuItem) {
-        self.0.add_native_item(item)
-    }
-
-    /// Creates a new [`CheckMenuItem`] within this submenu.
-    pub fn add_check_item<S: AsRef<str>>(
-        &mut self,
-        label: S,
-        enabled: bool,
-        checked: bool,
-        accelerator: Option<Accelerator>,
-    ) -> CheckMenuItem {
-        CheckMenuItem(self.0.add_check_item(label, enabled, checked, accelerator))
     }
 }
 
-/// This is a normal menu item within a [`Submenu`].
 #[derive(Clone)]
-pub struct MenuItem(platform_impl::MenuItem);
+pub struct TextMenuItem(platform_impl::TextMenuItem);
 
-impl MenuItem {
-    /// Gets the menu item's current label.
-    pub fn label(&self) -> String {
-        self.0.label()
+unsafe impl MenuItem for TextMenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Text
     }
-
-    /// Sets a new label for the menu item.
-    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
-        self.0.set_label(label)
-    }
-
-    /// Gets the menu item's current state, whether enabled or not.
-    pub fn enabled(&self) -> bool {
-        self.0.enabled()
-    }
-
-    /// Enables or disables the menu item.
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.0.set_enabled(enabled)
-    }
-
-    /// Gets the unique id for this menu item.
-    pub fn id(&self) -> u64 {
-        self.0.id()
+    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
+        self
     }
 }
 
-/// This is a menu item with a checkmark icon within a [`Submenu`].
+impl TextMenuItem {
+    pub fn new(text: &str, enabled: bool, acccelerator: Option<Accelerator>) -> Self {
+        Self(platform_impl::TextMenuItem::new(
+            text,
+            enabled,
+            acccelerator,
+        ))
+    }
+    fn predefined(item: PredfinedMenuItem, text: Option<&str>) -> Self {
+        Self(platform_impl::TextMenuItem::predefined(item, text))
+    }
+
+    pub fn text(&self) -> String {
+        self.0.text()
+    }
+
+    pub fn set_text(&self, text: &str) {
+        self.0.set_text(text)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0.is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.set_enabled(enabled)
+    }
+}
+
 #[derive(Clone)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
+unsafe impl MenuItem for CheckMenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Check
+    }
+    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
+        self
+    }
+}
+
 impl CheckMenuItem {
-    /// Gets the menu item's current label.
-    pub fn label(&self) -> String {
-        self.0.label()
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        checked: bool,
+        acccelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(platform_impl::CheckMenuItem::new(
+            text,
+            enabled,
+            checked,
+            acccelerator,
+        ))
     }
 
-    /// Sets a new label for the menu item.
-    pub fn set_label<S: AsRef<str>>(&mut self, label: S) {
-        self.0.set_label(label)
+    pub fn text(&self) -> String {
+        self.0.text()
     }
 
-    /// Gets the menu item's current state, whether enabled or not.
-    pub fn enabled(&self) -> bool {
-        self.0.enabled()
+    pub fn set_text(&self, text: &str) {
+        self.0.set_text(text)
     }
 
-    /// Enables or disables the menu item.
-    pub fn set_enabled(&mut self, enabled: bool) {
+    pub fn is_enabled(&self) -> bool {
+        self.0.is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
 
-    /// Gets the menu item's current state, whether checked or not.
-    pub fn checked(&self) -> bool {
-        self.0.checked()
+    pub fn is_checked(&self) -> bool {
+        self.0.is_checked()
     }
 
-    /// Enables or disables the menu item.
-    pub fn set_checked(&mut self, checked: bool) {
+    pub fn set_checked(&self, checked: bool) {
         self.0.set_checked(checked)
     }
+}
 
-    /// Gets the unique id for this menu item.
-    pub fn id(&self) -> u64 {
-        self.0.id()
+mod internal {
+    //!  **DO NOT USE:**. This is meant for internal usage inside the crate.
+
+    pub enum MenuItemType {
+        Submenu,
+        Text,
+        Check,
     }
-}
 
-/// This is a Native menu item within a [`Submenu`] with a predefined behavior.
-#[non_exhaustive]
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum NativeMenuItem {
-    /// A native “About” menu item.
-    ///
-    /// The first value is the application name, and the second is its metadata.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **macOS:** the metadata is ignore.
-    About(String, AboutMetadata),
-    /// A native “hide the app” menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    Hide,
-    /// A native “hide all other windows" menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    HideOthers,
-    /// A native "Show all windows for this app" menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    ShowAll,
-    /// A native "Services" menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    Services,
-    /// A native "Close current window" menu item.
-    CloseWindow,
-    /// A native "Quit///
-    Quit,
-    /// A native "Copy" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Copy" keyboard shortcut for your app.
-    /// - **Linux Wayland:** Not implmeneted.
-    Copy,
-    /// A native "Cut" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Cut" keyboard shortcut for your app.
-    /// - **Linux Wayland:** Not implmeneted.
-    Cut,
-    /// A native "Paste" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Paste" keyboard shortcut for your app.
-    /// - **Linux Wayland:** Not implmeneted.
-    Paste,
-    /// A native "Undo" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Undo" keyboard shortcut for your app.
-    /// - **Windows / Linux:** Unsupported.
-    Undo,
-    /// A native "Redo" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Redo" keyboard shortcut for your app.
-    /// - **Windows / Linux:** Unsupported.
-    Redo,
-    /// A native "Select All" menu item.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS:** macOS require this menu item to enable "Select All" keyboard shortcut for your app.
-    /// - **Linux Wayland:** Not implmeneted.
-    SelectAll,
-    /// A native "Toggle fullscreen" menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    ToggleFullScreen,
-    /// A native "Minimize current window" menu item.
-    Minimize,
-    /// A native "Zoom" menu item.
-    ///
-    /// ## platform-specific:
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    Zoom,
-    /// Represends a Separator in the menu.
-    Separator,
-}
+    /// **DO NOT IMPLEMENT:** This trait is ONLY meant to be implemented internally.
+    pub unsafe trait MenuItem {
+        fn type_(&self) -> MenuItemType;
 
-/// Application metadata for the [`NativeMenuItem::About`].
-///
-/// ## Platform-specific
-///
-/// - **macOS:** The metadata is ignored.
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
-pub struct AboutMetadata {
-    /// The application name.
-    pub version: Option<String>,
-    /// The authors of the application.
-    pub authors: Option<Vec<String>>,
-    /// Application comments.
-    pub comments: Option<String>,
-    /// The copyright of the application.
-    pub copyright: Option<String>,
-    /// The license of the application.
-    pub license: Option<String>,
-    /// The application website.
-    pub website: Option<String>,
-    /// The website label.
-    pub website_label: Option<String>,
+        fn as_any(&self) -> &(dyn std::any::Any + 'static);
+    }
 }
