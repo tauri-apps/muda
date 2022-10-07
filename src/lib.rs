@@ -11,7 +11,7 @@ mod counter;
 mod platform_impl;
 pub mod predefined;
 
-static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(|| unbounded());
+static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
 
 /// Gets a reference to the event channel's [Receiver<MenuEvent>]
 /// which can be used to listen for menu events.
@@ -28,6 +28,12 @@ pub struct MenuEvent {
 
 #[derive(Clone)]
 pub struct Menu(platform_impl::Menu);
+
+impl Default for Menu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Menu {
     /// Creates a new root menu.
@@ -297,6 +303,8 @@ mod internal {
         Check,
     }
 
+    /// # Safety
+    ///
     /// **DO NOT IMPLEMENT:** This trait is ONLY meant to be implemented internally.
     pub unsafe trait MenuItem {
         fn type_(&self) -> MenuItemType;

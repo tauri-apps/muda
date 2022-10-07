@@ -33,7 +33,7 @@ pub use keyboard_types::{Code, Modifiers};
 use std::{borrow::Borrow, hash::Hash, str::FromStr};
 
 /// Base `Accelerator` functions.
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Accelerator {
     pub(crate) mods: Modifiers,
     pub(crate) key: Code,

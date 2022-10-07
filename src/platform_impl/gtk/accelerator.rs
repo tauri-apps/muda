@@ -7,7 +7,7 @@ pub fn to_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
         .replace("&&", "[~~]")
-        .replace("&", "_")
+        .replace('&', "_")
         .replace("[~~]", "&&")
 }
 
@@ -15,7 +15,7 @@ pub fn from_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
         .replace("__", "[~~]")
-        .replace("_", "&")
+        .replace('_', "&")
         .replace("[~~]", "__")
 }
 

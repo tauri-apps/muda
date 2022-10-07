@@ -79,9 +79,9 @@ impl Menu {
                 let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &item.0 .0;
                 {
-                    for (_, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    for (menu_bar, _) in self.0.borrow().native_menus.values() {
                         if let Some(menu_bar) = menu_bar {
-                            add_gtk_submenu(menu_bar, &entry);
+                            add_gtk_submenu(menu_bar, entry);
                         }
                     }
                 }
@@ -91,9 +91,9 @@ impl Menu {
                 let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
                 let entry = &item.0 .0;
                 {
-                    for (_, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    for (menu_bar, _) in self.0.borrow().native_menus.values() {
                         if let Some(menu_bar) = menu_bar {
-                            add_gtk_text_menuitem(menu_bar, &entry, &self.0.borrow().accel_group);
+                            add_gtk_text_menuitem(menu_bar, entry, &self.0.borrow().accel_group);
                         }
                     }
                 }
@@ -106,9 +106,9 @@ impl Menu {
                     .unwrap();
                 let entry = &item.0 .0;
                 {
-                    for (_, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    for (menu_bar, _) in self.0.borrow().native_menus.values() {
                         if let Some(menu_bar) = menu_bar {
-                            add_gtk_check_menuitem(menu_bar, &entry, &self.0.borrow().accel_group)
+                            add_gtk_check_menuitem(menu_bar, entry, &self.0.borrow().accel_group)
                         }
                     }
                 }
@@ -240,7 +240,7 @@ impl Submenu {
                     let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &item.0 .0;
                     for (_, menu) in store {
-                        add_gtk_submenu(menu, &entry);
+                        add_gtk_submenu(menu, entry);
                     }
                     self.0
                         .borrow_mut()
@@ -255,7 +255,7 @@ impl Submenu {
                     for (_, menu) in store {
                         add_gtk_text_menuitem(
                             menu,
-                            &entry,
+                            entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                         );
                     }
@@ -275,7 +275,7 @@ impl Submenu {
                     for (_, menu) in store {
                         add_gtk_text_menuitem(
                             menu,
-                            &entry,
+                            entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                         );
                     }
@@ -362,7 +362,7 @@ impl TextMenuItem {
 
     pub fn predefined(item: PredfinedMenuItem, text: Option<&str>) -> Self {
         let entry = Rc::new(RefCell::new(MenuEntry {
-            text: text.unwrap_or(item.text()).to_string(),
+            text: text.unwrap_or_else(|| item.text()).to_string(),
             enabled: true,
             accelerator: item.accelerator(),
             type_: MenuEntryType::Predefined(Vec::new(), item),
@@ -699,16 +699,9 @@ fn add_gtk_check_menuitem(
     let id = entry.id;
 
     item.connect_toggled(move |i| {
-        let should_dispatch = match &entry_c.borrow().type_ {
-            MenuEntryType::Check { is_syncing, .. }
-                if is_syncing
-                    .compare_exchange(false, true, Ordering::Release, Ordering::Relaxed)
-                    .is_ok() =>
-            {
-                true
-            }
-            _ => false,
-        };
+        let should_dispatch = matches!(&entry_c.borrow().type_, MenuEntryType::Check { is_syncing, .. } if is_syncing
+                       .compare_exchange(false, true, Ordering::Release, Ordering::Relaxed)
+                             .is_ok());
 
         if should_dispatch {
             let checked = i.is_active();
