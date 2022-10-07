@@ -3,7 +3,12 @@ mod accelerator;
 use crate::{accelerator::Accelerator, counter::Counter, predefined::PredfinedMenuItem};
 use accelerator::{register_accelerator, to_gtk_menemenoic};
 use gtk::{prelude::*, Orientation};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use self::accelerator::{from_gtk_menemenoic, parse_accelerator};
 
@@ -25,7 +30,7 @@ pub(crate) struct MenuEntry {
 /// Be careful when cloning this type, use it only to match against the enum
 /// and don't mutate the vectors but it is fine to clone it and
 /// call the gtk methods on the elements
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 enum MenuEntryType {
     // NOTE(amrbashir): because gtk doesn't allow using the same [`gtk::MenuItem`]
     // multiple times, and thus can't be used in multiple windows, each entry
@@ -33,7 +38,10 @@ enum MenuEntryType {
     // and push to it every time [`Menu::init_for_gtk_window`] is called.
     Submenu(Vec<(gtk::MenuItem, gtk::Menu)>),
     Text(Vec<gtk::MenuItem>),
-    Check(Vec<gtk::CheckMenuItem>),
+    Check {
+        store: Vec<gtk::CheckMenuItem>,
+        is_syncing: Rc<AtomicBool>,
+    },
     Predefined(Vec<gtk::MenuItem>, PredfinedMenuItem),
 }
 
@@ -430,7 +438,10 @@ impl CheckMenuItem {
             checked,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuEntryType::Check(Vec::new()),
+            type_: MenuEntryType::Check {
+                store: Vec::new(),
+                is_syncing: Rc::new(AtomicBool::new(false)),
+            },
             ..Default::default()
         }));
 
@@ -439,7 +450,7 @@ impl CheckMenuItem {
 
     pub fn text(&self) -> String {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, .. } = &entry.type_ {
             store
                 .get(0)
                 .map(|i| {
@@ -458,7 +469,7 @@ impl CheckMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.text = text.to_string();
 
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, .. } = &entry.type_ {
             let text = to_gtk_menemenoic(text);
             for i in store {
                 i.set_label(&text);
@@ -468,7 +479,7 @@ impl CheckMenuItem {
 
     pub fn is_enabled(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, .. } = &entry.type_ {
             store
                 .get(0)
                 .map(|i| i.is_sensitive())
@@ -482,7 +493,7 @@ impl CheckMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.enabled = enabled;
 
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, .. } = &entry.type_ {
             for i in store {
                 i.set_sensitive(enabled);
             }
@@ -491,7 +502,7 @@ impl CheckMenuItem {
 
     pub fn is_checked(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, .. } = &entry.type_ {
             store.get(0).map(|i| i.is_active()).unwrap_or(entry.checked)
         } else {
             unreachable!()
@@ -499,13 +510,18 @@ impl CheckMenuItem {
     }
 
     pub fn set_checked(&self, checked: bool) {
-        let mut entry = self.0.borrow_mut();
-        entry.checked = checked;
+        let type_ = {
+            let mut entry = self.0.borrow_mut();
+            entry.checked = checked;
+            entry.type_.clone()
+        };
 
-        if let MenuEntryType::Check(store) = &entry.type_ {
+        if let MenuEntryType::Check { store, is_syncing } = &type_ {
+            is_syncing.store(true, Ordering::Release);
             for i in store {
                 i.set_active(checked);
             }
+            is_syncing.store(false, Ordering::Release);
         }
     }
 }
@@ -526,8 +542,8 @@ fn add_gtk_submenu(menu: &impl IsA<gtk::MenuShell>, entry: &Rc<RefCell<MenuEntry
         entry.entries.as_ref().unwrap(),
         entry.accel_group.as_ref().unwrap(),
     );
-    if let MenuEntryType::Submenu(m) = &mut entry.type_ {
-        m.push((item, submenu));
+    if let MenuEntryType::Submenu(store) = &mut entry.type_ {
+        store.push((item, submenu));
     }
 }
 
@@ -567,28 +583,33 @@ fn add_gtk_predefined_menuitm(
     accel_group: &gtk::AccelGroup,
 ) {
     let mut entry = entry.borrow_mut();
-
-    if let MenuEntryType::Predefined(_, PredfinedMenuItem::Separator) = &entry.type_ {
-        let item = gtk::SeparatorMenuItem::new();
-        item.show();
-        menu.append(&item);
-        return;
-    }
-
-    let item = gtk::MenuItem::builder()
-        .label(&to_gtk_menemenoic(&entry.text))
-        .use_underline(true)
-        .sensitive(entry.enabled)
-        .build();
-    menu.append(&item);
-    item.show();
+    let text = entry.text.clone();
     let accelerator = entry.accelerator.clone();
+
     if let MenuEntryType::Predefined(store, predefined_item) = &mut entry.type_ {
-        match predefined_item {
+        let predefined_item = predefined_item.clone();
+        let make_item = || {
+            gtk::MenuItem::builder()
+                .label(&to_gtk_menemenoic(text))
+                .use_underline(true)
+                .sensitive(true)
+                .build()
+        };
+        let register_accel = |item: &gtk::MenuItem| {
+            if let Some(accelerator) = accelerator {
+                register_accelerator(item, accel_group, &accelerator);
+            }
+        };
+
+        let item = match predefined_item {
+            PredfinedMenuItem::Separator => {
+                Some(gtk::SeparatorMenuItem::new().upcast::<gtk::MenuItem>())
+            }
             PredfinedMenuItem::Copy
             | PredfinedMenuItem::Cut
             | PredfinedMenuItem::Paste
             | PredfinedMenuItem::SelectAll => {
+                let item = make_item();
                 let (mods, key) =
                     parse_accelerator(&predefined_item.accelerator().unwrap()).unwrap();
                 item.child()
@@ -596,79 +617,65 @@ fn add_gtk_predefined_menuitm(
                     .downcast::<gtk::AccelLabel>()
                     .unwrap()
                     .set_accel(key, mods);
-            }
-            PredfinedMenuItem::Separator => {}
-            _ => {
-                if let Some(accelerator) = accelerator {
-                    register_accelerator(&item, accel_group, &accelerator);
-                }
-            }
-        }
-        let predefined_item = predefined_item.clone();
-        item.connect_activate(move |m| match &predefined_item {
-            PredfinedMenuItem::Copy
-            | PredfinedMenuItem::Cut
-            | PredfinedMenuItem::Paste
-            | PredfinedMenuItem::SelectAll => {
-                // TODO: wayland
-                if let Ok(xdo) = libxdo::XDo::new(None) {
-                    let _ = xdo.send_keysequence(predefined_item.xdo_keys(), 0);
-                }
-            }
-            PredfinedMenuItem::Minimize => {
-                if let Some(window) = m.window() {
-                    window.iconify()
-                }
-            }
-            PredfinedMenuItem::CloseWindow => {
-                if let Some(window) = m.window() {
-                    window.destroy()
-                }
-            }
-            PredfinedMenuItem::Quit => {
-                std::process::exit(0);
+                item.connect_activate(move |_| {
+                    // TODO: wayland
+                    if let Ok(xdo) = libxdo::XDo::new(None) {
+                        let _ = xdo.send_keysequence(predefined_item.xdo_keys(), 0);
+                    }
+                });
+                Some(item)
             }
             PredfinedMenuItem::About(metadata) => {
-                if let Some(metadata) = metadata {
-                    let mut builder = gtk::builders::AboutDialogBuilder::new()
-                        .modal(true)
-                        .resizable(false);
+                let item = make_item();
+                register_accel(&item);
+                item.connect_activate(move |_| {
+                    if let Some(metadata) = &metadata {
+                        let mut builder = gtk::builders::AboutDialogBuilder::new()
+                            .modal(true)
+                            .resizable(false);
 
-                    if let Some(name) = &metadata.name {
-                        builder = builder.program_name(name);
-                    }
-                    if let Some(version) = &metadata.version {
-                        builder = builder.version(version);
-                    }
-                    if let Some(authors) = &metadata.authors {
-                        builder = builder.authors(authors.clone());
-                    }
-                    if let Some(comments) = &metadata.comments {
-                        builder = builder.comments(comments);
-                    }
-                    if let Some(copyright) = &metadata.copyright {
-                        builder = builder.copyright(copyright);
-                    }
-                    if let Some(license) = &metadata.license {
-                        builder = builder.license(license);
-                    }
-                    if let Some(website) = &metadata.website {
-                        builder = builder.website(website);
-                    }
-                    if let Some(website_label) = &metadata.website_label {
-                        builder = builder.website_label(website_label);
-                    }
+                        if let Some(name) = &metadata.name {
+                            builder = builder.program_name(name);
+                        }
+                        if let Some(version) = &metadata.version {
+                            builder = builder.version(version);
+                        }
+                        if let Some(authors) = &metadata.authors {
+                            builder = builder.authors(authors.clone());
+                        }
+                        if let Some(comments) = &metadata.comments {
+                            builder = builder.comments(comments);
+                        }
+                        if let Some(copyright) = &metadata.copyright {
+                            builder = builder.copyright(copyright);
+                        }
+                        if let Some(license) = &metadata.license {
+                            builder = builder.license(license);
+                        }
+                        if let Some(website) = &metadata.website {
+                            builder = builder.website(website);
+                        }
+                        if let Some(website_label) = &metadata.website_label {
+                            builder = builder.website_label(website_label);
+                        }
 
-                    let about = builder.build();
-                    about.run();
-                    unsafe {
-                        about.destroy();
+                        let about = builder.build();
+                        about.run();
+                        unsafe {
+                            about.destroy();
+                        }
                     }
-                }
+                });
+                Some(item)
             }
-            _ => {}
-        });
-        store.push(item);
+            _ => None,
+        };
+
+        if let Some(item) = item {
+            menu.append(&item);
+            item.show();
+            store.push(item);
+        }
     }
 }
 
@@ -679,6 +686,7 @@ fn add_gtk_check_menuitem(
 ) {
     let entry_c = entry.clone();
     let mut entry = entry.borrow_mut();
+
     let item = gtk::CheckMenuItem::builder()
         .label(&to_gtk_menemenoic(&entry.text))
         .use_underline(true)
@@ -689,28 +697,44 @@ fn add_gtk_check_menuitem(
         register_accelerator(&item, accel_group, accelerator);
     }
     let id = entry.id;
+
     item.connect_toggled(move |i| {
-        let checked = i.is_active();
-        let mut entry = entry_c.borrow_mut();
-        let type_ = entry.type_.clone();
-        entry.checked = checked;
-        drop(entry);
-
-        if let MenuEntryType::Check(store) = &type_ {
-            for i in store {
-                // FIXME: this triggeres the same event multiple times
-                // and will panic because of multiple borrowship
-                // possibly, the only fix is to debounce the whole callback based on the item `id`
-                i.set_active(checked);
+        let should_dispatch = match &entry_c.borrow().type_ {
+            MenuEntryType::Check { is_syncing, .. }
+                if is_syncing
+                    .compare_exchange(false, true, Ordering::Release, Ordering::Relaxed)
+                    .is_ok() =>
+            {
+                true
             }
-        }
+            _ => false,
+        };
 
-        let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+        if should_dispatch {
+            let checked = i.is_active();
+            let type_ = {
+                let mut entry = entry_c.borrow_mut();
+                entry.checked = checked;
+                entry.type_.clone()
+            };
+
+            if let MenuEntryType::Check { store, .. } = &type_ {
+                for i in store {
+                    i.set_active(checked);
+                }
+                if let MenuEntryType::Check { is_syncing, .. } = &mut entry_c.borrow_mut().type_ {
+                    is_syncing.store(false, Ordering::Release);
+                }
+            }
+
+            let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+        }
     });
     menu.append(&item);
     item.show();
-    if let MenuEntryType::Check(m) = &mut entry.type_ {
-        m.push(item);
+
+    if let MenuEntryType::Check { store, .. } = &mut entry.type_ {
+        store.push(item);
     }
 }
 
@@ -726,7 +750,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
             MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
                 add_gtk_text_menuitem(menu, entry, accel_group)
             }
-            MenuEntryType::Check(_) => add_gtk_check_menuitem(menu, entry, accel_group),
+            MenuEntryType::Check { .. } => add_gtk_check_menuitem(menu, entry, accel_group),
         }
     }
 }

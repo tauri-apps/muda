@@ -1,6 +1,8 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver, predefined, CheckMenuItem, Menu, Submenu, TextMenuItem,
+    menu_event_receiver,
+    predefined::{self, AboutMetadata},
+    CheckMenuItem, Menu, Submenu, TextMenuItem,
 };
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
@@ -34,9 +36,9 @@ fn main() {
         false,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
-    let custom_i_3 = CheckMenuItem::new("Check Custom 1", true, true, None);
-    let custom_i_4 = CheckMenuItem::new("Check Custom 2", true, false, None);
-    let custom_i_5 = CheckMenuItem::new(
+    let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
+    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", true, false, None);
+    let check_custom_i_3 = CheckMenuItem::new(
         "Check Custom 3",
         false,
         true,
@@ -50,15 +52,22 @@ fn main() {
     file_m.add_menu_item(&custom_i_1);
     file_m.add_menu_item(&custom_i_2);
     file_m.add_menu_item(&predefined::separator());
-    file_m.add_menu_item(&custom_i_3);
-    window_m.add_menu_item(&custom_i_4);
+    file_m.add_menu_item(&check_custom_i_1);
+    window_m.add_menu_item(&check_custom_i_2);
     window_m.add_menu_item(&predefined::close_window(None));
     window_m.add_menu_item(&predefined::separator());
     window_m.add_menu_item(&predefined::quit(None));
     window_m.add_menu_item(&predefined::select_all(None));
-    window_m.add_menu_item(&predefined::about(None, None));
+    window_m.add_menu_item(&predefined::about(
+        None,
+        Some(AboutMetadata {
+            name: Some("tao".to_string()),
+            copyright: Some("Copyright TAO".to_string()),
+            ..Default::default()
+        }),
+    ));
     window_m.add_menu_item(&predefined::minimize(None));
-    window_m.add_menu_item(&custom_i_5);
+    window_m.add_menu_item(&check_custom_i_3);
     window_m.add_menu_item(&custom_i_1);
     edit_m.add_menu_item(&copy_i);
     edit_m.add_menu_item(&predefined::separator());
@@ -92,13 +101,12 @@ fn main() {
                 ..
             } => *control_flow = ControlFlow::Exit,
             Event::MainEventsCleared => {
-                // window.request_redraw();
+                window.request_redraw();
             }
             _ => (),
         }
 
         if let Ok(event) = menu_channel.try_recv() {
-            dbg!(custom_i_3.is_checked());
             println!("{:?}", event);
         }
     })

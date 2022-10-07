@@ -24,12 +24,15 @@ pub fn separator() -> TextMenuItem {
 pub fn minimize(text: Option<&str>) -> TextMenuItem {
     TextMenuItem::predefined(PredfinedMenuItem::Minimize, text)
 }
+
 pub fn close_window(text: Option<&str>) -> TextMenuItem {
     TextMenuItem::predefined(PredfinedMenuItem::CloseWindow, text)
 }
+
 pub fn quit(text: Option<&str>) -> TextMenuItem {
     TextMenuItem::predefined(PredfinedMenuItem::Quit, text)
 }
+
 pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> TextMenuItem {
     TextMenuItem::predefined(PredfinedMenuItem::About(metadata), text)
 }
