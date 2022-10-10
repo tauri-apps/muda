@@ -41,6 +41,12 @@ impl Menu {
         Self(platform_impl::Menu::new())
     }
 
+    pub fn with_items(items: &[&dyn MenuItem]) -> Self {
+        let menu = Self::new();
+        menu.append_list(items);
+        menu
+    }
+
     pub fn id(&self) -> u32 {
         self.0.id()
     }
@@ -227,6 +233,12 @@ unsafe impl MenuItem for Submenu {
 impl Submenu {
     pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
         Self(platform_impl::Submenu::new(text.as_ref(), enabled))
+    }
+
+    pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuItem]) -> Self {
+        let menu = Self::new(text, enabled);
+        menu.append_list(items);
+        menu
     }
 
     pub fn id(&self) -> u32 {
