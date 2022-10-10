@@ -84,6 +84,10 @@ impl Menu {
         self.0.remove(item)
     }
 
+    pub fn items(&self) -> Vec<Box<dyn MenuItem>> {
+        self.0.items()
+    }
+
     /// Adds this menu to a [`gtk::ApplicationWindow`]
     ///
     /// This method adds a [`gtk::Box`] then adds a [`gtk::MenuBar`] as its first child and returns the [`gtk::Box`].
@@ -276,6 +280,10 @@ impl Submenu {
 
     pub fn remove(&self, item: &dyn MenuItem) {
         self.0.remove(item)
+    }
+
+    pub fn items(&self) -> Vec<Box<dyn MenuItem>> {
+        self.0.items()
     }
 
     pub fn text(&self) -> String {

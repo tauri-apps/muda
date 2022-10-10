@@ -158,6 +158,26 @@ impl Menu {
         // TODO
     }
 
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+        self.0
+            .borrow()
+            .entries
+            .iter()
+            .map(|e| -> Box<dyn crate::MenuItem> {
+                let entry = e.borrow();
+                match entry.type_ {
+                    MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
+                    MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
+                        Box::new(crate::TextMenuItem(TextMenuItem(e.clone())))
+                    }
+                    MenuEntryType::Check { .. } => {
+                        Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
+                    }
+                }
+            })
+            .collect()
+    }
+
     pub fn init_for_gtk_window<W>(&self, window: &W) -> Rc<gtk::Box>
     where
         W: IsA<gtk::ApplicationWindow>,
@@ -372,6 +392,28 @@ impl Submenu {
 
     pub fn remove(&self, item: &dyn crate::MenuItem) {
         // TODO:
+    }
+
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+        self.0
+            .borrow()
+            .entries
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|e| -> Box<dyn crate::MenuItem> {
+                let entry = e.borrow();
+                match entry.type_ {
+                    MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
+                    MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
+                        Box::new(crate::TextMenuItem(TextMenuItem(e.clone())))
+                    }
+                    MenuEntryType::Check { .. } => {
+                        Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
+                    }
+                }
+            })
+            .collect()
     }
 
     pub fn text(&self) -> String {
