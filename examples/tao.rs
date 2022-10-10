@@ -91,6 +91,8 @@ fn main() {
 
     let menu_channel = menu_event_receiver();
 
+    let mut x = 0_f64;
+    let mut y = 0_f64;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -103,6 +105,25 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                window_id,
+                ..
+            } => {
+                if window_id == window.id() {
+                    x = position.x;
+                    y = position.y;
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput { .. },
+                window_id,
+                ..
+            } => {
+                if window_id == window.id() {
+                    menu_bar.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
+                }
+            }
             Event::MainEventsCleared => {
                 window.request_redraw();
             }

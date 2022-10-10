@@ -105,7 +105,7 @@ impl Menu {
                 let entry = &item.0 .0;
                 for (menu_bar, _) in self.0.borrow().native_menus.values() {
                     if let Some(menu_bar) = menu_bar {
-                        add_gtk_submenu(menu_bar, entry, op);
+                        add_gtk_submenu(menu_bar, entry, op, true);
                     }
                 }
                 entry
@@ -115,7 +115,13 @@ impl Menu {
                 let entry = &item.0 .0;
                 for (menu_bar, _) in self.0.borrow().native_menus.values() {
                     if let Some(menu_bar) = menu_bar {
-                        add_gtk_text_menuitem(menu_bar, entry, &self.0.borrow().accel_group, op);
+                        add_gtk_text_menuitem(
+                            menu_bar,
+                            entry,
+                            &self.0.borrow().accel_group,
+                            op,
+                            true,
+                        );
                     }
                 }
                 entry
@@ -128,7 +134,13 @@ impl Menu {
                 let entry = &item.0 .0;
                 for (menu_bar, _) in self.0.borrow().native_menus.values() {
                     if let Some(menu_bar) = menu_bar {
-                        add_gtk_check_menuitem(menu_bar, entry, &self.0.borrow().accel_group, op)
+                        add_gtk_check_menuitem(
+                            menu_bar,
+                            entry,
+                            &self.0.borrow().accel_group,
+                            op,
+                            true,
+                        )
                     }
                 }
                 entry
@@ -183,7 +195,7 @@ impl Menu {
         // Construct the entries of the menubar
         let (menu_bar, vbox) = inner.native_menus.get(&id).unwrap();
         let menu_bar = menu_bar.as_ref().unwrap();
-        add_entries_to_gtkmenu(menu_bar, &inner.entries, &inner.accel_group);
+        add_entries_to_gtkmenu(menu_bar, &inner.entries, &inner.accel_group, true);
         window.add_accel_group(&*inner.accel_group);
 
         // Show the menubar on the window
@@ -233,6 +245,25 @@ impl Menu {
             menu_bar.show_all();
         }
     }
+
+    pub fn show_context_menu_for_gtk_window<W>(&self, window: &W, x: f64, y: f64)
+    where
+        W: IsA<gtk::ApplicationWindow>,
+        W: IsA<gtk::Widget>,
+    {
+        if let Some(window) = window.window() {
+            let gtk_menu = gtk::Menu::new();
+            let accel_group = gtk::AccelGroup::new();
+            add_entries_to_gtkmenu(&gtk_menu, &self.0.borrow().entries, &accel_group, false);
+            gtk_menu.popup_at_rect(
+                &window,
+                &gdk::Rectangle::new(x as _, y as _, 0, 0),
+                gdk::Gravity::NorthWest,
+                gdk::Gravity::NorthWest,
+                None,
+            );
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -276,7 +307,7 @@ impl Submenu {
                     let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &item.0 .0;
                     for (_, menu) in store {
-                        add_gtk_submenu(menu, entry, op);
+                        add_gtk_submenu(menu, entry, op, true);
                     }
                     entry
                 }
@@ -289,6 +320,7 @@ impl Submenu {
                             entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
+                            true,
                         );
                     }
                     entry
@@ -305,6 +337,7 @@ impl Submenu {
                             entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
+                            true,
                         );
                     }
                     entry
@@ -586,7 +619,12 @@ impl CheckMenuItem {
     }
 }
 
-fn add_gtk_submenu(menu: &impl IsA<gtk::MenuShell>, entry: &Rc<RefCell<MenuEntry>>, op: AddOp) {
+fn add_gtk_submenu(
+    menu: &impl IsA<gtk::MenuShell>,
+    entry: &Rc<RefCell<MenuEntry>>,
+    op: AddOp,
+    add_to_store: bool,
+) {
     let mut entry = entry.borrow_mut();
     let submenu = gtk::Menu::new();
     let item = gtk::MenuItem::builder()
@@ -607,9 +645,12 @@ fn add_gtk_submenu(menu: &impl IsA<gtk::MenuShell>, entry: &Rc<RefCell<MenuEntry
         &submenu,
         entry.entries.as_ref().unwrap(),
         entry.accel_group.as_ref().unwrap(),
+        add_to_store,
     );
-    if let MenuEntryType::Submenu(store) = &mut entry.type_ {
-        store.push((item, submenu));
+    if add_to_store {
+        if let MenuEntryType::Submenu(store) = &mut entry.type_ {
+            store.push((item, submenu));
+        }
     }
 }
 
@@ -618,6 +659,7 @@ fn add_gtk_text_menuitem(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let type_ = entry.borrow().type_.clone();
     if let MenuEntryType::Text(_) = &type_ {
@@ -642,11 +684,14 @@ fn add_gtk_text_menuitem(
         item.connect_activate(move |_| {
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
         });
-        if let MenuEntryType::Text(store) = &mut entry.type_ {
-            store.push(item);
+
+        if add_to_store {
+            if let MenuEntryType::Text(store) = &mut entry.type_ {
+                store.push(item);
+            }
         }
     } else if let MenuEntryType::Predefined(_, _) = &type_ {
-        add_gtk_predefined_menuitm(menu, entry, accel_group, op);
+        add_gtk_predefined_menuitm(menu, entry, accel_group, op, add_to_store);
     }
 }
 
@@ -655,6 +700,7 @@ fn add_gtk_predefined_menuitm(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let mut entry = entry.borrow_mut();
     let text = entry.text.clone();
@@ -752,7 +798,10 @@ fn add_gtk_predefined_menuitm(
                 AddOp::Insert(position) => menu.insert(&item, position as i32),
             }
             item.show();
-            store.push(item);
+
+            if add_to_store {
+                store.push(item);
+            }
         }
     }
 }
@@ -762,6 +811,7 @@ fn add_gtk_check_menuitem(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let entry_c = entry.clone();
     let mut entry = entry.borrow_mut();
@@ -811,8 +861,10 @@ fn add_gtk_check_menuitem(
 
     item.show();
 
-    if let MenuEntryType::Check { store, .. } = &mut entry.type_ {
-        store.push(item);
+    if add_to_store {
+        if let MenuEntryType::Check { store, .. } = &mut entry.type_ {
+            store.push(item);
+        }
     }
 }
 
@@ -820,16 +872,17 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     menu: &M,
     entries: &Vec<Rc<RefCell<MenuEntry>>>,
     accel_group: &gtk::AccelGroup,
+    add_to_store: bool,
 ) {
     for entry in entries {
         let type_ = entry.borrow().type_.clone();
         match type_ {
-            MenuEntryType::Submenu(_) => add_gtk_submenu(menu, entry, AddOp::Append),
+            MenuEntryType::Submenu(_) => add_gtk_submenu(menu, entry, AddOp::Append, add_to_store),
             MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
-                add_gtk_text_menuitem(menu, entry, accel_group, AddOp::Append)
+                add_gtk_text_menuitem(menu, entry, accel_group, AddOp::Append, add_to_store)
             }
             MenuEntryType::Check { .. } => {
-                add_gtk_check_menuitem(menu, entry, accel_group, AddOp::Append)
+                add_gtk_check_menuitem(menu, entry, accel_group, AddOp::Append, add_to_store)
             }
         }
     }

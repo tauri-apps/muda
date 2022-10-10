@@ -183,6 +183,18 @@ impl Menu {
         self.0.show_for_hwnd(hwnd)
     }
 
+    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner
+    #[cfg(target_os = "linux")]
+    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+    {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
     /// Adds this menu to an NSApp.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
