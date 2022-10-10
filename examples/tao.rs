@@ -26,9 +26,9 @@ fn main() {
     let edit_m = Submenu::new("Edit", true);
     let window_m = Submenu::new("Window", true);
 
-    menu_bar.add_menu_item(&file_m);
-    menu_bar.add_menu_item(&edit_m);
-    menu_bar.add_menu_item(&window_m);
+    menu_bar.append(&file_m);
+    menu_bar.append(&edit_m);
+    menu_bar.append(&window_m);
 
     let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
     let custom_i_2 = TextMenuItem::new(
@@ -49,16 +49,16 @@ fn main() {
     let cut_i = predefined::cut(None);
     let paste_i = predefined::paste(None);
 
-    file_m.add_menu_item(&custom_i_1);
-    file_m.add_menu_item(&custom_i_2);
-    file_m.add_menu_item(&predefined::separator());
-    file_m.add_menu_item(&check_custom_i_1);
-    window_m.add_menu_item(&check_custom_i_2);
-    window_m.add_menu_item(&predefined::close_window(None));
-    window_m.add_menu_item(&predefined::separator());
-    window_m.add_menu_item(&predefined::quit(None));
-    window_m.add_menu_item(&predefined::select_all(None));
-    window_m.add_menu_item(&predefined::about(
+    file_m.append(&custom_i_1);
+    file_m.append(&custom_i_2);
+    file_m.append(&predefined::separator());
+    file_m.append(&check_custom_i_1);
+    window_m.append(&check_custom_i_2);
+    window_m.append(&predefined::close_window(None));
+    window_m.append(&predefined::separator());
+    window_m.append(&predefined::quit(None));
+    window_m.append(&predefined::select_all(None));
+    window_m.append(&predefined::about(
         None,
         Some(AboutMetadata {
             name: Some("tao".to_string()),
@@ -66,14 +66,14 @@ fn main() {
             ..Default::default()
         }),
     ));
-    window_m.add_menu_item(&predefined::minimize(None));
-    window_m.add_menu_item(&check_custom_i_3);
-    window_m.add_menu_item(&custom_i_1);
-    edit_m.add_menu_item(&copy_i);
-    edit_m.add_menu_item(&predefined::separator());
-    edit_m.add_menu_item(&cut_i);
-    edit_m.add_menu_item(&paste_i);
-    window_m.add_menu_item(&cut_i);
+    window_m.append(&predefined::minimize(None));
+    window_m.append(&check_custom_i_3);
+    window_m.append(&custom_i_1);
+    edit_m.append(&copy_i);
+    edit_m.append(&predefined::separator());
+    edit_m.append(&cut_i);
+    edit_m.prepend(&paste_i);
+    window_m.insert(&cut_i, 2);
 
     #[cfg(target_os = "windows")]
     {
@@ -107,6 +107,9 @@ fn main() {
         }
 
         if let Ok(event) = menu_channel.try_recv() {
+            if event.id == custom_i_1.id() {
+                file_m.insert(&TextMenuItem::new("asdasd", false, None), 2);
+            }
             println!("{:?}", event);
         }
     })

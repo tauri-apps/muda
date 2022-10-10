@@ -23,7 +23,7 @@ pub fn menu_event_receiver<'a>() -> &'a Receiver<MenuEvent> {
 #[derive(Debug)]
 pub struct MenuEvent {
     /// Id of the menu item which triggered this event
-    pub id: u64,
+    pub id: u32,
 }
 
 #[derive(Clone)]
@@ -41,8 +41,24 @@ impl Menu {
         Self(platform_impl::Menu::new())
     }
 
-    pub fn add_menu_item(&self, item: &impl MenuItem) {
-        self.0.add_menu_item(item)
+    pub fn id(&self) -> u32 {
+        self.0.id()
+    }
+
+    pub fn append(&self, item: &impl MenuItem) {
+        self.0.append(item)
+    }
+
+    pub fn prepend(&self, item: &impl MenuItem) {
+        self.0.prepend(item)
+    }
+
+    pub fn insert(&self, item: &impl MenuItem, position: usize) {
+        self.0.insert(item, position)
+    }
+
+    pub fn remove(&self, item: &impl MenuItem) {
+        self.0.remove(item)
     }
 
     /// Adds this menu to a [`gtk::ApplicationWindow`]
@@ -173,6 +189,10 @@ unsafe impl MenuItem for Submenu {
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
     }
+
+    fn id(&self) -> u32 {
+        self.id()
+    }
 }
 
 impl Submenu {
@@ -180,8 +200,24 @@ impl Submenu {
         Self(platform_impl::Submenu::new(text, enabled))
     }
 
-    pub fn add_menu_item(&self, item: &impl MenuItem) {
-        self.0.add_menu_item(item)
+    pub fn id(&self) -> u32 {
+        self.0.id()
+    }
+
+    pub fn append(&self, item: &impl MenuItem) {
+        self.0.append(item)
+    }
+
+    pub fn prepend(&self, item: &impl MenuItem) {
+        self.0.prepend(item)
+    }
+
+    pub fn insert(&self, item: &impl MenuItem, position: usize) {
+        self.0.insert(item, position)
+    }
+
+    pub fn remove(&self, item: &impl MenuItem) {
+        self.0.remove(item)
     }
 
     pub fn text(&self) -> String {
@@ -211,6 +247,10 @@ unsafe impl MenuItem for TextMenuItem {
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
     }
+
+    fn id(&self) -> u32 {
+        self.id()
+    }
 }
 
 impl TextMenuItem {
@@ -223,6 +263,10 @@ impl TextMenuItem {
     }
     fn predefined(item: PredfinedMenuItem, text: Option<&str>) -> Self {
         Self(platform_impl::TextMenuItem::predefined(item, text))
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.id()
     }
 
     pub fn text(&self) -> String {
@@ -252,6 +296,10 @@ unsafe impl MenuItem for CheckMenuItem {
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
     }
+
+    fn id(&self) -> u32 {
+        self.id()
+    }
 }
 
 impl CheckMenuItem {
@@ -267,6 +315,10 @@ impl CheckMenuItem {
             checked,
             acccelerator,
         ))
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.id()
     }
 
     pub fn text(&self) -> String {
@@ -310,5 +362,7 @@ mod internal {
         fn type_(&self) -> MenuItemType;
 
         fn as_any(&self) -> &(dyn std::any::Any + 'static);
+
+        fn id(&self) -> u32;
     }
 }

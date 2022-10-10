@@ -1,23 +1,23 @@
 #![allow(unused)]
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
-pub struct Counter(AtomicU64);
+pub struct Counter(AtomicU32);
 
 impl Counter {
     pub const fn new() -> Self {
-        Self(AtomicU64::new(1))
+        Self(AtomicU32::new(1))
     }
 
-    pub const fn new_with_start(start: u64) -> Self {
-        Self(AtomicU64::new(start))
+    pub const fn new_with_start(start: u32) -> Self {
+        Self(AtomicU32::new(start))
     }
 
-    pub fn next(&self) -> u64 {
+    pub fn next(&self) -> u32 {
         self.0.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn current(&self) -> u64 {
+    pub fn current(&self) -> u32 {
         self.0.load(Ordering::Relaxed)
     }
 }
