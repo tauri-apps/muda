@@ -26,9 +26,7 @@ fn main() {
     let edit_m = Submenu::new("Edit", true);
     let window_m = Submenu::new("Window", true);
 
-    menu_bar.append(&file_m);
-    menu_bar.append(&edit_m);
-    menu_bar.append(&window_m);
+    menu_bar.append_list(&[&file_m, &edit_m, &window_m]);
 
     let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
     let custom_i_2 = TextMenuItem::new(
@@ -49,29 +47,34 @@ fn main() {
     let cut_i = predefined::cut(None);
     let paste_i = predefined::paste(None);
 
-    file_m.append(&custom_i_1);
-    file_m.append(&custom_i_2);
-    file_m.append(&predefined::separator());
-    file_m.append(&check_custom_i_1);
-    window_m.append(&check_custom_i_2);
-    window_m.append(&predefined::close_window(None));
-    window_m.append(&predefined::separator());
-    window_m.append(&predefined::quit(None));
-    window_m.append(&predefined::select_all(None));
-    window_m.append(&predefined::about(
-        None,
-        Some(AboutMetadata {
-            name: Some("tao".to_string()),
-            copyright: Some("Copyright TAO".to_string()),
-            ..Default::default()
-        }),
-    ));
-    window_m.append(&predefined::minimize(None));
-    window_m.append(&check_custom_i_3);
-    window_m.append(&custom_i_1);
-    edit_m.append(&copy_i);
-    edit_m.append(&predefined::separator());
-    edit_m.append(&cut_i);
+    file_m.append_list(&[
+        &custom_i_1,
+        &custom_i_2,
+        &predefined::separator(),
+        &check_custom_i_1,
+    ]);
+
+    window_m.append_list(&[
+        &check_custom_i_2,
+        &predefined::close_window(None),
+        &predefined::separator(),
+        &predefined::quit(None),
+        &predefined::select_all(None),
+        &predefined::about(
+            None,
+            Some(AboutMetadata {
+                name: Some("tao".to_string()),
+                copyright: Some("Copyright TAO".to_string()),
+                ..Default::default()
+            }),
+        ),
+        &predefined::minimize(None),
+        &check_custom_i_3,
+        &custom_i_1,
+    ]);
+
+    edit_m.append_list(&[&copy_i, &predefined::separator(), &cut_i]);
+
     edit_m.prepend(&paste_i);
     window_m.insert(&cut_i, 2);
 

@@ -45,19 +45,36 @@ impl Menu {
         self.0.id()
     }
 
-    pub fn append(&self, item: &impl MenuItem) {
+    pub fn append(&self, item: &dyn MenuItem) {
         self.0.append(item)
     }
 
-    pub fn prepend(&self, item: &impl MenuItem) {
+    pub fn append_list(&self, items: &[&dyn MenuItem]) {
+        for item in items {
+            self.append(*item);
+        }
+    }
+    pub fn prepend(&self, item: &dyn MenuItem) {
         self.0.prepend(item)
     }
 
-    pub fn insert(&self, item: &impl MenuItem, position: usize) {
+    pub fn prepend_list(&self, items: &[&dyn MenuItem]) {
+        for item in items {
+            self.prepend(*item);
+        }
+    }
+
+    pub fn insert(&self, item: &dyn MenuItem, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn remove(&self, item: &impl MenuItem) {
+    pub fn insert_list(&self, items: &[&dyn MenuItem], position: usize) {
+        for (i, item) in items.iter().enumerate() {
+            self.insert(*item, position + i)
+        }
+    }
+
+    pub fn remove(&self, item: &dyn MenuItem) {
         self.0.remove(item)
     }
 
@@ -196,27 +213,44 @@ unsafe impl MenuItem for Submenu {
 }
 
 impl Submenu {
-    pub fn new(text: &str, enabled: bool) -> Self {
-        Self(platform_impl::Submenu::new(text, enabled))
+    pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
+        Self(platform_impl::Submenu::new(text.as_ref(), enabled))
     }
 
     pub fn id(&self) -> u32 {
         self.0.id()
     }
 
-    pub fn append(&self, item: &impl MenuItem) {
+    pub fn append(&self, item: &dyn MenuItem) {
         self.0.append(item)
     }
 
-    pub fn prepend(&self, item: &impl MenuItem) {
+    pub fn append_list(&self, items: &[&dyn MenuItem]) {
+        for item in items {
+            self.append(*item);
+        }
+    }
+    pub fn prepend(&self, item: &dyn MenuItem) {
         self.0.prepend(item)
     }
 
-    pub fn insert(&self, item: &impl MenuItem, position: usize) {
+    pub fn prepend_list(&self, items: &[&dyn MenuItem]) {
+        for item in items {
+            self.prepend(*item);
+        }
+    }
+
+    pub fn insert(&self, item: &dyn MenuItem, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn remove(&self, item: &impl MenuItem) {
+    pub fn insert_list(&self, items: &[&dyn MenuItem], position: usize) {
+        for (i, item) in items.iter().enumerate() {
+            self.insert(*item, position + i)
+        }
+    }
+
+    pub fn remove(&self, item: &dyn MenuItem) {
         self.0.remove(item)
     }
 
@@ -224,8 +258,8 @@ impl Submenu {
         self.0.text()
     }
 
-    pub fn set_text(&self, text: &str) {
-        self.0.set_text(text)
+    pub fn set_text<S: AsRef<str>>(&self, text: S) {
+        self.0.set_text(text.as_ref())
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -254,15 +288,18 @@ unsafe impl MenuItem for TextMenuItem {
 }
 
 impl TextMenuItem {
-    pub fn new(text: &str, enabled: bool, acccelerator: Option<Accelerator>) -> Self {
+    pub fn new<S: AsRef<str>>(text: S, enabled: bool, acccelerator: Option<Accelerator>) -> Self {
         Self(platform_impl::TextMenuItem::new(
-            text,
+            text.as_ref(),
             enabled,
             acccelerator,
         ))
     }
-    fn predefined(item: PredfinedMenuItem, text: Option<&str>) -> Self {
-        Self(platform_impl::TextMenuItem::predefined(item, text))
+    fn predefined<S: AsRef<str>>(item: PredfinedMenuItem, text: Option<S>) -> Self {
+        Self(platform_impl::TextMenuItem::predefined(
+            item,
+            text.map(|t| t.as_ref().to_string()),
+        ))
     }
 
     pub fn id(&self) -> u32 {
@@ -273,8 +310,8 @@ impl TextMenuItem {
         self.0.text()
     }
 
-    pub fn set_text(&self, text: &str) {
-        self.0.set_text(text)
+    pub fn set_text<S: AsRef<str>>(&self, text: S) {
+        self.0.set_text(text.as_ref())
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -303,14 +340,14 @@ unsafe impl MenuItem for CheckMenuItem {
 }
 
 impl CheckMenuItem {
-    pub fn new(
-        text: &str,
+    pub fn new<S: AsRef<str>>(
+        text: S,
         enabled: bool,
         checked: bool,
         acccelerator: Option<Accelerator>,
     ) -> Self {
         Self(platform_impl::CheckMenuItem::new(
-            text,
+            text.as_ref(),
             enabled,
             checked,
             acccelerator,
@@ -325,8 +362,8 @@ impl CheckMenuItem {
         self.0.text()
     }
 
-    pub fn set_text(&self, text: &str) {
-        self.0.set_text(text)
+    pub fn set_text<S: AsRef<str>>(&self, text: S) {
+        self.0.set_text(text.as_ref())
     }
 
     pub fn is_enabled(&self) -> bool {

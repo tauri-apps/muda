@@ -86,19 +86,19 @@ impl Menu {
         self.0.borrow().id
     }
 
-    pub fn append(&self, item: &impl crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &impl crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Prepend)
     }
 
-    pub fn insert(&self, item: &impl crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &impl crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
         let entry = match item.type_() {
             crate::MenuItemType::Submenu => {
                 let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -142,7 +142,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &impl crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuItem) {
         // TODO
     }
 
@@ -256,19 +256,19 @@ impl Submenu {
         self.0.borrow().id
     }
 
-    pub fn append(&self, item: &impl crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &impl crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Prepend)
     }
 
-    pub fn insert(&self, item: &impl crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &impl crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
         let type_ = self.0.borrow().type_.clone();
         if let MenuEntryType::Submenu(store) = &type_ {
             let entry = match item.type_() {
@@ -337,7 +337,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &impl crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuItem) {
         // TODO:
     }
 
@@ -411,9 +411,9 @@ impl TextMenuItem {
         Self(entry)
     }
 
-    pub fn predefined(item: PredfinedMenuItem, text: Option<&str>) -> Self {
+    pub fn predefined(item: PredfinedMenuItem, text: Option<String>) -> Self {
         let entry = Rc::new(RefCell::new(MenuEntry {
-            text: text.unwrap_or_else(|| item.text()).to_string(),
+            text: text.unwrap_or_else(|| item.text().to_string()),
             enabled: true,
             accelerator: item.accelerator(),
             id: COUNTER.next(),

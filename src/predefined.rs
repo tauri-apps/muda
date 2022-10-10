@@ -18,7 +18,7 @@ pub fn select_all(text: Option<&str>) -> TextMenuItem {
 }
 
 pub fn separator() -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Separator, None)
+    TextMenuItem::predefined::<&str>(PredfinedMenuItem::Separator, None)
 }
 
 pub fn minimize(text: Option<&str>) -> TextMenuItem {
