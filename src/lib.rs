@@ -43,7 +43,7 @@ impl Menu {
 
     pub fn with_items(items: &[&dyn MenuItem]) -> Self {
         let menu = Self::new();
-        menu.append_list(items);
+        menu.append_items(items);
         menu
     }
 
@@ -55,7 +55,7 @@ impl Menu {
         self.0.append(item)
     }
 
-    pub fn append_list(&self, items: &[&dyn MenuItem]) {
+    pub fn append_items(&self, items: &[&dyn MenuItem]) {
         for item in items {
             self.append(*item);
         }
@@ -64,7 +64,7 @@ impl Menu {
         self.0.prepend(item)
     }
 
-    pub fn prepend_list(&self, items: &[&dyn MenuItem]) {
+    pub fn prepend_items(&self, items: &[&dyn MenuItem]) {
         for item in items {
             self.prepend(*item);
         }
@@ -74,7 +74,7 @@ impl Menu {
         self.0.insert(item, position)
     }
 
-    pub fn insert_list(&self, items: &[&dyn MenuItem], position: usize) {
+    pub fn insert_items(&self, items: &[&dyn MenuItem], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }
@@ -245,7 +245,7 @@ impl Submenu {
 
     pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuItem]) -> Self {
         let menu = Self::new(text, enabled);
-        menu.append_list(items);
+        menu.append_items(items);
         menu
     }
 
@@ -257,7 +257,7 @@ impl Submenu {
         self.0.append(item)
     }
 
-    pub fn append_list(&self, items: &[&dyn MenuItem]) {
+    pub fn append_items(&self, items: &[&dyn MenuItem]) {
         for item in items {
             self.append(*item);
         }
@@ -266,7 +266,7 @@ impl Submenu {
         self.0.prepend(item)
     }
 
-    pub fn prepend_list(&self, items: &[&dyn MenuItem]) {
+    pub fn prepend_items(&self, items: &[&dyn MenuItem]) {
         for item in items {
             self.prepend(*item);
         }
@@ -276,7 +276,7 @@ impl Submenu {
         self.0.insert(item, position)
     }
 
-    pub fn insert_list(&self, items: &[&dyn MenuItem], position: usize) {
+    pub fn insert_items(&self, items: &[&dyn MenuItem], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }

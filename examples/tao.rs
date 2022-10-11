@@ -26,7 +26,7 @@ fn main() {
     let edit_m = Submenu::new("Edit", true);
     let window_m = Submenu::new("Window", true);
 
-    menu_bar.append_list(&[&file_m, &edit_m, &window_m]);
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
     let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
     let custom_i_2 = TextMenuItem::new(
@@ -47,14 +47,14 @@ fn main() {
     let cut_i = predefined::cut(None);
     let paste_i = predefined::paste(None);
 
-    file_m.append_list(&[
+    file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
         &predefined::separator(),
         &check_custom_i_1,
     ]);
 
-    window_m.append_list(&[
+    window_m.append_items(&[
         &check_custom_i_2,
         &predefined::close_window(None),
         &predefined::separator(),
@@ -73,7 +73,7 @@ fn main() {
         &custom_i_1,
     ]);
 
-    edit_m.append_list(&[&copy_i, &predefined::separator(), &cut_i]);
+    edit_m.append_items(&[&copy_i, &predefined::separator(), &cut_i]);
 
     edit_m.prepend(&paste_i);
     window_m.insert(&cut_i, 2);
