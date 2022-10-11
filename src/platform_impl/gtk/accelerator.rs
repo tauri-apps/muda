@@ -3,7 +3,7 @@ use keyboard_types::{Code, Modifiers};
 
 use crate::accelerator::Accelerator;
 
-pub fn to_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
+pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
         .replace("&&", "[~~]")
@@ -11,7 +11,7 @@ pub fn to_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
         .replace("[~~]", "&&")
 }
 
-pub fn from_gtk_menemenoic<S: AsRef<str>>(string: S) -> String {
+pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
         .replace("__", "[~~]")

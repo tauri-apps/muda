@@ -1,7 +1,7 @@
 mod accelerator;
 
 use crate::{accelerator::Accelerator, counter::Counter, predefined::PredfinedMenuItem};
-use accelerator::{register_accelerator, to_gtk_menemenoic};
+use accelerator::{from_gtk_mnemonic, parse_accelerator, register_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
 use std::{
     cell::RefCell,
@@ -9,8 +9,6 @@ use std::{
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
 };
-
-use self::accelerator::{from_gtk_menemenoic, parse_accelerator};
 
 static COUNTER: Counter = Counter::new();
 
@@ -147,10 +145,11 @@ impl Menu {
             }
         };
 
+        let mut inner = self.0.borrow_mut();
         match op {
-            AddOp::Append => self.0.borrow_mut().entries.push(entry.clone()),
-            AddOp::Prepend => self.0.borrow_mut().entries.insert(0, entry.clone()),
-            AddOp::Insert(position) => self.0.borrow_mut().entries.insert(position, entry.clone()),
+            AddOp::Append => inner.entries.push(entry.clone()),
+            AddOp::Prepend => inner.entries.insert(0, entry.clone()),
+            AddOp::Insert(position) => inner.entries.insert(position, entry.clone()),
         }
     }
 
@@ -364,28 +363,13 @@ impl Submenu {
                 }
             };
 
+            let mut inner = self.0.borrow_mut();
+            let entries = inner.entries.as_mut().unwrap();
+
             match op {
-                AddOp::Append => self
-                    .0
-                    .borrow_mut()
-                    .entries
-                    .as_mut()
-                    .unwrap()
-                    .push(entry.clone()),
-                AddOp::Prepend => self
-                    .0
-                    .borrow_mut()
-                    .entries
-                    .as_mut()
-                    .unwrap()
-                    .insert(0, entry.clone()),
-                AddOp::Insert(position) => self
-                    .0
-                    .borrow_mut()
-                    .entries
-                    .as_mut()
-                    .unwrap()
-                    .insert(position, entry.clone()),
+                AddOp::Append => entries.push(entry.clone()),
+                AddOp::Prepend => entries.insert(0, entry.clone()),
+                AddOp::Insert(position) => entries.insert(position, entry.clone()),
             }
         }
     }
@@ -424,7 +408,7 @@ impl Submenu {
                 .map(|i| {
                     i.0.label()
                         .map(|l| l.as_str().to_string())
-                        .map(from_gtk_menemenoic)
+                        .map(from_gtk_mnemonic)
                         .unwrap_or_default()
                 })
                 .unwrap_or_else(|| entry.text.clone())
@@ -438,10 +422,12 @@ impl Submenu {
         entry.text = text.to_string();
 
         if let MenuEntryType::Submenu(store) = &entry.type_ {
-            let text = to_gtk_menemenoic(text);
+            let text = to_gtk_mnemonic(text);
             for (i, _) in store {
                 i.set_label(&text);
             }
+        } else {
+            unreachable!()
         }
     }
 
@@ -465,6 +451,8 @@ impl Submenu {
             for (i, _) in store {
                 i.set_sensitive(enabled);
             }
+        } else {
+            unreachable!()
         }
     }
 }
@@ -511,7 +499,7 @@ impl TextMenuItem {
                 .map(|i| {
                     i.label()
                         .map(|l| l.as_str().to_string())
-                        .map(from_gtk_menemenoic)
+                        .map(from_gtk_mnemonic)
                         .unwrap_or_default()
                 })
                 .unwrap_or_else(|| entry.text.clone()),
@@ -525,7 +513,7 @@ impl TextMenuItem {
 
         match &entry.type_ {
             MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => {
-                let text = to_gtk_menemenoic(text);
+                let text = to_gtk_mnemonic(text);
                 for i in store {
                     i.set_label(&text);
                 }
@@ -536,13 +524,12 @@ impl TextMenuItem {
 
     pub fn is_enabled(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Text(store) = &entry.type_ {
-            store
+        match &entry.type_ {
+            MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => store
                 .get(0)
                 .map(|i| i.is_sensitive())
-                .unwrap_or_else(|| entry.enabled)
-        } else {
-            unreachable!()
+                .unwrap_or_else(|| entry.enabled),
+            _ => unreachable!(),
         }
     }
 
@@ -550,10 +537,13 @@ impl TextMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.enabled = enabled;
 
-        if let MenuEntryType::Text(store) = &entry.type_ {
-            for i in store {
-                i.set_sensitive(enabled);
+        match &entry.type_ {
+            MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => {
+                for i in store {
+                    i.set_sensitive(enabled);
+                }
             }
+            _ => unreachable!(),
         }
     }
 }
@@ -591,7 +581,7 @@ impl CheckMenuItem {
                 .map(|i| {
                     i.label()
                         .map(|l| l.as_str().to_string())
-                        .map(from_gtk_menemenoic)
+                        .map(from_gtk_mnemonic)
                         .unwrap_or_default()
                 })
                 .unwrap_or_else(|| entry.text.clone())
@@ -605,10 +595,12 @@ impl CheckMenuItem {
         entry.text = text.to_string();
 
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
-            let text = to_gtk_menemenoic(text);
+            let text = to_gtk_mnemonic(text);
             for i in store {
                 i.set_label(&text);
             }
+        } else {
+            unreachable!()
         }
     }
 
@@ -632,6 +624,8 @@ impl CheckMenuItem {
             for i in store {
                 i.set_sensitive(enabled);
             }
+        } else {
+            unreachable!()
         }
     }
 
@@ -657,6 +651,8 @@ impl CheckMenuItem {
                 i.set_active(checked);
             }
             is_syncing.store(false, Ordering::Release);
+        } else {
+            unreachable!()
         }
     }
 }
@@ -670,7 +666,7 @@ fn add_gtk_submenu(
     let mut entry = entry.borrow_mut();
     let submenu = gtk::Menu::new();
     let item = gtk::MenuItem::builder()
-        .label(&to_gtk_menemenoic(&entry.text))
+        .label(&to_gtk_mnemonic(&entry.text))
         .use_underline(true)
         .submenu(&submenu)
         .sensitive(entry.enabled)
@@ -707,7 +703,7 @@ fn add_gtk_text_menuitem(
     if let MenuEntryType::Text(_) = &type_ {
         let mut entry = entry.borrow_mut();
         let item = gtk::MenuItem::builder()
-            .label(&to_gtk_menemenoic(&entry.text))
+            .label(&to_gtk_mnemonic(&entry.text))
             .use_underline(true)
             .sensitive(entry.enabled)
             .build();
@@ -752,7 +748,7 @@ fn add_gtk_predefined_menuitm(
         let predefined_item = predefined_item.clone();
         let make_item = || {
             gtk::MenuItem::builder()
-                .label(&to_gtk_menemenoic(text))
+                .label(&to_gtk_mnemonic(text))
                 .use_underline(true)
                 .sensitive(true)
                 .build()
@@ -859,7 +855,7 @@ fn add_gtk_check_menuitem(
     let mut entry = entry.borrow_mut();
 
     let item = gtk::CheckMenuItem::builder()
-        .label(&to_gtk_menemenoic(&entry.text))
+        .label(&to_gtk_mnemonic(&entry.text))
         .use_underline(true)
         .sensitive(entry.enabled)
         .active(entry.checked)
