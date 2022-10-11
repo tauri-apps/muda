@@ -573,6 +573,31 @@ impl Submenu {
             unreachable!()
         }
     }
+
+    pub fn show_context_menu_for_gtk_window<W>(&self, window: &W, x: f64, y: f64)
+    where
+        W: IsA<gtk::ApplicationWindow>,
+        W: IsA<gtk::Widget>,
+    {
+        if let Some(window) = window.window() {
+            let gtk_menu = gtk::Menu::new();
+            let accel_group = gtk::AccelGroup::new();
+            add_entries_to_gtkmenu(
+                &gtk_menu,
+                0,
+                &self.0.borrow().entries.as_ref().unwrap(),
+                &accel_group,
+                false,
+            );
+            gtk_menu.popup_at_rect(
+                &window,
+                &gdk::Rectangle::new(x as _, y as _, 0, 0),
+                gdk::Gravity::NorthWest,
+                gdk::Gravity::NorthWest,
+                None,
+            );
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

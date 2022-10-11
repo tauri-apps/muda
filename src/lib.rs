@@ -305,6 +305,18 @@ impl Submenu {
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
+
+    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner
+    #[cfg(target_os = "linux")]
+    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+    {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
 }
 
 #[derive(Clone, Debug)]
