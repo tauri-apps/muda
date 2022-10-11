@@ -1,7 +1,9 @@
-use keyboard_types::Code;
+#![allow(unused)]
 use muda::{
-    accelerator::{Accelerator, Mods},
-    menu_event_receiver, Menu, NativeMenuItem,
+    accelerator::{Accelerator, Code, Modifiers},
+    menu_event_receiver,
+    predefined::{self, AboutMetadata},
+    CheckMenuItem, Menu, Submenu, TextMenuItem,
 };
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
@@ -39,22 +41,61 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut file_menu = menu_bar.add_submenu("&File", true);
-    let mut open_item = file_menu.add_item("&Open", true, None);
-    let mut save_item = file_menu.add_item(
-        "&Save",
-        true,
-        Some(Accelerator::new(Mods::Ctrl, Code::KeyS)),
-    );
-    file_menu.add_native_item(NativeMenuItem::Minimize);
-    file_menu.add_native_item(NativeMenuItem::CloseWindow);
-    file_menu.add_native_item(NativeMenuItem::Quit);
+    let file_m = Submenu::new("File", true);
+    let edit_m = Submenu::new("Edit", true);
+    let window_m = Submenu::new("Window", true);
 
-    let mut edit_menu = menu_bar.add_submenu("&Edit", true);
-    edit_menu.add_native_item(NativeMenuItem::Cut);
-    edit_menu.add_native_item(NativeMenuItem::Copy);
-    edit_menu.add_native_item(NativeMenuItem::Paste);
-    edit_menu.add_native_item(NativeMenuItem::SelectAll);
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+
+    let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
+    let custom_i_2 = TextMenuItem::new(
+        "Custom 2",
+        false,
+        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+    );
+    let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
+    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", true, false, None);
+    let check_custom_i_3 = CheckMenuItem::new(
+        "Check Custom 3",
+        false,
+        true,
+        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+    );
+
+    let copy_i = predefined::copy(None);
+    let cut_i = predefined::cut(None);
+    let paste_i = predefined::paste(None);
+
+    file_m.append_items(&[
+        &custom_i_1,
+        &custom_i_2,
+        &predefined::separator(),
+        &check_custom_i_1,
+    ]);
+
+    window_m.append_items(&[
+        &check_custom_i_2,
+        &predefined::close_window(None),
+        &predefined::separator(),
+        &predefined::quit(None),
+        &predefined::select_all(None),
+        &predefined::about(
+            None,
+            Some(AboutMetadata {
+                name: Some("tao".to_string()),
+                copyright: Some("Copyright TAO".to_string()),
+                ..Default::default()
+            }),
+        ),
+        &predefined::minimize(None),
+        &check_custom_i_3,
+        &custom_i_1,
+    ]);
+
+    edit_m.append_items(&[&copy_i, &predefined::separator(), &cut_i]);
+
+    edit_m.prepend(&paste_i);
+    window_m.insert(&cut_i, 2);
 
     #[cfg(target_os = "windows")]
     {
@@ -68,21 +109,41 @@ fn main() {
     }
 
     let menu_channel = menu_event_receiver();
-    let mut open_item_disabled = false;
-    let mut counter = 0;
 
+    let mut x = 0_f64;
+    let mut y = 0_f64;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
         match event {
             #[cfg(target_os = "macos")]
-            Event::NewEvents(winit::event::StartCause::Init) => {
+            Event::NewEvents(tao::event::StartCause::Init) => {
                 menu_bar.init_for_nsapp();
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                window_id,
+                ..
+            } => {
+                if window_id == window.id() {
+                    x = position.x;
+                    y = position.y;
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput { .. },
+                window_id,
+                ..
+            } => {
+                if window_id == window.id() {
+                    #[cfg(target_os = "windows")]
+                    menu_bar.show_context_menu_for_hwnd(window.hwnd(), x, y);
+                }
+            }
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
@@ -90,20 +151,10 @@ fn main() {
         }
 
         if let Ok(event) = menu_channel.try_recv() {
-            match event.id {
-                _ if event.id == save_item.id() => {
-                    println!("Save menu item activated!");
-                    counter += 1;
-                    save_item.set_label(format!("&Save activated {counter} times"));
-
-                    if !open_item_disabled {
-                        println!("Open item disabled!");
-                        open_item.set_enabled(false);
-                        open_item_disabled = true;
-                    }
-                }
-                _ => {}
+            if event.id == custom_i_1.id() {
+                file_m.insert(&TextMenuItem::new("asdasd", false, None), 2);
             }
+            println!("{:?}", event);
         }
     })
 }

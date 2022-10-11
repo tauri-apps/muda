@@ -121,6 +121,7 @@ fn main() {
                 ..
             } => {
                 if window_id == window.id() {
+                    #[cfg(target_os = "linux")]
                     menu_bar.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
                 }
             }

@@ -420,7 +420,7 @@ impl CheckMenuItem {
 }
 
 mod internal {
-    //!  **DO NOT USE:**. This is meant for internal usage inside the crate.
+    //!  **DO NOT USE:**. This module is ONLY meant to be used internally.
 
     #[derive(Debug)]
     pub enum MenuItemType {
