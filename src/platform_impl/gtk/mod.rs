@@ -41,13 +41,13 @@ enum MenuEntryType {
     // multiple times, and thus can't be used in multiple windows, each entry
     // keeps a vector of a [`gtk::MenuItem`] or a tuple of [`gtk::MenuItem`] and [`gtk::Menu`] if its a menu
     // and push to it every time [`Menu::init_for_gtk_window`] is called.
-    Submenu(Vec<(gtk::MenuItem, gtk::Menu)>),
-    Text(Vec<gtk::MenuItem>),
+    Submenu(HashMap<u32, (gtk::MenuItem, gtk::Menu, u32)>),
+    Text(HashMap<u32, gtk::MenuItem>),
     Check {
-        store: Vec<gtk::CheckMenuItem>,
+        store: HashMap<u32, gtk::CheckMenuItem>,
         is_syncing: Rc<AtomicBool>,
     },
-    Predefined(Vec<gtk::MenuItem>, PredfinedMenuItem),
+    Predefined(HashMap<u32, gtk::MenuItem>, PredfinedMenuItem),
 }
 
 impl Default for MenuEntryType {
@@ -99,11 +99,11 @@ impl Menu {
     fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
         let entry = match item.type_() {
             crate::MenuItemType::Submenu => {
-                let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                let entry = &item.0 .0;
-                for (menu_bar, _) in self.0.borrow().native_menus.values() {
+                let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
+                let entry = &submenu.0 .0;
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
-                        add_gtk_submenu(menu_bar, entry, op, true);
+                        add_gtk_submenu(menu_bar, *menu_id, entry, op, true);
                     }
                 }
                 entry
@@ -111,10 +111,11 @@ impl Menu {
             crate::MenuItemType::Text => {
                 let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
                 let entry = &item.0 .0;
-                for (menu_bar, _) in self.0.borrow().native_menus.values() {
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
                         add_gtk_text_menuitem(
                             menu_bar,
+                            *menu_id,
                             entry,
                             &self.0.borrow().accel_group,
                             op,
@@ -130,10 +131,11 @@ impl Menu {
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
                 let entry = &item.0 .0;
-                for (menu_bar, _) in self.0.borrow().native_menus.values() {
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
                         add_gtk_check_menuitem(
                             menu_bar,
+                            *menu_id,
                             entry,
                             &self.0.borrow().accel_group,
                             op,
@@ -154,7 +156,65 @@ impl Menu {
     }
 
     pub fn remove(&self, item: &dyn crate::MenuItem) {
-        // TODO
+        match item.type_() {
+            crate::MenuItemType::Submenu => {
+                let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
+                for item in submenu.0.items() {
+                    submenu.0.remove(&*item);
+                }
+
+                let entry = &submenu.0 .0;
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    if let Some(menu_bar) = menu_bar {
+                        if let MenuEntryType::Submenu(store) = &entry.borrow().type_ {
+                            menu_bar.remove(&store.get(menu_id).unwrap().0);
+                        }
+                    }
+                }
+            }
+            crate::MenuItemType::Text => {
+                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let entry = &item.0 .0;
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    if let Some(menu_bar) = menu_bar {
+                        match &entry.borrow().type_ {
+                            MenuEntryType::Text(store) => {
+                                menu_bar.remove(store.get(menu_id).unwrap());
+                            }
+                            MenuEntryType::Predefined(store, _) => {
+                                if let Some(item) = store.get(menu_id) {
+                                    menu_bar.remove(item);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            crate::MenuItemType::Check => {
+                let item = item
+                    .as_any()
+                    .downcast_ref::<crate::CheckMenuItem>()
+                    .unwrap();
+                let entry = &item.0 .0;
+                for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
+                    if let Some(menu_bar) = menu_bar {
+                        if let MenuEntryType::Check { store, .. } = &entry.borrow().type_ {
+                            menu_bar.remove(store.get(menu_id).unwrap());
+                        }
+                    }
+                }
+            }
+        };
+
+        let index = self
+            .0
+            .borrow()
+            .entries
+            .iter()
+            .position(|e| e.borrow().id == item.id())
+            .unwrap();
+        self.0.borrow_mut().entries.remove(index);
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
@@ -214,7 +274,7 @@ impl Menu {
         // Construct the entries of the menubar
         let (menu_bar, vbox) = inner.native_menus.get(&id).unwrap();
         let menu_bar = menu_bar.as_ref().unwrap();
-        add_entries_to_gtkmenu(menu_bar, &inner.entries, &inner.accel_group, true);
+        add_entries_to_gtkmenu(menu_bar, id, &inner.entries, &inner.accel_group, true);
         window.add_accel_group(&*inner.accel_group);
 
         // Show the menubar on the window
@@ -273,7 +333,7 @@ impl Menu {
         if let Some(window) = window.window() {
             let gtk_menu = gtk::Menu::new();
             let accel_group = gtk::AccelGroup::new();
-            add_entries_to_gtkmenu(&gtk_menu, &self.0.borrow().entries, &accel_group, false);
+            add_entries_to_gtkmenu(&gtk_menu, 0, &self.0.borrow().entries, &accel_group, false);
             gtk_menu.popup_at_rect(
                 &window,
                 &gdk::Rectangle::new(x as _, y as _, 0, 0),
@@ -285,7 +345,7 @@ impl Menu {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Submenu(Rc<RefCell<MenuEntry>>);
 
 impl Submenu {
@@ -294,7 +354,7 @@ impl Submenu {
             text: text.to_string(),
             enabled,
             entries: Some(Vec::new()),
-            type_: MenuEntryType::Submenu(Vec::new()),
+            type_: MenuEntryType::Submenu(HashMap::new()),
             accel_group: Some(gtk::AccelGroup::new()),
             ..Default::default()
         }));
@@ -325,17 +385,18 @@ impl Submenu {
                 crate::MenuItemType::Submenu => {
                     let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &item.0 .0;
-                    for (_, menu) in store {
-                        add_gtk_submenu(menu, entry, op, true);
+                    for (_, menu, menu_id) in store.values() {
+                        add_gtk_submenu(menu, *menu_id, entry, op, true);
                     }
                     entry
                 }
                 crate::MenuItemType::Text => {
                     let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
                     let entry = &item.0 .0;
-                    for (_, menu) in store {
+                    for (_, menu, menu_id) in store.values() {
                         add_gtk_text_menuitem(
                             menu,
+                            *menu_id,
                             entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
@@ -350,9 +411,10 @@ impl Submenu {
                         .downcast_ref::<crate::CheckMenuItem>()
                         .unwrap();
                     let entry = &item.0 .0;
-                    for (_, menu) in store {
+                    for (_, menu, menu_id) in store.values() {
                         add_gtk_text_menuitem(
                             menu,
+                            *menu_id,
                             entry,
                             self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
@@ -375,7 +437,63 @@ impl Submenu {
     }
 
     pub fn remove(&self, item: &dyn crate::MenuItem) {
-        // TODO:
+        if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
+            match item.type_() {
+                crate::MenuItemType::Submenu => {
+                    let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
+                    for item in submenu.0.items() {
+                        submenu.0.remove(&*item);
+                    }
+
+                    let entry = &submenu.0 .0;
+                    for (_, menu, menu_id) in store.values() {
+                        if let MenuEntryType::Submenu(store) = &entry.borrow().type_ {
+                            menu.remove(&store.get(menu_id).unwrap().0);
+                        }
+                    }
+                }
+                crate::MenuItemType::Text => {
+                    let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                    let entry = &item.0 .0;
+                    for (_, menu, menu_id) in store.values() {
+                        match &entry.borrow().type_ {
+                            MenuEntryType::Text(store) => {
+                                menu.remove(store.get(menu_id).unwrap());
+                            }
+                            MenuEntryType::Predefined(store, _) => {
+                                if let Some(item) = store.get(menu_id) {
+                                    menu.remove(item);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                crate::MenuItemType::Check => {
+                    let item = item
+                        .as_any()
+                        .downcast_ref::<crate::CheckMenuItem>()
+                        .unwrap();
+                    let entry = &item.0 .0;
+                    for (_, menu, menu_id) in store.values() {
+                        if let MenuEntryType::Check { store, .. } = &entry.borrow().type_ {
+                            menu.remove(store.get(menu_id).unwrap());
+                        }
+                    }
+                }
+            };
+        }
+
+        let index = self
+            .0
+            .borrow()
+            .entries
+            .as_ref()
+            .unwrap()
+            .iter()
+            .position(|e| e.borrow().id == item.id())
+            .unwrap();
+        self.0.borrow_mut().entries.as_mut().unwrap().remove(index);
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
@@ -404,7 +522,7 @@ impl Submenu {
         let entry = self.0.borrow();
         if let MenuEntryType::Submenu(store) = &entry.type_ {
             store
-                .get(0)
+                .get(&0)
                 .map(|i| {
                     i.0.label()
                         .map(|l| l.as_str().to_string())
@@ -423,7 +541,7 @@ impl Submenu {
 
         if let MenuEntryType::Submenu(store) = &entry.type_ {
             let text = to_gtk_mnemonic(text);
-            for (i, _) in store {
+            for (i, _, _) in store.values() {
                 i.set_label(&text);
             }
         } else {
@@ -435,7 +553,7 @@ impl Submenu {
         let entry = self.0.borrow();
         if let MenuEntryType::Submenu(store) = &entry.type_ {
             store
-                .get(0)
+                .get(&0)
                 .map(|i| i.0.is_sensitive())
                 .unwrap_or_else(|| entry.enabled)
         } else {
@@ -448,7 +566,7 @@ impl Submenu {
         entry.enabled = enabled;
 
         if let MenuEntryType::Submenu(store) = &entry.type_ {
-            for (i, _) in store {
+            for (i, _, _) in store.values() {
                 i.set_sensitive(enabled);
             }
         } else {
@@ -457,7 +575,7 @@ impl Submenu {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct TextMenuItem(Rc<RefCell<MenuEntry>>);
 
 impl TextMenuItem {
@@ -467,7 +585,7 @@ impl TextMenuItem {
             enabled,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuEntryType::Text(Vec::new()),
+            type_: MenuEntryType::Text(HashMap::new()),
             ..Default::default()
         }));
 
@@ -480,7 +598,7 @@ impl TextMenuItem {
             enabled: true,
             accelerator: item.accelerator(),
             id: COUNTER.next(),
-            type_: MenuEntryType::Predefined(Vec::new(), item),
+            type_: MenuEntryType::Predefined(HashMap::new(), item),
             ..Default::default()
         }));
 
@@ -495,7 +613,7 @@ impl TextMenuItem {
         let entry = self.0.borrow();
         match &entry.type_ {
             MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => store
-                .get(0)
+                .get(&0)
                 .map(|i| {
                     i.label()
                         .map(|l| l.as_str().to_string())
@@ -514,7 +632,7 @@ impl TextMenuItem {
         match &entry.type_ {
             MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => {
                 let text = to_gtk_mnemonic(text);
-                for i in store {
+                for i in store.values() {
                     i.set_label(&text);
                 }
             }
@@ -526,7 +644,7 @@ impl TextMenuItem {
         let entry = self.0.borrow();
         match &entry.type_ {
             MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => store
-                .get(0)
+                .get(&0)
                 .map(|i| i.is_sensitive())
                 .unwrap_or_else(|| entry.enabled),
             _ => unreachable!(),
@@ -539,7 +657,7 @@ impl TextMenuItem {
 
         match &entry.type_ {
             MenuEntryType::Text(store) | MenuEntryType::Predefined(store, _) => {
-                for i in store {
+                for i in store.values() {
                     i.set_sensitive(enabled);
                 }
             }
@@ -548,7 +666,7 @@ impl TextMenuItem {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct CheckMenuItem(Rc<RefCell<MenuEntry>>);
 
 impl CheckMenuItem {
@@ -560,7 +678,7 @@ impl CheckMenuItem {
             accelerator,
             id: COUNTER.next(),
             type_: MenuEntryType::Check {
-                store: Vec::new(),
+                store: HashMap::new(),
                 is_syncing: Rc::new(AtomicBool::new(false)),
             },
             ..Default::default()
@@ -577,7 +695,7 @@ impl CheckMenuItem {
         let entry = self.0.borrow();
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
             store
-                .get(0)
+                .get(&0)
                 .map(|i| {
                     i.label()
                         .map(|l| l.as_str().to_string())
@@ -596,7 +714,7 @@ impl CheckMenuItem {
 
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
             let text = to_gtk_mnemonic(text);
-            for i in store {
+            for i in store.values() {
                 i.set_label(&text);
             }
         } else {
@@ -608,7 +726,7 @@ impl CheckMenuItem {
         let entry = self.0.borrow();
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
             store
-                .get(0)
+                .get(&0)
                 .map(|i| i.is_sensitive())
                 .unwrap_or(entry.enabled)
         } else {
@@ -621,7 +739,7 @@ impl CheckMenuItem {
         entry.enabled = enabled;
 
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
-            for i in store {
+            for i in store.values() {
                 i.set_sensitive(enabled);
             }
         } else {
@@ -632,7 +750,10 @@ impl CheckMenuItem {
     pub fn is_checked(&self) -> bool {
         let entry = self.0.borrow();
         if let MenuEntryType::Check { store, .. } = &entry.type_ {
-            store.get(0).map(|i| i.is_active()).unwrap_or(entry.checked)
+            store
+                .get(&0)
+                .map(|i| i.is_active())
+                .unwrap_or(entry.checked)
         } else {
             unreachable!()
         }
@@ -647,7 +768,7 @@ impl CheckMenuItem {
 
         if let MenuEntryType::Check { store, is_syncing } = &type_ {
             is_syncing.store(true, Ordering::Release);
-            for i in store {
+            for i in store.values() {
                 i.set_active(checked);
             }
             is_syncing.store(false, Ordering::Release);
@@ -659,6 +780,7 @@ impl CheckMenuItem {
 
 fn add_gtk_submenu(
     menu: &impl IsA<gtk::MenuShell>,
+    menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     op: AddOp,
     add_to_store: bool,
@@ -679,21 +801,24 @@ fn add_gtk_submenu(
     }
 
     item.show();
+    let id = COUNTER.next();
     add_entries_to_gtkmenu(
         &submenu,
+        id,
         entry.entries.as_ref().unwrap(),
         entry.accel_group.as_ref().unwrap(),
         add_to_store,
     );
     if add_to_store {
         if let MenuEntryType::Submenu(store) = &mut entry.type_ {
-            store.push((item, submenu));
+            store.insert(menu_id, (item, submenu, id));
         }
     }
 }
 
 fn add_gtk_text_menuitem(
     menu: &impl IsA<gtk::MenuShell>,
+    menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
@@ -725,16 +850,17 @@ fn add_gtk_text_menuitem(
 
         if add_to_store {
             if let MenuEntryType::Text(store) = &mut entry.type_ {
-                store.push(item);
+                store.insert(menu_id, item);
             }
         }
     } else if let MenuEntryType::Predefined(_, _) = &type_ {
-        add_gtk_predefined_menuitm(menu, entry, accel_group, op, add_to_store);
+        add_gtk_predefined_menuitm(menu, menu_id, entry, accel_group, op, add_to_store);
     }
 }
 
 fn add_gtk_predefined_menuitm(
     menu: &impl IsA<gtk::MenuShell>,
+    menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
@@ -838,7 +964,7 @@ fn add_gtk_predefined_menuitm(
             item.show();
 
             if add_to_store {
-                store.push(item);
+                store.insert(menu_id, item);
             }
         }
     }
@@ -846,6 +972,7 @@ fn add_gtk_predefined_menuitm(
 
 fn add_gtk_check_menuitem(
     menu: &impl IsA<gtk::MenuShell>,
+    menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: &gtk::AccelGroup,
     op: AddOp,
@@ -879,7 +1006,7 @@ fn add_gtk_check_menuitem(
             };
 
             if let MenuEntryType::Check { store, .. } = &type_ {
-                for i in store {
+                for i in store.values() {
                     i.set_active(checked);
                 }
                 if let MenuEntryType::Check { is_syncing, .. } = &mut entry_c.borrow_mut().type_ {
@@ -901,13 +1028,14 @@ fn add_gtk_check_menuitem(
 
     if add_to_store {
         if let MenuEntryType::Check { store, .. } = &mut entry.type_ {
-            store.push(item);
+            store.insert(menu_id, item);
         }
     }
 }
 
 fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     menu: &M,
+    menu_id: u32,
     entries: &Vec<Rc<RefCell<MenuEntry>>>,
     accel_group: &gtk::AccelGroup,
     add_to_store: bool,
@@ -915,13 +1043,25 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     for entry in entries {
         let type_ = entry.borrow().type_.clone();
         match type_ {
-            MenuEntryType::Submenu(_) => add_gtk_submenu(menu, entry, AddOp::Append, add_to_store),
-            MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
-                add_gtk_text_menuitem(menu, entry, accel_group, AddOp::Append, add_to_store)
+            MenuEntryType::Submenu(_) => {
+                add_gtk_submenu(menu, menu_id, entry, AddOp::Append, add_to_store)
             }
-            MenuEntryType::Check { .. } => {
-                add_gtk_check_menuitem(menu, entry, accel_group, AddOp::Append, add_to_store)
-            }
+            MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => add_gtk_text_menuitem(
+                menu,
+                menu_id,
+                entry,
+                accel_group,
+                AddOp::Append,
+                add_to_store,
+            ),
+            MenuEntryType::Check { .. } => add_gtk_check_menuitem(
+                menu,
+                menu_id,
+                entry,
+                accel_group,
+                AddOp::Append,
+                add_to_store,
+            ),
         }
     }
 }

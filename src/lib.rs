@@ -80,6 +80,10 @@ impl Menu {
         }
     }
 
+    /// ## Panics
+    ///
+    /// - If `item` has already been removed
+    /// - If `item` wasn't previously [append](Menu::append)ed to this menu
     pub fn remove(&self, item: &dyn MenuItem) {
         self.0.remove(item)
     }
@@ -218,7 +222,7 @@ impl Menu {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Submenu(platform_impl::Submenu);
 
 unsafe impl MenuItem for Submenu {
@@ -303,7 +307,7 @@ impl Submenu {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TextMenuItem(platform_impl::TextMenuItem);
 
 unsafe impl MenuItem for TextMenuItem {
@@ -355,7 +359,7 @@ impl TextMenuItem {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
 unsafe impl MenuItem for CheckMenuItem {
@@ -418,6 +422,7 @@ impl CheckMenuItem {
 mod internal {
     //!  **DO NOT USE:**. This is meant for internal usage inside the crate.
 
+    #[derive(Debug)]
     pub enum MenuItemType {
         Submenu,
         Text,
