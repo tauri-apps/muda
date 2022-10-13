@@ -17,6 +17,11 @@ pub fn select_all(text: Option<&str>) -> TextMenuItem {
     TextMenuItem::predefined(PredfinedMenuItem::SelectAll, text)
 }
 
+/// A Separator in a menu
+///
+/// ## Platform-specific:
+///
+/// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
 pub fn separator() -> TextMenuItem {
     TextMenuItem::predefined::<&str>(PredfinedMenuItem::Separator, None)
 }
@@ -49,6 +54,13 @@ pub(crate) enum PredfinedMenuItem {
     CloseWindow,
     Quit,
     About(Option<AboutMetadata>),
+    None,
+}
+
+impl Default for PredfinedMenuItem {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 impl PredfinedMenuItem {
@@ -59,11 +71,14 @@ impl PredfinedMenuItem {
             PredfinedMenuItem::Paste => "&Paste",
             PredfinedMenuItem::SelectAll => "Select &All",
             PredfinedMenuItem::Separator => "",
-            PredfinedMenuItem::Minimize => "_Minimize",
-            #[cfg(target_os = "linux")]
+            PredfinedMenuItem::Minimize => "&Minimize",
+            #[cfg(windows)]
+            PredfinedMenuItem::CloseWindow => "Close",
+            #[cfg(not(windows))]
             PredfinedMenuItem::CloseWindow => "C&lose Window",
             PredfinedMenuItem::Quit => "&Quit",
             PredfinedMenuItem::About(_) => "&About",
+            PredfinedMenuItem::None => "",
         }
     }
 

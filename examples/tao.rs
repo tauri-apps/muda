@@ -9,7 +9,7 @@ use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::WindowExtWindows;
 use tao::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -116,13 +116,20 @@ fn main() {
                 }
             }
             Event::WindowEvent {
-                event: WindowEvent::MouseInput { .. },
+                event:
+                    WindowEvent::MouseInput {
+                        state: ElementState::Pressed,
+                        button: MouseButton::Right,
+                        ..
+                    },
                 window_id,
                 ..
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "linux")]
                     menu_bar.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
+                    #[cfg(target_os = "windows")]
+                    menu_bar.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
                 }
             }
             Event::MainEventsCleared => {

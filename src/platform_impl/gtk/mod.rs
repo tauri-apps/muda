@@ -1,6 +1,10 @@
 mod accelerator;
 
-use crate::{accelerator::Accelerator, counter::Counter, predefined::PredfinedMenuItem};
+use crate::{
+    accelerator::Accelerator,
+    predefined::PredfinedMenuItem,
+    util::{AddOp, Counter},
+};
 use accelerator::{from_gtk_mnemonic, parse_accelerator, register_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
 use std::{
@@ -11,13 +15,6 @@ use std::{
 };
 
 static COUNTER: Counter = Counter::new();
-
-#[derive(Clone, Copy, Debug)]
-enum AddOp {
-    Append,
-    Prepend,
-    Insert(usize),
-}
 
 /// Generic shared type describing a menu entry. It can be one of [`MenuEntryType`]
 #[derive(Debug, Default)]
@@ -37,7 +34,7 @@ pub(crate) struct MenuEntry {
 /// call the gtk methods on the elements
 #[derive(Debug, Clone)]
 enum MenuEntryType {
-    // NOTE(amrbashir): because gtk doesn't allow using the same [`gtk::MenuItem`]
+    // because gtk doesn't allow using the same [`gtk::MenuItem`]
     // multiple times, and thus can't be used in multiple windows, each entry
     // keeps a vector of a [`gtk::MenuItem`] or a tuple of [`gtk::MenuItem`] and [`gtk::Menu`] if its a menu
     // and push to it every time [`Menu::init_for_gtk_window`] is called.
@@ -78,10 +75,6 @@ impl Menu {
             native_menus: HashMap::new(),
             accel_group: Rc::new(gtk::AccelGroup::new()),
         })))
-    }
-
-    pub fn id(&self) -> u32 {
-        self.0.borrow().id
     }
 
     pub fn append(&self, item: &dyn crate::MenuItem) {
@@ -345,7 +338,7 @@ impl Menu {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct Submenu(Rc<RefCell<MenuEntry>>);
 
 impl Submenu {
@@ -600,7 +593,7 @@ impl Submenu {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct TextMenuItem(Rc<RefCell<MenuEntry>>);
 
 impl TextMenuItem {
@@ -691,7 +684,7 @@ impl TextMenuItem {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct CheckMenuItem(Rc<RefCell<MenuEntry>>);
 
 impl CheckMenuItem {

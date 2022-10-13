@@ -10,7 +10,7 @@ use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::WindowBuilder,
 };
@@ -47,17 +47,17 @@ fn main() {
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
-    let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
-    let custom_i_2 = TextMenuItem::new(
-        "Custom 2",
-        false,
+    let custom_i_1 = TextMenuItem::new(
+        "C&ustom 1",
+        true,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
+    let custom_i_2 = TextMenuItem::new("Custom 2", false, None);
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
-    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", true, false, None);
+    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
     let check_custom_i_3 = CheckMenuItem::new(
         "Check Custom 3",
-        false,
+        true,
         true,
         Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
     );
@@ -135,13 +135,18 @@ fn main() {
                 }
             }
             Event::WindowEvent {
-                event: WindowEvent::MouseInput { .. },
+                event:
+                    WindowEvent::MouseInput {
+                        state: ElementState::Pressed,
+                        button: MouseButton::Right,
+                        ..
+                    },
                 window_id,
                 ..
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
-                    menu_bar.show_context_menu_for_hwnd(window.hwnd(), x, y);
+                    window_m.show_context_menu_for_hwnd(_window2.hwnd(), x, y);
                 }
             }
             Event::MainEventsCleared => {

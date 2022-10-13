@@ -1,23 +1,25 @@
-#![allow(unused)]
+#[derive(Clone, Copy, Debug)]
+pub enum AddOp {
+    Append,
+    Insert(usize),
+}
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct Counter(AtomicU32);
 
 impl Counter {
+    #[allow(unused)]
     pub const fn new() -> Self {
         Self(AtomicU32::new(1))
     }
 
+    #[allow(unused)]
     pub const fn new_with_start(start: u32) -> Self {
         Self(AtomicU32::new(start))
     }
 
     pub fn next(&self) -> u32 {
         self.0.fetch_add(1, Ordering::Relaxed)
-    }
-
-    pub fn current(&self) -> u32 {
-        self.0.load(Ordering::Relaxed)
     }
 }

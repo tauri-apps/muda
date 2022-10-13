@@ -7,9 +7,9 @@ use once_cell::sync::Lazy;
 use predefined::PredfinedMenuItem;
 
 pub mod accelerator;
-mod counter;
 mod platform_impl;
 pub mod predefined;
+mod util;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
 
@@ -45,10 +45,6 @@ impl Menu {
         let menu = Self::new();
         menu.append_items(items);
         menu
-    }
-
-    pub fn id(&self) -> u32 {
-        self.0.id()
     }
 
     pub fn append(&self, item: &dyn MenuItem) {
@@ -209,6 +205,11 @@ impl Menu {
         self.0.show_context_menu_for_gtk_window(w, x, y)
     }
 
+    #[cfg(target_os = "windows")]
+    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
     /// Adds this menu to an NSApp.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
@@ -222,7 +223,7 @@ impl Menu {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
 unsafe impl MenuItem for Submenu {
@@ -317,9 +318,14 @@ impl Submenu {
     {
         self.0.show_context_menu_for_gtk_window(w, x, y)
     }
+
+    #[cfg(target_os = "windows")]
+    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TextMenuItem(platform_impl::TextMenuItem);
 
 unsafe impl MenuItem for TextMenuItem {
@@ -371,7 +377,7 @@ impl TextMenuItem {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
 unsafe impl MenuItem for CheckMenuItem {
@@ -434,11 +440,17 @@ impl CheckMenuItem {
 mod internal {
     //!  **DO NOT USE:**. This module is ONLY meant to be used internally.
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub enum MenuItemType {
         Submenu,
         Text,
         Check,
+    }
+
+    impl Default for MenuItemType {
+        fn default() -> Self {
+            Self::Text
+        }
     }
 
     /// # Safety
