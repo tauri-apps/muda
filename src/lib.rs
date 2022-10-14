@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use predefined::PredfinedMenuItemType;
 
 pub mod accelerator;
+pub mod internal;
 mod platform_impl;
 mod predefined;
 mod util;
@@ -531,33 +532,4 @@ pub struct AboutMetadata {
     pub website: Option<String>,
     /// The website label.
     pub website_label: Option<String>,
-}
-
-mod internal {
-    //!  **DO NOT USE:**. This module is ONLY meant to be used internally.
-
-    #[derive(Clone, Debug, PartialEq, Eq)]
-    pub enum MenuItemType {
-        Submenu,
-        Normal,
-        Check,
-        Predefined,
-    }
-
-    impl Default for MenuItemType {
-        fn default() -> Self {
-            Self::Normal
-        }
-    }
-
-    /// # Safety
-    ///
-    /// **DO NOT IMPLEMENT:** This trait is ONLY meant to be implemented internally.
-    pub unsafe trait MenuEntry {
-        fn type_(&self) -> MenuItemType;
-
-        fn as_any(&self) -> &(dyn std::any::Any + 'static);
-
-        fn id(&self) -> u32;
-    }
 }
