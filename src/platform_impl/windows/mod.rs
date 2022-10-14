@@ -18,11 +18,11 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DestroyWindow, DrawMenuBar, EnableMenuItem, GetMenuItemInfoW,
-            InsertMenuW, MessageBoxW, PostQuitMessage, RemoveMenu, SetForegroundWindow, SetMenu,
-            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION,
-            MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED,
-            MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED,
-            MIIM_STATE, MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND,
+            InsertMenuW, MessageBoxW, PostQuitMessage, RemoveMenu, SetMenu, SetMenuItemInfoW,
+            ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
+            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
+            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_STATE,
+            MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND,
         },
     },
 };
@@ -181,19 +181,19 @@ impl Menu {
         }
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
             MenuItemType::Submenu => {
@@ -211,7 +211,7 @@ impl Menu {
                 child
             }
             MenuItemType::Text => {
-                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
                 let child_ = child.borrow();
@@ -229,7 +229,7 @@ impl Menu {
                 child
             }
             MenuItemType::Check => {
-                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
                 flags |= MF_STRING;
@@ -305,7 +305,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuEntry) {
         if item.type_() == MenuItemType::Submenu {
             let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
 
@@ -331,15 +331,15 @@ impl Menu {
         children.remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
         self.children
             .borrow()
             .iter()
-            .map(|c| -> Box<dyn crate::MenuItem> {
+            .map(|c| -> Box<dyn crate::MenuEntry> {
                 let child = c.borrow();
                 match child.type_ {
                     MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuItemType::Text => Box::new(crate::TextMenuItem(TextMenuItem(c.clone()))),
+                    MenuItemType::Text => Box::new(crate::MenuItem(MenuItem(c.clone()))),
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
@@ -435,19 +435,19 @@ impl Submenu {
         self.0.borrow().id()
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
             MenuItemType::Submenu => {
@@ -466,7 +466,7 @@ impl Submenu {
                 child
             }
             MenuItemType::Text => {
-                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
                 let child_ = child.borrow();
@@ -568,7 +568,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuEntry) {
         if item.type_() == MenuItemType::Submenu {
             let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
 
@@ -591,18 +591,18 @@ impl Submenu {
         children.remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
         self.0
             .borrow()
             .children
             .as_ref()
             .unwrap()
             .iter()
-            .map(|c| -> Box<dyn crate::MenuItem> {
+            .map(|c| -> Box<dyn crate::MenuEntry> {
                 let child = c.borrow();
                 match child.type_ {
                     MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuItemType::Text => Box::new(crate::TextMenuItem(TextMenuItem(c.clone()))),
+                    MenuItemType::Text => Box::new(crate::MenuItem(MenuItem(c.clone()))),
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
@@ -649,9 +649,9 @@ impl Submenu {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct TextMenuItem(Rc<RefCell<MenuChild>>);
+pub(crate) struct MenuItem(Rc<RefCell<MenuChild>>);
 
-impl TextMenuItem {
+impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
             type_: MenuItemType::Text,

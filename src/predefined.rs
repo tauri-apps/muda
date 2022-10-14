@@ -1,20 +1,20 @@
-use crate::{accelerator::Accelerator, TextMenuItem};
+use crate::{accelerator::Accelerator, MenuItem};
 use keyboard_types::{Code, Modifiers};
 
-pub fn copy(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Copy, text)
+pub fn copy(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::Copy, text)
 }
 
-pub fn cut(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Cut, text)
+pub fn cut(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::Cut, text)
 }
 
-pub fn paste(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Paste, text)
+pub fn paste(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::Paste, text)
 }
 
-pub fn select_all(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::SelectAll, text)
+pub fn select_all(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::SelectAll, text)
 }
 
 /// A Separator in a menu
@@ -22,24 +22,24 @@ pub fn select_all(text: Option<&str>) -> TextMenuItem {
 /// ## Platform-specific:
 ///
 /// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
-pub fn separator() -> TextMenuItem {
-    TextMenuItem::predefined::<&str>(PredfinedMenuItem::Separator, None)
+pub fn separator() -> MenuItem {
+    MenuItem::predefined::<&str>(PredfinedMenuItem::Separator, None)
 }
 
-pub fn minimize(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Minimize, text)
+pub fn minimize(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::Minimize, text)
 }
 
-pub fn close_window(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::CloseWindow, text)
+pub fn close_window(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::CloseWindow, text)
 }
 
-pub fn quit(text: Option<&str>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::Quit, text)
+pub fn quit(text: Option<&str>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::Quit, text)
 }
 
-pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> TextMenuItem {
-    TextMenuItem::predefined(PredfinedMenuItem::About(metadata), text)
+pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> MenuItem {
+    MenuItem::predefined(PredfinedMenuItem::About(metadata), text)
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

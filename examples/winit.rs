@@ -3,7 +3,7 @@ use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver,
     predefined::{self, AboutMetadata},
-    CheckMenuItem, Menu, Submenu, TextMenuItem,
+    CheckMenuItem, Menu, MenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
@@ -47,12 +47,12 @@ fn main() {
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
-    let custom_i_1 = TextMenuItem::new(
+    let custom_i_1 = MenuItem::new(
         "C&ustom 1",
         true,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
-    let custom_i_2 = TextMenuItem::new("Custom 2", false, None);
+    let custom_i_2 = MenuItem::new("Custom 2", false, None);
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
     let check_custom_i_3 = CheckMenuItem::new(
@@ -157,7 +157,7 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&TextMenuItem::new("asdasd", false, None), 2);
+                file_m.insert(&MenuItem::new("asdasd", false, None), 2);
             }
             println!("{:?}", event);
         }

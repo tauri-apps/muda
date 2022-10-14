@@ -2,7 +2,7 @@ use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver,
     predefined::{self, AboutMetadata},
-    CheckMenuItem, Menu, Submenu, TextMenuItem,
+    CheckMenuItem, Menu, MenuItem, Submenu,
 };
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
@@ -28,8 +28,8 @@ fn main() {
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
-    let custom_i_1 = TextMenuItem::new("C&ustom 1", true, None);
-    let custom_i_2 = TextMenuItem::new(
+    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
+    let custom_i_2 = MenuItem::new(
         "Custom 2",
         false,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
@@ -140,7 +140,7 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&TextMenuItem::new("asdasd", false, None), 2);
+                file_m.insert(&MenuItem::new("asdasd", false, None), 2);
             }
             println!("{:?}", event);
         }

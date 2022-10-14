@@ -2,7 +2,7 @@
 
 use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use internal::{MenuItem, MenuItemType};
+use internal::{MenuEntry, MenuItemType};
 use once_cell::sync::Lazy;
 use predefined::PredfinedMenuItem;
 
@@ -41,36 +41,36 @@ impl Menu {
         Self(platform_impl::Menu::new())
     }
 
-    pub fn with_items(items: &[&dyn MenuItem]) -> Self {
+    pub fn with_items(items: &[&dyn MenuEntry]) -> Self {
         let menu = Self::new();
         menu.append_items(items);
         menu
     }
 
-    pub fn append(&self, item: &dyn MenuItem) {
+    pub fn append(&self, item: &dyn MenuEntry) {
         self.0.append(item)
     }
 
-    pub fn append_items(&self, items: &[&dyn MenuItem]) {
+    pub fn append_items(&self, items: &[&dyn MenuEntry]) {
         for item in items {
             self.append(*item);
         }
     }
-    pub fn prepend(&self, item: &dyn MenuItem) {
+    pub fn prepend(&self, item: &dyn MenuEntry) {
         self.0.prepend(item)
     }
 
-    pub fn prepend_items(&self, items: &[&dyn MenuItem]) {
+    pub fn prepend_items(&self, items: &[&dyn MenuEntry]) {
         for item in items {
             self.prepend(*item);
         }
     }
 
-    pub fn insert(&self, item: &dyn MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn MenuEntry, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn insert_items(&self, items: &[&dyn MenuItem], position: usize) {
+    pub fn insert_items(&self, items: &[&dyn MenuEntry], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }
@@ -80,11 +80,11 @@ impl Menu {
     ///
     /// - If `item` has already been removed
     /// - If `item` wasn't previously [append](Menu::append)ed to this menu
-    pub fn remove(&self, item: &dyn MenuItem) {
+    pub fn remove(&self, item: &dyn MenuEntry) {
         self.0.remove(item)
     }
 
-    pub fn items(&self) -> Vec<Box<dyn MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn MenuEntry>> {
         self.0.items()
     }
 
@@ -226,7 +226,7 @@ impl Menu {
 #[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
-unsafe impl MenuItem for Submenu {
+unsafe impl MenuEntry for Submenu {
     fn type_(&self) -> MenuItemType {
         MenuItemType::Submenu
     }
@@ -244,7 +244,7 @@ impl Submenu {
         Self(platform_impl::Submenu::new(text.as_ref(), enabled))
     }
 
-    pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuItem]) -> Self {
+    pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuEntry]) -> Self {
         let menu = Self::new(text, enabled);
         menu.append_items(items);
         menu
@@ -254,40 +254,40 @@ impl Submenu {
         self.0.id()
     }
 
-    pub fn append(&self, item: &dyn MenuItem) {
+    pub fn append(&self, item: &dyn MenuEntry) {
         self.0.append(item)
     }
 
-    pub fn append_items(&self, items: &[&dyn MenuItem]) {
+    pub fn append_items(&self, items: &[&dyn MenuEntry]) {
         for item in items {
             self.append(*item);
         }
     }
-    pub fn prepend(&self, item: &dyn MenuItem) {
+    pub fn prepend(&self, item: &dyn MenuEntry) {
         self.0.prepend(item)
     }
 
-    pub fn prepend_items(&self, items: &[&dyn MenuItem]) {
+    pub fn prepend_items(&self, items: &[&dyn MenuEntry]) {
         for item in items {
             self.prepend(*item);
         }
     }
 
-    pub fn insert(&self, item: &dyn MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn MenuEntry, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn insert_items(&self, items: &[&dyn MenuItem], position: usize) {
+    pub fn insert_items(&self, items: &[&dyn MenuEntry], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }
     }
 
-    pub fn remove(&self, item: &dyn MenuItem) {
+    pub fn remove(&self, item: &dyn MenuEntry) {
         self.0.remove(item)
     }
 
-    pub fn items(&self) -> Vec<Box<dyn MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn MenuEntry>> {
         self.0.items()
     }
 
@@ -326,9 +326,9 @@ impl Submenu {
 }
 
 #[derive(Clone)]
-pub struct TextMenuItem(platform_impl::TextMenuItem);
+pub struct MenuItem(platform_impl::MenuItem);
 
-unsafe impl MenuItem for TextMenuItem {
+unsafe impl MenuEntry for MenuItem {
     fn type_(&self) -> MenuItemType {
         MenuItemType::Text
     }
@@ -341,16 +341,16 @@ unsafe impl MenuItem for TextMenuItem {
     }
 }
 
-impl TextMenuItem {
+impl MenuItem {
     pub fn new<S: AsRef<str>>(text: S, enabled: bool, acccelerator: Option<Accelerator>) -> Self {
-        Self(platform_impl::TextMenuItem::new(
+        Self(platform_impl::MenuItem::new(
             text.as_ref(),
             enabled,
             acccelerator,
         ))
     }
     fn predefined<S: AsRef<str>>(item: PredfinedMenuItem, text: Option<S>) -> Self {
-        Self(platform_impl::TextMenuItem::predefined(
+        Self(platform_impl::MenuItem::predefined(
             item,
             text.map(|t| t.as_ref().to_string()),
         ))
@@ -380,7 +380,7 @@ impl TextMenuItem {
 #[derive(Clone)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
-unsafe impl MenuItem for CheckMenuItem {
+unsafe impl MenuEntry for CheckMenuItem {
     fn type_(&self) -> MenuItemType {
         MenuItemType::Check
     }
@@ -456,7 +456,7 @@ mod internal {
     /// # Safety
     ///
     /// **DO NOT IMPLEMENT:** This trait is ONLY meant to be implemented internally.
-    pub unsafe trait MenuItem {
+    pub unsafe trait MenuEntry {
         fn type_(&self) -> MenuItemType;
 
         fn as_any(&self) -> &(dyn std::any::Any + 'static);

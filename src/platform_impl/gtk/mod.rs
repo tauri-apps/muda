@@ -77,19 +77,19 @@ impl Menu {
         })))
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Prepend)
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
         let entry = match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -102,7 +102,7 @@ impl Menu {
                 entry
             }
             crate::MenuItemType::Text => {
-                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
@@ -148,7 +148,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuEntry) {
         match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -166,7 +166,7 @@ impl Menu {
                 }
             }
             crate::MenuItemType::Text => {
-                let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
@@ -210,17 +210,17 @@ impl Menu {
         self.0.borrow_mut().entries.remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
         self.0
             .borrow()
             .entries
             .iter()
-            .map(|e| -> Box<dyn crate::MenuItem> {
+            .map(|e| -> Box<dyn crate::MenuEntry> {
                 let entry = e.borrow();
                 match entry.type_ {
                     MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
                     MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
-                        Box::new(crate::TextMenuItem(TextMenuItem(e.clone())))
+                        Box::new(crate::MenuItem(MenuItem(e.clone())))
                     }
                     MenuEntryType::Check { .. } => {
                         Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
@@ -359,19 +359,19 @@ impl Submenu {
         self.0.borrow().id
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
         self.add_menu_item(item, AddOp::Prepend)
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
         let type_ = self.0.borrow().type_.clone();
         if let MenuEntryType::Submenu(store) = &type_ {
             let entry = match item.type_() {
@@ -384,7 +384,7 @@ impl Submenu {
                     entry
                 }
                 crate::MenuItemType::Text => {
-                    let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                    let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for (_, menu, menu_id) in store.values() {
                         add_gtk_text_menuitem(
@@ -429,7 +429,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuEntry) {
         if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
                 crate::MenuItemType::Submenu => {
@@ -446,7 +446,7 @@ impl Submenu {
                     }
                 }
                 crate::MenuItemType::Text => {
-                    let item = item.as_any().downcast_ref::<crate::TextMenuItem>().unwrap();
+                    let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for (_, menu, menu_id) in store.values() {
                         match &entry.borrow().type_ {
@@ -489,19 +489,19 @@ impl Submenu {
         self.0.borrow_mut().entries.as_mut().unwrap().remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
         self.0
             .borrow()
             .entries
             .as_ref()
             .unwrap()
             .iter()
-            .map(|e| -> Box<dyn crate::MenuItem> {
+            .map(|e| -> Box<dyn crate::MenuEntry> {
                 let entry = e.borrow();
                 match entry.type_ {
                     MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
                     MenuEntryType::Text(_) | MenuEntryType::Predefined(_, _) => {
-                        Box::new(crate::TextMenuItem(TextMenuItem(e.clone())))
+                        Box::new(crate::MenuItem(MenuItem(e.clone())))
                     }
                     MenuEntryType::Check { .. } => {
                         Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
@@ -594,9 +594,9 @@ impl Submenu {
 }
 
 #[derive(Clone)]
-pub(crate) struct TextMenuItem(Rc<RefCell<MenuEntry>>);
+pub(crate) struct MenuItem(Rc<RefCell<MenuEntry>>);
 
-impl TextMenuItem {
+impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         let entry = Rc::new(RefCell::new(MenuEntry {
             text: text.to_string(),
