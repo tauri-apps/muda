@@ -4,7 +4,7 @@ mod util;
 use crate::{
     accelerator::Accelerator,
     internal::MenuItemType,
-    predefined::PredfinedMenuItem,
+    predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
 };
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
@@ -18,11 +18,11 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DestroyWindow, DrawMenuBar, EnableMenuItem, GetMenuItemInfoW,
-            InsertMenuW, MessageBoxW, PostQuitMessage, RemoveMenu, SetMenu, SetMenuItemInfoW,
-            ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
-            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
-            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_STATE,
-            MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND,
+            InsertMenuW, MessageBoxW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu,
+            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION,
+            MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED,
+            MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED,
+            MIIM_STATE, MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND, WM_DESTROY,
         },
     },
 };
@@ -46,8 +46,7 @@ struct MenuChild {
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
-    is_predefined: bool,
-    predefined_item: PredfinedMenuItem,
+    predefined_item_type: PredfinedMenuItemType,
 
     // check menu item fields
     checked: bool,
@@ -210,17 +209,28 @@ impl Menu {
 
                 child
             }
-            MenuItemType::Text => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
+                let child = &item.0 .0;
+
+                flags |= MF_STRING;
+
+                child
+            }
+            MenuItemType::Predefined => {
+                let item = item
+                    .as_any()
+                    .downcast_ref::<crate::PredefinedMenuItem>()
+                    .unwrap();
                 let child = &item.0 .0;
 
                 let child_ = child.borrow();
 
-                match (child_.is_predefined, &child_.predefined_item) {
-                    (true, PredfinedMenuItem::Separator) => {
+                match child_.predefined_item_type {
+                    PredfinedMenuItemType::None => return,
+                    PredfinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
-                    (true, PredfinedMenuItem::None) => return,
                     _ => {
                         flags |= MF_STRING;
                     }
@@ -339,7 +349,10 @@ impl Menu {
                 let child = c.borrow();
                 match child.type_ {
                     MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuItemType::Text => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Predefined => {
+                        Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
+                    }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
@@ -387,7 +400,7 @@ impl Menu {
         let index = hwnds.iter().position(|h| *h == hwnd).unwrap();
         hwnds.remove(index);
         unsafe {
-            // TODO: send message to clear data
+            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
@@ -465,17 +478,29 @@ impl Submenu {
 
                 child
             }
-            MenuItemType::Text => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
+                let child = &item.0 .0;
+
+                flags |= MF_STRING;
+
+                child
+            }
+
+            MenuItemType::Predefined => {
+                let item = item
+                    .as_any()
+                    .downcast_ref::<crate::PredefinedMenuItem>()
+                    .unwrap();
                 let child = &item.0 .0;
 
                 let child_ = child.borrow();
 
-                match (child_.is_predefined, &child_.predefined_item) {
-                    (true, PredfinedMenuItem::Separator) => {
+                match child_.predefined_item_type {
+                    PredfinedMenuItemType::None => return,
+                    PredfinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
-                    (true, PredfinedMenuItem::None) => return,
                     _ => {
                         flags |= MF_STRING;
                     }
@@ -602,7 +627,10 @@ impl Submenu {
                 let child = c.borrow();
                 match child.type_ {
                     MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuItemType::Text => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Predefined => {
+                        Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
+                    }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
@@ -654,26 +682,12 @@ pub(crate) struct MenuItem(Rc<RefCell<MenuChild>>);
 impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuItemType::Text,
+            type_: MenuItemType::Normal,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
             id: COUNTER.next(),
             accelerator,
-            ..Default::default()
-        })))
-    }
-
-    pub fn predefined(item: PredfinedMenuItem, text: Option<String>) -> Self {
-        Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuItemType::Text,
-            text: text.unwrap_or_else(|| item.text().to_string()),
-            enabled: true,
-            parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
-            accelerator: item.accelerator(),
-            is_predefined: true,
-            predefined_item: item,
             ..Default::default()
         })))
     }
@@ -696,6 +710,36 @@ impl MenuItem {
 
     pub fn set_enabled(&self, enabled: bool) {
         self.0.borrow_mut().set_enabled(enabled)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PredefinedMenuItem(Rc<RefCell<MenuChild>>);
+
+impl PredefinedMenuItem {
+    pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
+        Self(Rc::new(RefCell::new(MenuChild {
+            type_: MenuItemType::Predefined,
+            text: text.unwrap_or_else(|| item_type.text().to_string()),
+            enabled: true,
+            parents_hemnu: Vec::new(),
+            id: COUNTER.next(),
+            accelerator: item_type.accelerator(),
+            predefined_item_type: item_type,
+            ..Default::default()
+        })))
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.borrow().id()
+    }
+
+    pub fn text(&self) -> String {
+        self.0.borrow().text()
+    }
+
+    pub fn set_text(&self, text: &str) {
+        self.0.borrow_mut().set_text(text)
     }
 }
 
@@ -746,6 +790,7 @@ impl CheckMenuItem {
 }
 
 const MENU_SUBCLASS_ID: usize = 200;
+const WM_CLEAR_MENU_DATA: u32 = 600;
 
 unsafe extern "system" fn menu_subclass_proc(
     hwnd: HWND,
@@ -756,46 +801,62 @@ unsafe extern "system" fn menu_subclass_proc(
     dwrefdata: usize,
 ) -> LRESULT {
     let mut ret = -1;
+    if msg == WM_DESTROY || msg == WM_CLEAR_MENU_DATA {
+        drop(Box::from_raw(dwrefdata as *mut Menu));
+    }
+
     if msg == WM_COMMAND {
         let id = util::LOWORD(wparam as _) as u32;
         let menu = dwrefdata as *mut Menu;
 
         if let Some(item) = (*menu).find_by_id(id) {
+            ret = 0;
+
             let mut dispatch = false;
+
             {
                 let mut item = item.borrow_mut();
-                if item.is_predefined {
-                    match &item.predefined_item {
-                        PredfinedMenuItem::Copy => execute_edit_command(EditCommand::Copy),
-                        PredfinedMenuItem::Cut => execute_edit_command(EditCommand::Cut),
-                        PredfinedMenuItem::Paste => execute_edit_command(EditCommand::Paste),
-                        PredfinedMenuItem::SelectAll => {
+                match item.type_ {
+                    MenuItemType::Normal => {
+                        dispatch = true;
+                    }
+                    MenuItemType::Check => {
+                        dispatch = true;
+
+                        let checked = !item.checked;
+                        item.set_checked(checked);
+                    }
+                    MenuItemType::Predefined => match &item.predefined_item_type {
+                        PredfinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
+                        PredfinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
+                        PredfinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
+                        PredfinedMenuItemType::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
-                        PredfinedMenuItem::Separator => {}
-                        PredfinedMenuItem::Minimize => {
+                        PredfinedMenuItemType::Separator => {}
+                        PredfinedMenuItemType::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
                         }
-                        PredfinedMenuItem::CloseWindow => {
+                        PredfinedMenuItemType::CloseWindow => {
                             DestroyWindow(hwnd);
                         }
-                        PredfinedMenuItem::Quit => {
+                        PredfinedMenuItemType::Quit => {
                             PostQuitMessage(0);
                         }
-                        PredfinedMenuItem::About(metadata) => {
+                        PredfinedMenuItemType::About(metadata) => {
                             if let Some(metadata) = metadata {
                                 MessageBoxW(
                                     hwnd,
                                     encode_wide(format!(
                                         r#"
-    {}
-    version: {}
-    authors: {}
-    license: {}
-    website: {} {}
-    {}
-    {}
-                                    "#,
+        {}
+        version: {}
+        authors: {}
+        license: {}
+        website: {} {}
+        {}
+        {}
+                                        "#,
                                         metadata.name.as_deref().unwrap_or_default(),
                                         metadata.version.as_deref().unwrap_or_default(),
                                         metadata.authors.as_deref().unwrap_or_default().join(","),
@@ -815,21 +876,15 @@ unsafe extern "system" fn menu_subclass_proc(
                                 );
                             }
                         }
-                        PredfinedMenuItem::None => unreachable!(),
-                    }
-                } else {
-                    dispatch = true;
-                    if item.type_ == MenuItemType::Check {
-                        let checked = !item.checked;
-                        item.set_checked(checked);
-                    }
+                        PredfinedMenuItemType::None => unreachable!(),
+                    },
+                    _ => {}
                 }
             }
 
             if dispatch {
                 let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
             }
-            ret = 0;
         }
     }
 

@@ -4,11 +4,11 @@ use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use internal::{MenuEntry, MenuItemType};
 use once_cell::sync::Lazy;
-use predefined::PredfinedMenuItem;
+use predefined::PredfinedMenuItemType;
 
 pub mod accelerator;
 mod platform_impl;
-pub mod predefined;
+mod predefined;
 mod util;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
@@ -330,7 +330,7 @@ pub struct MenuItem(platform_impl::MenuItem);
 
 unsafe impl MenuEntry for MenuItem {
     fn type_(&self) -> MenuItemType {
-        MenuItemType::Text
+        MenuItemType::Normal
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -347,12 +347,6 @@ impl MenuItem {
             text.as_ref(),
             enabled,
             acccelerator,
-        ))
-    }
-    fn predefined<S: AsRef<str>>(item: PredfinedMenuItem, text: Option<S>) -> Self {
-        Self(platform_impl::MenuItem::predefined(
-            item,
-            text.map(|t| t.as_ref().to_string()),
         ))
     }
 
@@ -374,6 +368,83 @@ impl MenuItem {
 
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
+    }
+}
+
+pub struct PredefinedMenuItem(platform_impl::PredefinedMenuItem);
+
+unsafe impl MenuEntry for PredefinedMenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Predefined
+    }
+    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
+        self
+    }
+
+    fn id(&self) -> u32 {
+        self.id()
+    }
+}
+
+impl PredefinedMenuItem {
+    pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Copy, text)
+    }
+
+    pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Cut, text)
+    }
+
+    pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Paste, text)
+    }
+
+    pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::SelectAll, text)
+    }
+
+    /// A Separator in a menu
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
+    pub fn separator() -> PredefinedMenuItem {
+        PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
+    }
+
+    pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Minimize, text)
+    }
+
+    pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::CloseWindow, text)
+    }
+
+    pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Quit, text)
+    }
+
+    pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::About(metadata), text)
+    }
+
+    fn new<S: AsRef<str>>(item: PredfinedMenuItemType, text: Option<S>) -> Self {
+        Self(platform_impl::PredefinedMenuItem::new(
+            item,
+            text.map(|t| t.as_ref().to_string()),
+        ))
+    }
+
+    fn id(&self) -> u32 {
+        self.0.id()
+    }
+
+    pub fn text(&self) -> String {
+        self.0.text()
+    }
+
+    pub fn set_text<S: AsRef<str>>(&self, text: S) {
+        self.0.set_text(text.as_ref())
     }
 }
 
@@ -437,19 +508,45 @@ impl CheckMenuItem {
     }
 }
 
+/// Application metadata for the [`NativeMenuItem::About`].
+///
+/// ## Platform-specific
+///
+/// - **macOS:** The metadata is ignored.
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
+pub struct AboutMetadata {
+    /// The application name.
+    pub name: Option<String>,
+    /// The application version.
+    pub version: Option<String>,
+    /// The authors of the application.
+    pub authors: Option<Vec<String>>,
+    /// Application comments.
+    pub comments: Option<String>,
+    /// The copyright of the application.
+    pub copyright: Option<String>,
+    /// The license of the application.
+    pub license: Option<String>,
+    /// The application website.
+    pub website: Option<String>,
+    /// The website label.
+    pub website_label: Option<String>,
+}
+
 mod internal {
     //!  **DO NOT USE:**. This module is ONLY meant to be used internally.
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub enum MenuItemType {
         Submenu,
-        Text,
+        Normal,
         Check,
+        Predefined,
     }
 
     impl Default for MenuItemType {
         fn default() -> Self {
-            Self::Text
+            Self::Normal
         }
     }
 

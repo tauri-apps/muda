@@ -1,8 +1,6 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver,
-    predefined::{self, AboutMetadata},
-    CheckMenuItem, Menu, MenuItem, Submenu,
+    menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
@@ -43,24 +41,24 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
     );
 
-    let copy_i = predefined::copy(None);
-    let cut_i = predefined::cut(None);
-    let paste_i = predefined::paste(None);
+    let copy_i = PredefinedMenuItem::copy(None);
+    let cut_i = PredefinedMenuItem::cut(None);
+    let paste_i = PredefinedMenuItem::paste(None);
 
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
-        &predefined::separator(),
+        &PredefinedMenuItem::separator(),
         &check_custom_i_1,
     ]);
 
     window_m.append_items(&[
         &check_custom_i_2,
-        &predefined::close_window(None),
-        &predefined::separator(),
-        &predefined::quit(None),
-        &predefined::select_all(None),
-        &predefined::about(
+        &PredefinedMenuItem::close_window(None),
+        &PredefinedMenuItem::separator(),
+        &PredefinedMenuItem::quit(None),
+        &PredefinedMenuItem::select_all(None),
+        &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
                 name: Some("tao".to_string()),
@@ -68,12 +66,12 @@ fn main() {
                 ..Default::default()
             }),
         ),
-        &predefined::minimize(None),
+        &PredefinedMenuItem::minimize(None),
         &check_custom_i_3,
         &custom_i_1,
     ]);
 
-    edit_m.append_items(&[&copy_i, &predefined::separator(), &cut_i]);
+    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &cut_i]);
 
     edit_m.prepend(&paste_i);
     window_m.insert(&cut_i, 2);
