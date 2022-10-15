@@ -1,4 +1,3 @@
-#![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
@@ -16,7 +15,7 @@ use winit::{
 fn main() {
     let mut event_loop_builder = EventLoopBuilder::new();
 
-    let mut menu_bar = Menu::new();
+    let menu_bar = Menu::new();
 
     #[cfg(target_os = "windows")]
     {
@@ -24,7 +23,7 @@ fn main() {
         event_loop_builder.with_msg_hook(move |msg| {
             use windows_sys::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, MSG};
             unsafe {
-                let msg = msg as *mut MSG;
+                let msg = msg as *const MSG;
                 let translated = TranslateAcceleratorW((*msg).hwnd, menu_bar_c.haccel(), msg);
                 translated == 1
             }
@@ -99,11 +98,6 @@ fn main() {
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(_window2.hwnd() as _);
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        menu_bar.init_for_nsapp();
     }
 
     let menu_channel = menu_event_receiver();

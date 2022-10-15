@@ -8,17 +8,34 @@ use tao::platform::unix::WindowExtUnix;
 use tao::platform::windows::WindowExtWindows;
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoopBuilder},
+    platform::windows::EventLoopBuilderExtWindows,
     window::WindowBuilder,
 };
 
 fn main() {
-    let event_loop = EventLoop::new();
+    let mut event_loop_builder = EventLoopBuilder::new();
+
+    let menu_bar = Menu::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        let menu_bar_c = menu_bar.clone();
+        event_loop_builder.with_msg_hook(move |msg| {
+            use windows_sys::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, MSG};
+            unsafe {
+                let msg = msg as *const MSG;
+                let translated = TranslateAcceleratorW((*msg).hwnd, menu_bar_c.haccel(), msg);
+                translated == 1
+            }
+        });
+    }
+
+    #[allow(unused_mut)]
+    let mut event_loop = event_loop_builder.build();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let window2 = WindowBuilder::new().build(&event_loop).unwrap();
-
-    let menu_bar = Menu::new();
 
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
