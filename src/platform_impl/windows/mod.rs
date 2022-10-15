@@ -316,15 +316,8 @@ impl Menu {
     }
 
     pub fn remove(&self, item: &dyn crate::MenuEntry) {
-        if item.type_() == MenuItemType::Submenu {
-            let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-
-            for item in submenu.items() {
-                submenu.remove(&*item);
-            }
-        }
-
         unsafe {
+            // TODO: remove self.hmenu and self.hpopupmenu from item.parents_hmenu
             RemoveMenu(self.hmenu, item.id(), MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, item.id(), MF_BYCOMMAND);
 
@@ -594,15 +587,8 @@ impl Submenu {
     }
 
     pub fn remove(&self, item: &dyn crate::MenuEntry) {
-        if item.type_() == MenuItemType::Submenu {
-            let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-
-            for item in submenu.items() {
-                submenu.remove(&*item);
-            }
-        }
-
         unsafe {
+            // TODO: remove self.hmenu and self.hpopupmenu from item.parents_hmenu
             RemoveMenu(self.0.borrow().hmenu, item.id(), MF_BYCOMMAND);
             RemoveMenu(self.0.borrow().hpopupmenu, item.id(), MF_BYCOMMAND);
         }

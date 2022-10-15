@@ -175,10 +175,6 @@ impl Menu {
         match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                for item in submenu.0.items() {
-                    submenu.0.remove(&*item);
-                }
-
                 let entry = &submenu.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
@@ -476,10 +472,6 @@ impl Submenu {
             match item.type_() {
                 crate::MenuItemType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                    for item in submenu.0.items() {
-                        submenu.0.remove(&*item);
-                    }
-
                     let entry = &submenu.0 .0;
                     for (_, menu, _, menu_id) in store.values() {
                         if let MenuEntryType::Submenu(store) = &entry.borrow().type_ {
