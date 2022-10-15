@@ -98,7 +98,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(_window2.hwnd() as _);
+        menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
 
     let menu_channel = menu_event_receiver();

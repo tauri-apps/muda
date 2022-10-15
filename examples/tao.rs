@@ -3,8 +3,6 @@ use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
 };
-#[cfg(target_os = "macos")]
-use tao::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -32,8 +30,6 @@ fn main() {
             }
         });
     }
-    #[cfg(target_os = "macos")]
-    event_loop_builder.with_default_menu(false);
 
     #[allow(unused_mut)]
     let mut event_loop = event_loop_builder.build();
@@ -101,7 +97,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(_window2.hwnd() as _);
+        menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
     #[cfg(target_os = "linux")]
     {
