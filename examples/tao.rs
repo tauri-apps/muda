@@ -1,7 +1,10 @@
+#![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
 };
+#[cfg(target_os = "macos")]
+use tao::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -29,12 +32,14 @@ fn main() {
             }
         });
     }
+    #[cfg(target_os = "macos")]
+    event_loop_builder.with_default_menu(false);
 
     #[allow(unused_mut)]
     let mut event_loop = event_loop_builder.build();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
@@ -42,17 +47,17 @@ fn main() {
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
-    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
-    let custom_i_2 = MenuItem::new(
-        "Custom 2",
-        false,
+    let custom_i_1 = MenuItem::new(
+        "C&ustom 1",
+        true,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
+    let custom_i_2 = MenuItem::new("Custom 2", false, None);
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
-    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", true, false, None);
+    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
     let check_custom_i_3 = CheckMenuItem::new(
         "Check Custom 3",
-        false,
+        true,
         true,
         Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
     );
@@ -95,12 +100,12 @@ fn main() {
     #[cfg(target_os = "windows")]
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(window2.hwnd() as _);
+        menu_bar.init_for_hwnd(_window2.hwnd() as _);
     }
     #[cfg(target_os = "linux")]
     {
         menu_bar.init_for_gtk_window(window.gtk_window());
-        menu_bar.init_for_gtk_window(window2.gtk_window());
+        menu_bar.init_for_gtk_window(_window2.gtk_window());
     }
 
     let menu_channel = menu_event_receiver();
@@ -140,10 +145,8 @@ fn main() {
                 ..
             } => {
                 if window_id == window.id() {
-                    #[cfg(target_os = "linux")]
-                    menu_bar.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
                     #[cfg(target_os = "windows")]
-                    menu_bar.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+                    window_m.show_context_menu_for_hwnd(_window2.hwnd() as _, x, y);
                 }
             }
             Event::MainEventsCleared => {

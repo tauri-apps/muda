@@ -1,3 +1,4 @@
+#![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
