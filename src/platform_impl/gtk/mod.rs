@@ -55,13 +55,12 @@ impl Default for MenuEntryType {
 
 struct InnerMenu {
     entries: Vec<Rc<RefCell<MenuEntry>>>,
-    id: u32,
-    // NOTE(amrbashir): because gtk doesn't allow using the same [`gtk::MenuBar`] and [`gtk::Box`]
+    // because gtk doesn't allow using the same [`gtk::MenuBar`] and [`gtk::Box`]
     // multiple times, and thus can't be used in multiple windows. each menu
     // keeps a hashmap of window pointer as the key and a tuple of [`gtk::MenuBar`] and [`gtk::Box`] as the value
     // and push to it every time `Menu::init_for_gtk_window` is called.
     native_menus: HashMap<u32, (Option<gtk::MenuBar>, Rc<gtk::Box>)>,
-    accel_group: Rc<gtk::AccelGroup>,
+    accel_group: Option<Rc<gtk::AccelGroup>>,
 }
 
 #[derive(Clone)]
@@ -70,10 +69,9 @@ pub struct Menu(Rc<RefCell<InnerMenu>>);
 impl Menu {
     pub fn new() -> Self {
         Self(Rc::new(RefCell::new(InnerMenu {
-            id: COUNTER.next(),
             entries: Vec::new(),
             native_menus: HashMap::new(),
-            accel_group: Rc::new(gtk::AccelGroup::new()),
+            accel_group: None,
         })))
     }
 
@@ -110,7 +108,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group,
+                            &self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
                             true,
                         );
@@ -130,7 +128,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group,
+                            &self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
                             true,
                         );
@@ -150,7 +148,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group,
+                            &self.0.borrow().accel_group.as_ref().unwrap(),
                             op,
                             true,
                         )
@@ -266,6 +264,10 @@ impl Menu {
         let mut inner = self.0.borrow_mut();
         let id = window.as_ptr() as u32;
 
+        if inner.accel_group.is_none() {
+            inner.accel_group = Some(Rc::new(gtk::AccelGroup::new()));
+        }
+
         // This is the first time this method has been called on this window
         // so we need to create the menubar and its parent box
         if inner.native_menus.get(&(window.as_ptr() as _)).is_none() {
@@ -294,8 +296,14 @@ impl Menu {
         // Construct the entries of the menubar
         let (menu_bar, vbox) = inner.native_menus.get(&id).unwrap();
         let menu_bar = menu_bar.as_ref().unwrap();
-        add_entries_to_gtkmenu(menu_bar, id, &inner.entries, &inner.accel_group, true);
-        window.add_accel_group(&*inner.accel_group);
+        add_entries_to_gtkmenu(
+            menu_bar,
+            id,
+            &inner.entries,
+            inner.accel_group.as_ref().unwrap(),
+            true,
+        );
+        window.add_accel_group(inner.accel_group.as_ref().unwrap().as_ref());
 
         // Show the menubar on the window
         vbox.pack_start(menu_bar, false, false, 0);
@@ -316,7 +324,7 @@ impl Menu {
             // Remove the [`gtk::Menubar`] from the widget tree
             unsafe { menu_bar.destroy() };
             // Detach the accelerators from the window
-            window.remove_accel_group(&*inner.accel_group);
+            window.remove_accel_group(inner.accel_group.as_ref().unwrap().as_ref());
             // Remove the removed [`gtk::Menubar`] from our cache
             let vbox = Rc::clone(vbox);
             inner.native_menus.insert(id, (None, vbox));

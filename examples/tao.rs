@@ -5,11 +5,10 @@ use muda::{
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
-use tao::platform::windows::WindowExtWindows;
+use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    platform::windows::EventLoopBuilderExtWindows,
     window::WindowBuilder,
 };
 
