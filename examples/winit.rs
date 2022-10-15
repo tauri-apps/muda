@@ -10,7 +10,7 @@ use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::WindowBuilder,
+    window::WindowBuilder, platform::macos::WindowExtMacOS,
 };
 
 fn main() {
@@ -109,10 +109,10 @@ fn main() {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            #[cfg(target_os = "macos")]
-            Event::NewEvents(tao::event::StartCause::Init) => {
-                menu_bar.init_for_nsapp();
-            }
+            // #[cfg(target_os = "macos")]
+            // Event::NewEvents(winit::event::StartCause::Init) => {
+            //     menu_bar.init_for_nsapp();
+            // }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -140,6 +140,8 @@ fn main() {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
                     window_m.show_context_menu_for_hwnd(window2.hwnd(), x, y);
+                    #[cfg(target_os = "macos")]
+                    menu_bar.show_context_menu_for_nsview(window.ns_view() as _);
                 }
             }
             Event::MainEventsCleared => {

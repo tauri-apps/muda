@@ -12,6 +12,10 @@ mod platform_impl;
 mod predefined;
 mod util;
 
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
 
 /// Gets a reference to the event channel's [Receiver<MenuEvent>]
@@ -209,6 +213,11 @@ impl Menu {
     #[cfg(target_os = "windows")]
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
     }
 
     /// Adds this menu to an NSApp.
