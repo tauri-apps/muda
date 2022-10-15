@@ -37,7 +37,7 @@ fn main() {
     let mut event_loop = event_loop_builder.build();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
@@ -139,7 +139,7 @@ fn main() {
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(_window2.hwnd(), x, y);
+                    window_m.show_context_menu_for_hwnd(window2.hwnd(), x, y);
                 }
             }
             Event::MainEventsCleared => {

@@ -39,7 +39,7 @@ fn main() {
     let mut event_loop = event_loop_builder.build();
 
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let _window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
@@ -69,6 +69,7 @@ fn main() {
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
+        &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
     ]);
@@ -105,7 +106,7 @@ fn main() {
     #[cfg(target_os = "linux")]
     {
         menu_bar.init_for_gtk_window(window.gtk_window());
-        menu_bar.init_for_gtk_window(_window2.gtk_window());
+        menu_bar.init_for_gtk_window(window2.gtk_window());
     }
 
     let menu_channel = menu_event_receiver();
@@ -146,7 +147,7 @@ fn main() {
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(_window2.hwnd() as _, x, y);
+                    window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
                 }
             }
             Event::MainEventsCleared => {
