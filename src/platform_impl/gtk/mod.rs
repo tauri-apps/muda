@@ -88,7 +88,7 @@ impl Menu {
 
     fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
         let entry = match item.type_() {
-            crate::MenuItemType::Submenu => {
+            crate::MenuEntryType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -105,7 +105,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuItemType::Normal => {
+            crate::MenuEntryType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -122,7 +122,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuItemType::Predefined => {
+            crate::MenuEntryType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -142,7 +142,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuItemType::Check => {
+            crate::MenuEntryType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -173,7 +173,7 @@ impl Menu {
 
     pub fn remove(&self, item: &dyn crate::MenuEntry) {
         match item.type_() {
-            crate::MenuItemType::Submenu => {
+            crate::MenuEntryType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -191,7 +191,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Normal => {
+            crate::MenuEntryType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -205,7 +205,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Predefined => {
+            crate::MenuEntryType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -223,7 +223,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Check => {
+            crate::MenuEntryType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -254,7 +254,7 @@ impl Menu {
 
     fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuEntry) {
         match item.type_() {
-            crate::MenuItemType::Submenu => {
+            crate::MenuEntryType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
@@ -270,7 +270,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Normal => {
+            crate::MenuEntryType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
@@ -282,7 +282,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Predefined => {
+            crate::MenuEntryType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -298,7 +298,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuItemType::Check => {
+            crate::MenuEntryType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -503,7 +503,7 @@ impl Submenu {
         let type_ = self.0.borrow().type_.clone();
         if let MenuEntryType::Submenu(store) = &type_ {
             let entry = match item.type_() {
-                crate::MenuItemType::Submenu => {
+                crate::MenuEntryType::Submenu => {
                     let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
@@ -513,7 +513,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuItemType::Normal => {
+                crate::MenuEntryType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
@@ -523,7 +523,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuItemType::Predefined => {
+                crate::MenuEntryType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -543,7 +543,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuItemType::Check => {
+                crate::MenuEntryType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
@@ -571,7 +571,7 @@ impl Submenu {
     pub fn remove(&self, item: &dyn crate::MenuEntry) {
         if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
-                crate::MenuItemType::Submenu => {
+                crate::MenuEntryType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &submenu.0 .0;
                     for items in store.values() {
@@ -589,7 +589,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Normal => {
+                crate::MenuEntryType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
@@ -603,7 +603,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Predefined => {
+                crate::MenuEntryType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -623,7 +623,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Check => {
+                crate::MenuEntryType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
@@ -660,7 +660,7 @@ impl Submenu {
     fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuEntry) {
         if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
-                crate::MenuItemType::Submenu => {
+                crate::MenuEntryType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &submenu.0 .0;
                     let items = store.get(&parent_id).unwrap();
@@ -677,7 +677,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Normal => {
+                crate::MenuEntryType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     let items = store.get(&parent_id).unwrap();
@@ -690,7 +690,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Predefined => {
+                crate::MenuEntryType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -707,7 +707,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuItemType::Check => {
+                crate::MenuEntryType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
