@@ -1,6 +1,11 @@
 use crate::{accelerator::Accelerator, AboutMetadata};
 use keyboard_types::{Code, Modifiers};
 
+#[cfg(target_os = "macos")]
+pub const CMD_OR_CTRL: Modifiers = Modifiers::META;
+#[cfg(not(target_os = "macos"))]
+pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[non_exhaustive]
 pub(crate) enum PredfinedMenuItemType {
@@ -47,33 +52,16 @@ impl PredfinedMenuItemType {
     pub(crate) fn accelerator(&self) -> Option<Accelerator> {
         match self {
             PredfinedMenuItemType::Copy => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyC))
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyC))
             }
             PredfinedMenuItemType::Cut => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyX))
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyX))
             }
             PredfinedMenuItemType::Paste => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyV))
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyV))
             }
-
             PredfinedMenuItemType::SelectAll => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyA))
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyA))
             }
             _ => None,
         }
