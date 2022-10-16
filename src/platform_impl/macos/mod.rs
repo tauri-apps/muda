@@ -184,7 +184,7 @@ pub(crate) struct Submenu(Rc<RefCell<MenuChild>>);
 impl Submenu {
     pub fn new(text: &str, enabled: bool) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            text: text.to_string(),
+            text: text.to_string().replace("&", ""),
             enabled,
             children: Some(Vec::new()),
             submenu: Some(Menu::new()),
@@ -245,7 +245,7 @@ impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
             type_: MenuItemType::Normal,
-            text: text.to_string(),
+            text: text.to_string().replace("&", ""),
             enabled,
             id: COUNTER.next(),
             accelerator,
@@ -282,7 +282,7 @@ impl PredefinedMenuItem {
     pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
             type_: MenuItemType::Predefined,
-            text: text.unwrap_or_else(|| item_type.text().to_string()),
+            text: text.unwrap_or_else(|| item_type.text().to_string()).replace("&", ""),
             enabled: true,
             id: COUNTER.next(),
             accelerator: item_type.accelerator(),
