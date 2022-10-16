@@ -34,9 +34,8 @@ fn main() {
     #[allow(unused_mut)]
     let mut event_loop = event_loop_builder.build();
 
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    #[allow(unused)] // unused on macOS
-    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new().with_title("Window 1").build(&event_loop).unwrap();
+    let window2 = WindowBuilder::new().with_title("Window 2").build(&event_loop).unwrap();
 
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
@@ -146,11 +145,11 @@ fn main() {
                 window_id,
                 ..
             } => {
-                if window_id == window.id() {
+                if window_id == window2.id() {
                     #[cfg(target_os = "windows")]
                     window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
                     #[cfg(target_os = "macos")]
-                    menu_bar.show_context_menu_for_nsview(window.ns_view() as _);
+                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _);
                 }
             }
             Event::MainEventsCleared => {
