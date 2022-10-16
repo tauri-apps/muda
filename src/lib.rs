@@ -397,6 +397,15 @@ unsafe impl MenuEntry for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
+    /// A Separator in a menu
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
+    pub fn separator() -> PredefinedMenuItem {
+        PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
+    }
+
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Copy, text)
     }
@@ -413,17 +422,36 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::SelectAll, text)
     }
 
-    /// A Separator in a menu
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
-    pub fn separator() -> PredefinedMenuItem {
-        PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
+    pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Undo, text)
+    }
+
+    pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Redo, text)
     }
 
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Minimize, text)
+    }
+
+    pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Maximize, text)
+    }
+
+    pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Fullscreen, text)
+    }
+
+    pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Hide, text)
+    }
+
+    pub fn hide_others(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::HideOthers, text)
+    }
+
+    pub fn show_all(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::ShowAll, text)
     }
 
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
@@ -436,6 +464,10 @@ impl PredefinedMenuItem {
 
     pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::About(metadata), text)
+    }
+
+    pub fn services(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Services, text)
     }
 
     fn new<S: AsRef<str>>(item: PredfinedMenuItemType, text: Option<S>) -> Self {

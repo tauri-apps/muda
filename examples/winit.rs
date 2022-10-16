@@ -39,6 +39,23 @@ fn main() {
     let window = WindowBuilder::new().with_title("Window 1").build(&event_loop).unwrap();
     let window2 = WindowBuilder::new().with_title("Window 2").build(&event_loop).unwrap();
 
+    #[cfg(target_os = "macos")]
+    {
+        let app_m =Submenu::new("App", true);
+        menu_bar.append(&app_m);
+        app_m.append_items(&[
+            &PredefinedMenuItem::about(None, None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::services(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::show_all(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+        ]);
+    }
+
     let file_m = Submenu::new("File", true);
     let edit_m = Submenu::new("Edit", true);
     let window_m = Submenu::new("Window", true);
@@ -73,7 +90,9 @@ fn main() {
 
     window_m.append_items(&[
         &check_custom_i_2,
-        &PredefinedMenuItem::close_window(None),
+        &PredefinedMenuItem::minimize(None),
+        &PredefinedMenuItem::maximize(None),
+        &PredefinedMenuItem::close_window(Some("Close")),
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
         &PredefinedMenuItem::select_all(None),
@@ -85,7 +104,6 @@ fn main() {
                 ..Default::default()
             }),
         ),
-        &PredefinedMenuItem::minimize(None),
         &check_custom_i_3,
         &custom_i_1,
     ]);

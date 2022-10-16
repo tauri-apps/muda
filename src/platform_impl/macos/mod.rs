@@ -107,6 +107,7 @@ impl Menu {
             }
 
             let title = NSString::alloc(nil).init_str(&child.text);
+
             let selector = if item.type_() == MenuItemType::Predefined {
                 child.predefined_item_type.selector()
             } else {
@@ -145,7 +146,12 @@ impl Menu {
                     let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
                 }
                 MenuItemType::Predefined => {
-
+                    if child.predefined_item_type == PredfinedMenuItemType::Services {
+                        // we have to assign an empty menu as the app's services menu, and macOS will populate it
+                        let services_menu = NSMenu::new(nil).autorelease();
+                        let () = msg_send![NSApp(), setServicesMenu: services_menu];
+                        let () = msg_send![ns_menu_item, setSubmenu: services_menu];
+                    }
                 }
             };
 
@@ -360,11 +366,19 @@ impl PredfinedMenuItemType {
             PredfinedMenuItemType::Cut => selector("cut:"),
             PredfinedMenuItemType::Paste =>selector("paste:"),
             PredfinedMenuItemType::SelectAll => selector("selectAll:"),
+            PredfinedMenuItemType::Undo => selector("undow:"),
+            PredfinedMenuItemType::Redo => selector("redo:"),
             PredfinedMenuItemType::Separator => selector(""),
             PredfinedMenuItemType::Minimize => selector("performMiniaturize:"),
+            PredfinedMenuItemType::Maximize => selector("performZoom:"),
+            PredfinedMenuItemType::Fullscreen => selector("toggleFullScreen:"),
+            PredfinedMenuItemType::Hide => selector("hide:"),
+            PredfinedMenuItemType::HideOthers => selector("hideOtherApplications:"),
+            PredfinedMenuItemType::ShowAll => selector("unhideAllApplications:"),
             PredfinedMenuItemType::CloseWindow => selector("performClose:"),
             PredfinedMenuItemType::Quit => selector("terminate:"),
             PredfinedMenuItemType::About(_) => selector("orderFrontStandardAboutPanel:"),
+            PredfinedMenuItemType::Services => selector(""),
             PredfinedMenuItemType::None => selector(""),
         }
     }
