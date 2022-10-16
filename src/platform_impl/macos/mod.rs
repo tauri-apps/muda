@@ -1,7 +1,9 @@
+mod accelerator;
+
 use std::{rc::Rc, cell::RefCell};
 
 use cocoa::{
-    appkit::{NSApp, NSApplication, NSMenu, NSMenuItem},
+    appkit::{NSApp, NSApplication, NSMenu, NSMenuItem, NSEventModifierFlags},
     base::{nil, id, NO},
     foundation::{NSAutoreleasePool, NSString},
 };
@@ -105,8 +107,21 @@ impl Menu {
             }
 
             let title = NSString::alloc(nil).init_str(&child.text);
-            let ns_menu_item = NSMenuItem::alloc(nil).autorelease();
-            let () = msg_send![ns_menu_item, setTitle: title];
+            let selector = sel!(fireMenubarAction:);
+
+            let key_equivalent = child.accelerator.clone()
+                .map(|accel| { accel.key_equivalent() })
+                .unwrap_or_else(|| "".into());
+            let key_equivalent = NSString::alloc(nil).init_str(key_equivalent.as_str());
+
+            let modifier_mask = child.accelerator.clone()
+                .map(|accel| { accel.key_modifier_mask() })
+                .unwrap_or_else(NSEventModifierFlags::empty);
+
+            let ns_menu_item = NSMenuItem::alloc(nil).autorelease()
+                .initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
+
+            ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
 
             if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
