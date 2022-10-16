@@ -3,6 +3,8 @@ use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
 };
+#[cfg(target_os = "macos")]
+use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -10,7 +12,7 @@ use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::WindowBuilder, platform::macos::WindowExtMacOS,
+    window::WindowBuilder,
 };
 
 fn main() {

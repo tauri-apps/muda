@@ -4,13 +4,13 @@ use muda::{
     menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
+use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::WindowBuilder, platform::macos::WindowExtMacOS,
+    window::WindowBuilder,
 };
 
 fn main() {
