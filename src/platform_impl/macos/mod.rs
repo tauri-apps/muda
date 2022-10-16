@@ -4,10 +4,10 @@ use std::{rc::Rc, cell::RefCell};
 
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem, NSEventModifierFlags},
-    base::{nil, id, NO},
+    base::{nil, id, NO, selector},
     foundation::{NSAutoreleasePool, NSString},
 };
-use objc::runtime::Object;
+use objc::runtime::{Object, Sel};
 
 use crate::{
     accelerator::Accelerator,
@@ -107,7 +107,11 @@ impl Menu {
             }
 
             let title = NSString::alloc(nil).init_str(&child.text);
-            let selector = sel!(fireMenubarAction:);
+            let selector = if item.type_() == MenuItemType::Predefined {
+                child.predefined_item_type.selector()
+            } else {
+                sel!(fireMenubarAction:)
+            };
 
             let key_equivalent = child.accelerator.clone()
                 .map(|accel| { accel.key_equivalent() })
@@ -346,5 +350,22 @@ impl CheckMenuItem {
 
     pub fn set_checked(&self, checked: bool) {
         todo!()
+    }
+}
+
+impl PredfinedMenuItemType {
+    pub(crate) fn selector(&self) -> Sel {
+        match self {
+            PredfinedMenuItemType::Copy => selector("copy:"),
+            PredfinedMenuItemType::Cut => selector("cut:"),
+            PredfinedMenuItemType::Paste =>selector("paste:"),
+            PredfinedMenuItemType::SelectAll => selector("selectAll:"),
+            PredfinedMenuItemType::Separator => selector(""),
+            PredfinedMenuItemType::Minimize => selector("performMiniaturize:"),
+            PredfinedMenuItemType::CloseWindow => selector("performClose:"),
+            PredfinedMenuItemType::Quit => selector("terminate:"),
+            PredfinedMenuItemType::About(_) => selector("orderFrontStandardAboutPanel:"),
+            PredfinedMenuItemType::None => selector(""),
+        }
     }
 }

@@ -63,6 +63,21 @@ impl PredfinedMenuItemType {
             PredfinedMenuItemType::SelectAll => {
                 Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyA))
             }
+            PredfinedMenuItemType::Minimize => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyM))
+            }
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyW))
+            }
+            #[cfg(not(target_os = "macos"))]
+            PredfinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(Modifiers::ALT), Code::F4))
+            }
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::Quit => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyQ))
+            }
             _ => None,
         }
     }
