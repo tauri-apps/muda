@@ -46,6 +46,9 @@ struct MenuChild {
 }
 
 impl MenuChild {
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
+    }
 }
 
 
@@ -77,84 +80,28 @@ impl Menu {
     }
 
     fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
-        let child = match item.type_() {
+        let ns_menu_item: *mut Object;
+
+        match item.type_() {
             MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                let child = &submenu.0 .0;
-                child
+                ns_menu_item = submenu.0.make_ns_item();
             },
             MenuItemType::Normal => {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                let child = &menuitem.0 .0;
-                child
+                ns_menu_item = menuitem.0.make_ns_item();
             },
             MenuItemType::Check => {
                 let menuitem = item.as_any().downcast_ref::<crate::CheckMenuItem>().unwrap();
-                let child = &menuitem.0 .0;
-                child
+                ns_menu_item = menuitem.0.make_ns_item();
             },
             MenuItemType::Predefined => {
                 let menuitem = item.as_any().downcast_ref::<crate::PredefinedMenuItem>().unwrap();
-                let child = &menuitem.0 .0;
-                child
+                ns_menu_item = menuitem.0.make_ns_item();
             },
-        }.borrow();
+        };
 
         unsafe {
-            if item.type_() == MenuItemType::Predefined && child.predefined_item_type == PredfinedMenuItemType::Separator {
-                self.ns_menu.addItem_(NSMenuItem::separatorItem(nil).autorelease());
-                return
-            }
-
-            let title = NSString::alloc(nil).init_str(&child.text);
-
-            let selector = if item.type_() == MenuItemType::Predefined {
-                child.predefined_item_type.selector()
-            } else {
-                sel!(fireMenubarAction:)
-            };
-
-            let key_equivalent = child.accelerator.clone()
-                .map(|accel| { accel.key_equivalent() })
-                .unwrap_or_else(|| "".into());
-            let key_equivalent = NSString::alloc(nil).init_str(key_equivalent.as_str());
-
-            let modifier_mask = child.accelerator.clone()
-                .map(|accel| { accel.key_modifier_mask() })
-                .unwrap_or_else(NSEventModifierFlags::empty);
-
-            let ns_menu_item = NSMenuItem::alloc(nil).autorelease()
-                .initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
-
-            ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
-
-            if !child.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
-
-            match item.type_() {
-                MenuItemType::Normal => {}
-                MenuItemType::Check => {
-                    if child.checked {
-                        let () = msg_send![ns_menu_item, setState: 1_isize];
-                    }
-                }
-                MenuItemType::Submenu => {
-                    let submenu = child.submenu.as_ref().unwrap();
-                    let ns_submenu = submenu.ns_menu;
-                    let () = msg_send![ns_submenu, setTitle: title];
-                    let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
-                }
-                MenuItemType::Predefined => {
-                    if child.predefined_item_type == PredfinedMenuItemType::Services {
-                        // we have to assign an empty menu as the app's services menu, and macOS will populate it
-                        let services_menu = NSMenu::new(nil).autorelease();
-                        let () = msg_send![NSApp(), setServicesMenu: services_menu];
-                        let () = msg_send![ns_menu_item, setSubmenu: services_menu];
-                    }
-                }
-            };
-
             match op {
                 AddOp::Append => self.ns_menu.addItem_(ns_menu_item),
                 AddOp::Insert(position) => {
@@ -209,6 +156,23 @@ impl Submenu {
 
     pub fn id(&self) -> u32 {
         todo!()
+    }
+
+    pub fn make_ns_item(&self) -> id {
+        let child = self.0.as_ref().borrow();
+        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
+        unsafe {
+            let submenu = child.submenu.as_ref().unwrap();
+            let ns_submenu = submenu.ns_menu;
+            let title = NSString::alloc(nil).init_str(&child.text);
+            let () = msg_send![ns_submenu, setTitle: title];
+            let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
+
+            if !child.enabled {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+        }
+        ns_menu_item
     }
 
     pub fn append(&self, item: &dyn crate::MenuEntry) {
@@ -268,6 +232,17 @@ impl MenuItem {
         })))
     }
 
+    pub fn make_ns_item(&self) -> id {
+        let child = self.0.as_ref().borrow();
+        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
+        if !child.enabled {
+            unsafe {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+        }
+        ns_menu_item
+    }
+
     pub fn id(&self) -> u32 {
         todo!()
     }
@@ -277,7 +252,7 @@ impl MenuItem {
     }
 
     pub fn set_text(&self, text: &str) {
-        todo!()
+        self.0.borrow_mut().set_text(text)
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -295,15 +270,40 @@ pub(crate) struct PredefinedMenuItem(Rc<RefCell<MenuChild>>);
 
 impl PredefinedMenuItem {
     pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
+        let text = text.unwrap_or_else(|| item_type.text().to_string()).replace("&", "");
+        let accelerator = item_type.accelerator();
+
         Self(Rc::new(RefCell::new(MenuChild {
             type_: MenuItemType::Predefined,
-            text: text.unwrap_or_else(|| item_type.text().to_string()).replace("&", ""),
+            text,
             enabled: true,
             id: COUNTER.next(),
-            accelerator: item_type.accelerator(),
+            accelerator,
             predefined_item_type: item_type,
+            // ns_menu_item,
             ..Default::default()
         })))
+    }
+
+    pub fn make_ns_item(&self) -> id {
+        let child = self.0.as_ref().borrow();
+        let item_type = &child.predefined_item_type;
+        let ns_menu_item = match item_type {
+            PredfinedMenuItemType::Separator => unsafe { NSMenuItem::separatorItem(nil).autorelease() },
+            _ => create_ns_menu_item(&child.text, item_type.selector(), &child.accelerator),
+        };
+        unsafe {
+            if !child.enabled {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+            if child.predefined_item_type == PredfinedMenuItemType::Services {
+                // we have to assign an empty menu as the app's services menu, and macOS will populate it
+                let services_menu = NSMenu::new(nil).autorelease();
+                let () = msg_send![NSApp(), setServicesMenu: services_menu];
+                let () = msg_send![ns_menu_item, setSubmenu: services_menu];
+            }
+        }
+        ns_menu_item
     }
 
     pub fn id(&self) -> u32 {
@@ -333,6 +333,20 @@ impl CheckMenuItem {
             checked,
             ..Default::default()
         })))
+    }
+
+    pub fn make_ns_item(&self) -> id {
+        let child = self.0.as_ref().borrow();
+        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
+        unsafe {
+            if !child.enabled {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+            if child.checked {
+                let () = msg_send![ns_menu_item, setState: 1_isize];
+            }
+        }
+        ns_menu_item
     }
 
     pub fn id(&self) -> u32 {
@@ -386,5 +400,27 @@ impl PredfinedMenuItemType {
             PredfinedMenuItemType::Services => selector(""),
             PredfinedMenuItemType::None => selector(""),
         }
+    }
+}
+
+fn create_ns_menu_item(title: &str, selector: Sel, accelerator: &Option<Accelerator>) -> id {
+    unsafe {
+        let title = NSString::alloc(nil).init_str(title);
+
+        let key_equivalent = accelerator.clone()
+            .map(|accel| { accel.key_equivalent() })
+            .unwrap_or_else(|| "".into());
+        let key_equivalent = NSString::alloc(nil).init_str(key_equivalent.as_str());
+
+        let modifier_mask = accelerator.clone()
+            .map(|accel| { accel.key_modifier_mask() })
+            .unwrap_or_else(NSEventModifierFlags::empty);
+
+        let ns_menu_item = NSMenuItem::alloc(nil).autorelease()
+            .initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
+
+        ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
+
+        ns_menu_item
     }
 }
