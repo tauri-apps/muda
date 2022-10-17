@@ -5,7 +5,7 @@ use std::{rc::Rc, cell::RefCell};
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem, NSEventModifierFlags},
     base::{nil, id, NO, selector},
-    foundation::{NSAutoreleasePool, NSString},
+    foundation::{NSAutoreleasePool, NSString, NSInteger},
 };
 use objc::runtime::{Object, Sel};
 
@@ -155,7 +155,12 @@ impl Menu {
                 }
             };
 
-            self.ns_menu.addItem_(ns_menu_item);
+            match op {
+                AddOp::Append => self.ns_menu.addItem_(ns_menu_item),
+                AddOp::Insert(position) => {
+                    msg_send![self.ns_menu, insertItem: ns_menu_item atIndex: position as NSInteger]
+                },
+            }
         }
     }
 
