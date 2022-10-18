@@ -4,7 +4,7 @@ use std::{rc::Rc, cell::RefCell};
 
 use cocoa::{
     appkit::{NSApp, NSApplication, NSMenu, NSMenuItem, NSEventModifierFlags},
-    base::{nil, id, NO, selector},
+    base::{id, nil, NO, YES, selector},
     foundation::{NSAutoreleasePool, NSString, NSInteger},
 };
 use objc::runtime::{Object, Sel};
@@ -29,6 +29,8 @@ struct MenuChild {
     text: String,
     enabled: bool,
 
+    ns_menuitems: Vec<id>,
+
     // menu item fields
     id: u32,
     accelerator: Option<Accelerator>,
@@ -46,8 +48,48 @@ struct MenuChild {
 }
 
 impl MenuChild {
+    pub fn text(&self) -> String {
+        self.text.clone()
+    }
+
     pub fn set_text(&mut self, text: &str) {
-        self.text = text.to_string();
+        self.text = text.to_string().replace("&", "");
+        unsafe {
+            let title = NSString::alloc(nil).init_str(&self.text);
+            for &ns_item in &self.ns_menuitems {
+                let () = msg_send![ns_item, setTitle: title];
+                let ns_submenu: *mut Object = msg_send![ns_item, submenu];
+                if ns_submenu != nil {
+                    let () = msg_send![ns_submenu, setTitle: title];
+                }
+            }
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        unsafe {
+            for &ns_item in &self.ns_menuitems {
+                let () = msg_send![ns_item, setEnabled: if enabled { YES } else { NO }];
+            }
+        }
+    }
+
+    pub fn is_checked(&self) -> bool {
+        self.checked
+    }
+
+    pub fn set_checked(&mut self, checked: bool) {
+        self.checked = checked;
+        unsafe {
+            for &ns_item in &self.ns_menuitems {
+                let () = msg_send![ns_item, setState: if checked { 1_isize } else { 0_isize }];
+            }
+        }
     }
 }
 
@@ -159,7 +201,7 @@ impl Submenu {
     }
 
     pub fn make_ns_item(&self) -> id {
-        let child = self.0.as_ref().borrow();
+        let mut child = self.0.as_ref().borrow_mut();
         let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
         unsafe {
             let submenu = child.submenu.as_ref().unwrap();
@@ -172,6 +214,7 @@ impl Submenu {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
+        child.ns_menuitems.push(ns_menu_item);
         ns_menu_item
     }
 
@@ -200,19 +243,19 @@ impl Submenu {
     }
 
     pub fn text(&self) -> String {
-        todo!()
+        self.0.borrow().text()
     }
 
     pub fn set_text(&self, text: &str) {
-        todo!()
+        self.0.borrow_mut().set_text(text)
     }
 
     pub fn is_enabled(&self) -> bool {
-        todo!()
+        self.0.borrow().is_enabled()
     }
 
     pub fn set_enabled(&self, enabled: bool) {
-        todo!()
+        self.0.borrow_mut().set_enabled(enabled)
     }
 }
 
@@ -233,13 +276,14 @@ impl MenuItem {
     }
 
     pub fn make_ns_item(&self) -> id {
-        let child = self.0.as_ref().borrow();
+        let mut child = self.0.as_ref().borrow_mut();
         let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
         if !child.enabled {
             unsafe {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
+        child.ns_menuitems.push(ns_menu_item);
         ns_menu_item
     }
 
@@ -248,7 +292,7 @@ impl MenuItem {
     }
 
     pub fn text(&self) -> String {
-        todo!()
+        self.0.borrow().text()
     }
 
     pub fn set_text(&self, text: &str) {
@@ -256,11 +300,11 @@ impl MenuItem {
     }
 
     pub fn is_enabled(&self) -> bool {
-        todo!()
+        self.0.borrow().is_enabled()
     }
 
     pub fn set_enabled(&self, enabled: bool) {
-        todo!()
+        self.0.borrow_mut().set_enabled(enabled)
     }
 }
 
@@ -286,7 +330,7 @@ impl PredefinedMenuItem {
     }
 
     pub fn make_ns_item(&self) -> id {
-        let child = self.0.as_ref().borrow();
+        let mut child = self.0.as_ref().borrow_mut();
         let item_type = &child.predefined_item_type;
         let ns_menu_item = match item_type {
             PredfinedMenuItemType::Separator => unsafe { NSMenuItem::separatorItem(nil).autorelease() },
@@ -303,6 +347,7 @@ impl PredefinedMenuItem {
                 let () = msg_send![ns_menu_item, setSubmenu: services_menu];
             }
         }
+        child.ns_menuitems.push(ns_menu_item);
         ns_menu_item
     }
 
@@ -311,11 +356,11 @@ impl PredefinedMenuItem {
     }
 
     pub fn text(&self) -> String {
-        todo!()
+        self.0.borrow().text()
     }
 
     pub fn set_text(&self, text: &str) {
-        todo!()
+        self.0.borrow_mut().set_text(text)
     }
 }
 
@@ -336,7 +381,7 @@ impl CheckMenuItem {
     }
 
     pub fn make_ns_item(&self) -> id {
-        let child = self.0.as_ref().borrow();
+        let mut child = self.0.as_ref().borrow_mut();
         let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
         unsafe {
             if !child.enabled {
@@ -346,6 +391,7 @@ impl CheckMenuItem {
                 let () = msg_send![ns_menu_item, setState: 1_isize];
             }
         }
+        child.ns_menuitems.push(ns_menu_item);
         ns_menu_item
     }
 
@@ -354,27 +400,27 @@ impl CheckMenuItem {
     }
 
     pub fn text(&self) -> String {
-        todo!()
+        self.0.borrow().text()
     }
 
     pub fn set_text(&self, text: &str) {
-        todo!()
+        self.0.borrow_mut().set_text(text)
     }
 
     pub fn is_enabled(&self) -> bool {
-        todo!()
+        self.0.borrow().is_enabled()
     }
 
     pub fn set_enabled(&self, enabled: bool) {
-        todo!()
+        self.0.borrow_mut().set_enabled(enabled)
     }
 
     pub fn is_checked(&self) -> bool {
-        todo!()
+        self.0.borrow().is_checked()
     }
 
     pub fn set_checked(&self, checked: bool) {
-        todo!()
+        self.0.borrow_mut().set_checked(checked)
     }
 }
 
