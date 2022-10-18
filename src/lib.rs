@@ -2,12 +2,10 @@
 
 use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use internal::{MenuEntry, MenuItemType};
 use once_cell::sync::Lazy;
 use predefined::PredfinedMenuItemType;
 
 pub mod accelerator;
-pub mod internal;
 mod platform_impl;
 mod predefined;
 mod util;
@@ -15,6 +13,52 @@ mod util;
 #[cfg(target_os = "macos")]
 #[macro_use]
 extern crate objc;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MenuEntryType {
+    Submenu,
+    Normal,
+    Check,
+    Predefined,
+}
+
+impl Default for MenuEntryType {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+/// An item in a menu, which may be one of [MenuEntryType]
+///
+/// # Safety
+///
+/// This trait is ONLY meant to be implemented internally.
+pub unsafe trait MenuEntry {
+    /// Get the type of this menu entry
+    fn type_(&self) -> MenuEntryType;
+
+    /// Casts this menu entry to [`Any`](std::any::Any).
+    ///
+    /// You can use this to get the concrete underlying type
+    /// when calling [`Menu::items`] or [`Submenu::items`] by calling [`downcast_ref`](std::any::Any::downcast_ref)
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use muda::{Submenu, MenuItem};
+    /// let submenu = Submenu::new()
+    /// let item = MenuItem::new("Text", true, None);
+    /// submenu.append(&item);
+    /// // --snip--
+    /// let item = submenu.items()[0];
+    /// let item = item.as_any().downcast_ref::<MenuItem>().unwrap();
+    /// item.set_text("New text")
+    /// ````
+    fn as_any(&self) -> &(dyn std::any::Any + 'static);
+
+    /// Returns the id associated with this menu entry
+    fn id(&self) -> u32;
+}
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
 
@@ -237,8 +281,8 @@ impl Menu {
 pub struct Submenu(platform_impl::Submenu);
 
 unsafe impl MenuEntry for Submenu {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Submenu
+    fn type_(&self) -> MenuEntryType {
+        MenuEntryType::Submenu
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -339,8 +383,8 @@ impl Submenu {
 pub struct MenuItem(platform_impl::MenuItem);
 
 unsafe impl MenuEntry for MenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Normal
+    fn type_(&self) -> MenuEntryType {
+        MenuEntryType::Normal
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -384,8 +428,8 @@ impl MenuItem {
 pub struct PredefinedMenuItem(platform_impl::PredefinedMenuItem);
 
 unsafe impl MenuEntry for PredefinedMenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Predefined
+    fn type_(&self) -> MenuEntryType {
+        MenuEntryType::Predefined
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -494,8 +538,8 @@ impl PredefinedMenuItem {
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
 unsafe impl MenuEntry for CheckMenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Check
+    fn type_(&self) -> MenuEntryType {
+        MenuEntryType::Check
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
