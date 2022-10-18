@@ -41,7 +41,7 @@ fn main() {
 
     #[cfg(target_os = "macos")]
     {
-        let app_m =Submenu::new("App", true);
+        let app_m = Submenu::new("App", true);
         menu_bar.append(&app_m);
         app_m.append_items(&[
             &PredefinedMenuItem::about(None, None),
@@ -80,11 +80,12 @@ fn main() {
     let copy_i = PredefinedMenuItem::copy(None);
     let cut_i = PredefinedMenuItem::cut(None);
     let paste_i = PredefinedMenuItem::paste(None);
+    let select_i = PredefinedMenuItem::select_all(None);
 
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
-        &window_m,
+        // &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
     ]);
@@ -96,7 +97,7 @@ fn main() {
         &PredefinedMenuItem::close_window(Some("Close")),
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
-        &PredefinedMenuItem::select_all(None),
+        &select_i,
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
@@ -106,13 +107,23 @@ fn main() {
             }),
         ),
         &check_custom_i_3,
+        &custom_i_2,
         &custom_i_1,
     ]);
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &cut_i]);
 
     edit_m.prepend(&paste_i);
+    edit_m.append(&select_i);
+
     window_m.insert(&cut_i, 2);
+    window_m.remove(&select_i);
+
+    file_m.set_text("Hello World");
+
+    custom_i_2.set_text("Foo Bar");
+    check_custom_i_2.set_checked(false);
+    check_custom_i_3.set_enabled(false);
 
     #[cfg(target_os = "windows")]
     {
