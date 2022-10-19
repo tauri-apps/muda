@@ -56,9 +56,9 @@ fn main() {
         ]);
     }
 
-    let file_m = Submenu::new("File", true);
-    let edit_m = Submenu::new("Edit", true);
-    let window_m = Submenu::new("Window", true);
+    let file_m = Submenu::new("&File", true);
+    let edit_m = Submenu::new("&Edit", true);
+    let window_m = Submenu::new("&Window", true);
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 

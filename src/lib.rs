@@ -191,7 +191,7 @@ impl Menu {
 
     /// Add menu items to the end of this menu.
     ///
-    /// It calls [`Menu::append`] in a loop.
+    /// It calls [`Menu::append`] in a loop internally.
     ///
     /// ## Platform-spcific:
     ///
@@ -212,16 +212,14 @@ impl Menu {
     }
 
     /// Add menu items to the beginning of this menu.
-    ///
-    /// It calls [`Menu::prepend`] on the first element and
-    /// passes the rest to [`Menu::insert_items`] with position of `1`.
+    /// 
+    /// It calls [`Menu::insert_items`] with position of `0` internally.
     ///
     /// ## Platform-spcific:
     ///
     /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
-        self.prepend(items[0]);
-        self.insert_items(&items[1..], 1);
+        self.insert_items(items, 0);
     }
 
     /// Insert a menu item at the specified `postion` in the menu.
