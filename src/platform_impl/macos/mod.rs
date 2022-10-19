@@ -99,17 +99,18 @@ impl MenuChild {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Menu {
-    pub ns_menu: id,
+    ns_menu: id,
 }
 
 impl Menu {
     pub fn new() -> Self {
-        let ns_menu: *mut Object;
-        unsafe {
-            ns_menu = NSMenu::alloc(nil).autorelease();
-            let () = msg_send![ns_menu, setAutoenablesItems: NO];
+        Self {
+            ns_menu: unsafe {
+                let ns_menu = NSMenu::alloc(nil).autorelease();
+                ns_menu.setAutoenablesItems(NO);
+                ns_menu
+            }
         }
-        Self { ns_menu }
     }
 
     pub fn append(&self, item: &dyn crate::MenuItemExt) {
@@ -218,7 +219,7 @@ impl Submenu {
     }
 
     pub fn ns_item_for_menu(&self, menu: &Menu) -> id {
-        let mut child = self.0.as_ref().borrow_mut();
+        let mut child = self.0.borrow_mut();
 
         if let Some(&ns_menu_item) = child.ns_menuitems.get(menu) {
             return ns_menu_item;
@@ -299,7 +300,7 @@ impl MenuItem {
     }
 
     pub fn ns_item_for_menu(&self, menu: &Menu) -> id {
-        let mut child = self.0.as_ref().borrow_mut();
+        let mut child = self.0.borrow_mut();
 
         if let Some(&ns_menu_item) = child.ns_menuitems.get(menu) {
             return ns_menu_item;
@@ -361,7 +362,7 @@ impl PredefinedMenuItem {
     }
 
     pub fn ns_item_for_menu(&self, menu: &Menu) -> id {
-        let mut child = self.0.as_ref().borrow_mut();
+        let mut child = self.0.borrow_mut();
 
         if let Some(&ns_menu_item) = child.ns_menuitems.get(menu) {
             return ns_menu_item;
@@ -421,7 +422,7 @@ impl CheckMenuItem {
     }
 
     pub fn ns_item_for_menu(&self, menu: &Menu) -> id {
-        let mut child = self.0.as_ref().borrow_mut();
+        let mut child = self.0.borrow_mut();
 
         if let Some(&ns_menu_item) = child.ns_menuitems.get(menu) {
             return ns_menu_item;
