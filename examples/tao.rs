@@ -1,7 +1,8 @@
 #![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
+    menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, Menu, MenuItem,
+    PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;

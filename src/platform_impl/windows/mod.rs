@@ -414,6 +414,10 @@ impl Menu {
         self.haccel.borrow().0
     }
 
+    pub fn hpopupmenu(&self) -> HMENU {
+        self.hpopupmenu
+    }
+
     pub fn init_for_hwnd(&self, hwnd: isize) {
         self.hwnds.borrow_mut().push(hwnd);
         unsafe {
@@ -479,6 +483,10 @@ impl Submenu {
 
     pub fn id(&self) -> u32 {
         self.0.borrow().id()
+    }
+
+    pub fn hpopupmenu(&self) -> HMENU {
+        self.0.borrow().hpopupmenu
     }
 
     pub fn append(&self, item: &dyn crate::MenuItemExt) {

@@ -132,6 +132,26 @@ pub unsafe trait MenuItemExt {
     fn id(&self) -> u32;
 }
 
+pub trait ContextMenu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU;
+
+    /// Shows this menu as a context menu inside a win32 window.
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner.
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
+
+    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner
+    #[cfg(target_os = "linux")]
+    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Widget>;
+}
+
 /// A reciever that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 
@@ -158,6 +178,27 @@ pub struct Menu(platform_impl::Menu);
 impl Default for Menu {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl ContextMenu for Menu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
+        self.0.hpopupmenu()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+    {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
     }
 }
 
@@ -353,26 +394,6 @@ impl Menu {
         self.0.show_for_hwnd(hwnd)
     }
 
-    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
-    ///
-    /// `x` and `y` is relatvie to the window top-left corner
-    #[cfg(target_os = "linux")]
-    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
-        self.0.show_context_menu_for_gtk_window(w, x, y)
-    }
-
-    /// Shows this menu as a context menu inside a win32 window.
-    ///
-    /// `x` and `y` is relatvie to the window top-left corner
-    #[cfg(target_os = "windows")]
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.show_context_menu_for_hwnd(hwnd, x, y)
-    }
-
     /// Adds this menu to an NSApp.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
@@ -400,6 +421,26 @@ unsafe impl MenuItemExt for Submenu {
 
     fn id(&self) -> u32 {
         self.id()
+    }
+}
+
+impl ContextMenu for Submenu {
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
+        self.0.hpopupmenu()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+    {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
     }
 }
 
@@ -491,26 +532,6 @@ impl Submenu {
     /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
-    }
-
-    /// Shows this submenu as a context menu inside a [`gtk::ApplicationWindow`]
-    ///
-    /// `x` and `y` is relatvie to the window top-left corner
-    #[cfg(target_os = "linux")]
-    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
-        self.0.show_context_menu_for_gtk_window(w, x, y)
-    }
-
-    /// Shows this submenu as a context menu inside a win32 window.
-    ///
-    /// `x` and `y` is relatvie to the window top-left corner
-    #[cfg(target_os = "windows")]
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.show_context_menu_for_hwnd(hwnd, x, y)
     }
 }
 
