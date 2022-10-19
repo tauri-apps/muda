@@ -524,6 +524,11 @@ impl Submenu {
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
     }
+
+    #[cfg(target_os = "macos")]
+    pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
+    }
 }
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.

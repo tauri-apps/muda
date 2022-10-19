@@ -282,6 +282,10 @@ impl Submenu {
     pub fn set_enabled(&self, enabled: bool) {
         self.0.borrow_mut().set_enabled(enabled)
     }
+
+    pub fn show_context_menu_for_nsview(&self, view: id) {
+        self.0.borrow_mut().submenu.as_ref().unwrap().show_context_menu_for_nsview(view)
+    }
 }
 
 #[derive(Clone, Debug)]
