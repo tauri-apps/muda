@@ -171,7 +171,9 @@ impl Menu {
         Self(platform_impl::Menu::new())
     }
 
-    /// Creates a new menu with given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
+    /// Creates a new menu with given `items`.
+    ///
+    /// It calls [`Menu::new`] and [`Menu::append_items`] internally.
     pub fn with_items(items: &[&dyn MenuItemExt]) -> Self {
         let menu = Self::new();
         menu.append_items(items);
@@ -182,16 +184,18 @@ impl Menu {
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn append(&self, item: &dyn MenuItemExt) {
         self.0.append(item)
     }
 
-    /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop.
+    /// Add menu items to the end of this menu.
+    ///
+    /// It calls [`Menu::append`] in a loop.
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn append_items(&self, items: &[&dyn MenuItemExt]) {
         for item in items {
             self.append(*item);
@@ -202,18 +206,19 @@ impl Menu {
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn prepend(&self, item: &dyn MenuItemExt) {
         self.0.prepend(item)
     }
 
     /// Add menu items to the beginning of this menu.
+    ///
     /// It calls [`Menu::prepend`] on the first element and
     /// passes the rest to [`Menu::insert_items`] with position of `1`.
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
         self.prepend(items[0]);
         self.insert_items(&items[1..], 1);
@@ -223,7 +228,7 @@ impl Menu {
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn insert(&self, item: &dyn MenuItemExt, position: usize) {
         self.0.insert(item, position)
     }
@@ -232,7 +237,7 @@ impl Menu {
     ///
     /// ## Platform-spcific:
     ///
-    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    /// - **macOS:** If the `Menu` is used as an application menu bar, items other than [`Submenu`] will not be displayed.
     pub fn insert_items(&self, items: &[&dyn MenuItemExt], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
@@ -362,7 +367,7 @@ impl Menu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` is relatvie to the window top-left corner
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "linux")]
     pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
     where
@@ -374,24 +379,28 @@ impl Menu {
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` is relatvie to the window top-left corner
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "windows")]
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
     }
 
+    /// Shows this menu as a context menu for the specified `NSView`.
+    ///
+    /// The menu will be shown at the coordinates of the current event
+    /// (the click which triggered the menu to be shown).
     #[cfg(target_os = "macos")]
     pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
         self.0.show_context_menu_for_nsview(view)
     }
 
-    /// Adds this menu to an NSApp.
+    /// Adds this menu as the application menu bar for the current application.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
         self.0.init_for_nsapp()
     }
 
-    /// Removes this menu from an NSApp.
+    /// Clears the application menu bar for the current application.
     #[cfg(target_os = "macos")]
     pub fn remove_for_nsapp(&self) {
         self.0.remove_for_nsapp()
@@ -507,7 +516,7 @@ impl Submenu {
 
     /// Shows this submenu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` is relatvie to the window top-left corner
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "linux")]
     pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
     where
@@ -519,12 +528,16 @@ impl Submenu {
 
     /// Shows this submenu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` is relatvie to the window top-left corner
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "windows")]
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
     }
 
+    /// Shows this menu as a context menu for the specified `NSView`.
+    ///
+    /// The menu will be shown at the coordinates of the current event
+    /// (the click which triggered the menu to be shown).
     #[cfg(target_os = "macos")]
     pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
         self.0.show_context_menu_for_nsview(view)
