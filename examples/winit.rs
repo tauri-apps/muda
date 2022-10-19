@@ -39,11 +39,11 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let window2 = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let file_m = Submenu::new("File", true);
-    let edit_m = Submenu::new("Edit", true);
-    let window_m = Submenu::new("Window", true);
+    let file_m = Submenu::new("&File", true);
+    let edit_m = Submenu::new("&Edit", true);
+    let window_m = Submenu::new("&Window", true);
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    menu_bar.append_items(&[&file_m]);
 
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
@@ -80,8 +80,8 @@ fn main() {
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
-                name: Some("tao".to_string()),
-                copyright: Some("Copyright TAO".to_string()),
+                name: Some("winit".to_string()),
+                copyright: Some("Copyright winit".to_string()),
                 ..Default::default()
             }),
         ),
