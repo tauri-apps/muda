@@ -1,25 +1,22 @@
-//! Accelerators describe keyboard shortcuts defined by the application.
+//! Accelerators describe keyboard shortcuts for menu items.
 //!
 //! [`Accelerator`s](crate::accelerator::Accelerator) are used to define a keyboard shortcut consisting
-//! of an optional combination of modifier keys (provided by [`SysMods`](crate::accelerator::SysMods),
-//! [`RawMods`](crate::accelerator::RawMods) or [`Modifiers`](crate::accelerator::Modifiers)) and
+//! of an optional combination of modifier keys (provided by [`Modifiers`](crate::accelerator::Modifiers)) and
 //! one key ([`Code`](crate::accelerator::Code)).
 //!
 //! # Examples
 //! They can be created directly
 //! ```
-//! # use muda::accelerator::{Accelerator, Mods, Modifiers, Code};
+//! # use muda::accelerator::{Accelerator, Modifiers, Code};
 //! #
-//! let accelerator = Accelerator::new(Mods::Shift, Code::KeyQ);
-//! let accelerator_with_raw_mods = Accelerator::new(Mods::Shift, Code::KeyQ);
+//! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
 //! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
-//! # assert_eq!(accelerator, accelerator_with_raw_mods);
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
 //! ```
-//! # use muda::accelerator::{Accelerator, Mods};
+//! # use muda::accelerator::{Accelerator};
 //! #
 //! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
 //! #
@@ -32,7 +29,9 @@
 pub use keyboard_types::{Code, Modifiers};
 use std::{borrow::Borrow, hash::Hash, str::FromStr};
 
-/// Base `Accelerator` functions.
+/// A keyboard shortcut that consists of an optional combination
+/// of modifier keys (provided by [`Modifiers`](crate::accelerator::Modifiers)) and
+/// one key ([`Code`](crate::accelerator::Code)).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Accelerator {
     pub(crate) mods: Modifiers,
@@ -50,9 +49,6 @@ impl Accelerator {
     }
 
     /// Returns `true` if this [`Code`] and [`Modifiers`] matches this `Accelerator`.
-    ///
-    /// [`Code`]: Code
-    /// [`Modifiers`]: crate::accelerator::Modifiers
     pub fn matches(&self, modifiers: impl Borrow<Modifiers>, key: impl Borrow<Code>) -> bool {
         // Should be a const but const bit_or doesn't work here.
         let base_mods = Modifiers::SHIFT
@@ -178,7 +174,7 @@ fn test_parse_accelerator() {
     assert_eq!(
         parse_accelerator("super+ctrl+SHIFT+alt+ArrowUp").unwrap(),
         Accelerator {
-            mods: Modifiers::SUPER | Modifiers::CONTROL | Modifiers::SHIFT | Modifiers::ALT,
+            mods: Modifiers::META | Modifiers::CONTROL | Modifiers::SHIFT | Modifiers::ALT,
             key: Code::ArrowUp,
         }
     );

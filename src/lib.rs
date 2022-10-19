@@ -1,4 +1,80 @@
 //! muda is a Menu Utilities library for Desktop Applications.
+//!
+//! # Example
+//!
+//! Create the menu and add your items
+//!
+//! ```no_run
+//! # use muda::{Menu, Submenu, MenuItem, accelerator::{Code, Modifiers, Accelerator}, PredefinedMenuItem};
+//! let menu = Menu::new();
+//! let menu_item2 = MenuItem::new("Menu item #2", false, None);
+//! let submenu = Submenu::with_items("Submenu Outer", true,&[
+//!   &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD))),
+//!   &PredefinedMenuItem::separator(),
+//!   &menu_item2,
+//!   &MenuItem::new("Menu item #3", true, None),
+//!   &PredefinedMenuItem::separator(),
+//!   &Submenu::with_items("Submenu Inner", true,&[
+//!     &MenuItem::new("Submenu item #1", true, None),
+//!     &PredefinedMenuItem::separator(),
+//!     &menu_item2,
+//!   ])
+//! ]);
+//!
+//! ```
+//!
+//! Then Add your root menu to a Window on Windows and Linux Only or use it
+//! as your global app menu on macOS
+//!
+//! ```no_run
+//! // --snip--
+//! #[cfg(target_os = "windows")]
+//! menu.init_for_hwnd(window.hwnd() as isize);
+//! #[cfg(target_os = "linux")]
+//! menu.init_for_gtk_window(&gtk_window);
+//! #[cfg(target_os = "macos")]
+//! menu.init_for_nsapp();
+//! ```
+//!
+//! # Context menus (Popup menus)
+//!
+//! You can also use a [`Menu`] or a [`Submenu`] show a context menu.
+//!
+//! ```no_run
+//! // --snip--
+//! let x = 100;
+//! let y = 120;
+//! #[cfg(target_os = "windows")]
+//! menu.show_context_menu_for_hwnd(window.hwnd() as isize, x, y);
+//! #[cfg(target_os = "linux")]
+//! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
+//! #[cfg(target_os = "macos")]
+//! menu.show_context_menu_for_nsview(nsview, x, y);
+//! ```
+//! # Processing menu events
+//!
+//! You can use [`menu_event_receiver`] to get a reference to the [`MenuEventReceiver`]
+//! which you can use to listen to events when a menu item is activated
+//! ```no_run
+//! # use muda::menu_event_receiver;
+//! #
+//! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
+//! if let Ok(event) = menu_event_receiver().try_recv() {
+//!     match event.id {
+//!         _ if event.id == save_item.id() => {
+//!             println!("Save menu item activated");
+//!         },
+//!         _ => {}
+//!     }
+//! }
+//! ```
+//!
+//! # Accelerators on Windows
+//!
+//! Accelerators don't work unless the win32 message loop calls
+//! [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
+//!
+//! See [`Menu::init_for_hwnd`] for more details
 
 use accelerator::Accelerator;
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -15,42 +91,42 @@ mod util;
 extern crate objc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MenuEntryType {
+pub enum MenuItemType {
     Submenu,
     Normal,
     Check,
     Predefined,
 }
 
-impl Default for MenuEntryType {
+impl Default for MenuItemType {
     fn default() -> Self {
         Self::Normal
     }
 }
 
-/// An item in a menu, which may be one of [MenuEntryType]
+/// A trait that defines a generic item in a menu, which may be one of [MenuItemType]
 ///
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally.
-pub unsafe trait MenuEntry {
+pub unsafe trait MenuItemExt {
     /// Get the type of this menu entry
-    fn type_(&self) -> MenuEntryType;
+    fn type_(&self) -> MenuItemType;
 
     /// Casts this menu entry to [`Any`](std::any::Any).
     ///
     /// You can use this to get the concrete underlying type
-    /// when calling [`Menu::items`] or [`Submenu::items`] by calling [`downcast_ref`](std::any::Any::downcast_ref)
+    /// when calling [`Menu::items`] or [`Submenu::items`] by calling [`downcast_ref`](https://doc.rust-lang.org/std/any/trait.Any.html#method.downcast_ref-1)
     ///
     /// ## Example
     ///
     /// ```
     /// # use muda::{Submenu, MenuItem};
-    /// let submenu = Submenu::new()
+    /// let submenu = Submenu::new("Submenu", true);
     /// let item = MenuItem::new("Text", true, None);
     /// submenu.append(&item);
     /// // --snip--
-    /// let item = submenu.items()[0];
+    /// let item = &submenu.items()[0];
     /// let item = item.as_any().downcast_ref::<MenuItem>().unwrap();
     /// item.set_text("New text")
     /// ````
@@ -60,11 +136,14 @@ pub unsafe trait MenuEntry {
     fn id(&self) -> u32;
 }
 
-static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, Receiver<MenuEvent>)> = Lazy::new(unbounded);
+/// A reciever that could be used to listen to menu events.
+pub type MenuEventReceiver = Receiver<MenuEvent>;
 
-/// Gets a reference to the event channel's [Receiver<MenuEvent>]
+static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(unbounded);
+
+/// Gets a reference to the event channel's [MenuEventReceiver]
 /// which can be used to listen for menu events.
-pub fn menu_event_receiver<'a>() -> &'a Receiver<MenuEvent> {
+pub fn menu_event_receiver<'a>() -> &'a MenuEventReceiver {
     &MENU_CHANNEL.1
 }
 
@@ -75,6 +154,8 @@ pub struct MenuEvent {
     pub id: u32,
 }
 
+/// A root menu that can be added to a Window on Windows and Linux
+/// and used as the app global menu on macOS.
 #[derive(Clone)]
 pub struct Menu(platform_impl::Menu);
 
@@ -85,55 +166,91 @@ impl Default for Menu {
 }
 
 impl Menu {
-    /// Creates a new root menu.
+    /// Creates a new menu.
     pub fn new() -> Self {
         Self(platform_impl::Menu::new())
     }
 
-    pub fn with_items(items: &[&dyn MenuEntry]) -> Self {
+    /// Creates a new menu with given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
+    pub fn with_items(items: &[&dyn MenuItemExt]) -> Self {
         let menu = Self::new();
         menu.append_items(items);
         menu
     }
 
-    pub fn append(&self, item: &dyn MenuEntry) {
+    /// Add a menu item to the end of this menu.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn append(&self, item: &dyn MenuItemExt) {
         self.0.append(item)
     }
 
-    pub fn append_items(&self, items: &[&dyn MenuEntry]) {
+    /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn append_items(&self, items: &[&dyn MenuItemExt]) {
         for item in items {
             self.append(*item);
         }
     }
-    pub fn prepend(&self, item: &dyn MenuEntry) {
+
+    /// Add a menu item to the beginning of this menu.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn prepend(&self, item: &dyn MenuItemExt) {
         self.0.prepend(item)
     }
 
-    pub fn prepend_items(&self, items: &[&dyn MenuEntry]) {
-        for item in items {
-            self.prepend(*item);
-        }
+    /// Add menu items to the beginning of this menu.
+    /// It calls [`Menu::prepend`] on the first element and
+    /// passes the rest to [`Menu::insert_items`] with position of `1`.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
+        self.prepend(items[0]);
+        self.insert_items(&items[1..], 1);
     }
 
-    pub fn insert(&self, item: &dyn MenuEntry, position: usize) {
+    /// Insert a menu item at the specified `postion` in the menu.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn insert(&self, item: &dyn MenuItemExt, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn insert_items(&self, items: &[&dyn MenuEntry], position: usize) {
+    /// Insert menu items at the specified `postion` in the menu.
+    ///
+    /// ## Platform-spcific:
+    ///
+    /// - **macOS:** Only [`Submenu`] can be added to the menu
+    pub fn insert_items(&self, items: &[&dyn MenuItemExt], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }
     }
 
+    /// Remove a menu item from this menu.
+    ///
     /// ## Panics
     ///
     /// - If `item` has already been removed
     /// - If `item` wasn't previously [append](Menu::append)ed to this menu
-    pub fn remove(&self, item: &dyn MenuEntry) {
+    pub fn remove(&self, item: &dyn MenuItemExt) {
         self.0.remove(item)
     }
 
-    pub fn items(&self) -> Vec<Box<dyn MenuEntry>> {
+    /// Returns a list of menu items that has been added to this menu.
+    pub fn items(&self) -> Vec<Box<dyn MenuItemExt>> {
         self.0.items()
     }
 
@@ -170,13 +287,14 @@ impl Menu {
     ///
     /// #### Example:
     /// ```
-    /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW };
+    /// # use muda::Menu;
+    /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW, TranslateAcceleratorW};
     /// let menu = Menu::new();
     /// unsafe {
-    ///     let msg: MSG = std::mem::zeroed();
+    ///     let mut msg: MSG = std::mem::zeroed();
     ///     while GetMessageW(&mut msg, 0, 0, 0) == 1 {
-    ///         let translated = TranslateAcceleratorW(msg.hwnd, menu.haccel(), msg);
-    ///         if !translated {
+    ///         let translated = TranslateAcceleratorW(msg.hwnd, menu.haccel(), &msg as *const _);
+    ///         if translated != 1{
     ///             TranslateMessage(&msg);
     ///             DispatchMessageW(&msg);
     ///         }
@@ -227,7 +345,7 @@ impl Menu {
         self.0.hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu from a [`gtk::ApplicationWindow`]
+    /// Shows this menu on a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
     pub fn show_for_gtk_window<W>(&self, w: &W)
     where
@@ -236,7 +354,7 @@ impl Menu {
         self.0.show_for_gtk_window(w)
     }
 
-    /// Shows this menu from a win32 window
+    /// Shows this menu on a win32 window
     #[cfg(target_os = "windows")]
     pub fn show_for_hwnd(&self, hwnd: isize) {
         self.0.show_for_hwnd(hwnd)
@@ -254,6 +372,9 @@ impl Menu {
         self.0.show_context_menu_for_gtk_window(w, x, y)
     }
 
+    /// Shows this menu as a context menu inside a win32 window.
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner
     #[cfg(target_os = "windows")]
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
@@ -277,12 +398,13 @@ impl Menu {
     }
 }
 
+/// A menu that can be added to a [`Menu`] or another [`Submenu`].
 #[derive(Clone)]
 pub struct Submenu(platform_impl::Submenu);
 
-unsafe impl MenuEntry for Submenu {
-    fn type_(&self) -> MenuEntryType {
-        MenuEntryType::Submenu
+unsafe impl MenuItemExt for Submenu {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Submenu
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -294,74 +416,96 @@ unsafe impl MenuEntry for Submenu {
 }
 
 impl Submenu {
+    /// Create a new submenu.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
         Self(platform_impl::Submenu::new(text.as_ref(), enabled))
     }
 
-    pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuEntry]) -> Self {
+    /// Creates a new submenu with given `items`. It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
+    pub fn with_items<S: AsRef<str>>(text: S, enabled: bool, items: &[&dyn MenuItemExt]) -> Self {
         let menu = Self::new(text, enabled);
         menu.append_items(items);
         menu
     }
 
+    /// Returns a unique identifier associated with this submenu.
     pub fn id(&self) -> u32 {
         self.0.id()
     }
 
-    pub fn append(&self, item: &dyn MenuEntry) {
+    /// Add a menu item to the end of this menu.
+    pub fn append(&self, item: &dyn MenuItemExt) {
         self.0.append(item)
     }
 
-    pub fn append_items(&self, items: &[&dyn MenuEntry]) {
+    /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.
+    pub fn append_items(&self, items: &[&dyn MenuItemExt]) {
         for item in items {
             self.append(*item);
         }
     }
-    pub fn prepend(&self, item: &dyn MenuEntry) {
+
+    /// Add a menu item to the beginning of this submenu.
+    pub fn prepend(&self, item: &dyn MenuItemExt) {
         self.0.prepend(item)
     }
 
-    pub fn prepend_items(&self, items: &[&dyn MenuEntry]) {
-        for item in items {
-            self.prepend(*item);
-        }
+    /// Add menu items to the beginning of this submenu.
+    /// It calls [`Menu::prepend`] on the first element and
+    /// passes the rest to [`Menu::insert_items`] with position of `1`.
+    pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
+        self.prepend(items[0]);
+        self.insert_items(&items[1..], 1);
     }
 
-    pub fn insert(&self, item: &dyn MenuEntry, position: usize) {
+    /// Insert a menu item at the specified `postion` in the submenu.
+    pub fn insert(&self, item: &dyn MenuItemExt, position: usize) {
         self.0.insert(item, position)
     }
 
-    pub fn insert_items(&self, items: &[&dyn MenuEntry], position: usize) {
+    /// Insert menu items at the specified `postion` in the submenu.
+    pub fn insert_items(&self, items: &[&dyn MenuItemExt], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)
         }
     }
 
-    pub fn remove(&self, item: &dyn MenuEntry) {
+    /// Remove a menu item from this submenu.
+    pub fn remove(&self, item: &dyn MenuItemExt) {
         self.0.remove(item)
     }
 
-    pub fn items(&self) -> Vec<Box<dyn MenuEntry>> {
+    /// Returns a list of menu items that has been added to this submenu.
+    pub fn items(&self) -> Vec<Box<dyn MenuItemExt>> {
         self.0.items()
     }
 
+    /// Get the text for this submenu.
     pub fn text(&self) -> String {
         self.0.text()
     }
 
+    /// Set the text for this submenu. `text` could optionally contain
+    /// an `&` before a character to assign this character as the mnemonic
+    /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.0.set_text(text.as_ref())
     }
 
+    /// Get whether this submenu is enabled or not.
     pub fn is_enabled(&self) -> bool {
         self.0.is_enabled()
     }
 
+    /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
 
-    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    /// Shows this submenu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
     /// `x` and `y` is relatvie to the window top-left corner
     #[cfg(target_os = "linux")]
@@ -373,18 +517,22 @@ impl Submenu {
         self.0.show_context_menu_for_gtk_window(w, x, y)
     }
 
+    /// Shows this submenu as a context menu inside a win32 window.
+    ///
+    /// `x` and `y` is relatvie to the window top-left corner
     #[cfg(target_os = "windows")]
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
     }
 }
 
+/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 #[derive(Clone)]
 pub struct MenuItem(platform_impl::MenuItem);
 
-unsafe impl MenuEntry for MenuItem {
-    fn type_(&self) -> MenuEntryType {
-        MenuEntryType::Normal
+unsafe impl MenuItemExt for MenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Normal
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -396,6 +544,10 @@ unsafe impl MenuEntry for MenuItem {
 }
 
 impl MenuItem {
+    /// Create a new menu item.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn new<S: AsRef<str>>(text: S, enabled: bool, acccelerator: Option<Accelerator>) -> Self {
         Self(platform_impl::MenuItem::new(
             text.as_ref(),
@@ -404,32 +556,40 @@ impl MenuItem {
         ))
     }
 
+    /// Returns a unique identifier associated with this menu item.
     pub fn id(&self) -> u32 {
         self.0.id()
     }
 
+    /// Get the text for this menu item.
     pub fn text(&self) -> String {
         self.0.text()
     }
 
+    /// Set the text for this menu item. `text` could optionally contain
+    /// an `&` before a character to assign this character as the mnemonic
+    /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.0.set_text(text.as_ref())
     }
 
+    /// Get whether this menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
         self.0.is_enabled()
     }
 
+    /// Enable or disable this menu item.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
 }
 
+/// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem(platform_impl::PredefinedMenuItem);
 
-unsafe impl MenuEntry for PredefinedMenuItem {
-    fn type_(&self) -> MenuEntryType {
-        MenuEntryType::Predefined
+unsafe impl MenuItemExt for PredefinedMenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Predefined
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -441,11 +601,6 @@ unsafe impl MenuEntry for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
-    /// A Separator in a menu
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows**: Doesn't work when added in the [menu bar](crate::Menu)
     pub fn separator() -> PredefinedMenuItem {
         PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
     }
@@ -525,21 +680,26 @@ impl PredefinedMenuItem {
         self.0.id()
     }
 
+    /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
         self.0.text()
     }
 
+    /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.0.set_text(text.as_ref())
     }
 }
 
+/// A check menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains a text and a check mark or a similar toggle
+/// that corresponds to a checked and unchecked states.
 #[derive(Clone)]
 pub struct CheckMenuItem(platform_impl::CheckMenuItem);
 
-unsafe impl MenuEntry for CheckMenuItem {
-    fn type_(&self) -> MenuEntryType {
-        MenuEntryType::Check
+unsafe impl MenuItemExt for CheckMenuItem {
+    fn type_(&self) -> MenuItemType {
+        MenuItemType::Check
     }
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
@@ -551,6 +711,10 @@ unsafe impl MenuEntry for CheckMenuItem {
 }
 
 impl CheckMenuItem {
+    /// Create a new check menu item.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn new<S: AsRef<str>>(
         text: S,
         enabled: bool,
@@ -565,36 +729,45 @@ impl CheckMenuItem {
         ))
     }
 
+    /// Returns a unique identifier associated with this submenu.
     pub fn id(&self) -> u32 {
         self.0.id()
     }
 
+    /// Get the text for this check menu item.
     pub fn text(&self) -> String {
         self.0.text()
     }
 
+    /// Get the text for this check menu item. `text` could optionally contain
+    /// an `&` before a character to assign this character as the mnemonic
+    /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.0.set_text(text.as_ref())
     }
 
+    /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
         self.0.is_enabled()
     }
 
+    /// Enable or disable this check menu item.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
 
+    /// Get whether this check menu item is checked or not.
     pub fn is_checked(&self) -> bool {
         self.0.is_checked()
     }
 
+    /// Check or Uncheck this check menu item.
     pub fn set_checked(&self, checked: bool) {
         self.0.set_checked(checked)
     }
 }
 
-/// Application metadata for the [`NativeMenuItem::About`].
+/// Application metadata for the [`PredefinedMenuItem::about`].
 ///
 /// ## Platform-specific
 ///

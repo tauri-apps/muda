@@ -5,7 +5,7 @@ use crate::{
     accelerator::Accelerator,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    MenuEntryType,
+    MenuItemType,
 };
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 use util::{decode_wide, encode_wide, Accel};
@@ -36,7 +36,7 @@ static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
 #[derive(Debug, Default)]
 struct MenuChild {
     // shared fields between submenus and menu items
-    type_: MenuEntryType,
+    type_: MenuItemType,
     text: String,
     enabled: bool,
     parents_hemnu: Vec<HMENU>,
@@ -61,7 +61,7 @@ struct MenuChild {
 impl MenuChild {
     fn id(&self) -> u32 {
         match self.type_ {
-            MenuEntryType::Submenu => self.hmenu as u32,
+            MenuItemType::Submenu => self.hmenu as u32,
             _ => self.id,
         }
     }
@@ -180,22 +180,22 @@ impl Menu {
         }
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let child = &submenu.0 .0;
 
@@ -209,7 +209,7 @@ impl Menu {
 
                 child
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
@@ -217,7 +217,7 @@ impl Menu {
 
                 child
             }
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -238,7 +238,7 @@ impl Menu {
 
                 child
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
@@ -315,7 +315,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         unsafe {
             RemoveMenu(self.hmenu, item.id(), MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, item.id(), MF_BYCOMMAND);
@@ -326,22 +326,22 @@ impl Menu {
         }
 
         let child = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
                     .unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -374,21 +374,19 @@ impl Menu {
         children.remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         self.children
             .borrow()
             .iter()
-            .map(|c| -> Box<dyn crate::MenuEntry> {
+            .map(|c| -> Box<dyn crate::MenuItemExt> {
                 let child = c.borrow();
                 match child.type_ {
-                    MenuEntryType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuEntryType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
-                    MenuEntryType::Predefined => {
+                    MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
+                    MenuItemType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Predefined => {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
-                    MenuEntryType::Check => {
-                        Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone())))
-                    }
+                    MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -402,7 +400,7 @@ impl Menu {
                 return Some(i.clone());
             }
 
-            if item.type_ == MenuEntryType::Submenu {
+            if item.type_ == MenuItemType::Submenu {
                 let submenu = Submenu(i.clone());
                 if let Some(child) = submenu.find_by_id(id) {
                     return Some(child);
@@ -467,7 +465,7 @@ pub(crate) struct Submenu(Rc<RefCell<MenuChild>>);
 impl Submenu {
     pub fn new(text: &str, enabled: bool) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Submenu,
+            type_: MenuItemType::Submenu,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -483,22 +481,22 @@ impl Submenu {
         self.0.borrow().id()
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let child = &submenu.0 .0;
 
@@ -513,7 +511,7 @@ impl Submenu {
 
                 child
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let child = &item.0 .0;
 
@@ -522,7 +520,7 @@ impl Submenu {
                 child
             }
 
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -543,7 +541,7 @@ impl Submenu {
 
                 child
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -628,7 +626,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         unsafe {
             // TODO: remove self.hmenu and self.hpopupmenu from item.parents_hmenu
             RemoveMenu(self.0.borrow().hmenu, item.id(), MF_BYCOMMAND);
@@ -636,22 +634,22 @@ impl Submenu {
         }
 
         let child = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
                     .unwrap();
                 &item.0 .0
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -685,24 +683,22 @@ impl Submenu {
         children.remove(index);
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         self.0
             .borrow()
             .children
             .as_ref()
             .unwrap()
             .iter()
-            .map(|c| -> Box<dyn crate::MenuEntry> {
+            .map(|c| -> Box<dyn crate::MenuItemExt> {
                 let child = c.borrow();
                 match child.type_ {
-                    MenuEntryType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
-                    MenuEntryType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
-                    MenuEntryType::Predefined => {
+                    MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
+                    MenuItemType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Predefined => {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
-                    MenuEntryType::Check => {
-                        Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone())))
-                    }
+                    MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -717,7 +713,7 @@ impl Submenu {
                 return Some(i.clone());
             }
 
-            if item.type_ == MenuEntryType::Submenu {
+            if item.type_ == MenuItemType::Submenu {
                 let submenu = Submenu(i.clone());
                 if let Some(child) = submenu.find_by_id(id) {
                     return Some(child);
@@ -753,7 +749,7 @@ pub(crate) struct MenuItem(Rc<RefCell<MenuChild>>);
 impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Normal,
+            type_: MenuItemType::Normal,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -790,7 +786,7 @@ pub(crate) struct PredefinedMenuItem(Rc<RefCell<MenuChild>>);
 impl PredefinedMenuItem {
     pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Predefined,
+            type_: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
             parents_hemnu: Vec::new(),
@@ -820,7 +816,7 @@ pub(crate) struct CheckMenuItem(Rc<RefCell<MenuChild>>);
 impl CheckMenuItem {
     pub fn new(text: &str, enabled: bool, checked: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Check,
+            type_: MenuItemType::Check,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -888,16 +884,16 @@ unsafe extern "system" fn menu_subclass_proc(
             {
                 let mut item = item.borrow_mut();
                 match item.type_ {
-                    MenuEntryType::Normal => {
+                    MenuItemType::Normal => {
                         dispatch = true;
                     }
-                    MenuEntryType::Check => {
+                    MenuItemType::Check => {
                         dispatch = true;
 
                         let checked = !item.checked;
                         item.set_checked(checked);
                     }
-                    MenuEntryType::Predefined => match &item.predefined_item_type {
+                    MenuItemType::Predefined => match &item.predefined_item_type {
                         PredfinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
                         PredfinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
                         PredfinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),

@@ -16,7 +16,7 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
-/// Generic shared type describing a menu entry. It can be one of [`MenuEntryType`]
+/// Generic shared type describing a menu entry. It can be one of [`MenuItemType`]
 #[derive(Debug, Default)]
 pub(crate) struct MenuEntry {
     text: String,
@@ -24,7 +24,7 @@ pub(crate) struct MenuEntry {
     checked: bool,
     id: u32,
     accelerator: Option<Accelerator>,
-    type_: MenuEntryType,
+    type_: MenuItemType,
     entries: Option<Vec<Rc<RefCell<MenuEntry>>>>,
 }
 
@@ -32,7 +32,7 @@ pub(crate) struct MenuEntry {
 /// and don't mutate the vectors but it is fine to clone it and
 /// call the gtk methods on the elements
 #[derive(Debug, Clone)]
-enum MenuEntryType {
+enum MenuItemType {
     // because gtk doesn't allow using the same [`gtk::MenuItem`]
     // multiple times, and thus can't be used in multiple windows, each entry
     // keeps a vector of a [`gtk::MenuItem`] or a tuple of [`gtk::MenuItem`] and [`gtk::Menu`] if its a menu
@@ -46,7 +46,7 @@ enum MenuEntryType {
     Predefined(HashMap<u32, Vec<gtk::MenuItem>>, PredfinedMenuItemType),
 }
 
-impl Default for MenuEntryType {
+impl Default for MenuItemType {
     fn default() -> Self {
         Self::Normal(Default::default())
     }
@@ -74,21 +74,21 @@ impl Menu {
         })))
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
         let entry = match item.type_() {
-            crate::MenuEntryType::Submenu => {
+            crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -105,7 +105,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuEntryType::Normal => {
+            crate::MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -122,7 +122,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuEntryType::Predefined => {
+            crate::MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -142,7 +142,7 @@ impl Menu {
                 }
                 entry
             }
-            crate::MenuEntryType::Check => {
+            crate::MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -171,9 +171,9 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
+    pub fn remove(&self, item: &dyn crate::MenuItem) {
         match item.type_() {
-            crate::MenuEntryType::Submenu => {
+            crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
@@ -182,7 +182,7 @@ impl Menu {
                             submenu.0.remove_gtk_by_parent_id(*menu_id, &*item);
                         }
 
-                        if let MenuEntryType::Submenu(store) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for (item, _, _, _) in items {
                                 menu_bar.remove(&item);
@@ -191,12 +191,12 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Normal => {
+            crate::MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
-                        if let MenuEntryType::Normal(store) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for item in items {
                                 menu_bar.remove(&item);
@@ -205,7 +205,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Predefined => {
+            crate::MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
@@ -213,7 +213,7 @@ impl Menu {
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
-                        if let MenuEntryType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
                             if let Some(items) = store.remove(menu_id) {
                                 for item in items {
                                     menu_bar.remove(&item);
@@ -223,7 +223,7 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Check => {
+            crate::MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
@@ -231,7 +231,7 @@ impl Menu {
                 let entry = &item.0 .0;
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
-                        if let MenuEntryType::Check { store, .. } = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for item in items {
                                 menu_bar.remove(&item);
@@ -252,9 +252,9 @@ impl Menu {
         self.0.borrow_mut().entries.remove(index);
     }
 
-    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuEntry) {
+    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItem) {
         match item.type_() {
-            crate::MenuEntryType::Submenu => {
+            crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
@@ -262,7 +262,7 @@ impl Menu {
                         submenu.0.remove_gtk_by_parent_id(parent_id, &*item);
                     }
 
-                    if let MenuEntryType::Submenu(store) = &mut entry.borrow_mut().type_ {
+                    if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
                         let items = store.remove(&parent_id).unwrap();
                         for (item, _, _, _) in items {
                             menu_bar.remove(&item);
@@ -270,11 +270,11 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Normal => {
+            crate::MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
-                    if let MenuEntryType::Normal(store) = &mut entry.borrow_mut().type_ {
+                    if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
                         let items = store.remove(&parent_id).unwrap();
                         for item in items {
                             menu_bar.remove(&item);
@@ -282,14 +282,14 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Predefined => {
+            crate::MenuItemType::Predefined => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::PredefinedMenuItem>()
                     .unwrap();
                 let entry = &item.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
-                    if let MenuEntryType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
+                    if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
                         if let Some(items) = store.remove(&parent_id) {
                             for item in items {
                                 menu_bar.remove(&item);
@@ -298,14 +298,14 @@ impl Menu {
                     }
                 }
             }
-            crate::MenuEntryType::Check => {
+            crate::MenuItemType::Check => {
                 let item = item
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
                 let entry = &item.0 .0;
                 if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
-                    if let MenuEntryType::Check { store, .. } = &mut entry.borrow_mut().type_ {
+                    if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
                         let items = store.remove(&parent_id).unwrap();
                         for item in items {
                             menu_bar.remove(&item);
@@ -316,19 +316,19 @@ impl Menu {
         }
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
         self.0
             .borrow()
             .entries
             .iter()
-            .map(|e| -> Box<dyn crate::MenuEntry> {
+            .map(|e| -> Box<dyn crate::MenuItem> {
                 let entry = e.borrow();
                 match entry.type_ {
-                    MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
-                    MenuEntryType::Normal(_) | MenuEntryType::Predefined(_, _) => {
+                    MenuItemType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
+                    MenuItemType::Normal(_) | MenuItemType::Predefined(_, _) => {
                         Box::new(crate::MenuItem(MenuItem(e.clone())))
                     }
-                    MenuEntryType::Check { .. } => {
+                    MenuItemType::Check { .. } => {
                         Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
                     }
                 }
@@ -476,7 +476,7 @@ impl Submenu {
             text: text.to_string(),
             enabled,
             entries: Some(Vec::new()),
-            type_: MenuEntryType::Submenu(HashMap::new()),
+            type_: MenuItemType::Submenu(HashMap::new()),
             ..Default::default()
         }));
 
@@ -487,23 +487,23 @@ impl Submenu {
         self.0.borrow().id
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItem) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
         let type_ = self.0.borrow().type_.clone();
-        if let MenuEntryType::Submenu(store) = &type_ {
+        if let MenuItemType::Submenu(store) = &type_ {
             let entry = match item.type_() {
-                crate::MenuEntryType::Submenu => {
+                crate::MenuItemType::Submenu => {
                     let item = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
@@ -513,7 +513,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuEntryType::Normal => {
+                crate::MenuItemType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
@@ -523,7 +523,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuEntryType::Predefined => {
+                crate::MenuItemType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -543,7 +543,7 @@ impl Submenu {
                     }
                     entry
                 }
-                crate::MenuEntryType::Check => {
+                crate::MenuItemType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
@@ -568,10 +568,10 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
-        if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
+    pub fn remove(&self, item: &dyn crate::MenuItem) {
+        if let MenuItemType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
-                crate::MenuEntryType::Submenu => {
+                crate::MenuItemType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &submenu.0 .0;
                     for items in store.values() {
@@ -580,7 +580,7 @@ impl Submenu {
                                 submenu.0.remove_gtk_by_parent_id(*menu_id, &*item);
                             }
 
-                            if let MenuEntryType::Submenu(store) = &mut entry.borrow_mut().type_ {
+                            if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
                                 let items = store.remove(menu_id).unwrap();
                                 for (item, _, _, _) in items {
                                     menu.remove(&item);
@@ -589,12 +589,12 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Normal => {
+                crate::MenuItemType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, _, menu_id) in items {
-                            if let MenuEntryType::Normal(store) = &mut entry.borrow_mut().type_ {
+                            if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
                                 let items = store.remove(menu_id).unwrap();
                                 for item in items {
                                     menu.remove(&item);
@@ -603,7 +603,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Predefined => {
+                crate::MenuItemType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -611,7 +611,7 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, _, menu_id) in items {
-                            if let MenuEntryType::Predefined(store, _) =
+                            if let MenuItemType::Predefined(store, _) =
                                 &mut entry.borrow_mut().type_
                             {
                                 if let Some(items) = store.remove(menu_id) {
@@ -623,7 +623,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Check => {
+                crate::MenuItemType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
@@ -631,8 +631,7 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, _, menu_id) in items {
-                            if let MenuEntryType::Check { store, .. } =
-                                &mut entry.borrow_mut().type_
+                            if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_
                             {
                                 let items = store.remove(menu_id).unwrap();
                                 for item in items {
@@ -657,10 +656,10 @@ impl Submenu {
         self.0.borrow_mut().entries.as_mut().unwrap().remove(index);
     }
 
-    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuEntry) {
-        if let MenuEntryType::Submenu(store) = self.0.borrow().type_.clone() {
+    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItem) {
+        if let MenuItemType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
-                crate::MenuEntryType::Submenu => {
+                crate::MenuItemType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &submenu.0 .0;
                     let items = store.get(&parent_id).unwrap();
@@ -669,7 +668,7 @@ impl Submenu {
                             submenu.0.remove_gtk_by_parent_id(*menu_id, &*item);
                         }
 
-                        if let MenuEntryType::Submenu(store) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for (item, _, _, _) in items {
                                 menu.remove(&item);
@@ -677,12 +676,12 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Normal => {
+                crate::MenuItemType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
                     let items = store.get(&parent_id).unwrap();
                     for (_, menu, _, menu_id) in items {
-                        if let MenuEntryType::Normal(store) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for item in items {
                                 menu.remove(&item);
@@ -690,7 +689,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Predefined => {
+                crate::MenuItemType::Predefined => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::PredefinedMenuItem>()
@@ -698,7 +697,7 @@ impl Submenu {
                     let entry = &item.0 .0;
                     let items = store.get(&parent_id).unwrap();
                     for (_, menu, _, menu_id) in items {
-                        if let MenuEntryType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
                             if let Some(items) = store.remove(menu_id) {
                                 for item in items {
                                     menu.remove(&item);
@@ -707,7 +706,7 @@ impl Submenu {
                         }
                     }
                 }
-                crate::MenuEntryType::Check => {
+                crate::MenuItemType::Check => {
                     let item = item
                         .as_any()
                         .downcast_ref::<crate::CheckMenuItem>()
@@ -715,7 +714,7 @@ impl Submenu {
                     let entry = &item.0 .0;
                     let items = store.get(&parent_id).unwrap();
                     for (_, menu, _, menu_id) in items {
-                        if let MenuEntryType::Check { store, .. } = &mut entry.borrow_mut().type_ {
+                        if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
                             let items = store.remove(menu_id).unwrap();
                             for item in items {
                                 menu.remove(&item);
@@ -727,21 +726,21 @@ impl Submenu {
         }
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
         self.0
             .borrow()
             .entries
             .as_ref()
             .unwrap()
             .iter()
-            .map(|e| -> Box<dyn crate::MenuEntry> {
+            .map(|e| -> Box<dyn crate::MenuItem> {
                 let entry = e.borrow();
                 match entry.type_ {
-                    MenuEntryType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
-                    MenuEntryType::Normal(_) | MenuEntryType::Predefined(_, _) => {
+                    MenuItemType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
+                    MenuItemType::Normal(_) | MenuItemType::Predefined(_, _) => {
                         Box::new(crate::MenuItem(MenuItem(e.clone())))
                     }
-                    MenuEntryType::Check { .. } => {
+                    MenuItemType::Check { .. } => {
                         Box::new(crate::CheckMenuItem(CheckMenuItem(e.clone())))
                     }
                 }
@@ -751,7 +750,7 @@ impl Submenu {
 
     pub fn text(&self) -> String {
         let entry = self.0.borrow();
-        if let MenuEntryType::Submenu(store) = &entry.type_ {
+        if let MenuItemType::Submenu(store) = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -774,7 +773,7 @@ impl Submenu {
         let mut entry = self.0.borrow_mut();
         entry.text = text.to_string();
 
-        if let MenuEntryType::Submenu(store) = &entry.type_ {
+        if let MenuItemType::Submenu(store) = &entry.type_ {
             let text = to_gtk_mnemonic(text);
             for items in store.values() {
                 for (i, _, _, _) in items {
@@ -788,7 +787,7 @@ impl Submenu {
 
     pub fn is_enabled(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Submenu(store) = &entry.type_ {
+        if let MenuItemType::Submenu(store) = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -806,7 +805,7 @@ impl Submenu {
         let mut entry = self.0.borrow_mut();
         entry.enabled = enabled;
 
-        if let MenuEntryType::Submenu(store) = &entry.type_ {
+        if let MenuItemType::Submenu(store) = &entry.type_ {
             for items in store.values() {
                 for (i, _, _, _) in items {
                     i.set_sensitive(enabled);
@@ -853,7 +852,7 @@ impl MenuItem {
             enabled,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuEntryType::Normal(HashMap::new()),
+            type_: MenuItemType::Normal(HashMap::new()),
             ..Default::default()
         }));
 
@@ -866,7 +865,7 @@ impl MenuItem {
 
     pub fn text(&self) -> String {
         let entry = self.0.borrow();
-        if let MenuEntryType::Normal(store) = &entry.type_ {
+        if let MenuItemType::Normal(store) = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -889,7 +888,7 @@ impl MenuItem {
         let mut entry = self.0.borrow_mut();
         entry.text = text.to_string();
 
-        if let MenuEntryType::Normal(store) = &entry.type_ {
+        if let MenuItemType::Normal(store) = &entry.type_ {
             let text = to_gtk_mnemonic(text);
             for items in store.values() {
                 for i in items {
@@ -903,7 +902,7 @@ impl MenuItem {
 
     pub fn is_enabled(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Normal(store) = &entry.type_ {
+        if let MenuItemType::Normal(store) = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -918,7 +917,7 @@ impl MenuItem {
         let mut entry = self.0.borrow_mut();
         entry.enabled = enabled;
 
-        if let MenuEntryType::Normal(store) = &entry.type_ {
+        if let MenuItemType::Normal(store) = &entry.type_ {
             for items in store.values() {
                 for i in items {
                     i.set_sensitive(enabled);
@@ -940,7 +939,7 @@ impl PredefinedMenuItem {
             enabled: true,
             accelerator: item.accelerator(),
             id: COUNTER.next(),
-            type_: MenuEntryType::Predefined(HashMap::new(), item),
+            type_: MenuItemType::Predefined(HashMap::new(), item),
             ..Default::default()
         }));
 
@@ -953,7 +952,7 @@ impl PredefinedMenuItem {
 
     pub fn text(&self) -> String {
         let entry = self.0.borrow();
-        if let MenuEntryType::Predefined(store, _) = &entry.type_ {
+        if let MenuItemType::Predefined(store, _) = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -976,7 +975,7 @@ impl PredefinedMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.text = text.to_string();
 
-        if let MenuEntryType::Normal(store) = &entry.type_ {
+        if let MenuItemType::Normal(store) = &entry.type_ {
             let text = to_gtk_mnemonic(text);
             for items in store.values() {
                 for i in items {
@@ -1000,7 +999,7 @@ impl CheckMenuItem {
             checked,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuEntryType::Check {
+            type_: MenuItemType::Check {
                 store: HashMap::new(),
                 is_syncing: Rc::new(AtomicBool::new(false)),
             },
@@ -1016,7 +1015,7 @@ impl CheckMenuItem {
 
     pub fn text(&self) -> String {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check { store, .. } = &entry.type_ {
+        if let MenuItemType::Check { store, .. } = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -1039,7 +1038,7 @@ impl CheckMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.text = text.to_string();
 
-        if let MenuEntryType::Check { store, .. } = &entry.type_ {
+        if let MenuItemType::Check { store, .. } = &entry.type_ {
             let text = to_gtk_mnemonic(text);
             for items in store.values() {
                 for i in items {
@@ -1053,7 +1052,7 @@ impl CheckMenuItem {
 
     pub fn is_enabled(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check { store, .. } = &entry.type_ {
+        if let MenuItemType::Check { store, .. } = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -1068,7 +1067,7 @@ impl CheckMenuItem {
         let mut entry = self.0.borrow_mut();
         entry.enabled = enabled;
 
-        if let MenuEntryType::Check { store, .. } = &entry.type_ {
+        if let MenuItemType::Check { store, .. } = &entry.type_ {
             for items in store.values() {
                 for i in items {
                     i.set_sensitive(enabled);
@@ -1081,7 +1080,7 @@ impl CheckMenuItem {
 
     pub fn is_checked(&self) -> bool {
         let entry = self.0.borrow();
-        if let MenuEntryType::Check { store, .. } = &entry.type_ {
+        if let MenuItemType::Check { store, .. } = &entry.type_ {
             store
                 .get(&0)
                 .map(|items| items.get(0))
@@ -1099,7 +1098,7 @@ impl CheckMenuItem {
             entry.type_.clone()
         };
 
-        if let MenuEntryType::Check { store, is_syncing } = &type_ {
+        if let MenuItemType::Check { store, is_syncing } = &type_ {
             is_syncing.store(true, Ordering::Release);
             for items in store.values() {
                 for i in items {
@@ -1145,7 +1144,7 @@ fn add_gtk_submenu(
         add_to_store,
     );
     if add_to_store {
-        if let MenuEntryType::Submenu(store) = &mut entry.type_ {
+        if let MenuItemType::Submenu(store) = &mut entry.type_ {
             let item = (item, submenu, accel_group.clone(), id);
             if let Some(items) = store.get_mut(&menu_id) {
                 items.push(item);
@@ -1165,7 +1164,7 @@ fn add_gtk_text_menuitem(
     add_to_store: bool,
 ) {
     let mut entry = entry.borrow_mut();
-    if let MenuEntryType::Normal(_) = &entry.type_ {
+    if let MenuItemType::Normal(_) = &entry.type_ {
         let item = gtk::MenuItem::builder()
             .label(&to_gtk_mnemonic(&entry.text))
             .use_underline(true)
@@ -1187,7 +1186,7 @@ fn add_gtk_text_menuitem(
         });
 
         if add_to_store {
-            if let MenuEntryType::Normal(store) = &mut entry.type_ {
+            if let MenuItemType::Normal(store) = &mut entry.type_ {
                 if let Some(items) = store.get_mut(&menu_id) {
                     items.push(item);
                 } else {
@@ -1210,7 +1209,7 @@ fn add_gtk_predefined_menuitm(
     let text = entry.text.clone();
     let accelerator = entry.accelerator.clone();
 
-    if let MenuEntryType::Predefined(store, predefined_item) = &mut entry.type_ {
+    if let MenuItemType::Predefined(store, predefined_item) = &mut entry.type_ {
         let predefined_item = predefined_item.clone();
         let make_item = || {
             gtk::MenuItem::builder()
@@ -1336,7 +1335,7 @@ fn add_gtk_check_menuitem(
     let id = entry.id;
 
     item.connect_toggled(move |i| {
-        let should_dispatch = matches!(&entry_c.borrow().type_, MenuEntryType::Check { is_syncing, .. } if is_syncing
+        let should_dispatch = matches!(&entry_c.borrow().type_, MenuItemType::Check { is_syncing, .. } if is_syncing
                        .compare_exchange(false, true, Ordering::Release, Ordering::Relaxed)
                              .is_ok());
 
@@ -1348,13 +1347,13 @@ fn add_gtk_check_menuitem(
                 entry.type_.clone()
             };
 
-            if let MenuEntryType::Check { store, .. } = &type_ {
+            if let MenuItemType::Check { store, .. } = &type_ {
                  for items in store.values() {
                 for i in items {
                     i.set_active(checked);
                     }
                 }
-                if let MenuEntryType::Check { is_syncing, .. } = &mut entry_c.borrow_mut().type_ {
+                if let MenuItemType::Check { is_syncing, .. } = &mut entry_c.borrow_mut().type_ {
                     is_syncing.store(false, Ordering::Release);
                 }
             }
@@ -1371,7 +1370,7 @@ fn add_gtk_check_menuitem(
     item.show();
 
     if add_to_store {
-        if let MenuEntryType::Check { store, .. } = &mut entry.type_ {
+        if let MenuItemType::Check { store, .. } = &mut entry.type_ {
             if let Some(items) = store.get_mut(&menu_id) {
                 items.push(item);
             } else {
@@ -1391,7 +1390,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     for entry in entries {
         let type_ = entry.borrow().type_.clone();
         match type_ {
-            MenuEntryType::Submenu(_) => add_gtk_submenu(
+            MenuItemType::Submenu(_) => add_gtk_submenu(
                 menu,
                 accel_group,
                 menu_id,
@@ -1399,7 +1398,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 AddOp::Append,
                 add_to_store,
             ),
-            MenuEntryType::Normal(_) => add_gtk_text_menuitem(
+            MenuItemType::Normal(_) => add_gtk_text_menuitem(
                 menu,
                 menu_id,
                 entry,
@@ -1407,7 +1406,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 AddOp::Append,
                 add_to_store,
             ),
-            MenuEntryType::Predefined(_, _) => add_gtk_predefined_menuitm(
+            MenuItemType::Predefined(_, _) => add_gtk_predefined_menuitm(
                 menu,
                 menu_id,
                 entry,
@@ -1415,7 +1414,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 AddOp::Append,
                 add_to_store,
             ),
-            MenuEntryType::Check { .. } => add_gtk_check_menuitem(
+            MenuItemType::Check { .. } => add_gtk_check_menuitem(
                 menu,
                 menu_id,
                 entry,

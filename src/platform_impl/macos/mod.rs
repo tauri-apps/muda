@@ -11,7 +11,7 @@ use objc::runtime::{Object, Sel};
 
 use crate::{
     accelerator::Accelerator,
-    MenuEntryType,
+    MenuItemType,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
 };
@@ -25,7 +25,7 @@ static COUNTER: Counter = Counter::new();
 #[allow(dead_code)]
 struct MenuChild {
     // shared fields between submenus and menu items
-    type_: MenuEntryType,
+    type_: MenuItemType,
     text: String,
     enabled: bool,
 
@@ -112,33 +112,33 @@ impl Menu {
         Self { ns_menu }
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let ns_menu_item = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 submenu.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let menuitem = item.as_any().downcast_ref::<crate::CheckMenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let menuitem = item.as_any().downcast_ref::<crate::PredefinedMenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
@@ -154,21 +154,21 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         let ns_menu_item = match item.type_() {
-            MenuEntryType::Submenu => {
+            MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 submenu.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Normal => {
+            MenuItemType::Normal => {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Check => {
+            MenuItemType::Check => {
                 let menuitem = item.as_any().downcast_ref::<crate::CheckMenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
-            MenuEntryType::Predefined => {
+            MenuItemType::Predefined => {
                 let menuitem = item.as_any().downcast_ref::<crate::PredefinedMenuItem>().unwrap();
                 menuitem.0.ns_item_for_menu(self)
             }
@@ -178,7 +178,7 @@ impl Menu {
         }
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         todo!()
     }
 
@@ -242,27 +242,27 @@ impl Submenu {
         ns_menu_item
     }
 
-    pub fn append(&self, item: &dyn crate::MenuEntry) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuEntry) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuEntry, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuEntry, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         self.0.borrow_mut().submenu.as_ref().unwrap().add_menu_item(item, op)
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuEntry) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         self.0.borrow_mut().submenu.as_ref().unwrap().remove(item)
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuEntry>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         todo!()
     }
 
@@ -289,7 +289,7 @@ pub(crate) struct MenuItem(Rc<RefCell<MenuChild>>);
 impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Normal,
+            type_: MenuItemType::Normal,
             text: text.to_string().replace("&", ""),
             enabled,
             id: COUNTER.next(),
@@ -349,7 +349,7 @@ impl PredefinedMenuItem {
         let accelerator = item_type.accelerator();
 
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Predefined,
+            type_: MenuItemType::Predefined,
             text,
             enabled: true,
             id: COUNTER.next(),
@@ -410,7 +410,7 @@ pub(crate) struct CheckMenuItem(Rc<RefCell<MenuChild>>);
 impl CheckMenuItem {
     pub fn new(text: &str, enabled: bool, checked: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            type_: MenuEntryType::Check,
+            type_: MenuItemType::Check,
             text: text.to_string(),
             enabled,
             id: COUNTER.next(),

@@ -9,6 +9,7 @@ pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
         .replace("&&", "[~~]")
         .replace('&', "_")
         .replace("[~~]", "&&")
+        .replace("[~~]", "&")
 }
 
 pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
