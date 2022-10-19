@@ -212,7 +212,7 @@ impl Menu {
     }
 
     /// Add menu items to the beginning of this menu.
-    /// 
+    ///
     /// It calls [`Menu::insert_items`] with position of `0` internally.
     ///
     /// ## Platform-spcific:

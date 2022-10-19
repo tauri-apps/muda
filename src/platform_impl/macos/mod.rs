@@ -26,13 +26,13 @@ static COUNTER: Counter = Counter::new();
 struct MenuChild {
     // shared fields between submenus and menu items
     type_: MenuItemType,
+    id: u32,
     text: String,
     enabled: bool,
 
     ns_menu_items: HashMap<u32, Vec<id>>,
 
     // menu item fields
-    id: u32,
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
@@ -43,7 +43,6 @@ struct MenuChild {
 
     // submenu fields
     submenu: Option<Menu>,
-    children: Option<Vec<Rc<RefCell<MenuChild>>>>,
 }
 
 impl MenuChild {
@@ -100,19 +99,21 @@ impl MenuChild {
 
 #[derive(Clone, Debug)]
 pub struct Menu {
-    ns_menu: id,
     id: u32,
+    ns_menu: id,
+    children: Rc<RefCell<Vec<Rc<RefCell<MenuChild>>>>>,
 }
 
 impl Menu {
     pub fn new() -> Self {
         Self {
+            id: COUNTER.next(),
             ns_menu: unsafe {
                 let ns_menu = NSMenu::alloc(nil).autorelease();
                 ns_menu.setAutoenablesItems(NO);
                 ns_menu
             },
-            id: COUNTER.next(),
+            children: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -129,66 +130,99 @@ impl Menu {
     }
 
     fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
-        let ns_menu_item = match item.type_() {
+        let ns_menu_item: *mut Object;
+        let child: Rc<RefCell<MenuChild>>;
+
+        match item.type_() {
             MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                submenu.0.make_ns_item_for_menu(self)
+                child = Rc::clone(&submenu.0 .0);
+                ns_menu_item = submenu.0.make_ns_item_for_menu(self);
             }
             MenuItemType::Normal => {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                menuitem.0.make_ns_item_for_menu(self)
+                child = Rc::clone(&menuitem.0 .0);
+                ns_menu_item = menuitem.0.make_ns_item_for_menu(self);
             }
             MenuItemType::Check => {
                 let menuitem = item.as_any().downcast_ref::<crate::CheckMenuItem>().unwrap();
-                menuitem.0.make_ns_item_for_menu(self)
+                child = Rc::clone(&menuitem.0 .0);
+                ns_menu_item = menuitem.0.make_ns_item_for_menu(self);
             }
             MenuItemType::Predefined => {
                 let menuitem = item.as_any().downcast_ref::<crate::PredefinedMenuItem>().unwrap();
-                menuitem.0.make_ns_item_for_menu(self)
+                child = Rc::clone(&menuitem.0 .0);
+                ns_menu_item = menuitem.0.make_ns_item_for_menu(self);
             }
         };
 
         unsafe {
             match op {
-                AddOp::Append => self.ns_menu.addItem_(ns_menu_item),
+                AddOp::Append => {
+                    self.ns_menu.addItem_(ns_menu_item);
+                    self.children.borrow_mut().push(child);
+                }
                 AddOp::Insert(position) => {
-                    msg_send![self.ns_menu, insertItem: ns_menu_item atIndex: position as NSInteger]
+                    let () = msg_send![self.ns_menu, insertItem: ns_menu_item atIndex: position as NSInteger];
+                    self.children.borrow_mut().insert(position, child);
                 }
             }
         }
     }
 
     pub fn remove(&self, item: &dyn crate::MenuItemExt) {
-        // get a list of instances of the specified NSMenuItem in this menu...
+        // get a list of instances of the specified NSMenuItem in this menu
         if let Some(ns_menu_items) = match item.type_() {
             MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                submenu.0 .0.borrow()
+                submenu.0 .0.borrow_mut()
             }
             MenuItemType::Normal => {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                menuitem.0 .0.borrow()
+                menuitem.0 .0.borrow_mut()
             }
             MenuItemType::Check => {
                 let menuitem = item.as_any().downcast_ref::<crate::CheckMenuItem>().unwrap();
-                menuitem.0 .0.borrow()
+                menuitem.0 .0.borrow_mut()
             }
             MenuItemType::Predefined => {
                 let menuitem = item.as_any().downcast_ref::<crate::PredefinedMenuItem>().unwrap();
-                menuitem.0 .0.borrow()
+                menuitem.0 .0.borrow_mut()
             }
-        }.ns_menu_items.get(&self.id) {
-            // ...and remove each NSMenuItem from the NSMenu
+        }.ns_menu_items.remove(&self.id) {
+            // remove each NSMenuItem from the NSMenu
             unsafe {
-                for &item in ns_menu_items {
+                for item in ns_menu_items {
                     let () = msg_send![self.ns_menu, removeItem: item];
                 }
             }
         }
+
+        // remove the item from our internal list of children
+        let mut children = self.children.borrow_mut();
+        let index = children
+            .iter()
+            .position(|e| e.borrow().id() == item.id())
+            .unwrap();
+        children.remove(index);
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
-        todo!()
+        self.children
+            .borrow()
+            .iter()
+            .map(|c| -> Box<dyn crate::MenuItemExt> {
+                let child = c.borrow();
+                match child.type_ {
+                    MenuItemType::Submenu => Box::new(crate::Submenu(Submenu(c.clone()))),
+                    MenuItemType::Normal => Box::new(crate::MenuItem(MenuItem(c.clone()))),
+                    MenuItemType::Predefined => {
+                        Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
+                    }
+                    MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                }
+            })
+            .collect()
     }
 
     pub fn init_for_nsapp(&self) {
@@ -216,7 +250,6 @@ impl Submenu {
         Self(Rc::new(RefCell::new(MenuChild {
             text: text.to_string().replace("&", ""),
             enabled,
-            children: Some(Vec::new()),
             submenu: Some(Menu::new()),
             ..Default::default()
         })))
@@ -272,7 +305,7 @@ impl Submenu {
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
-        todo!()
+        self.0.borrow_mut().submenu.as_ref().unwrap().items()
     }
 
     pub fn text(&self) -> String {
