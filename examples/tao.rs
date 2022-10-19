@@ -98,6 +98,7 @@ fn main() {
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
         &select_i,
+        &select_i,
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
