@@ -432,6 +432,17 @@ impl Menu {
         };
     }
 
+    pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SetWindowSubclass(
+                hwnd,
+                Some(menu_subclass_proc),
+                MENU_SUBCLASS_ID,
+                Box::into_raw(Box::new(self.clone())) as _,
+            );
+        }
+    }
+
     pub fn remove_for_hwnd(&self, hwnd: isize) {
         let mut hwnds = self.hwnds.borrow_mut();
         let index = hwnds.iter().position(|h| *h == hwnd).unwrap();
@@ -441,6 +452,13 @@ impl Menu {
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
+        }
+    }
+
+    pub fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
+            RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
         }
     }
 
@@ -749,6 +767,24 @@ impl Submenu {
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         show_context_menu(hwnd, self.0.borrow().hpopupmenu, x, y)
     }
+
+    pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SetWindowSubclass(
+                hwnd,
+                Some(menu_subclass_proc),
+                SUBMENU_SUBCLASS_ID,
+                Box::into_raw(Box::new(self.clone())) as _,
+            );
+        }
+    }
+
+    pub fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        unsafe {
+            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
+            RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), SUBMENU_SUBCLASS_ID);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -865,6 +901,7 @@ impl CheckMenuItem {
 }
 
 const MENU_SUBCLASS_ID: usize = 200;
+const SUBMENU_SUBCLASS_ID: usize = 201;
 const WM_CLEAR_MENU_DATA: u32 = 600;
 
 unsafe extern "system" fn menu_subclass_proc(
@@ -872,19 +909,29 @@ unsafe extern "system" fn menu_subclass_proc(
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
-    _uidsubclass: usize,
+    uidsubclass: usize,
     dwrefdata: usize,
 ) -> LRESULT {
     let mut ret = -1;
     if msg == WM_DESTROY || msg == WM_CLEAR_MENU_DATA {
-        drop(Box::from_raw(dwrefdata as *mut Menu));
+        if uidsubclass == MENU_SUBCLASS_ID {
+            drop(Box::from_raw(dwrefdata as *mut Menu));
+        } else {
+            drop(Box::from_raw(dwrefdata as *mut Submenu));
+        }
     }
 
     if msg == WM_COMMAND {
         let id = util::LOWORD(wparam as _) as u32;
-        let menu = dwrefdata as *mut Menu;
+        let item = if uidsubclass == MENU_SUBCLASS_ID {
+            let menu = dwrefdata as *mut Menu;
+            (*menu).find_by_id(id)
+        } else {
+            let menu = dwrefdata as *mut Submenu;
+            (*menu).find_by_id(id)
+        };
 
-        if let Some(item) = (*menu).find_by_id(id) {
+        if let Some(item) = item {
             ret = 0;
 
             let mut dispatch = false;

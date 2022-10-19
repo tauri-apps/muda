@@ -81,7 +81,7 @@ fn main() {
             None,
             Some(AboutMetadata {
                 name: Some("tao".to_string()),
-                copyright: Some("Copyright TAO".to_string()),
+                copyright: Some("Copyright tao".to_string()),
                 ..Default::default()
             }),
         ),

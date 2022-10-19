@@ -142,6 +142,17 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
 
+    /// Attach the menu subclass handler to the given hwnd
+    /// so you can recieve events from that window using [menu_event_receiver]
+    ///
+    /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize);
+
+    /// Remove the menu subclass handler from the given hwnd
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
+
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
     /// `x` and `y` is relatvie to the window top-left corner
@@ -150,6 +161,13 @@ pub trait ContextMenu {
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Widget>;
+}
+
+/// Describes a menu event emitted when a menu item is activated
+#[derive(Debug)]
+pub struct MenuEvent {
+    /// Id of the menu item which triggered this event
+    pub id: u32,
 }
 
 /// A reciever that could be used to listen to menu events.
@@ -161,13 +179,6 @@ static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(un
 /// which can be used to listen for menu events.
 pub fn menu_event_receiver<'a>() -> &'a MenuEventReceiver {
     &MENU_CHANNEL.1
-}
-
-/// Describes a menu event emitted when a menu item is activated
-#[derive(Debug)]
-pub struct MenuEvent {
-    /// Id of the menu item which triggered this event
-    pub id: u32,
 }
 
 /// A root menu that can be added to a Window on Windows and Linux
@@ -190,6 +201,16 @@ impl ContextMenu for Menu {
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        self.0.attach_menu_subclass_for_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        self.0.detach_menu_subclass_from_hwnd(hwnd)
     }
 
     #[cfg(target_os = "linux")]
@@ -432,6 +453,16 @@ impl ContextMenu for Submenu {
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
         self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        self.0.attach_menu_subclass_for_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        self.0.detach_menu_subclass_from_hwnd(hwnd)
     }
 
     #[cfg(target_os = "linux")]
