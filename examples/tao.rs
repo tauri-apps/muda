@@ -144,7 +144,9 @@ fn main() {
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
+                    window_m.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+                    #[cfg(target_os = "linux")]
+                    window_m.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
                 }
             }
             Event::MainEventsCleared => {

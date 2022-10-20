@@ -95,7 +95,7 @@ impl Menu {
                     if let Some(menu_bar) = menu_bar {
                         add_gtk_submenu(
                             menu_bar,
-                            self.0.borrow().accel_group.as_ref().unwrap(),
+                            self.0.borrow().accel_group.as_ref(),
                             *menu_id,
                             entry,
                             op,
@@ -114,7 +114,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group.as_ref().unwrap(),
+                            self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
                             true,
                         );
@@ -134,7 +134,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group.as_ref().unwrap(),
+                            self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
                             true,
                         );
@@ -154,7 +154,7 @@ impl Menu {
                             menu_bar,
                             *menu_id,
                             entry,
-                            &self.0.borrow().accel_group.as_ref().unwrap(),
+                            self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
                             true,
                         )
@@ -381,7 +381,7 @@ impl Menu {
             menu_bar,
             id,
             &inner.entries,
-            inner.accel_group.as_ref().unwrap(),
+            inner.accel_group.as_ref(),
             true,
         );
         window.add_accel_group(inner.accel_group.as_ref().unwrap().as_ref());
@@ -448,14 +448,7 @@ impl Menu {
     {
         if let Some(window) = window.window() {
             let gtk_menu = gtk::Menu::new();
-            let accel_group = gtk::AccelGroup::new();
-            add_entries_to_gtkmenu(
-                &gtk_menu,
-                0,
-                &self.0.borrow().entries,
-                &Rc::new(accel_group),
-                false,
-            );
+            add_entries_to_gtkmenu(&gtk_menu, 0, &self.0.borrow().entries, None, false);
             gtk_menu.popup_at_rect(
                 &window,
                 &gdk::Rectangle::new(x as _, y as _, 0, 0),
@@ -508,7 +501,7 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, accel_group, menu_id) in items {
-                            add_gtk_submenu(menu, accel_group, *menu_id, entry, op, true);
+                            add_gtk_submenu(menu, Some(accel_group), *menu_id, entry, op, true);
                         }
                     }
                     entry
@@ -518,7 +511,14 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, accel_group, menu_id) in items {
-                            add_gtk_text_menuitem(menu, *menu_id, entry, accel_group, op, true);
+                            add_gtk_text_menuitem(
+                                menu,
+                                *menu_id,
+                                entry,
+                                Some(accel_group),
+                                op,
+                                true,
+                            );
                         }
                     }
                     entry
@@ -535,7 +535,7 @@ impl Submenu {
                                 menu,
                                 *menu_id,
                                 entry,
-                                accel_group,
+                                Some(accel_group),
                                 op,
                                 true,
                             );
@@ -551,7 +551,14 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, accel_group, menu_id) in items {
-                            add_gtk_text_menuitem(menu, *menu_id, entry, accel_group, op, true);
+                            add_gtk_text_menuitem(
+                                menu,
+                                *menu_id,
+                                entry,
+                                Some(accel_group),
+                                op,
+                                true,
+                            );
                         }
                     }
                     entry
@@ -823,12 +830,11 @@ impl Submenu {
     {
         if let Some(window) = window.window() {
             let gtk_menu = gtk::Menu::new();
-            let accel_group = gtk::AccelGroup::new();
             add_entries_to_gtkmenu(
                 &gtk_menu,
                 0,
                 &self.0.borrow().entries.as_ref().unwrap(),
-                &Rc::new(accel_group),
+                None,
                 false,
             );
             gtk_menu.popup_at_rect(
@@ -1114,7 +1120,7 @@ impl CheckMenuItem {
 
 fn add_gtk_submenu(
     menu: &impl IsA<gtk::MenuShell>,
-    accel_group: &Rc<gtk::AccelGroup>,
+    accel_group: Option<&Rc<gtk::AccelGroup>>,
     menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     op: AddOp,
@@ -1145,7 +1151,7 @@ fn add_gtk_submenu(
     );
     if add_to_store {
         if let MenuItemType::Submenu(store) = &mut entry.type_ {
-            let item = (item, submenu, accel_group.clone(), id);
+            let item = (item, submenu, accel_group.unwrap().clone(), id);
             if let Some(items) = store.get_mut(&menu_id) {
                 items.push(item);
             } else {
@@ -1159,7 +1165,7 @@ fn add_gtk_text_menuitem(
     menu: &impl IsA<gtk::MenuShell>,
     menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
-    accel_group: &gtk::AccelGroup,
+    accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
     add_to_store: bool,
 ) {
@@ -1179,7 +1185,9 @@ fn add_gtk_text_menuitem(
 
         item.show();
         if let Some(accelerator) = &entry.accelerator {
-            register_accelerator(&item, accel_group, accelerator);
+            if let Some(accel_group) = accel_group {
+                register_accelerator(&item, accel_group, accelerator);
+            }
         }
         item.connect_activate(move |_| {
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
@@ -1201,7 +1209,7 @@ fn add_gtk_predefined_menuitm(
     menu: &impl IsA<gtk::MenuShell>,
     menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
-    accel_group: &gtk::AccelGroup,
+    accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
     add_to_store: bool,
 ) {
@@ -1220,7 +1228,9 @@ fn add_gtk_predefined_menuitm(
         };
         let register_accel = |item: &gtk::MenuItem| {
             if let Some(accelerator) = accelerator {
-                register_accelerator(item, accel_group, &accelerator);
+                if let Some(accel_group) = accel_group {
+                    register_accelerator(item, accel_group, &accelerator);
+                }
             }
         };
 
@@ -1316,7 +1326,7 @@ fn add_gtk_check_menuitem(
     menu: &impl IsA<gtk::MenuShell>,
     menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
-    accel_group: &gtk::AccelGroup,
+    accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
     add_to_store: bool,
 ) {
@@ -1330,7 +1340,9 @@ fn add_gtk_check_menuitem(
         .active(entry.checked)
         .build();
     if let Some(accelerator) = &entry.accelerator {
-        register_accelerator(&item, accel_group, accelerator);
+        if let Some(accel_group) = accel_group {
+            register_accelerator(&item, accel_group, accelerator);
+        }
     }
     let id = entry.id;
 
@@ -1384,7 +1396,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     menu: &M,
     menu_id: u32,
     entries: &Vec<Rc<RefCell<MenuEntry>>>,
-    accel_group: &Rc<gtk::AccelGroup>,
+    accel_group: Option<&Rc<gtk::AccelGroup>>,
     add_to_store: bool,
 ) {
     for entry in entries {
@@ -1402,7 +1414,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 menu,
                 menu_id,
                 entry,
-                accel_group,
+                accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
                 add_to_store,
             ),
@@ -1410,7 +1422,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 menu,
                 menu_id,
                 entry,
-                accel_group,
+                accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
                 add_to_store,
             ),
@@ -1418,7 +1430,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 menu,
                 menu_id,
                 entry,
-                accel_group,
+                accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
                 add_to_store,
             ),

@@ -140,7 +140,7 @@ fn main() {
             } => {
                 if window_id == window.id() {
                     #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(window2.hwnd(), x, y);
+                    window_m.show_context_menu_for_hwnd(window.hwnd(), x, y);
                 }
             }
             Event::MainEventsCleared => {
