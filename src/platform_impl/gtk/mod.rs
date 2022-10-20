@@ -110,12 +110,13 @@ impl Menu {
                             *menu_id,
                             entry,
                             op,
+                            true,
                         );
                     }
                 }
 
                 if let Some(menu) = &self.0.borrow().context_menu.1 {
-                    add_gtk_submenu(menu, &None, self.0.borrow().context_menu.0, entry, op);
+                    add_gtk_submenu(menu, &None, self.0.borrow().context_menu.0, entry, op, true);
                 }
 
                 entry
@@ -131,12 +132,20 @@ impl Menu {
                             entry,
                             self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
+                            true,
                         );
                     }
                 }
 
                 if let Some(menu) = &self.0.borrow().context_menu.1 {
-                    add_gtk_text_menuitem(menu, self.0.borrow().context_menu.0, entry, None, op);
+                    add_gtk_text_menuitem(
+                        menu,
+                        self.0.borrow().context_menu.0,
+                        entry,
+                        None,
+                        op,
+                        true,
+                    );
                 }
 
                 entry
@@ -155,6 +164,7 @@ impl Menu {
                             entry,
                             self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
+                            true,
                         );
                     }
                 }
@@ -166,6 +176,7 @@ impl Menu {
                         entry,
                         None,
                         op,
+                        true,
                     );
                 }
 
@@ -185,12 +196,20 @@ impl Menu {
                             entry,
                             self.0.borrow().accel_group.as_ref().map(|a| a.as_ref()),
                             op,
+                            true,
                         )
                     }
                 }
 
                 if let Some(menu) = &self.0.borrow().context_menu.1 {
-                    add_gtk_check_menuitem(menu, self.0.borrow().context_menu.0, entry, None, op);
+                    add_gtk_check_menuitem(
+                        menu,
+                        self.0.borrow().context_menu.0,
+                        entry,
+                        None,
+                        op,
+                        true,
+                    );
                 }
 
                 entry
@@ -446,7 +465,13 @@ impl Menu {
         // Construct the entries of the menubar
         let (menu_bar, vbox) = inner.native_menus.get(&id).unwrap();
         let menu_bar = menu_bar.as_ref().unwrap();
-        add_entries_to_gtkmenu(menu_bar, id, &inner.entries, &inner.accel_group.as_ref());
+        add_entries_to_gtkmenu(
+            menu_bar,
+            id,
+            &inner.entries,
+            &inner.accel_group.as_ref(),
+            true,
+        );
         window.add_accel_group(inner.accel_group.as_ref().unwrap().as_ref());
 
         // Show the menubar on the window
@@ -506,32 +531,15 @@ impl Menu {
 
     pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
         if let Some(window) = window.window() {
-            {
-                let mut self_ = self.0.borrow_mut();
-                if self_.context_menu.1.is_none() {
-                    self_.context_menu.1 = Some(gtk::Menu::new());
-                    add_entries_to_gtkmenu(
-                        self_.context_menu.1.as_ref().unwrap(),
-                        self_.context_menu.0,
-                        &self_.entries,
-                        &None,
-                    );
-                }
-            }
-
-            self.0
-                .borrow()
-                .context_menu
-                .1
-                .as_ref()
-                .unwrap()
-                .popup_at_rect(
-                    &window,
-                    &gdk::Rectangle::new(x as _, y as _, 0, 0),
-                    gdk::Gravity::NorthWest,
-                    gdk::Gravity::NorthWest,
-                    None,
-                );
+            let gtk_menu = gtk::Menu::new();
+            add_entries_to_gtkmenu(&gtk_menu, 0, &self.0.borrow().entries, &None, false);
+            gtk_menu.popup_at_rect(
+                &window,
+                &gdk::Rectangle::new(x as _, y as _, 0, 0),
+                gdk::Gravity::NorthWest,
+                gdk::Gravity::NorthWest,
+                None,
+            );
         }
     }
 
@@ -545,6 +553,7 @@ impl Menu {
                     self_.context_menu.0,
                     &self_.entries,
                     &None,
+                    true,
                 );
             }
         }
@@ -595,12 +604,19 @@ impl Submenu {
                     let entry = &item.0 .0;
                     for items in store.values() {
                         for (_, menu, accel_group, menu_id) in items {
-                            add_gtk_submenu(menu, &accel_group.as_ref(), *menu_id, entry, op);
+                            add_gtk_submenu(menu, &accel_group.as_ref(), *menu_id, entry, op, true);
                         }
                     }
 
                     if let Some(menu) = &self.0.borrow().context_menu.1 {
-                        add_gtk_submenu(menu, &None, self.0.borrow().context_menu.0, entry, op);
+                        add_gtk_submenu(
+                            menu,
+                            &None,
+                            self.0.borrow().context_menu.0,
+                            entry,
+                            op,
+                            true,
+                        );
                     }
 
                     entry
@@ -616,6 +632,7 @@ impl Submenu {
                                 entry,
                                 accel_group.as_ref().map(|a| a.as_ref()),
                                 op,
+                                true,
                             );
                         }
                     }
@@ -627,6 +644,7 @@ impl Submenu {
                             entry,
                             None,
                             op,
+                            true,
                         );
                     }
                     entry
@@ -645,6 +663,7 @@ impl Submenu {
                                 entry,
                                 accel_group.as_ref().map(|a| a.as_ref()),
                                 op,
+                                true,
                             );
                         }
                     }
@@ -656,6 +675,7 @@ impl Submenu {
                             entry,
                             None,
                             op,
+                            true,
                         );
                     }
 
@@ -675,6 +695,7 @@ impl Submenu {
                                 entry,
                                 accel_group.as_ref().map(|a| a.as_ref()),
                                 op,
+                                true,
                             );
                         }
                     }
@@ -686,6 +707,7 @@ impl Submenu {
                             entry,
                             None,
                             op,
+                            true,
                         );
                     }
                     entry
@@ -988,32 +1010,21 @@ impl Submenu {
 
     pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
         if let Some(window) = window.window() {
-            {
-                let mut self_ = self.0.borrow_mut();
-                if self_.context_menu.1.is_none() {
-                    self_.context_menu.1 = Some(gtk::Menu::new());
-                    add_entries_to_gtkmenu(
-                        self_.context_menu.1.as_ref().unwrap(),
-                        self_.context_menu.0,
-                        self_.entries.as_ref().unwrap(),
-                        &None,
-                    );
-                }
-            }
-
-            self.0
-                .borrow()
-                .context_menu
-                .1
-                .as_ref()
-                .unwrap()
-                .popup_at_rect(
-                    &window,
-                    &gdk::Rectangle::new(x as _, y as _, 0, 0),
-                    gdk::Gravity::NorthWest,
-                    gdk::Gravity::NorthWest,
-                    None,
-                );
+            let gtk_menu = gtk::Menu::new();
+            add_entries_to_gtkmenu(
+                &gtk_menu,
+                0,
+                self.0.borrow().entries.as_ref().unwrap(),
+                &None,
+                false,
+            );
+            gtk_menu.popup_at_rect(
+                &window,
+                &gdk::Rectangle::new(x as _, y as _, 0, 0),
+                gdk::Gravity::NorthWest,
+                gdk::Gravity::NorthWest,
+                None,
+            );
         }
     }
 
@@ -1027,6 +1038,7 @@ impl Submenu {
                     self_.context_menu.0,
                     self_.entries.as_ref().unwrap(),
                     &None,
+                    true,
                 );
             }
         }
@@ -1311,6 +1323,7 @@ fn add_gtk_submenu(
     menu_id: u32,
     entry: &Rc<RefCell<MenuEntry>>,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let mut entry = entry.borrow_mut();
     let submenu = gtk::Menu::new();
@@ -1328,7 +1341,13 @@ fn add_gtk_submenu(
 
     item.show();
     let id = COUNTER.next();
-    add_entries_to_gtkmenu(&submenu, id, entry.entries.as_ref().unwrap(), accel_group);
+    add_entries_to_gtkmenu(
+        &submenu,
+        id,
+        entry.entries.as_ref().unwrap(),
+        accel_group,
+        add_to_store,
+    );
     if let MenuItemType::Submenu(store) = &mut entry.type_ {
         let item = (item, submenu, accel_group.map(|a| a.clone()), id);
         if let Some(items) = store.get_mut(&menu_id) {
@@ -1345,6 +1364,7 @@ fn add_gtk_text_menuitem(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let mut entry = entry.borrow_mut();
     if let MenuItemType::Normal(_) = &entry.type_ {
@@ -1370,11 +1390,13 @@ fn add_gtk_text_menuitem(
             let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
         });
 
-        if let MenuItemType::Normal(store) = &mut entry.type_ {
-            if let Some(items) = store.get_mut(&menu_id) {
-                items.push(item);
-            } else {
-                store.insert(menu_id, vec![item]);
+        if add_to_store {
+            if let MenuItemType::Normal(store) = &mut entry.type_ {
+                if let Some(items) = store.get_mut(&menu_id) {
+                    items.push(item);
+                } else {
+                    store.insert(menu_id, vec![item]);
+                }
             }
         }
     }
@@ -1386,6 +1408,7 @@ fn add_gtk_predefined_menuitm(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let mut entry = entry.borrow_mut();
     let text = entry.text.clone();
@@ -1485,10 +1508,12 @@ fn add_gtk_predefined_menuitm(
             }
             item.show();
 
-            if let Some(items) = store.get_mut(&menu_id) {
-                items.push(item);
-            } else {
-                store.insert(menu_id, vec![item]);
+            if add_to_store {
+                if let Some(items) = store.get_mut(&menu_id) {
+                    items.push(item);
+                } else {
+                    store.insert(menu_id, vec![item]);
+                }
             }
         }
     }
@@ -1500,6 +1525,7 @@ fn add_gtk_check_menuitem(
     entry: &Rc<RefCell<MenuEntry>>,
     accel_group: Option<&gtk::AccelGroup>,
     op: AddOp,
+    add_to_store: bool,
 ) {
     let entry_c = entry.clone();
     let mut entry = entry.borrow_mut();
@@ -1552,11 +1578,13 @@ fn add_gtk_check_menuitem(
 
     item.show();
 
-    if let MenuItemType::Check { store, .. } = &mut entry.type_ {
-        if let Some(items) = store.get_mut(&menu_id) {
-            items.push(item);
-        } else {
-            store.insert(menu_id, vec![item]);
+    if add_to_store {
+        if let MenuItemType::Check { store, .. } = &mut entry.type_ {
+            if let Some(items) = store.get_mut(&menu_id) {
+                items.push(item);
+            } else {
+                store.insert(menu_id, vec![item]);
+            }
         }
     }
 }
@@ -1566,19 +1594,26 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
     menu_id: u32,
     entries: &Vec<Rc<RefCell<MenuEntry>>>,
     accel_group: &Option<&Rc<gtk::AccelGroup>>,
+    add_to_store: bool,
 ) {
     for entry in entries {
         let type_ = entry.borrow().type_.clone();
         match type_ {
-            MenuItemType::Submenu(_) => {
-                add_gtk_submenu(menu, accel_group, menu_id, entry, AddOp::Append)
-            }
+            MenuItemType::Submenu(_) => add_gtk_submenu(
+                menu,
+                accel_group,
+                menu_id,
+                entry,
+                AddOp::Append,
+                add_to_store,
+            ),
             MenuItemType::Normal(_) => add_gtk_text_menuitem(
                 menu,
                 menu_id,
                 entry,
                 accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
+                add_to_store,
             ),
             MenuItemType::Predefined(_, _) => add_gtk_predefined_menuitm(
                 menu,
@@ -1586,6 +1621,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 entry,
                 accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
+                add_to_store,
             ),
             MenuItemType::Check { .. } => add_gtk_check_menuitem(
                 menu,
@@ -1593,6 +1629,7 @@ fn add_entries_to_gtkmenu<M: IsA<gtk::MenuShell>>(
                 entry,
                 accel_group.map(|a| a.as_ref()),
                 AddOp::Append,
+                add_to_store,
             ),
         }
     }
