@@ -157,10 +157,10 @@ pub trait ContextMenu {
     ///
     /// `x` and `y` is relatvie to the window top-left corner
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>;
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
+    /// Get the underlying gtk menu reserved for context menus.
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu;
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -214,12 +214,13 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
         self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.0.gtk_context_menu()
     }
 }
 
@@ -467,12 +468,13 @@ impl ContextMenu for Submenu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
         self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.0.gtk_context_menu()
     }
 }
 
