@@ -74,19 +74,19 @@ impl Menu {
         })))
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let entry = match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -171,7 +171,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -252,7 +252,7 @@ impl Menu {
         self.0.borrow_mut().entries.remove(index);
     }
 
-    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItem) {
+    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItemExt) {
         match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -316,12 +316,12 @@ impl Menu {
         }
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         self.0
             .borrow()
             .entries
             .iter()
-            .map(|e| -> Box<dyn crate::MenuItem> {
+            .map(|e| -> Box<dyn crate::MenuItemExt> {
                 let entry = e.borrow();
                 match entry.type_ {
                     MenuItemType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),
@@ -487,19 +487,19 @@ impl Submenu {
         self.0.borrow().id
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItem) {
+    pub fn append(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Append)
     }
 
-    pub fn prepend(&self, item: &dyn crate::MenuItem) {
+    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
         self.add_menu_item(item, AddOp::Insert(0))
     }
 
-    pub fn insert(&self, item: &dyn crate::MenuItem, position: usize) {
+    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
         self.add_menu_item(item, AddOp::Insert(position))
     }
 
-    fn add_menu_item(&self, item: &dyn crate::MenuItem, op: AddOp) {
+    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let type_ = self.0.borrow().type_.clone();
         if let MenuItemType::Submenu(store) = &type_ {
             let entry = match item.type_() {
@@ -568,7 +568,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItem) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
         if let MenuItemType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
                 crate::MenuItemType::Submenu => {
@@ -656,7 +656,7 @@ impl Submenu {
         self.0.borrow_mut().entries.as_mut().unwrap().remove(index);
     }
 
-    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItem) {
+    fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItemExt) {
         if let MenuItemType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
                 crate::MenuItemType::Submenu => {
@@ -726,14 +726,14 @@ impl Submenu {
         }
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::MenuItem>> {
+    pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
         self.0
             .borrow()
             .entries
             .as_ref()
             .unwrap()
             .iter()
-            .map(|e| -> Box<dyn crate::MenuItem> {
+            .map(|e| -> Box<dyn crate::MenuItemExt> {
                 let entry = e.borrow();
                 match entry.type_ {
                     MenuItemType::Submenu(_) => Box::new(crate::Submenu(Submenu(e.clone()))),

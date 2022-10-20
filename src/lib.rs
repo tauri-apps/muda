@@ -157,7 +157,7 @@ pub trait ContextMenu {
     ///
     /// `x` and `y` is relatvie to the window top-left corner
     #[cfg(target_os = "linux")]
-    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
+    fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Widget>;
@@ -446,6 +446,7 @@ unsafe impl MenuItemExt for Submenu {
 }
 
 impl ContextMenu for Submenu {
+    #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
         self.0.hpopupmenu()
     }
