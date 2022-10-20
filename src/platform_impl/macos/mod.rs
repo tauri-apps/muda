@@ -55,7 +55,7 @@ impl MenuChild {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.text = text.to_string().replace("&", "");
+        self.text = strip_mnemonic(text);
         unsafe {
             let title = NSString::alloc(nil).init_str(&self.text);
             for (_, ns_items) in &self.ns_menu_items {
@@ -248,7 +248,7 @@ pub(crate) struct Submenu(Rc<RefCell<MenuChild>>);
 impl Submenu {
     pub fn new(text: &str, enabled: bool) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
-            text: text.to_string().replace("&", ""),
+            text: strip_mnemonic(text),
             enabled,
             submenu: Some(Menu::new()),
             ..Default::default()
@@ -336,7 +336,7 @@ impl MenuItem {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self(Rc::new(RefCell::new(MenuChild {
             type_: MenuItemType::Normal,
-            text: text.to_string().replace("&", ""),
+            text: strip_mnemonic(text),
             enabled,
             id: COUNTER.next(),
             accelerator,
@@ -389,9 +389,7 @@ pub(crate) struct PredefinedMenuItem(Rc<RefCell<MenuChild>>);
 
 impl PredefinedMenuItem {
     pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
-        let text = text
-            .unwrap_or_else(|| item_type.text().to_string())
-            .replace("&", "");
+        let text = strip_mnemonic(text.unwrap_or_else(|| item_type.text().to_string()));
         let accelerator = item_type.accelerator();
 
         Self(Rc::new(RefCell::new(MenuChild {
@@ -569,4 +567,12 @@ fn create_ns_menu_item(title: &str, selector: Sel, accelerator: &Option<Accelera
 
         ns_menu_item
     }
+}
+
+fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
+    string
+        .as_ref()
+        .replace("&&", "[~~]")
+        .replace('&', "")
+        .replace("[~~]", "&")
 }

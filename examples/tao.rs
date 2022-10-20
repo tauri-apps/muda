@@ -122,7 +122,7 @@ fn main() {
 
     file_m.set_text("Hello World");
 
-    custom_i_2.set_text("Foo Bar");
+    custom_i_2.set_text("Foo && Bar");
     check_custom_i_2.set_checked(false);
     check_custom_i_3.set_enabled(false);
 
