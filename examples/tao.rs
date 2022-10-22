@@ -1,7 +1,8 @@
 #![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu,
+    menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, Menu, MenuItem,
+    PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
@@ -103,7 +104,7 @@ fn main() {
             None,
             Some(AboutMetadata {
                 name: Some("tao".to_string()),
-                copyright: Some("Copyright TAO".to_string()),
+                copyright: Some("Copyright tao".to_string()),
                 ..Default::default()
             }),
         ),
@@ -180,6 +181,8 @@ fn main() {
                 if window_id == window2.id() {
                     #[cfg(target_os = "windows")]
                     window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
+                    #[cfg(target_os = "linux")]
+                    window_m.show_context_menu_for_gtk_window(window2.gtk_window(), x, y);
                     #[cfg(target_os = "macos")]
                     menu_bar.show_context_menu_for_nsview(window2.ns_view() as _);
                 }

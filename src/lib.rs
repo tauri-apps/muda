@@ -136,6 +136,51 @@ pub unsafe trait MenuItemExt {
     fn id(&self) -> u32;
 }
 
+pub trait ContextMenu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU;
+
+    /// Shows this menu as a context menu inside a win32 window.
+    ///
+    /// `x` and `y` are relative to the window's top-left corner.
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
+
+    /// Attach the menu subclass handler to the given hwnd
+    /// so you can recieve events from that window using [menu_event_receiver]
+    ///
+    /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize);
+
+    /// Remove the menu subclass handler from the given hwnd
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
+
+    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    ///
+    /// `x` and `y` are relative to the window's top-left corner.
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
+    /// Get the underlying gtk menu reserved for context menus.
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu;
+
+    /// Shows this menu as a context menu for the specified `NSView`.
+    ///
+    /// The menu will be shown at the coordinates of the current event
+    /// (the click which triggered the menu to be shown).
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id);
+ }
+
+/// Describes a menu event emitted when a menu item is activated
+#[derive(Debug)]
+pub struct MenuEvent {
+    /// Id of the menu item which triggered this event
+    pub id: u32,
+}
+
 /// A reciever that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 
@@ -147,13 +192,6 @@ pub fn menu_event_receiver<'a>() -> &'a MenuEventReceiver {
     &MENU_CHANNEL.1
 }
 
-/// Describes a menu event emitted when a menu item is activated
-#[derive(Debug)]
-pub struct MenuEvent {
-    /// Id of the menu item which triggered this event
-    pub id: u32,
-}
-
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
 #[derive(Clone)]
@@ -162,6 +200,43 @@ pub struct Menu(platform_impl::Menu);
 impl Default for Menu {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl ContextMenu for Menu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
+        self.0.hpopupmenu()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        self.0.attach_menu_subclass_for_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        self.0.detach_menu_subclass_from_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.0.gtk_context_menu()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
     }
 }
 
@@ -363,35 +438,6 @@ impl Menu {
         self.0.show_for_hwnd(hwnd)
     }
 
-    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
-    ///
-    /// `x` and `y` are relative to the window's top-left corner.
-    #[cfg(target_os = "linux")]
-    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
-        self.0.show_context_menu_for_gtk_window(w, x, y)
-    }
-
-    /// Shows this menu as a context menu inside a win32 window.
-    ///
-    /// `x` and `y` are relative to the window's top-left corner.
-    #[cfg(target_os = "windows")]
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.show_context_menu_for_hwnd(hwnd, x, y)
-    }
-
-    /// Shows this menu as a context menu for the specified `NSView`.
-    ///
-    /// The menu will be shown at the coordinates of the current event
-    /// (the click which triggered the menu to be shown).
-    #[cfg(target_os = "macos")]
-    pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
-        self.0.show_context_menu_for_nsview(view)
-    }
-
     /// Adds this menu as the application menu bar for the current application.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
@@ -419,6 +465,43 @@ unsafe impl MenuItemExt for Submenu {
 
     fn id(&self) -> u32 {
         self.id()
+    }
+}
+
+impl ContextMenu for Submenu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
+        self.0.hpopupmenu()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        self.0.attach_menu_subclass_for_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        self.0.detach_menu_subclass_from_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.0.gtk_context_menu()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
     }
 }
 
@@ -510,35 +593,6 @@ impl Submenu {
     /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
-    }
-
-    /// Shows this submenu as a context menu inside a [`gtk::ApplicationWindow`]
-    ///
-    /// `x` and `y` are relative to the window's top-left corner.
-    #[cfg(target_os = "linux")]
-    pub fn show_context_menu_for_gtk_window<W>(&self, w: &W, x: f64, y: f64)
-    where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-    {
-        self.0.show_context_menu_for_gtk_window(w, x, y)
-    }
-
-    /// Shows this submenu as a context menu inside a win32 window.
-    ///
-    /// `x` and `y` are relative to the window's top-left corner.
-    #[cfg(target_os = "windows")]
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.show_context_menu_for_hwnd(hwnd, x, y)
-    }
-
-    /// Shows this menu as a context menu for the specified `NSView`.
-    ///
-    /// The menu will be shown at the coordinates of the current event
-    /// (the click which triggered the menu to be shown).
-    #[cfg(target_os = "macos")]
-    pub fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
-        self.0.show_context_menu_for_nsview(view)
     }
 }
 
