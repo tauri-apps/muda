@@ -1,13 +1,16 @@
 mod accelerator;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 
 use cocoa::{
     appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO, YES},
     foundation::{NSAutoreleasePool, NSInteger, NSString},
 };
-use objc::runtime::{Object, Sel};
+use objc::{
+    declare::ClassDecl,
+    runtime::{Class, Object, Sel},
+};
 
 use crate::{
     accelerator::Accelerator,
@@ -17,6 +20,7 @@ use crate::{
 };
 
 static COUNTER: Counter = Counter::new();
+static BLOCK_PTR: &str = "mudaMenuItemBlockPtr";
 
 /// A generic child in a menu
 ///
@@ -57,7 +61,7 @@ impl MenuChild {
     pub fn set_text(&mut self, text: &str) {
         self.text = strip_mnemonic(text);
         unsafe {
-            let title = NSString::alloc(nil).init_str(&self.text);
+            let title = NSString::alloc(nil).init_str(&self.text).autorelease();
             for (_, ns_items) in &self.ns_menu_items {
                 for &ns_item in ns_items {
                     let () = msg_send![ns_item, setTitle: title];
@@ -261,14 +265,15 @@ impl Submenu {
 
     pub fn make_ns_item_for_menu(&self, menu: &Menu) -> id {
         let mut child = self.0.borrow_mut();
-
-        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
+        let ns_menu_item: *mut Object;
 
         unsafe {
+            ns_menu_item = NSMenuItem::alloc(nil).autorelease();
             let submenu = child.submenu.as_ref().unwrap();
             let ns_submenu = submenu.ns_menu;
-            let title = NSString::alloc(nil).init_str(&child.text);
+            let title = NSString::alloc(nil).init_str(&child.text).autorelease();
             let () = msg_send![ns_submenu, setTitle: title];
+            let () = msg_send![ns_menu_item, setTitle: title];
             let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
 
             if !child.enabled {
@@ -347,10 +352,17 @@ impl MenuItem {
     pub fn make_ns_item_for_menu(&self, menu: &Menu) -> id {
         let mut child = self.0.borrow_mut();
 
-        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenubarAction:), &child.accelerator);
+        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenuItemAction:), &child.accelerator);
 
-        if !child.enabled {
-            unsafe {
+        unsafe {
+            let _: () = msg_send![ns_menu_item, setTarget:ns_menu_item];
+            let _: () = msg_send![ns_menu_item, setTag:child.id()];
+
+            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
+            let ptr = Box::into_raw(Box::new(&*child));
+            (&mut *ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+
+            if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
@@ -469,11 +481,18 @@ impl CheckMenuItem {
 
         let ns_menu_item = create_ns_menu_item(
             &child.text,
-            sel!(fireMenubarAction:),
+            sel!(fireMenuItemAction:),
             &child.accelerator,
         );
 
         unsafe {
+            let _: () = msg_send![ns_menu_item, setTarget:ns_menu_item];
+            let _: () = msg_send![ns_menu_item, setTag:child.id()];
+
+            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
+            let ptr = Box::into_raw(Box::new(&*child));
+            (&mut *ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+
             if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
@@ -526,7 +545,7 @@ impl PredfinedMenuItemType {
             PredfinedMenuItemType::Cut => selector("cut:"),
             PredfinedMenuItemType::Paste => selector("paste:"),
             PredfinedMenuItemType::SelectAll => selector("selectAll:"),
-            PredfinedMenuItemType::Undo => selector("undow:"),
+            PredfinedMenuItemType::Undo => selector("undo:"),
             PredfinedMenuItemType::Redo => selector("redo:"),
             PredfinedMenuItemType::Separator => selector(""),
             PredfinedMenuItemType::Minimize => selector("performMiniaturize:"),
@@ -544,28 +563,92 @@ impl PredfinedMenuItemType {
     }
 }
 
+fn make_menu_item_class() -> *const Class {
+    static mut APP_CLASS: *const Class = 0 as *const Class;
+    static INIT: Once = Once::new();
+
+    // The first time the function is called,
+    INIT.call_once(|| unsafe {
+        let superclass = class!(NSMenuItem);
+        let mut decl = ClassDecl::new("MudaMenuItem", superclass).unwrap();
+
+        // An instance variable which will hold a pointer to the `MenuChild`
+        decl.add_ivar::<usize>(BLOCK_PTR);
+
+        decl.add_method(
+            sel!(dealloc),
+            dealloc_custom_menuitem as extern "C" fn(&Object, _),
+        );
+
+        decl.add_method(
+            sel!(fireMenuItemAction:),
+            fire_menu_item_click as extern "C" fn(&Object, _, id),
+        );
+
+        APP_CLASS = decl.register();
+    });
+
+    unsafe { APP_CLASS }
+}
+
+extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
+    unsafe {
+        let ptr: usize = *this.get_ivar(BLOCK_PTR);
+        let obj = ptr as *mut &mut MenuChild;
+        if !obj.is_null() {
+            // `Box::from_raw` takes ownership of the raw pointer,
+            // and when dropped it will free the allocated memory.
+            let _ = Box::from_raw(obj);
+        }
+        let _: () = msg_send![super(this, class!(NSMenuItem)), dealloc];
+    }
+}
+
+extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
+    unsafe {
+        let id: u32 = msg_send![this, tag];
+
+        // Create a reference to the `MenuChild` from the raw pointer
+        // stored as an instance variable on the native menu item
+        let ptr: usize = *this.get_ivar(BLOCK_PTR);
+        let obj = ptr as *mut &mut MenuChild;
+        if !obj.is_null() {
+            let item = Box::from_raw(obj);
+
+            if item.type_ == MenuItemType::Check {
+                item.set_checked(!item.is_checked());
+            }
+
+            // `Box::from_raw` takes ownership of the raw pointer, so we need to
+            // prevent it from being dropped at the end of the scope.
+            let _ = Box::leak(item);
+        }
+
+        let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+    }
+}
+
 fn create_ns_menu_item(title: &str, selector: Sel, accelerator: &Option<Accelerator>) -> id {
     unsafe {
-        let title = NSString::alloc(nil).init_str(title);
+        let title = NSString::alloc(nil).init_str(title).autorelease();
 
         let key_equivalent = accelerator
             .clone()
             .map(|accel| accel.key_equivalent())
             .unwrap_or_else(|| "".into());
-        let key_equivalent = NSString::alloc(nil).init_str(key_equivalent.as_str());
+        let key_equivalent = NSString::alloc(nil).init_str(key_equivalent.as_str()).autorelease();
 
         let modifier_mask = accelerator
             .clone()
             .map(|accel| accel.key_modifier_mask())
             .unwrap_or_else(NSEventModifierFlags::empty);
 
-        let ns_menu_item = NSMenuItem::alloc(nil)
-            .autorelease()
-            .initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
+        let ns_menu_item: *mut Object = msg_send![make_menu_item_class(), alloc];
 
+        ns_menu_item.initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
         ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
 
-        ns_menu_item
+        ns_menu_item.autorelease()
     }
 }
 
