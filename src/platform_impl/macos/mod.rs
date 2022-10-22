@@ -1,4 +1,5 @@
 mod accelerator;
+mod util;
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 
@@ -12,11 +13,12 @@ use objc::{
     runtime::{Class, Object, Sel},
 };
 
+use self::util::{app_name_string, strip_mnemonic};
 use crate::{
     accelerator::Accelerator,
-    MenuItemType,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
+    MenuItemType,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -401,7 +403,12 @@ pub(crate) struct PredefinedMenuItem(Rc<RefCell<MenuChild>>);
 
 impl PredefinedMenuItem {
     pub fn new(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
-        let text = strip_mnemonic(text.unwrap_or_else(|| item_type.text().to_string()));
+        let text = strip_mnemonic(text.unwrap_or_else(|| match item_type {
+            PredfinedMenuItemType::About(_) => format!("About {}", unsafe { app_name_string() }.unwrap_or_default()).trim().to_string(),
+            PredfinedMenuItemType::Hide => format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default()).trim().to_string(),
+            PredfinedMenuItemType::Quit => format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default()).trim().to_string(),
+            _ => item_type.text().to_string(),
+        }));
         let accelerator = item_type.accelerator();
 
         Self(Rc::new(RefCell::new(MenuChild {
@@ -650,12 +657,4 @@ fn create_ns_menu_item(title: &str, selector: Sel, accelerator: &Option<Accelera
 
         ns_menu_item.autorelease()
     }
-}
-
-fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
-    string
-        .as_ref()
-        .replace("&&", "[~~]")
-        .replace('&', "")
-        .replace("[~~]", "&")
 }
