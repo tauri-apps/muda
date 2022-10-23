@@ -366,7 +366,7 @@ impl MenuItem {
     pub fn make_ns_item_for_menu(&self, menu: &Menu) -> id {
         let mut child = self.0.borrow_mut();
 
-        let ns_menu_item = create_ns_menu_item(&child.text, sel!(fireMenuItemAction:), &child.accelerator);
+        let ns_menu_item = create_ns_menu_item(&child.text, Some(sel!(fireMenuItemAction:)), &child.accelerator);
 
         unsafe {
             let _: () = msg_send![ns_menu_item, setTarget:ns_menu_item];
@@ -500,7 +500,7 @@ impl CheckMenuItem {
 
         let ns_menu_item = create_ns_menu_item(
             &child.text,
-            sel!(fireMenuItemAction:),
+            Some(sel!(fireMenuItemAction:)),
             &child.accelerator,
         );
 
@@ -558,26 +558,26 @@ impl CheckMenuItem {
 }
 
 impl PredfinedMenuItemType {
-    pub(crate) fn selector(&self) -> Sel {
+    pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
-            PredfinedMenuItemType::Copy => selector("copy:"),
-            PredfinedMenuItemType::Cut => selector("cut:"),
-            PredfinedMenuItemType::Paste => selector("paste:"),
-            PredfinedMenuItemType::SelectAll => selector("selectAll:"),
-            PredfinedMenuItemType::Undo => selector("undo:"),
-            PredfinedMenuItemType::Redo => selector("redo:"),
-            PredfinedMenuItemType::Separator => selector(""),
-            PredfinedMenuItemType::Minimize => selector("performMiniaturize:"),
-            PredfinedMenuItemType::Maximize => selector("performZoom:"),
-            PredfinedMenuItemType::Fullscreen => selector("toggleFullScreen:"),
-            PredfinedMenuItemType::Hide => selector("hide:"),
-            PredfinedMenuItemType::HideOthers => selector("hideOtherApplications:"),
-            PredfinedMenuItemType::ShowAll => selector("unhideAllApplications:"),
-            PredfinedMenuItemType::CloseWindow => selector("performClose:"),
-            PredfinedMenuItemType::Quit => selector("terminate:"),
-            PredfinedMenuItemType::About(_) => selector("orderFrontStandardAboutPanel:"),
-            PredfinedMenuItemType::Services => selector(""),
-            PredfinedMenuItemType::None => selector(""),
+            PredfinedMenuItemType::Separator => None,
+            PredfinedMenuItemType::Copy => Some(selector("copy:")),
+            PredfinedMenuItemType::Cut => Some(selector("cut:")),
+            PredfinedMenuItemType::Paste => Some(selector("paste:")),
+            PredfinedMenuItemType::SelectAll => Some(selector("selectAll:")),
+            PredfinedMenuItemType::Undo => Some(selector("undo:")),
+            PredfinedMenuItemType::Redo => Some(selector("redo:")),
+            PredfinedMenuItemType::Minimize => Some(selector("performMiniaturize:")),
+            PredfinedMenuItemType::Maximize => Some(selector("performZoom:")),
+            PredfinedMenuItemType::Fullscreen => Some(selector("toggleFullScreen:")),
+            PredfinedMenuItemType::Hide => Some(selector("hide:")),
+            PredfinedMenuItemType::HideOthers => Some(selector("hideOtherApplications:")),
+            PredfinedMenuItemType::ShowAll => Some(selector("unhideAllApplications:")),
+            PredfinedMenuItemType::CloseWindow => Some(selector("performClose:")),
+            PredfinedMenuItemType::Quit => Some(selector("terminate:")),
+            PredfinedMenuItemType::About(_) => Some(selector("orderFrontStandardAboutPanel:")),
+            PredfinedMenuItemType::Services => None,
+            PredfinedMenuItemType::None => None,
         }
     }
 }
@@ -647,9 +647,11 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
     }
 }
 
-fn create_ns_menu_item(title: &str, selector: Sel, accelerator: &Option<Accelerator>) -> id {
+fn create_ns_menu_item(title: &str, selector: Option<Sel>, accelerator: &Option<Accelerator>) -> id {
     unsafe {
         let title = NSString::alloc(nil).init_str(title).autorelease();
+
+        let selector = selector.unwrap_or(Sel::from_ptr(std::ptr::null()));
 
         let key_equivalent = accelerator
             .clone()
