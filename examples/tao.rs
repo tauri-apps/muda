@@ -59,9 +59,11 @@ fn main() {
 
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
+    let test_m = Submenu::new("&Test", true);
     let window_m = Submenu::new("&Window", true);
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    menu_bar.insert(&test_m, 3);
 
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
@@ -83,19 +85,30 @@ fn main() {
     let paste_i = PredefinedMenuItem::paste(None);
     let select_i = PredefinedMenuItem::select_all(None);
 
+    let submenu_m = Submenu::new("Submenu", true);
+    submenu_m.append_items(&[
+        &MenuItem::new("Submenu Item 1", true, None),
+        &MenuItem::new("Submenu Item 2", true, None),
+    ]);
+
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
         // &window_m,
         &PredefinedMenuItem::separator(),
+        &submenu_m,
         &check_custom_i_1,
     ]);
 
     window_m.append_items(&[
-        &check_custom_i_2,
         &PredefinedMenuItem::minimize(None),
         &PredefinedMenuItem::maximize(None),
         &PredefinedMenuItem::close_window(Some("Close")),
+        &PredefinedMenuItem::fullscreen(None),
+    ]);
+
+    test_m.append_items(&[
+        &check_custom_i_2,
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
         &select_i,
@@ -113,13 +126,12 @@ fn main() {
         &custom_i_1,
     ]);
 
-    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &cut_i]);
+    test_m.insert(&cut_i, 2);
+    test_m.remove(&select_i);
 
-    edit_m.prepend(&paste_i);
+    edit_m.append_items(&[&copy_i, &paste_i, &PredefinedMenuItem::separator()]);
+    edit_m.prepend(&cut_i);
     edit_m.append(&select_i);
-
-    window_m.insert(&cut_i, 2);
-    window_m.remove(&select_i);
 
     file_m.set_text("Hello World");
 
@@ -140,6 +152,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     {
         menu_bar.init_for_nsapp();
+        window_m.set_windows_menu_for_nsapp();
     }
 
     let menu_channel = menu_event_receiver();

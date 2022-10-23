@@ -334,6 +334,18 @@ impl Submenu {
     pub fn show_context_menu_for_nsview(&self, view: id) {
         self.0.borrow_mut().submenu.as_ref().unwrap().show_context_menu_for_nsview(view)
     }
+
+    pub fn set_windows_menu_for_nsapp(&self) {
+        unsafe {
+            NSApp().setWindowsMenu_(self.0.borrow().submenu.as_ref().unwrap().ns_menu)
+        }
+    }
+
+    pub fn set_help_menu_for_nsapp(&self) {
+        unsafe {
+            msg_send![NSApp(), setHelpMenu: self.0.borrow().submenu.as_ref().unwrap().ns_menu]
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
