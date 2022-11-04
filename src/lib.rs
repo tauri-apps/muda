@@ -172,7 +172,7 @@ pub trait ContextMenu {
     /// (the click which triggered the menu to be shown).
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id);
- }
+}
 
 /// Describes a menu event emitted when a menu item is activated
 #[derive(Debug)]

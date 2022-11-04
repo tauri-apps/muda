@@ -94,7 +94,7 @@ fn main() {
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
-        // &window_m,
+        &window_m,
         &PredefinedMenuItem::separator(),
         &submenu_m,
         &check_custom_i_1,
@@ -108,6 +108,7 @@ fn main() {
     ]);
 
     test_m.append_items(&[
+        &check_custom_i_1,
         &check_custom_i_2,
         &PredefinedMenuItem::separator(),
         &PredefinedMenuItem::quit(None),
