@@ -6,20 +6,17 @@
 //!
 //! # Examples
 //! They can be created directly
-//! ```
+//! ```no_run
 //! # use muda::accelerator::{Accelerator, Modifiers, Code};
-//! #
 //! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
 //! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
-//! ```
+//! ```no_run
 //! # use muda::accelerator::{Accelerator};
-//! #
 //! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
-//! #
 //! # // This assert exists to ensure a test breaks once the
 //! # // statement above about ordering is no longer valid.
 //! # assert!("shift+KeyQ+alt".parse::<Accelerator>().is_err());

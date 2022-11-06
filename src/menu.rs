@@ -173,7 +173,7 @@ impl Menu {
     /// with the [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) returned from [`Menu::haccel`]
     ///
     /// #### Example:
-    /// ```
+    /// ```no_run
     /// # use muda::Menu;
     /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW, TranslateAcceleratorW};
     /// let menu = Menu::new();

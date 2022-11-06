@@ -45,12 +45,12 @@
 //! You can also use a [`Menu`] or a [`Submenu`] show a context menu.
 //!
 //! ```no_run
+//! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
 //! # let nsview = 0;
-//! use muda::ContextMenu;
 //! // --snip--
 //! let x = 100.0;
 //! let y = 120.0;
@@ -118,13 +118,13 @@ impl Default for MenuItemType {
     }
 }
 
-// TODO(amrbashir): first person to replace this trait with an enum while keeping `Menu.append_items`
-// taking mix of types (`MenuItem`, `CheckMenuItem`, `Submenu`...etc) in the same call, gets a cookie.
 /// A trait that defines a generic item in a menu, which may be one of [MenuItemType]
 ///
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally.
+// TODO(amrbashir): first person to replace this trait with an enum while keeping `Menu.append_items`
+// taking mix of types (`MenuItem`, `CheckMenuItem`, `Submenu`...etc) in the same call, gets a cookie.
 pub unsafe trait MenuItemExt {
     /// Get the type of this menu entry
     fn type_(&self) -> MenuItemType;
@@ -136,7 +136,7 @@ pub unsafe trait MenuItemExt {
     ///
     /// ## Example
     ///
-    /// ```
+    /// ```no_run
     /// # use muda::{Submenu, MenuItem};
     /// let submenu = Submenu::new("Submenu", true);
     /// let item = MenuItem::new("Text", true, None);
