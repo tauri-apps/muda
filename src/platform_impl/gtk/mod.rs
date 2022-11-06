@@ -30,6 +30,8 @@ pub(crate) struct MenuEntry {
     context_menu: (u32, Option<gtk::Menu>),
 }
 
+type GtkSubmenusStore = Vec<(gtk::MenuItem, gtk::Menu, Option<Rc<gtk::AccelGroup>>, u32)>;
+
 /// Be careful when cloning this type, use it only to match against the enum
 /// and don't mutate the vectors but it is fine to clone it and
 /// call the gtk methods on the elements
@@ -40,7 +42,7 @@ enum MenuItemType {
     // keeps a hashmap where the key is the id of its parent menu or menubar
     // and the value is a vector of a [`gtk::MenuItem`] and related data for this item inside
     // that parent menu
-    Submenu(HashMap<u32, Vec<(gtk::MenuItem, gtk::Menu, Option<Rc<gtk::AccelGroup>>, u32)>>),
+    Submenu(HashMap<u32, GtkSubmenusStore>),
     Normal(HashMap<u32, Vec<gtk::MenuItem>>),
     Check {
         store: HashMap<u32, Vec<gtk::CheckMenuItem>>,
@@ -489,7 +491,7 @@ impl Menu {
         let id = window.as_ptr() as u32;
         let menu_bar = {
             let inner = self.0.borrow();
-            inner.native_menus.get(&id).map(|m| m.clone())
+            inner.native_menus.get(&id).cloned()
         };
         if let Some((Some(menu_bar), vbox)) = menu_bar {
             for item in self.items() {
@@ -1349,7 +1351,7 @@ fn add_gtk_submenu(
         add_to_store,
     );
     if let MenuItemType::Submenu(store) = &mut entry.type_ {
-        let item = (item, submenu, accel_group.map(|a| a.clone()), id);
+        let item = (item, submenu, accel_group.cloned(), id);
         if let Some(items) = store.get_mut(&menu_id) {
             items.push(item);
         } else {

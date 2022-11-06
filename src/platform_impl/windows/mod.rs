@@ -30,6 +30,8 @@ use windows_sys::Win32::{
 const COUNTER_START: u32 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
 
+type AccelWrapper = (HACCEL, Vec<Accel>);
+
 /// A generic child in a menu
 ///
 /// Be careful when cloning this item and treat it as read-only
@@ -55,7 +57,7 @@ struct MenuChild {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    root_menu_haccel: Option<Vec<Rc<RefCell<(HACCEL, Vec<Accel>)>>>>,
+    root_menu_haccel: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
 }
 
 impl MenuChild {
@@ -67,7 +69,7 @@ impl MenuChild {
     }
     fn text(&self) -> String {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut label = Vec::<u16>::new();
 
@@ -86,7 +88,7 @@ impl MenuChild {
                 let text = decode_wide(info.dwTypeData);
                 text.split('\t').next().unwrap().to_string()
             })
-            .unwrap_or(self.text.clone())
+            .unwrap_or_else(|| self.text.clone())
     }
 
     fn set_text(&mut self, text: &str) {
@@ -103,7 +105,7 @@ impl MenuChild {
 
     fn is_enabled(&self) -> bool {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
@@ -131,7 +133,7 @@ impl MenuChild {
 
     fn is_checked(&self) -> bool {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
@@ -139,7 +141,7 @@ impl MenuChild {
 
                 unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
 
-                !((info.fState & MFS_CHECKED) == 0)
+                (info.fState & MFS_CHECKED) != 0
             })
             .unwrap_or(self.enabled)
     }
@@ -264,7 +266,7 @@ impl Menu {
                 let accel_str = accelerator.to_string();
                 let accel = accelerator.to_accel(child_.id() as u16);
 
-                text.push_str("\t");
+                text.push('\t');
                 text.push_str(&accel_str);
 
                 let mut haccel = self.haccel.borrow_mut();
@@ -598,7 +600,7 @@ impl Submenu {
                 let accel_str = accelerator.to_string();
                 let accel = accelerator.to_accel(child_.id() as u16);
 
-                text.push_str("\t");
+                text.push('\t');
                 text.push_str(&accel_str);
 
                 for root_menu in self_.root_menu_haccel.as_mut().unwrap() {
