@@ -6,20 +6,17 @@
 //!
 //! # Examples
 //! They can be created directly
-//! ```
+//! ```no_run
 //! # use muda::accelerator::{Accelerator, Modifiers, Code};
-//! #
 //! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
 //! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
-//! ```
+//! ```no_run
 //! # use muda::accelerator::{Accelerator};
-//! #
 //! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
-//! #
 //! # // This assert exists to ensure a test breaks once the
 //! # // statement above about ordering is no longer valid.
 //! # assert!("shift+KeyQ+alt".parse::<Accelerator>().is_err());
@@ -66,29 +63,20 @@ impl Accelerator {
 // compatible with tauri and it also open the option
 // to generate accelerator from string
 impl FromStr for Accelerator {
-    type Err = AcceleratorParseError;
+    type Err = crate::Error;
     fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
         parse_accelerator(accelerator_string)
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AcceleratorParseError(String);
-
-impl std::fmt::Display for AcceleratorParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[AcceleratorParseError]: {}", self.0)
-    }
-}
-
-fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, AcceleratorParseError> {
+fn parse_accelerator(accelerator_string: &str) -> crate::Result<Accelerator> {
     let mut mods = Modifiers::empty();
     let mut key = Code::Unidentified;
 
     for raw in accelerator_string.split('+') {
         let token = raw.trim().to_string();
         if token.is_empty() {
-            return Err(AcceleratorParseError(
+            return Err(crate::Error::AcceleratorParseError(
                 "Unexpected empty token while parsing accelerator".into(),
             ));
         }
@@ -99,7 +87,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
             // examples:
             // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
             // 2. "Ctrl+C+Shift" => wrong order
-            return Err(AcceleratorParseError(format!(
+            return Err(crate::Error::AcceleratorParseError(format!(
                 "Unexpected accelerator string format: \"{}\"",
                 accelerator_string
             )));
@@ -128,7 +116,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
                 if let Ok(code) = Code::from_str(token.as_str()) {
                     match code {
                         Code::Unidentified => {
-                            return Err(AcceleratorParseError(format!(
+                            return Err(crate::Error::AcceleratorParseError(format!(
                                 "Couldn't identify \"{}\" as a valid `Code`",
                                 token
                             )))
@@ -136,7 +124,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
                         _ => key = code,
                     }
                 } else {
-                    return Err(AcceleratorParseError(format!(
+                    return Err(crate::Error::AcceleratorParseError(format!(
                         "Couldn't identify \"{}\" as a valid `Code`",
                         token
                     )));

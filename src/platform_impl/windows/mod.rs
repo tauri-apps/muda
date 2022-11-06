@@ -30,6 +30,8 @@ use windows_sys::Win32::{
 const COUNTER_START: u32 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
 
+type AccelWrapper = (HACCEL, Vec<Accel>);
+
 /// A generic child in a menu
 ///
 /// Be careful when cloning this item and treat it as read-only
@@ -55,7 +57,7 @@ struct MenuChild {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    root_menu_haccel: Option<Vec<Rc<RefCell<(HACCEL, Vec<Accel>)>>>>,
+    root_menu_haccel: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
 }
 
 impl MenuChild {
@@ -67,7 +69,7 @@ impl MenuChild {
     }
     fn text(&self) -> String {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut label = Vec::<u16>::new();
 
@@ -86,7 +88,7 @@ impl MenuChild {
                 let text = decode_wide(info.dwTypeData);
                 text.split('\t').next().unwrap().to_string()
             })
-            .unwrap_or(self.text.clone())
+            .unwrap_or_else(|| self.text.clone())
     }
 
     fn set_text(&mut self, text: &str) {
@@ -103,7 +105,7 @@ impl MenuChild {
 
     fn is_enabled(&self) -> bool {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
@@ -131,7 +133,7 @@ impl MenuChild {
 
     fn is_checked(&self) -> bool {
         self.parents_hemnu
-            .get(0)
+            .first()
             .map(|hmenu| {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
@@ -139,7 +141,7 @@ impl MenuChild {
 
                 unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
 
-                !((info.fState & MFS_CHECKED) == 0)
+                (info.fState & MFS_CHECKED) != 0
             })
             .unwrap_or(self.enabled)
     }
@@ -264,7 +266,7 @@ impl Menu {
                 let accel_str = accelerator.to_string();
                 let accel = accelerator.to_accel(child_.id() as u16);
 
-                text.push_str("\t");
+                text.push('\t');
                 text.push_str(&accel_str);
 
                 let mut haccel = self.haccel.borrow_mut();
@@ -315,7 +317,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) -> crate::Result<()> {
         unsafe {
             RemoveMenu(self.hmenu, item.id(), MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, item.id(), MF_BYCOMMAND);
@@ -356,13 +358,13 @@ impl Menu {
                 .parents_hemnu
                 .iter()
                 .position(|h| *h == self.hmenu)
-                .unwrap();
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
             child.parents_hemnu.remove(index);
             let index = child
                 .parents_hemnu
                 .iter()
                 .position(|h| *h == self.hpopupmenu)
-                .unwrap();
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
             child.parents_hemnu.remove(index);
         }
 
@@ -370,8 +372,10 @@ impl Menu {
         let index = children
             .iter()
             .position(|e| e.borrow().id() == item.id())
-            .unwrap();
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
+
+        Ok(())
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
@@ -443,9 +447,12 @@ impl Menu {
         }
     }
 
-    pub fn remove_for_hwnd(&self, hwnd: isize) {
+    pub fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         let mut hwnds = self.hwnds.borrow_mut();
-        let index = hwnds.iter().position(|h| *h == hwnd).unwrap();
+        let index = hwnds
+            .iter()
+            .position(|h| *h == hwnd)
+            .ok_or(crate::Error::NotInitialized)?;
         hwnds.remove(index);
         unsafe {
             SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
@@ -453,6 +460,8 @@ impl Menu {
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
         }
+
+        Ok(())
     }
 
     pub fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
@@ -462,18 +471,30 @@ impl Menu {
         }
     }
 
-    pub fn hide_for_hwnd(&self, hwnd: isize) {
+    pub fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        if !self.hwnds.borrow_mut().iter().any(|h| *h == hwnd) {
+            return Err(crate::Error::NotInitialized);
+        }
+
         unsafe {
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
         }
+
+        Ok(())
     }
 
-    pub fn show_for_hwnd(&self, hwnd: isize) {
+    pub fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        if !self.hwnds.borrow_mut().iter().any(|h| *h == hwnd) {
+            return Err(crate::Error::NotInitialized);
+        }
+
         unsafe {
             SetMenu(hwnd, self.hmenu);
             DrawMenuBar(hwnd);
         }
+
+        Ok(())
     }
 
     pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
@@ -598,7 +619,7 @@ impl Submenu {
                 let accel_str = accelerator.to_string();
                 let accel = accelerator.to_accel(child_.id() as u16);
 
-                text.push_str("\t");
+                text.push('\t');
                 text.push_str(&accel_str);
 
                 for root_menu in self_.root_menu_haccel.as_mut().unwrap() {
@@ -652,9 +673,8 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) -> crate::Result<()> {
         unsafe {
-            // TODO: remove self.hmenu and self.hpopupmenu from item.parents_hmenu
             RemoveMenu(self.0.borrow().hmenu, item.id(), MF_BYCOMMAND);
             RemoveMenu(self.0.borrow().hpopupmenu, item.id(), MF_BYCOMMAND);
         }
@@ -690,13 +710,13 @@ impl Submenu {
                 .parents_hemnu
                 .iter()
                 .position(|h| *h == self.0.borrow().hmenu)
-                .unwrap();
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
             child.parents_hemnu.remove(index);
             let index = child
                 .parents_hemnu
                 .iter()
                 .position(|h| *h == self.0.borrow().hpopupmenu)
-                .unwrap();
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
             child.parents_hemnu.remove(index);
         }
 
@@ -705,8 +725,10 @@ impl Submenu {
         let index = children
             .iter()
             .position(|e| e.borrow().id() == item.id())
-            .unwrap();
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
+
+        Ok(())
     }
 
     pub fn items(&self) -> Vec<Box<dyn crate::MenuItemExt>> {
@@ -972,10 +994,10 @@ unsafe extern "system" fn menu_subclass_proc(
                                     encode_wide(format!(
                                         r#"
         {}
-        version: {}
-        authors: {}
-        license: {}
-        website: {} {}
+version: {}
+authors: {}
+license: {}
+website: {} {}
         {}
         {}
                                         "#,
@@ -998,7 +1020,7 @@ unsafe extern "system" fn menu_subclass_proc(
                                 );
                             }
                         }
-                        PredfinedMenuItemType::None => unreachable!(),
+                        _ => {}
                     },
                     _ => {}
                 }

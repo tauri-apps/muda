@@ -1,10 +1,10 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 #[derive(Clone, Copy, Debug)]
 pub enum AddOp {
     Append,
     Insert(usize),
 }
-
-use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct Counter(AtomicU32);
 

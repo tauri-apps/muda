@@ -20,7 +20,7 @@ pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
         .replace("[~~]", "__")
 }
 
-pub fn parse_accelerator(accelerator: &Accelerator) -> Result<(gdk::ModifierType, u32), ()> {
+pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::ModifierType, u32)> {
     let key = match &accelerator.key {
         Code::KeyA => 'A' as u32,
         Code::KeyB => 'B' as u32,
@@ -76,7 +76,7 @@ pub fn parse_accelerator(accelerator: &Accelerator) -> Result<(gdk::ModifierType
             } else {
                 // TODO: better logging and error handling
                 dbg!("Cannot map key {:?}", k);
-                return Err(());
+                return Err(crate::Error::AcceleratorKeyNotSupported(*k));
             }
         }
     };

@@ -65,9 +65,25 @@ if let Ok(event) = menu_event_receiver().try_recv() {
 }
 ```
 
-## Accelerators on Windows
+## Platform-specific notes:
+
+### Accelerators on Windows
 
 Accelerators don't work unless the win32 message loop calls
 [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html)
 
 See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/muda/struct.Menu.html#method.init_for_hwnd) for more details
+
+### Linux
+
+`libx` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+
+Arch Linux / Manjaro:
+```sh
+pacman -S xdotool
+```
+
+Debian / Ubuntu:
+```sh
+sudo apt install libxdo-dev
+```
