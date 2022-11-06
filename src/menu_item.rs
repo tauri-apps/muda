@@ -1,6 +1,9 @@
 use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
+///
+/// [`Menu`]: crate::Menu
+/// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct MenuItem(pub(crate) crate::platform_impl::MenuItem);
 

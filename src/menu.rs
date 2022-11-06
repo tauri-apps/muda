@@ -61,6 +61,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn append(&self, item: &dyn MenuItemExt) {
         self.0.append(item)
     }
@@ -70,6 +72,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn append_items(&self, items: &[&dyn MenuItemExt]) {
         for item in items {
             self.append(*item);
@@ -81,6 +85,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn prepend(&self, item: &dyn MenuItemExt) {
         self.0.prepend(item)
     }
@@ -90,6 +96,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
         self.insert_items(items, 0);
     }
@@ -99,6 +107,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn insert(&self, item: &dyn MenuItemExt, position: usize) {
         self.0.insert(item, position)
     }
@@ -108,6 +118,8 @@ impl Menu {
     /// ## Platform-spcific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
+    ///
+    /// [`Submenu`]: crate::Submenu
     pub fn insert_items(&self, items: &[&dyn MenuItemExt], position: usize) {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)

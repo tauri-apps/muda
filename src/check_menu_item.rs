@@ -3,6 +3,9 @@ use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
 /// that corresponds to a checked and unchecked states.
+///
+/// [`Menu`]: crate::Menu
+/// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct CheckMenuItem(pub(crate) crate::platform_impl::CheckMenuItem);
 

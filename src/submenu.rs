@@ -1,6 +1,8 @@
 use crate::{ContextMenu, MenuItemExt, MenuItemType};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
+///
+/// [`Menu`]: crate::Menu
 #[derive(Clone)]
 pub struct Submenu(pub(crate) crate::platform_impl::Submenu);
 
@@ -88,8 +90,8 @@ impl Submenu {
     }
 
     /// Add menu items to the beginning of this submenu.
-    /// It calls [`Menu::prepend`] on the first element and
-    /// passes the rest to [`Menu::insert_items`] with position of `1`.
+    /// It calls [`Menu::prepend`](crate::Menu::prepend) on the first element and
+    /// passes the rest to [`Menu::insert_items`](crate::Menu::insert_items) with position of `1`.
     pub fn prepend_items(&self, items: &[&dyn MenuItemExt]) {
         self.prepend(items[0]);
         self.insert_items(&items[1..], 1);

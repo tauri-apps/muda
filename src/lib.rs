@@ -27,9 +27,13 @@
 //! as your global app menu on macOS
 //!
 //! ```no_run
+//! # let menu = muda::Menu::new();
+//! # let window_hwnd = 0;
+//! # #[cfg(target_os = "linux")]
+//! # let gtk_window = gtk::ApplicationWindow::builder().build();
 //! // --snip--
 //! #[cfg(target_os = "windows")]
-//! menu.init_for_hwnd(window.hwnd() as isize);
+//! menu.init_for_hwnd(window_hwnd);
 //! #[cfg(target_os = "linux")]
 //! menu.init_for_gtk_window(&gtk_window);
 //! #[cfg(target_os = "macos")]
@@ -41,11 +45,17 @@
 //! You can also use a [`Menu`] or a [`Submenu`] show a context menu.
 //!
 //! ```no_run
+//! # let menu = muda::Menu::new();
+//! # let window_hwnd = 0;
+//! # #[cfg(target_os = "linux")]
+//! # let gtk_window = gtk::ApplicationWindow::builder().build();
+//! # let nsview = 0;
+//! use muda::ContextMenu;
 //! // --snip--
-//! let x = 100;
-//! let y = 120;
+//! let x = 100.0;
+//! let y = 120.0;
 //! #[cfg(target_os = "windows")]
-//! menu.show_context_menu_for_hwnd(window.hwnd() as isize, x, y);
+//! menu.show_context_menu_for_hwnd(window_hwnd, x, y);
 //! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
 //! #[cfg(target_os = "macos")]
