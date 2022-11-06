@@ -110,7 +110,7 @@ impl Submenu {
     }
 
     /// Remove a menu item from this submenu.
-    pub fn remove(&self, item: &dyn MenuItemExt) {
+    pub fn remove(&self, item: &dyn MenuItemExt) -> crate::Result<()> {
         self.0.remove(item)
     }
 

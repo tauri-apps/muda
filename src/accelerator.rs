@@ -63,29 +63,20 @@ impl Accelerator {
 // compatible with tauri and it also open the option
 // to generate accelerator from string
 impl FromStr for Accelerator {
-    type Err = AcceleratorParseError;
+    type Err = crate::Error;
     fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
         parse_accelerator(accelerator_string)
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AcceleratorParseError(String);
-
-impl std::fmt::Display for AcceleratorParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[AcceleratorParseError]: {}", self.0)
-    }
-}
-
-fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, AcceleratorParseError> {
+fn parse_accelerator(accelerator_string: &str) -> crate::Result<Accelerator> {
     let mut mods = Modifiers::empty();
     let mut key = Code::Unidentified;
 
     for raw in accelerator_string.split('+') {
         let token = raw.trim().to_string();
         if token.is_empty() {
-            return Err(AcceleratorParseError(
+            return Err(crate::Error::AcceleratorParseError(
                 "Unexpected empty token while parsing accelerator".into(),
             ));
         }
@@ -96,7 +87,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
             // examples:
             // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
             // 2. "Ctrl+C+Shift" => wrong order
-            return Err(AcceleratorParseError(format!(
+            return Err(crate::Error::AcceleratorParseError(format!(
                 "Unexpected accelerator string format: \"{}\"",
                 accelerator_string
             )));
@@ -125,7 +116,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
                 if let Ok(code) = Code::from_str(token.as_str()) {
                     match code {
                         Code::Unidentified => {
-                            return Err(AcceleratorParseError(format!(
+                            return Err(crate::Error::AcceleratorParseError(format!(
                                 "Couldn't identify \"{}\" as a valid `Code`",
                                 token
                             )))
@@ -133,7 +124,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
                         _ => key = code,
                     }
                 } else {
-                    return Err(AcceleratorParseError(format!(
+                    return Err(crate::Error::AcceleratorParseError(format!(
                         "Couldn't identify \"{}\" as a valid `Code`",
                         token
                     )));

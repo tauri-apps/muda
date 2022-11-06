@@ -91,6 +91,7 @@ use once_cell::sync::Lazy;
 
 pub mod accelerator;
 mod check_menu_item;
+mod error;
 mod menu;
 mod menu_item;
 mod platform_impl;
@@ -98,6 +99,7 @@ mod predefined;
 mod submenu;
 mod util;
 
+pub use self::error::*;
 pub use check_menu_item::CheckMenuItem;
 pub use menu::Menu;
 pub use menu_item::MenuItem;

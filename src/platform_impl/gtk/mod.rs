@@ -225,7 +225,7 @@ impl Menu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) -> crate::Result<()> {
         match item.type_() {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
@@ -237,19 +237,21 @@ impl Menu {
                         }
 
                         if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for (item, _, _, _) in items {
-                                menu_bar.remove(&item);
+                            if let Some(items) = store.remove(menu_id) {
+                                for (item, _, _, _) in items {
+                                    menu_bar.remove(&item);
+                                }
                             }
                         }
                     }
                 }
 
                 if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                    let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                    if let Some(menu) = &self.0.borrow().context_menu.1 {
-                        for (item, _, _, _) in items {
-                            menu.remove(&item);
+                    if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                        if let Some(menu) = &self.0.borrow().context_menu.1 {
+                            for (item, _, _, _) in items {
+                                menu.remove(&item);
+                            }
                         }
                     }
                 }
@@ -260,19 +262,21 @@ impl Menu {
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
                         if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for item in items {
-                                menu_bar.remove(&item);
+                            if let Some(items) = store.remove(menu_id) {
+                                for item in items {
+                                    menu_bar.remove(&item);
+                                }
                             }
                         }
                     }
                 }
 
                 if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                    let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                    if let Some(menu) = &self.0.borrow().context_menu.1 {
-                        for item in items {
-                            menu.remove(&item);
+                    if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                        if let Some(menu) = &self.0.borrow().context_menu.1 {
+                            for item in items {
+                                menu.remove(&item);
+                            }
                         }
                     }
                 }
@@ -296,10 +300,11 @@ impl Menu {
                 }
 
                 if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
-                    let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                    if let Some(menu) = &self.0.borrow().context_menu.1 {
-                        for item in items {
-                            menu.remove(&item);
+                    if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                        if let Some(menu) = &self.0.borrow().context_menu.1 {
+                            for item in items {
+                                menu.remove(&item);
+                            }
                         }
                     }
                 }
@@ -313,19 +318,21 @@ impl Menu {
                 for (menu_id, (menu_bar, _)) in &self.0.borrow().native_menus {
                     if let Some(menu_bar) = menu_bar {
                         if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for item in items {
-                                menu_bar.remove(&item);
+                            if let Some(items) = store.remove(menu_id) {
+                                for item in items {
+                                    menu_bar.remove(&item);
+                                }
                             }
                         }
                     }
                 }
 
                 if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
-                    let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                    if let Some(menu) = &self.0.borrow().context_menu.1 {
-                        for item in items {
-                            menu.remove(&item);
+                    if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                        if let Some(menu) = &self.0.borrow().context_menu.1 {
+                            for item in items {
+                                menu.remove(&item);
+                            }
                         }
                     }
                 }
@@ -338,8 +345,9 @@ impl Menu {
             .entries
             .iter()
             .position(|e| e.borrow().id == item.id())
-            .unwrap();
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         self.0.borrow_mut().entries.remove(index);
+        Ok(())
     }
 
     fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItemExt) {
@@ -347,15 +355,16 @@ impl Menu {
             crate::MenuItemType::Submenu => {
                 let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                 let entry = &submenu.0 .0;
-                if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
+                if let Some((Some(menu_bar), _)) = self.0.borrow().native_menus.get(&parent_id) {
                     for item in submenu.items() {
                         submenu.0.remove_gtk_by_parent_id(parent_id, &*item);
                     }
 
                     if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&parent_id).unwrap();
-                        for (item, _, _, _) in items {
-                            menu_bar.remove(&item);
+                        if let Some(items) = store.remove(&parent_id) {
+                            for (item, _, _, _) in items {
+                                menu_bar.remove(&item);
+                            }
                         }
                     }
                 }
@@ -363,11 +372,12 @@ impl Menu {
             crate::MenuItemType::Normal => {
                 let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 let entry = &item.0 .0;
-                if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
+                if let Some((Some(menu_bar), _)) = self.0.borrow().native_menus.get(&parent_id) {
                     if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&parent_id).unwrap();
-                        for item in items {
-                            menu_bar.remove(&item);
+                        if let Some(items) = store.remove(&parent_id) {
+                            for item in items {
+                                menu_bar.remove(&item);
+                            }
                         }
                     }
                 }
@@ -378,7 +388,7 @@ impl Menu {
                     .downcast_ref::<crate::PredefinedMenuItem>()
                     .unwrap();
                 let entry = &item.0 .0;
-                if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
+                if let Some((Some(menu_bar), _)) = self.0.borrow().native_menus.get(&parent_id) {
                     if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
                         if let Some(items) = store.remove(&parent_id) {
                             for item in items {
@@ -394,11 +404,12 @@ impl Menu {
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
                 let entry = &item.0 .0;
-                if let (Some(menu_bar), _) = self.0.borrow().native_menus.get(&parent_id).unwrap() {
+                if let Some((Some(menu_bar), _)) = self.0.borrow().native_menus.get(&parent_id) {
                     if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&parent_id).unwrap();
-                        for item in items {
-                            menu_bar.remove(&item);
+                        if let Some(items) = store.remove(&parent_id) {
+                            for item in items {
+                                menu_bar.remove(&item);
+                            }
                         }
                     }
                 }
@@ -483,7 +494,7 @@ impl Menu {
         Rc::clone(vbox)
     }
 
-    pub fn remove_for_gtk_window<W>(&self, window: &W)
+    pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
         W: IsA<gtk::Window>,
@@ -491,9 +502,14 @@ impl Menu {
         let id = window.as_ptr() as u32;
         let menu_bar = {
             let inner = self.0.borrow();
-            inner.native_menus.get(&id).cloned()
+            inner
+                .native_menus
+                .get(&id)
+                .cloned()
+                .ok_or(crate::Error::NotInitialized)?
         };
-        if let Some((Some(menu_bar), vbox)) = menu_bar {
+
+        if let (Some(menu_bar), vbox) = menu_bar {
             for item in self.items() {
                 self.remove_gtk_by_parent_id(id, &*item);
             }
@@ -506,10 +522,13 @@ impl Menu {
             // Remove the removed [`gtk::Menubar`] from our cache
             let vbox = Rc::clone(&vbox);
             inner.native_menus.insert(id, (None, vbox));
+            Ok(())
+        } else {
+            Err(crate::Error::NotInitialized)
         }
     }
 
-    pub fn hide_for_gtk_window<W>(&self, window: &W)
+    pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
     {
@@ -517,10 +536,13 @@ impl Menu {
             self.0.borrow().native_menus.get(&(window.as_ptr() as u32))
         {
             menu_bar.hide();
+            Ok(())
+        } else {
+            Err(crate::Error::NotInitialized)
         }
     }
 
-    pub fn show_for_gtk_window<W>(&self, window: &W)
+    pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
     {
@@ -528,6 +550,9 @@ impl Menu {
             self.0.borrow().native_menus.get(&(window.as_ptr() as u32))
         {
             menu_bar.show_all();
+            Ok(())
+        } else {
+            Err(crate::Error::NotInitialized)
         }
     }
 
@@ -726,7 +751,7 @@ impl Submenu {
         }
     }
 
-    pub fn remove(&self, item: &dyn crate::MenuItemExt) {
+    pub fn remove(&self, item: &dyn crate::MenuItemExt) -> crate::Result<()> {
         if let MenuItemType::Submenu(store) = self.0.borrow().type_.clone() {
             match item.type_() {
                 crate::MenuItemType::Submenu => {
@@ -739,19 +764,21 @@ impl Submenu {
                             }
 
                             if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                                let items = store.remove(menu_id).unwrap();
-                                for (item, _, _, _) in items {
-                                    menu.remove(&item);
+                                if let Some(items) = store.remove(menu_id) {
+                                    for (item, _, _, _) in items {
+                                        menu.remove(&item);
+                                    }
                                 }
                             }
                         }
                     }
 
                     if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                        if let Some(menu) = &self.0.borrow().context_menu.1 {
-                            for (item, _, _, _) in items {
-                                menu.remove(&item);
+                        if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                            if let Some(menu) = &self.0.borrow().context_menu.1 {
+                                for (item, _, _, _) in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -762,19 +789,21 @@ impl Submenu {
                     for items in store.values() {
                         for (_, menu, _, menu_id) in items {
                             if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                                let items = store.remove(menu_id).unwrap();
-                                for item in items {
-                                    menu.remove(&item);
+                                if let Some(items) = store.remove(menu_id) {
+                                    for item in items {
+                                        menu.remove(&item);
+                                    }
                                 }
                             }
                         }
                     }
 
                     if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                        if let Some(menu) = &self.0.borrow().context_menu.1 {
-                            for item in items {
-                                menu.remove(&item);
+                        if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                            if let Some(menu) = &self.0.borrow().context_menu.1 {
+                                for item in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -800,10 +829,11 @@ impl Submenu {
                     }
 
                     if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                        if let Some(menu) = &self.0.borrow().context_menu.1 {
-                            for item in items {
-                                menu.remove(&item);
+                        if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                            if let Some(menu) = &self.0.borrow().context_menu.1 {
+                                for item in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -818,19 +848,21 @@ impl Submenu {
                         for (_, menu, _, menu_id) in items {
                             if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_
                             {
-                                let items = store.remove(menu_id).unwrap();
-                                for item in items {
-                                    menu.remove(&item);
+                                if let Some(items) = store.remove(menu_id) {
+                                    for item in items {
+                                        menu.remove(&item);
+                                    }
                                 }
                             }
                         }
                     }
 
                     if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
-                        let items = store.remove(&self.0.borrow().context_menu.0).unwrap();
-                        if let Some(menu) = &self.0.borrow().context_menu.1 {
-                            for item in items {
-                                menu.remove(&item);
+                        if let Some(items) = store.remove(&self.0.borrow().context_menu.0) {
+                            if let Some(menu) = &self.0.borrow().context_menu.1 {
+                                for item in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -843,11 +875,13 @@ impl Submenu {
             .borrow()
             .entries
             .as_ref()
-            .unwrap()
+            .ok_or(crate::Error::NotAChildOfThisMenu)?
             .iter()
             .position(|e| e.borrow().id == item.id())
-            .unwrap();
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         self.0.borrow_mut().entries.as_mut().unwrap().remove(index);
+
+        Ok(())
     }
 
     fn remove_gtk_by_parent_id(&self, parent_id: u32, item: &dyn crate::MenuItemExt) {
@@ -856,16 +890,17 @@ impl Submenu {
                 crate::MenuItemType::Submenu => {
                     let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
                     let entry = &submenu.0 .0;
-                    let items = store.get(&parent_id).unwrap();
-                    for (_, menu, _, menu_id) in items {
-                        for item in submenu.items() {
-                            submenu.0.remove_gtk_by_parent_id(*menu_id, &*item);
-                        }
+                    if let Some(items) = store.get(&parent_id) {
+                        for (_, menu, _, menu_id) in items {
+                            for item in submenu.items() {
+                                submenu.0.remove_gtk_by_parent_id(*menu_id, &*item);
+                            }
 
-                        if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for (item, _, _, _) in items {
-                                menu.remove(&item);
+                            if let MenuItemType::Submenu(store) = &mut entry.borrow_mut().type_ {
+                                let items = store.remove(menu_id).unwrap();
+                                for (item, _, _, _) in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -873,12 +908,13 @@ impl Submenu {
                 crate::MenuItemType::Normal => {
                     let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                     let entry = &item.0 .0;
-                    let items = store.get(&parent_id).unwrap();
-                    for (_, menu, _, menu_id) in items {
-                        if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for item in items {
-                                menu.remove(&item);
+                    if let Some(items) = store.get(&parent_id) {
+                        for (_, menu, _, menu_id) in items {
+                            if let MenuItemType::Normal(store) = &mut entry.borrow_mut().type_ {
+                                let items = store.remove(menu_id).unwrap();
+                                for item in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -889,12 +925,15 @@ impl Submenu {
                         .downcast_ref::<crate::PredefinedMenuItem>()
                         .unwrap();
                     let entry = &item.0 .0;
-                    let items = store.get(&parent_id).unwrap();
-                    for (_, menu, _, menu_id) in items {
-                        if let MenuItemType::Predefined(store, _) = &mut entry.borrow_mut().type_ {
-                            if let Some(items) = store.remove(menu_id) {
-                                for item in items {
-                                    menu.remove(&item);
+                    if let Some(items) = store.get(&parent_id) {
+                        for (_, menu, _, menu_id) in items {
+                            if let MenuItemType::Predefined(store, _) =
+                                &mut entry.borrow_mut().type_
+                            {
+                                if let Some(items) = store.remove(menu_id) {
+                                    for item in items {
+                                        menu.remove(&item);
+                                    }
                                 }
                             }
                         }
@@ -906,12 +945,14 @@ impl Submenu {
                         .downcast_ref::<crate::CheckMenuItem>()
                         .unwrap();
                     let entry = &item.0 .0;
-                    let items = store.get(&parent_id).unwrap();
-                    for (_, menu, _, menu_id) in items {
-                        if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_ {
-                            let items = store.remove(menu_id).unwrap();
-                            for item in items {
-                                menu.remove(&item);
+                    if let Some(items) = store.get(&parent_id) {
+                        for (_, menu, _, menu_id) in items {
+                            if let MenuItemType::Check { store, .. } = &mut entry.borrow_mut().type_
+                            {
+                                let items = store.remove(menu_id).unwrap();
+                                for item in items {
+                                    menu.remove(&item);
+                                }
                             }
                         }
                     }
@@ -947,7 +988,7 @@ impl Submenu {
         if let MenuItemType::Submenu(store) = &entry.type_ {
             store
                 .get(&0)
-                .map(|items| items.get(0))
+                .map(|items| items.first())
                 .map(|i| {
                     i.map(|i| {
                         i.0.label()
@@ -984,7 +1025,7 @@ impl Submenu {
         if let MenuItemType::Submenu(store) = &entry.type_ {
             store
                 .get(&0)
-                .map(|items| items.get(0))
+                .map(|items| items.first())
                 .map(|i| {
                     i.map(|i| i.0.is_sensitive())
                         .unwrap_or_else(|| entry.enabled)
@@ -1075,7 +1116,7 @@ impl MenuItem {
         if let MenuItemType::Normal(store) = &entry.type_ {
             store
                 .get(&0)
-                .map(|items| items.get(0))
+                .map(|items| items.first())
                 .map(|i| {
                     i.map(|i| {
                         i.label()
@@ -1112,7 +1153,7 @@ impl MenuItem {
         if let MenuItemType::Normal(store) = &entry.type_ {
             store
                 .get(&0)
-                .map(|items| items.get(0))
+                .map(|items| items.first())
                 .map(|i| i.map(|i| i.is_sensitive()).unwrap_or_else(|| entry.enabled))
                 .unwrap_or_else(|| entry.enabled)
         } else {

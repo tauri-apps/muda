@@ -127,12 +127,7 @@ impl Menu {
     }
 
     /// Remove a menu item from this menu.
-    ///
-    /// ## Panics
-    ///
-    /// - If `item` has already been removed
-    /// - If `item` wasn't previously [append](Menu::append)ed to this menu
-    pub fn remove(&self, item: &dyn MenuItemExt) {
+    pub fn remove(&self, item: &dyn MenuItemExt) -> crate::Result<()> {
         self.0.remove(item)
     }
 
@@ -203,7 +198,7 @@ impl Menu {
 
     /// Removes this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn remove_for_gtk_window<W>(&self, w: &W)
+    pub fn remove_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
@@ -213,13 +208,13 @@ impl Menu {
 
     /// Removes this menu from a win32 window
     #[cfg(target_os = "windows")]
-    pub fn remove_for_hwnd(&self, hwnd: isize) {
+    pub fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.0.remove_for_hwnd(hwnd)
     }
 
     /// Hides this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn hide_for_gtk_window<W>(&self, w: &W)
+    pub fn hide_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
@@ -228,13 +223,13 @@ impl Menu {
 
     /// Hides this menu from a win32 window
     #[cfg(target_os = "windows")]
-    pub fn hide_for_hwnd(&self, hwnd: isize) {
+    pub fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.0.hide_for_hwnd(hwnd)
     }
 
     /// Shows this menu on a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn show_for_gtk_window<W>(&self, w: &W)
+    pub fn show_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
@@ -243,7 +238,7 @@ impl Menu {
 
     /// Shows this menu on a win32 window
     #[cfg(target_os = "windows")]
-    pub fn show_for_hwnd(&self, hwnd: isize) {
+    pub fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.0.show_for_hwnd(hwnd)
     }
 
