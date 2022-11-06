@@ -108,6 +108,8 @@ impl Default for MenuItemType {
     }
 }
 
+// TODO(amrbashir): first person to replace this trait with an enum while keeping `Menu.append_items`
+// taking mix of types (`MenuItem`, `CheckMenuItem`, `Submenu`...etc) in the same call, gets a cookie.
 /// A trait that defines a generic item in a menu, which may be one of [MenuItemType]
 ///
 /// # Safety
@@ -142,12 +144,14 @@ pub unsafe trait MenuItemExt {
 
 pub trait ContextMenu {
     /// Get the popup [`HMENU`] for this menu.
+    ///
+    /// [`HMENU`]: windows_sys::Win32::UI::WindowsAndMessaging::HMENU
     #[cfg(target_os = "windows")]
-    fn hpopupmenu(&self) -> isize;
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU;
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` is relatvie to the window top-left corner.
+    /// `x` and `y` are relatvie to the window top-left corner.
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
 
@@ -164,7 +168,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` is relatvie to the window top-left corner
+    /// `x` and `y` are relatvie to the window top-left corner
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
     /// Get the underlying gtk menu reserved for context menus.
