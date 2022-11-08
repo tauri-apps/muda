@@ -987,12 +987,11 @@ unsafe extern "system" fn menu_subclass_proc(
                         PredfinedMenuItemType::Quit => {
                             PostQuitMessage(0);
                         }
-                        PredfinedMenuItemType::About(metadata) => {
-                            if let Some(metadata) = metadata {
-                                MessageBoxW(
-                                    hwnd,
-                                    encode_wide(format!(
-                                        r#"
+                        PredfinedMenuItemType::About(Some(metadata)) => {
+                            MessageBoxW(
+                                hwnd,
+                                encode_wide(format!(
+                                    r#"
         {}
 version: {}
 authors: {}
@@ -1001,25 +1000,25 @@ website: {} {}
         {}
         {}
                                         "#,
-                                        metadata.name.as_deref().unwrap_or_default(),
-                                        metadata.version.as_deref().unwrap_or_default(),
-                                        metadata.authors.as_deref().unwrap_or_default().join(","),
-                                        metadata.license.as_deref().unwrap_or_default(),
-                                        metadata.website_label.as_deref().unwrap_or_default(),
-                                        metadata.website.as_deref().unwrap_or_default(),
-                                        metadata.comments.as_deref().unwrap_or_default(),
-                                        metadata.copyright.as_deref().unwrap_or_default(),
-                                    ))
-                                    .as_ptr(),
-                                    encode_wide(format!(
-                                        "About {}",
-                                        metadata.name.as_deref().unwrap_or_default()
-                                    ))
-                                    .as_ptr(),
-                                    MB_ICONINFORMATION,
-                                );
-                            }
+                                    metadata.name.as_deref().unwrap_or_default(),
+                                    metadata.version.as_deref().unwrap_or_default(),
+                                    metadata.authors.as_deref().unwrap_or_default().join(","),
+                                    metadata.license.as_deref().unwrap_or_default(),
+                                    metadata.website_label.as_deref().unwrap_or_default(),
+                                    metadata.website.as_deref().unwrap_or_default(),
+                                    metadata.comments.as_deref().unwrap_or_default(),
+                                    metadata.copyright.as_deref().unwrap_or_default(),
+                                ))
+                                .as_ptr(),
+                                encode_wide(format!(
+                                    "About {}",
+                                    metadata.name.as_deref().unwrap_or_default()
+                                ))
+                                .as_ptr(),
+                                MB_ICONINFORMATION,
+                            );
                         }
+
                         _ => {}
                     },
                     _ => {}

@@ -5,22 +5,36 @@
 //! Create the menu and add your items
 //!
 //! ```no_run
+//! # fn main() -> Result<(), muda::Error> {
 //! # use muda::{Menu, Submenu, MenuItem, accelerator::{Code, Modifiers, Accelerator}, PredefinedMenuItem};
 //! let menu = Menu::new();
 //! let menu_item2 = MenuItem::new("Menu item #2", false, None);
-//! let submenu = Submenu::with_items("Submenu Outer", true,&[
-//!   &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD))),
-//!   &PredefinedMenuItem::separator(),
-//!   &menu_item2,
-//!   &MenuItem::new("Menu item #3", true, None),
-//!   &PredefinedMenuItem::separator(),
-//!   &Submenu::with_items("Submenu Inner", true,&[
-//!     &MenuItem::new("Submenu item #1", true, None),
-//!     &PredefinedMenuItem::separator(),
-//!     &menu_item2,
-//!   ])
-//! ]);
-//!
+//! let submenu = Submenu::with_items(
+//!     "Submenu Outer",
+//!     true,
+//!     &[
+//!         &MenuItem::new(
+//!             "Menu item #1",
+//!             true,
+//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
+//!         ),
+//!         &PredefinedMenuItem::separator(),
+//!         &menu_item2,
+//!         &MenuItem::new("Menu item #3", true, None),
+//!         &PredefinedMenuItem::separator(),
+//!         &Submenu::with_items(
+//!             "Submenu Inner",
+//!             true,
+//!             &[
+//!                 &MenuItem::new("Submenu item #1", true, None),
+//!                 &PredefinedMenuItem::separator(),
+//!                 &menu_item2,
+//!             ],
+//!         )?,
+//!     ],
+//! );
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Then Add your root menu to a Window on Windows and Linux Only or use it
@@ -71,7 +85,7 @@
 //! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
 //! if let Ok(event) = menu_event_receiver().try_recv() {
 //!     match event.id {
-//!         _ if event.id == save_item.id() => {
+//!         id if id == save_item.id() => {
 //!             println!("Save menu item activated");
 //!         },
 //!         _ => {}

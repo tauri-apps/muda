@@ -34,11 +34,16 @@ fn main() {
     #[cfg(target_os = "macos")]
     event_loop_builder.with_default_menu(false);
 
-    #[allow(unused_mut)]
-    let mut event_loop = event_loop_builder.build();
+    let event_loop = event_loop_builder.build();
 
-    let window = WindowBuilder::new().with_title("Window 1").build(&event_loop).unwrap();
-    let window2 = WindowBuilder::new().with_title("Window 2").build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title("Window 1")
+        .build(&event_loop)
+        .unwrap();
+    let window2 = WindowBuilder::new()
+        .with_title("Window 2")
+        .build(&event_loop)
+        .unwrap();
 
     #[cfg(target_os = "macos")]
     {
