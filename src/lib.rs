@@ -5,7 +5,6 @@
 //! Create the menu and add your items
 //!
 //! ```no_run
-//! # fn main() -> Result<(), muda::Error> {
 //! # use muda::{Menu, Submenu, MenuItem, accelerator::{Code, Modifiers, Accelerator}, PredefinedMenuItem};
 //! let menu = Menu::new();
 //! let menu_item2 = MenuItem::new("Menu item #2", false, None);
@@ -30,11 +29,9 @@
 //!                 &PredefinedMenuItem::separator(),
 //!                 &menu_item2,
 //!             ],
-//!         )?,
+//!         ),
 //!     ],
 //! );
-//! # Ok(())
-//! # }
 //! ```
 //!
 //! Then Add your root menu to a Window on Windows and Linux Only or use it
