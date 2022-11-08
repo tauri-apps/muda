@@ -200,7 +200,7 @@ impl Menu {
         let index = children
             .iter()
             .position(|e| e.borrow().id() == item.id())
-            .unwrap();
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
 
         Ok(())
@@ -250,7 +250,6 @@ impl Submenu {
             type_: MenuItemType::Submenu,
             text: strip_mnemonic(text),
             enabled,
-            // submenu: Some(Menu::new()),
             children: Some(Vec::new()),
             ..Default::default()
         })))
@@ -261,7 +260,7 @@ impl Submenu {
     }
 
     pub fn make_ns_item_for_menu(&self, menu_id: u32) -> id {
-        let mut child = self.0.borrow_mut();
+        let mut self_ = self.0.borrow_mut();
         let ns_menu_item: *mut Object;
         let ns_submenu: *mut Object;
 
@@ -269,45 +268,39 @@ impl Submenu {
             ns_menu_item = NSMenuItem::alloc(nil).autorelease();
             ns_submenu = NSMenu::alloc(nil).autorelease();
 
-            let title = NSString::alloc(nil).init_str(&child.text).autorelease();
+            let title = NSString::alloc(nil).init_str(&self_.text).autorelease();
             let () = msg_send![ns_submenu, setTitle: title];
             let () = msg_send![ns_menu_item, setTitle: title];
             let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
 
-            if !child.enabled {
+            if !self_.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
         }
 
-        if let Some(children) = &child.children {
-            for item in children {
-                let item_type = &item.borrow().type_.clone();
-                let ns_item = match item_type {
-                    MenuItemType::Submenu => Submenu(item.clone()).make_ns_item_for_menu(menu_id),
-                    MenuItemType::Normal => MenuItem(item.clone()).make_ns_item_for_menu(menu_id),
-                    MenuItemType::Predefined => {
-                        PredefinedMenuItem(item.clone()).make_ns_item_for_menu(menu_id)
-                    }
-                    MenuItemType::Check => {
-                        CheckMenuItem(item.clone()).make_ns_item_for_menu(menu_id)
-                    }
-                };
-                unsafe {
-                    ns_submenu.addItem_(ns_item);
+        for item in self_.children.as_ref().unwrap() {
+            let item_type = &item.borrow().type_.clone();
+            let ns_item = match item_type {
+                MenuItemType::Submenu => Submenu(item.clone()).make_ns_item_for_menu(menu_id),
+                MenuItemType::Normal => MenuItem(item.clone()).make_ns_item_for_menu(menu_id),
+                MenuItemType::Predefined => {
+                    PredefinedMenuItem(item.clone()).make_ns_item_for_menu(menu_id)
                 }
-            }
+                MenuItemType::Check => CheckMenuItem(item.clone()).make_ns_item_for_menu(menu_id),
+            };
+            unsafe { ns_submenu.addItem_(ns_item) };
         }
 
-        child
+        self_
             .ns_menus
             .entry(menu_id)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .push(ns_submenu);
 
-        child
+        self_
             .ns_menu_items
             .entry(menu_id)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         ns_menu_item
@@ -379,7 +372,10 @@ impl Submenu {
 
         // remove the item from our internal list of children
         let children = child.children.as_mut().unwrap();
-        let index = children.iter().position(|e| e == &item_child).unwrap();
+        let index = children
+            .iter()
+            .position(|e| e == &item_child)
+            .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
 
         Ok(())
@@ -486,7 +482,7 @@ impl MenuItem {
         child
             .ns_menu_items
             .entry(menu_id)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         ns_menu_item
@@ -578,7 +574,7 @@ impl PredefinedMenuItem {
         child
             .ns_menu_items
             .entry(menu_id)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         ns_menu_item
@@ -641,7 +637,7 @@ impl CheckMenuItem {
         child
             .ns_menu_items
             .entry(menu_id)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         ns_menu_item
@@ -789,11 +785,7 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
     unsafe {
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
         let obj = ptr as *mut &mut MenuChild;
-        if !obj.is_null() {
-            // `Box::from_raw` takes ownership of the raw pointer,
-            // and when dropped it will free the allocated memory.
-            let _ = Box::from_raw(obj);
-        }
+        drop(Box::from_raw(obj));
         let _: () = msg_send![super(this, class!(NSMenuItem)), dealloc];
     }
 }
@@ -805,17 +797,10 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
         // Create a reference to the `MenuChild` from the raw pointer
         // stored as an instance variable on the native menu item
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
-        let obj = ptr as *mut &mut MenuChild;
-        if !obj.is_null() {
-            let item = Box::from_raw(obj);
+        let item = ptr as *mut &mut MenuChild;
 
-            if item.type_ == MenuItemType::Check {
-                item.set_checked(!item.is_checked());
-            }
-
-            // `Box::from_raw` takes ownership of the raw pointer, so we need to
-            // prevent it from being dropped at the end of the scope.
-            let _ = Box::leak(item);
+        if (*item).type_ == MenuItemType::Check {
+            (*item).set_checked(!(*item).is_checked());
         }
 
         let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
@@ -835,7 +820,7 @@ fn create_ns_menu_item(
         let key_equivalent = accelerator
             .clone()
             .map(|accel| accel.key_equivalent())
-            .unwrap_or_else(|| "".into());
+            .unwrap_or_default();
         let key_equivalent = NSString::alloc(nil)
             .init_str(key_equivalent.as_str())
             .autorelease();
