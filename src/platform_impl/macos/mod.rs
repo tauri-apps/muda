@@ -65,7 +65,7 @@ impl MenuChild {
         self.text = strip_mnemonic(text);
         unsafe {
             let title = NSString::alloc(nil).init_str(&self.text).autorelease();
-            for (_, ns_items) in &self.ns_menu_items {
+            for ns_items in self.ns_menu_items.values() {
                 for &ns_item in ns_items {
                     let () = msg_send![ns_item, setTitle: title];
                     let ns_submenu: *mut Object = msg_send![ns_item, submenu];
@@ -83,7 +83,7 @@ impl MenuChild {
 
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
-        for (_, ns_items) in &self.ns_menu_items {
+        for ns_items in self.ns_menu_items.values() {
             for &ns_item in ns_items {
                 unsafe {
                     let () = msg_send![ns_item, setEnabled: if enabled { YES } else { NO }];
@@ -98,10 +98,10 @@ impl MenuChild {
 
     pub fn set_checked(&mut self, checked: bool) {
         self.checked = checked;
-        for (_, ns_items) in &self.ns_menu_items {
+        for ns_items in self.ns_menu_items.values() {
             for &ns_item in ns_items {
                 unsafe {
-                    let () = msg_send![ns_item, setState: if checked { 1_isize } else { 0_isize }];
+                    let () = msg_send![ns_item, setState: checked as u32];
                 }
             }
         }
@@ -319,29 +319,29 @@ impl Submenu {
     }
 
     fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
-        let mut child = self.0.borrow_mut();
+        let mut self_ = self.0.borrow_mut();
 
         let item_child: Rc<RefCell<MenuChild>> = item.get_child();
 
         unsafe {
             match op {
                 AddOp::Append => {
-                    for (_, menus) in &child.ns_menus {
+                    for menus in self_.ns_menus.values() {
                         for ns_menu in menus {
-                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(child.id);
+                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self_.id);
                             ns_menu.addItem_(ns_menu_item);
                         }
                     }
-                    child.children.as_mut().unwrap().push(item_child);
+                    self_.children.as_mut().unwrap().push(item_child);
                 }
                 AddOp::Insert(position) => {
-                    for (_, menus) in &child.ns_menus {
+                    for menus in self_.ns_menus.values() {
                         for &ns_menu in menus {
-                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(child.id);
+                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self_.id);
                             let () = msg_send![ns_menu, insertItem: ns_menu_item atIndex: position as NSInteger];
                         }
                     }
-                    child
+                    self_
                         .children
                         .as_mut()
                         .unwrap()
@@ -361,7 +361,7 @@ impl Submenu {
             // remove each NSMenuItem from the NSMenu
             unsafe {
                 for item in ns_menu_items {
-                    for (_, menus) in &child.ns_menus {
+                    for menus in child.ns_menus.values() {
                         for &ns_menu in menus {
                             let () = msg_send![ns_menu, removeItem: item];
                         }
@@ -472,7 +472,7 @@ impl MenuItem {
 
             // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
             let ptr = Box::into_raw(Box::new(&*child));
-            (&mut *ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+            (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
 
             if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
@@ -624,7 +624,7 @@ impl CheckMenuItem {
 
             // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
             let ptr = Box::into_raw(Box::new(&*child));
-            (&mut *ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+            (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
 
             if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
@@ -815,7 +815,7 @@ fn create_ns_menu_item(
     unsafe {
         let title = NSString::alloc(nil).init_str(title).autorelease();
 
-        let selector = selector.unwrap_or(Sel::from_ptr(std::ptr::null()));
+        let selector = selector.unwrap_or_else(|| Sel::from_ptr(std::ptr::null()));
 
         let key_equivalent = accelerator
             .clone()
