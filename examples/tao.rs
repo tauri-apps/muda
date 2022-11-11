@@ -64,11 +64,9 @@ fn main() {
 
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
-    let test_m = Submenu::new("&Test", true);
     let window_m = Submenu::new("&Window", true);
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
-    menu_bar.insert(&test_m, 3);
 
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
@@ -88,20 +86,12 @@ fn main() {
     let copy_i = PredefinedMenuItem::copy(None);
     let cut_i = PredefinedMenuItem::cut(None);
     let paste_i = PredefinedMenuItem::paste(None);
-    let select_i = PredefinedMenuItem::select_all(None);
-
-    let submenu_m = Submenu::new("Submenu", true);
-    submenu_m.append_items(&[
-        &MenuItem::new("Submenu Item 1", true, None),
-        &MenuItem::new("Submenu Item 2", true, None),
-    ]);
 
     file_m.append_items(&[
         &custom_i_1,
         &custom_i_2,
         &window_m,
         &PredefinedMenuItem::separator(),
-        &submenu_m,
         &check_custom_i_1,
     ]);
 
@@ -110,15 +100,6 @@ fn main() {
         &PredefinedMenuItem::maximize(None),
         &PredefinedMenuItem::close_window(Some("Close")),
         &PredefinedMenuItem::fullscreen(None),
-    ]);
-
-    test_m.append_items(&[
-        &check_custom_i_1,
-        &check_custom_i_2,
-        &PredefinedMenuItem::separator(),
-        &PredefinedMenuItem::quit(None),
-        &select_i,
-        &select_i,
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
@@ -132,18 +113,7 @@ fn main() {
         &custom_i_1,
     ]);
 
-    test_m.insert(&cut_i, 2);
-    test_m.remove(&select_i);
-
     edit_m.append_items(&[&copy_i, &paste_i, &PredefinedMenuItem::separator()]);
-    edit_m.prepend(&cut_i);
-    edit_m.append(&select_i);
-
-    file_m.set_text("Hello World");
-
-    custom_i_2.set_text("Foo && Bar");
-    check_custom_i_2.set_checked(false);
-    check_custom_i_3.set_enabled(false);
 
     #[cfg(target_os = "windows")]
     {
@@ -169,10 +139,6 @@ fn main() {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            // #[cfg(target_os = "macos")]
-            // Event::NewEvents(tao::event::StartCause::Init) => {
-            //     menu_bar.init_for_nsapp();
-            // }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -214,7 +180,7 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&MenuItem::new("asdasd", false, None), 2);
+                file_m.insert(&MenuItem::new("New Menu Item", false, None), 2);
             }
             println!("{:?}", event);
         }
