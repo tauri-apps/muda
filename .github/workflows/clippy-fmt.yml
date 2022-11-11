@@ -32,6 +32,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-targets --all-features -- -D warnings
+          name: clippy
 
   fmt:
     runs-on: ubuntu-latest
