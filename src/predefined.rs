@@ -1,6 +1,11 @@
 use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 
+#[cfg(target_os = "macos")]
+pub const CMD_OR_CTRL: Modifiers = Modifiers::META;
+#[cfg(not(target_os = "macos"))]
+pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
+
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem(pub(crate) crate::platform_impl::PredefinedMenuItem);
 
@@ -18,6 +23,10 @@ unsafe impl MenuItemExt for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
+    pub fn separator() -> PredefinedMenuItem {
+        PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
+    }
+
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Copy, text)
     }
@@ -34,12 +43,36 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::SelectAll, text)
     }
 
-    pub fn separator() -> PredefinedMenuItem {
-        PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
+    pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Undo, text)
+    }
+
+    pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Redo, text)
     }
 
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Minimize, text)
+    }
+
+    pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Maximize, text)
+    }
+
+    pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Fullscreen, text)
+    }
+
+    pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Hide, text)
+    }
+
+    pub fn hide_others(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::HideOthers, text)
+    }
+
+    pub fn show_all(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::ShowAll, text)
     }
 
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
@@ -54,6 +87,9 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::About(metadata), text)
     }
 
+    pub fn services(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredfinedMenuItemType::Services, text)
+    }
     fn new<S: AsRef<str>>(item: PredfinedMenuItemType, text: Option<S>) -> Self {
         Self(crate::platform_impl::PredefinedMenuItem::new(
             item,
@@ -104,15 +140,23 @@ pub struct AboutMetadata {
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[non_exhaustive]
 pub(crate) enum PredfinedMenuItemType {
+    Separator,
     Copy,
     Cut,
     Paste,
     SelectAll,
-    Separator,
+    Undo,
+    Redo,
     Minimize,
+    Maximize,
+    Fullscreen,
+    Hide,
+    HideOthers,
+    ShowAll,
     CloseWindow,
     Quit,
     About(Option<AboutMetadata>),
+    Services,
     None,
 }
 
@@ -125,12 +169,22 @@ impl Default for PredfinedMenuItemType {
 impl PredfinedMenuItemType {
     pub(crate) fn text(&self) -> &str {
         match self {
+            PredfinedMenuItemType::Separator => "",
             PredfinedMenuItemType::Copy => "&Copy",
             PredfinedMenuItemType::Cut => "Cu&t",
             PredfinedMenuItemType::Paste => "&Paste",
             PredfinedMenuItemType::SelectAll => "Select &All",
-            PredfinedMenuItemType::Separator => "",
+            PredfinedMenuItemType::Undo => "Undo",
+            PredfinedMenuItemType::Redo => "Redo",
             PredfinedMenuItemType::Minimize => "&Minimize",
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::Maximize => "Zoom",
+            #[cfg(not(target_os = "macos"))]
+            PredfinedMenuItemType::Maximize => "Maximize",
+            PredfinedMenuItemType::Fullscreen => "Toggle Full Screen",
+            PredfinedMenuItemType::Hide => "Hide",
+            PredfinedMenuItemType::HideOthers => "Hide Others",
+            PredfinedMenuItemType::ShowAll => "Show All",
             #[cfg(windows)]
             PredfinedMenuItemType::CloseWindow => "Close",
             #[cfg(not(windows))]
@@ -140,41 +194,50 @@ impl PredfinedMenuItemType {
             #[cfg(not(windows))]
             PredfinedMenuItemType::Quit => "&Quit",
             PredfinedMenuItemType::About(_) => "&About",
+            PredfinedMenuItemType::Services => "Services",
             PredfinedMenuItemType::None => "",
         }
     }
 
     pub(crate) fn accelerator(&self) -> Option<Accelerator> {
         match self {
-            PredfinedMenuItemType::Copy => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyC))
-            }
-            PredfinedMenuItemType::Cut => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyX))
-            }
-            PredfinedMenuItemType::Paste => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyV))
-            }
-
+            PredfinedMenuItemType::Copy => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyC)),
+            PredfinedMenuItemType::Cut => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyX)),
+            PredfinedMenuItemType::Paste => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyV)),
+            PredfinedMenuItemType::Undo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyZ)),
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::Redo => Some(Accelerator::new(
+                Some(CMD_OR_CTRL | Modifiers::SHIFT),
+                Code::KeyZ,
+            )),
+            #[cfg(not(target_os = "macos"))]
+            PredfinedMenuItemType::Redo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyY)),
             PredfinedMenuItemType::SelectAll => {
-                #[cfg(target_os = "macos")]
-                let mods = Modifiers::META;
-                #[cfg(not(target_os = "macos"))]
-                let mods = Modifiers::CONTROL;
-                Some(Accelerator::new(Some(mods), Code::KeyA))
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyA))
             }
+            PredfinedMenuItemType::Minimize => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyM))
+            }
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::Fullscreen => Some(Accelerator::new(
+                Some(Modifiers::META | Modifiers::CONTROL),
+                Code::KeyF,
+            )),
+            PredfinedMenuItemType::Hide => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyH)),
+            PredfinedMenuItemType::HideOthers => Some(Accelerator::new(
+                Some(CMD_OR_CTRL | Modifiers::ALT),
+                Code::KeyH,
+            )),
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyW))
+            }
+            #[cfg(not(target_os = "macos"))]
+            PredfinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(Modifiers::ALT), Code::F4))
+            }
+            #[cfg(target_os = "macos")]
+            PredfinedMenuItemType::Quit => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyQ)),
             _ => None,
         }
     }

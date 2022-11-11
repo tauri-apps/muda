@@ -41,6 +41,11 @@ impl ContextMenu for Menu {
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.0.gtk_context_menu()
     }
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
+    }
 }
 
 impl Menu {

@@ -8,19 +8,30 @@
 //! # use muda::{Menu, Submenu, MenuItem, accelerator::{Code, Modifiers, Accelerator}, PredefinedMenuItem};
 //! let menu = Menu::new();
 //! let menu_item2 = MenuItem::new("Menu item #2", false, None);
-//! let submenu = Submenu::with_items("Submenu Outer", true,&[
-//!   &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD))),
-//!   &PredefinedMenuItem::separator(),
-//!   &menu_item2,
-//!   &MenuItem::new("Menu item #3", true, None),
-//!   &PredefinedMenuItem::separator(),
-//!   &Submenu::with_items("Submenu Inner", true,&[
-//!     &MenuItem::new("Submenu item #1", true, None),
-//!     &PredefinedMenuItem::separator(),
-//!     &menu_item2,
-//!   ])
-//! ]);
-//!
+//! let submenu = Submenu::with_items(
+//!     "Submenu Outer",
+//!     true,
+//!     &[
+//!         &MenuItem::new(
+//!             "Menu item #1",
+//!             true,
+//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
+//!         ),
+//!         &PredefinedMenuItem::separator(),
+//!         &menu_item2,
+//!         &MenuItem::new("Menu item #3", true, None),
+//!         &PredefinedMenuItem::separator(),
+//!         &Submenu::with_items(
+//!             "Submenu Inner",
+//!             true,
+//!             &[
+//!                 &MenuItem::new("Submenu item #1", true, None),
+//!                 &PredefinedMenuItem::separator(),
+//!                 &menu_item2,
+//!             ],
+//!         ),
+//!     ],
+//! );
 //! ```
 //!
 //! Then Add your root menu to a Window on Windows and Linux Only or use it
@@ -50,7 +61,8 @@
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
-//! # let nsview = 0;
+//! # #[cfg(target_os = "macos")]
+//! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
 //! let x = 100.0;
 //! let y = 120.0;
@@ -59,7 +71,7 @@
 //! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
 //! #[cfg(target_os = "macos")]
-//! menu.show_context_menu_for_nsview(nsview, x, y);
+//! menu.show_context_menu_for_nsview(nsview);
 //! ```
 //! # Processing menu events
 //!
@@ -71,7 +83,7 @@
 //! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
 //! if let Ok(event) = menu_event_receiver().try_recv() {
 //!     match event.id {
-//!         _ if event.id == save_item.id() => {
+//!         id if id == save_item.id() => {
 //!             println!("Save menu item activated");
 //!         },
 //!         _ => {}
@@ -98,6 +110,10 @@ mod platform_impl;
 mod predefined;
 mod submenu;
 mod util;
+
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
 
 pub use self::error::*;
 pub use check_menu_item::CheckMenuItem;
@@ -163,7 +179,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` are relatvie to the window top-left corner.
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
 
@@ -180,12 +196,19 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` are relatvie to the window top-left corner
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
     /// Get the underlying gtk menu reserved for context menus.
     #[cfg(target_os = "linux")]
     fn gtk_context_menu(&self) -> gtk::Menu;
+
+    /// Shows this menu as a context menu for the specified `NSView`.
+    ///
+    /// The menu will be shown at the coordinates of the current event
+    /// (the click which triggered the menu to be shown).
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id);
 }
 
 /// Describes a menu event emitted when a menu item is activated

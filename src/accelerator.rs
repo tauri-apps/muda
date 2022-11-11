@@ -198,7 +198,7 @@ fn test_parse_accelerator() {
         parse_accelerator("CmdOrCtrl+Space").unwrap(),
         Accelerator {
             #[cfg(target_os = "macos")]
-            mods: Modifiers::SUPER,
+            mods: Modifiers::META,
             #[cfg(not(target_os = "macos"))]
             mods: Modifiers::CONTROL,
             key: Code::Space,

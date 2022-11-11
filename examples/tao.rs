@@ -4,6 +4,8 @@ use muda::{
     menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, Menu, MenuItem,
     PredefinedMenuItem, Submenu,
 };
+#[cfg(target_os = "macos")]
+use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
@@ -32,11 +34,33 @@ fn main() {
         });
     }
 
-    #[allow(unused_mut)]
-    let mut event_loop = event_loop_builder.build();
+    let event_loop = event_loop_builder.build();
 
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let window2 = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title("Window 1")
+        .build(&event_loop)
+        .unwrap();
+    let window2 = WindowBuilder::new()
+        .with_title("Window 2")
+        .build(&event_loop)
+        .unwrap();
+
+    #[cfg(target_os = "macos")]
+    {
+        let app_m = Submenu::new("App", true);
+        menu_bar.append(&app_m);
+        app_m.append_items(&[
+            &PredefinedMenuItem::about(None, None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::services(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::show_all(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+        ]);
+    }
 
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
@@ -72,11 +96,10 @@ fn main() {
     ]);
 
     window_m.append_items(&[
-        &check_custom_i_2,
-        &PredefinedMenuItem::close_window(None),
-        &PredefinedMenuItem::separator(),
-        &PredefinedMenuItem::quit(None),
-        &PredefinedMenuItem::select_all(None),
+        &PredefinedMenuItem::minimize(None),
+        &PredefinedMenuItem::maximize(None),
+        &PredefinedMenuItem::close_window(Some("Close")),
+        &PredefinedMenuItem::fullscreen(None),
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
@@ -85,15 +108,12 @@ fn main() {
                 ..Default::default()
             }),
         ),
-        &PredefinedMenuItem::minimize(None),
         &check_custom_i_3,
+        &custom_i_2,
         &custom_i_1,
     ]);
 
-    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &cut_i]);
-
-    edit_m.prepend(&paste_i);
-    window_m.insert(&cut_i, 2);
+    edit_m.append_items(&[&copy_i, &paste_i, &PredefinedMenuItem::separator()]);
 
     #[cfg(target_os = "windows")]
     {
@@ -105,6 +125,11 @@ fn main() {
         menu_bar.init_for_gtk_window(window.gtk_window());
         menu_bar.init_for_gtk_window(window2.gtk_window());
     }
+    #[cfg(target_os = "macos")]
+    {
+        menu_bar.init_for_nsapp();
+        window_m.set_windows_menu_for_nsapp();
+    }
 
     let menu_channel = menu_event_receiver();
 
@@ -114,10 +139,6 @@ fn main() {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            #[cfg(target_os = "macos")]
-            Event::NewEvents(tao::event::StartCause::Init) => {
-                menu_bar.init_for_nsapp();
-            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -142,11 +163,13 @@ fn main() {
                 window_id,
                 ..
             } => {
-                if window_id == window.id() {
+                if window_id == window2.id() {
                     #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+                    window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
                     #[cfg(target_os = "linux")]
-                    window_m.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
+                    window_m.show_context_menu_for_gtk_window(window2.gtk_window(), x, y);
+                    #[cfg(target_os = "macos")]
+                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _);
                 }
             }
             Event::MainEventsCleared => {
@@ -157,7 +180,7 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&MenuItem::new("asdasd", false, None), 2);
+                file_m.insert(&MenuItem::new("New Menu Item", false, None), 2);
             }
             println!("{:?}", event);
         }

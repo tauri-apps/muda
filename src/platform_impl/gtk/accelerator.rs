@@ -74,8 +74,6 @@ pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::Modif
             if let Some(gdk_key) = key_to_raw_key(k) {
                 *gdk_key
             } else {
-                // TODO: better logging and error handling
-                dbg!("Cannot map key {:?}", k);
                 return Err(crate::Error::AcceleratorKeyNotSupported(*k));
             }
         }

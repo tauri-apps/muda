@@ -49,6 +49,11 @@ impl ContextMenu for Submenu {
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.0.gtk_context_menu()
     }
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
+        self.0.show_context_menu_for_nsview(view)
+    }
 }
 
 impl Submenu {
@@ -139,5 +144,25 @@ impl Submenu {
     /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
+    }
+
+    /// Set this submenu as the Window menu for the application on macOS.
+    ///
+    /// This will cause macOS to automatically add window-switching items and
+    /// certain other items to the menu.
+    #[cfg(target_os = "macos")]
+    pub fn set_windows_menu_for_nsapp(&self) {
+        self.0.set_windows_menu_for_nsapp()
+    }
+
+    /// Set this submenu as the Help menu for the application on macOS.
+    ///
+    /// This will cause macOS to automatically add a search box to the menu.
+    ///
+    /// If no menu is set as the Help menu, macOS will automatically use any menu
+    /// which has a title matching the localized word "Help".
+    #[cfg(target_os = "macos")]
+    pub fn set_help_menu_for_nsapp(&self) {
+        self.0.set_help_menu_for_nsapp()
     }
 }
