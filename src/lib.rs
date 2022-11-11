@@ -61,7 +61,7 @@
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
-//! # let nsview = 0;
+//! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
 //! let x = 100.0;
 //! let y = 120.0;
@@ -70,7 +70,7 @@
 //! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
 //! #[cfg(target_os = "macos")]
-//! menu.show_context_menu_for_nsview(nsview, x, y);
+//! menu.show_context_menu_for_nsview(nsview);
 //! ```
 //! # Processing menu events
 //!
