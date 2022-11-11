@@ -61,6 +61,7 @@
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
+//! # #[cfg(target_os = "macos")]
 //! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
 //! let x = 100.0;
