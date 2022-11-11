@@ -27,12 +27,10 @@ jobs:
           override: true
           components: clippy
 
-      - name: clippy
-        uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          command: clippy
           args: --all-targets --all-features -- -D warnings
-          name: clippy
 
   fmt:
     runs-on: ubuntu-latest
