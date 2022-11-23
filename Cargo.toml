@@ -12,23 +12,24 @@ categories = ["gui"]
 
 [dependencies]
 crossbeam-channel = "0.5"
-once_cell = "1.10"
 keyboard-types = "0.6"
+once_cell = "1"
+thiserror = "1.0.37"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
-version = "0.34"
+version = "0.42"
 features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_UI_Shell",
     "Win32_Globalization",
-    "Win32_UI_Input_KeyboardAndMouse"
+    "Win32_UI_Input_KeyboardAndMouse",
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = "0.15"
-gtk = "0.15"
+gtk = { version = "0.15", features = ["v3_22"] }
 libxdo = "0.6.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -36,5 +37,5 @@ cocoa = "0.24"
 objc = "0.2"
 
 [dev-dependencies]
-winit = { git = "https://github.com/rust-windowing/winit" }
+winit = "0.27"
 tao = { git = "https://github.com/tauri-apps/tao", branch = "muda" }

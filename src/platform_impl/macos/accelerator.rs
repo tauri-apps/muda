@@ -3,17 +3,11 @@ use keyboard_types::{Code, Modifiers};
 
 use crate::accelerator::Accelerator;
 
-/// Mnemonic is deprecated since macOS 10
-pub fn remove_mnemonic(string: impl AsRef<str>) -> String {
-    string.as_ref().replace("&", "")
-}
-
 impl Accelerator {
-    /// Return the string value of this hotkey, for use with Cocoa `NSResponder`
-    /// objects.
+    /// Return the string value of this hotkey, without modifiers.
     ///
     /// Returns the empty string if no key equivalent is known.
-    pub fn key_equivalent(&self) -> String {
+    pub fn key_equivalent(self) -> String {
         match self.key {
             Code::KeyA => "a".into(),
             Code::KeyB => "b".into(),
@@ -113,13 +107,14 @@ impl Accelerator {
         }
     }
 
-    pub fn key_modifier_mask(&self) -> NSEventModifierFlags {
+    /// Return the modifiers of this hotkey, as an NSEventModifierFlags bitflag.
+    pub fn key_modifier_mask(self) -> NSEventModifierFlags {
         let mods: Modifiers = self.mods;
         let mut flags = NSEventModifierFlags::empty();
         if mods.contains(Modifiers::SHIFT) {
             flags.insert(NSEventModifierFlags::NSShiftKeyMask);
         }
-        if mods.contains(Modifiers::SUPER) {
+        if mods.contains(Modifiers::META) {
             flags.insert(NSEventModifierFlags::NSCommandKeyMask);
         }
         if mods.contains(Modifiers::ALT) {
