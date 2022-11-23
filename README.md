@@ -76,7 +76,7 @@ See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/muda/struct.Menu.html#me
 
 ### Linux
 
-`libx` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+`libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
 
 Arch Linux / Manjaro:
 ```sh
