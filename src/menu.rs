@@ -43,8 +43,8 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id) {
-        self.0.show_context_menu_for_nsview(view)
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64) {
+        self.0.show_context_menu_for_nsview(view, x, y)
     }
 }
 

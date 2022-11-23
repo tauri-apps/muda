@@ -4,9 +4,9 @@ mod util;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 
 use cocoa::{
-    appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
+    appkit::{CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO, YES},
-    foundation::{NSAutoreleasePool, NSInteger, NSString},
+    foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSRect, NSString},
 };
 use objc::{
     declare::ClassDecl,
@@ -232,11 +232,14 @@ impl Menu {
         unsafe { NSApp().setMainMenu_(nil) }
     }
 
-    pub fn show_context_menu_for_nsview(&self, view: id) {
+    pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
         unsafe {
-            let ns_menu_class = class!(NSMenu);
-            let ns_event: &mut Object = msg_send![NSApp(), currentEvent];
-            msg_send![ns_menu_class, popUpContextMenu: self.ns_menu withEvent: ns_event forView: view]
+            let window: id = msg_send![view, window];
+            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
+            let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
+            let view_rect: NSRect = msg_send![view, frame];
+            let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
+            msg_send![self.ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: view]
         }
     }
 }
@@ -418,13 +421,16 @@ impl Submenu {
         self.0.borrow_mut().set_enabled(enabled)
     }
 
-    pub fn show_context_menu_for_nsview(&self, view: id) {
+    pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
         // TODO: this needs to work even if it hasn't already been added to a menu
         if let Some(ns_menus) = self.0.borrow().ns_menus.get(&1) {
             unsafe {
-                let ns_menu_class = class!(NSMenu);
-                let ns_event: &mut Object = msg_send![NSApp(), currentEvent];
-                msg_send![ns_menu_class, popUpContextMenu: ns_menus[0] withEvent: ns_event forView: view]
+                let window: id = msg_send![view, window];
+                let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
+                let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
+                let view_rect: NSRect = msg_send![view, frame];
+                let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
+                msg_send![ns_menus[0], popUpMenuPositioningItem: nil atLocation: location inView: view]
             }
         }
     }

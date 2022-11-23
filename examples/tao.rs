@@ -169,7 +169,7 @@ fn main() {
                     #[cfg(target_os = "linux")]
                     window_m.show_context_menu_for_gtk_window(window2.gtk_window(), x, y);
                     #[cfg(target_os = "macos")]
-                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _);
+                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _, x, y);
                 }
             }
             Event::MainEventsCleared => {

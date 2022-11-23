@@ -71,7 +71,7 @@
 //! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
 //! #[cfg(target_os = "macos")]
-//! menu.show_context_menu_for_nsview(nsview);
+//! menu.show_context_menu_for_nsview(nsview, x, y);
 //! ```
 //! # Processing menu events
 //!
@@ -208,7 +208,7 @@ pub trait ContextMenu {
     /// The menu will be shown at the coordinates of the current event
     /// (the click which triggered the menu to be shown).
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id);
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64);
 }
 
 /// Describes a menu event emitted when a menu item is activated

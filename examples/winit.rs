@@ -162,7 +162,7 @@ fn main() {
                     #[cfg(target_os = "windows")]
                     window_m.show_context_menu_for_hwnd(window2.hwnd(), x, y);
                     #[cfg(target_os = "macos")]
-                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _);
+                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _, x, y);
                 }
             }
             Event::MainEventsCleared => {
