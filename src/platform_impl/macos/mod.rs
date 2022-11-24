@@ -242,6 +242,10 @@ impl Menu {
             msg_send![self.ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: view]
         }
     }
+
+    pub fn ns_menu(&self) -> *mut std::ffi::c_void {
+        self.ns_menu as _
+    }
 }
 
 #[derive(Clone)]
@@ -445,6 +449,19 @@ impl Submenu {
         if let Some(ns_menus) = self.0.borrow().ns_menus.get(&1) {
             unsafe { msg_send![NSApp(), setHelpMenu: ns_menus[0]] }
         }
+    }
+
+    pub fn ns_menu(&self) -> *mut std::ffi::c_void {
+        *self
+            .0
+            .borrow()
+            .ns_menus
+            .values()
+            .collect::<Vec<_>>()
+            .get(0)
+            .unwrap()
+            .get(0)
+            .unwrap() as _
     }
 }
 
