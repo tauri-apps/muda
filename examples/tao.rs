@@ -13,7 +13,7 @@ use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::WindowBuilder,
+    window::{Window, WindowBuilder},
 };
 
 fn main() {
@@ -148,7 +148,7 @@ fn main() {
                 window_id,
                 ..
             } => {
-                if window_id == window.id() {
+                if window_id == window2.id() {
                     x = position.x;
                     y = position.y;
                 }
@@ -164,12 +164,7 @@ fn main() {
                 ..
             } => {
                 if window_id == window2.id() {
-                    #[cfg(target_os = "windows")]
-                    window_m.show_context_menu_for_hwnd(window2.hwnd() as _, x, y);
-                    #[cfg(target_os = "linux")]
-                    window_m.show_context_menu_for_gtk_window(window2.gtk_window(), x, y);
-                    #[cfg(target_os = "macos")]
-                    menu_bar.show_context_menu_for_nsview(window2.ns_view() as _, x, y);
+                    show_context_menu(&window2, &file_m, x, y);
                 }
             }
             Event::MainEventsCleared => {
@@ -180,9 +175,18 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&MenuItem::new("New Menu Item", false, None), 2);
+                file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
             }
             println!("{:?}", event);
         }
     })
+}
+
+fn show_context_menu(window: &Window, menu: &dyn ContextMenu, x: f64, y: f64) {
+    #[cfg(target_os = "windows")]
+    menu.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+    #[cfg(target_os = "linux")]
+    menu.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
+    #[cfg(target_os = "macos")]
+    menu.show_context_menu_for_nsview(window.ns_view() as _, x, y);
 }

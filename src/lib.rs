@@ -126,8 +126,8 @@ pub use submenu::Submenu;
 pub enum MenuItemType {
     Submenu,
     Normal,
-    Check,
     Predefined,
+    Check,
 }
 
 impl Default for MenuItemType {

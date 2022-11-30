@@ -12,6 +12,12 @@ pub enum Error {
     #[cfg(target_os = "linux")]
     #[error("This menu has not been initialized for this gtk window`")]
     NotInitialized,
+    #[cfg(windows)]
+    #[error("This menu has already been initialized for this hwnd`")]
+    AlreadyInitialized,
+    #[cfg(target_os = "linux")]
+    #[error("This menu has already been initialized for this gtk window`")]
+    AlreadyInitialized,
     #[error("{0}")]
     AcceleratorParseError(String),
     #[error("Cannot map {0} to gdk key")]
