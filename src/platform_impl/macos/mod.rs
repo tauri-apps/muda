@@ -147,19 +147,7 @@ impl Menu {
         }
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Append)
-    }
-
-    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Insert(0))
-    }
-
-    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
-        self.add_menu_item(item, AddOp::Insert(position))
-    }
-
-    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
+    pub fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.id);
         let child: Rc<RefCell<MenuChild>> = item.get_child();
 
@@ -333,19 +321,7 @@ impl Submenu {
         ns_menu_item
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Append)
-    }
-
-    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Insert(0))
-    }
-
-    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
-        self.add_menu_item(item, AddOp::Insert(position))
-    }
-
-    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
+    pub fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let mut self_ = self.0.borrow_mut();
 
         let item_child: Rc<RefCell<MenuChild>> = item.get_child();

@@ -1,4 +1,4 @@
-use crate::{ContextMenu, MenuItemExt, MenuItemType};
+use crate::{util::AddOp, ContextMenu, MenuItemExt, MenuItemType};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -16,48 +16,6 @@ unsafe impl MenuItemExt for Submenu {
 
     fn id(&self) -> u32 {
         self.id()
-    }
-}
-
-impl ContextMenu for Submenu {
-    #[cfg(target_os = "windows")]
-    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
-        self.0.hpopupmenu()
-    }
-
-    #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.show_context_menu_for_hwnd(hwnd, x, y)
-    }
-
-    #[cfg(target_os = "windows")]
-    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.0.attach_menu_subclass_for_hwnd(hwnd)
-    }
-
-    #[cfg(target_os = "windows")]
-    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.0.detach_menu_subclass_from_hwnd(hwnd)
-    }
-
-    #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
-        self.0.show_context_menu_for_gtk_window(w, x, y)
-    }
-
-    #[cfg(target_os = "linux")]
-    fn gtk_context_menu(&self) -> gtk::Menu {
-        self.0.gtk_context_menu()
-    }
-
-    #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64) {
-        self.0.show_context_menu_for_nsview(view, x, y)
-    }
-
-    #[cfg(target_os = "macos")]
-    fn ns_menu(&self) -> *mut std::ffi::c_void {
-        self.0.ns_menu()
     }
 }
 
@@ -84,7 +42,7 @@ impl Submenu {
 
     /// Add a menu item to the end of this menu.
     pub fn append(&self, item: &dyn MenuItemExt) {
-        self.0.append(item)
+        self.0.add_menu_item(item, AddOp::Append)
     }
 
     /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.
@@ -96,7 +54,7 @@ impl Submenu {
 
     /// Add a menu item to the beginning of this submenu.
     pub fn prepend(&self, item: &dyn MenuItemExt) {
-        self.0.prepend(item)
+        self.0.add_menu_item(item, AddOp::Insert(0))
     }
 
     /// Add menu items to the beginning of this submenu.
@@ -109,7 +67,7 @@ impl Submenu {
 
     /// Insert a menu item at the specified `postion` in the submenu.
     pub fn insert(&self, item: &dyn MenuItemExt, position: usize) {
-        self.0.insert(item, position)
+        self.0.add_menu_item(item, AddOp::Insert(position))
     }
 
     /// Insert menu items at the specified `postion` in the submenu.
@@ -169,5 +127,47 @@ impl Submenu {
     #[cfg(target_os = "macos")]
     pub fn set_help_menu_for_nsapp(&self) {
         self.0.set_help_menu_for_nsapp()
+    }
+}
+
+impl ContextMenu for Submenu {
+    #[cfg(target_os = "windows")]
+    fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
+        self.0.hpopupmenu()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
+        self.0.show_context_menu_for_hwnd(hwnd, x, y)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        self.0.attach_menu_subclass_for_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        self.0.detach_menu_subclass_from_hwnd(hwnd)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
+        self.0.show_context_menu_for_gtk_window(w, x, y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.0.gtk_context_menu()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64) {
+        self.0.show_context_menu_for_nsview(view, x, y)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn ns_menu(&self) -> *mut std::ffi::c_void {
+        self.0.ns_menu()
     }
 }

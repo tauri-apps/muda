@@ -182,19 +182,7 @@ impl Menu {
         }
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Append)
-    }
-
-    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Insert(0))
-    }
-
-    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
-        self.add_menu_item(item, AddOp::Insert(position))
-    }
-
-    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
+    pub fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
             MenuItemType::Submenu => {
@@ -422,7 +410,11 @@ impl Menu {
         self.hpopupmenu
     }
 
-    pub fn init_for_hwnd(&self, hwnd: isize) {
+    pub fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        if self.hwnds.borrow().iter().any(|h| *h == hwnd) {
+            return Err(crate::Error::AlreadyInitialized);
+        }
+
         self.hwnds.borrow_mut().push(hwnd);
         unsafe {
             SetMenu(hwnd, self.hmenu);
@@ -434,6 +426,8 @@ impl Menu {
             );
             DrawMenuBar(hwnd);
         };
+
+        Ok(())
     }
 
     pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
@@ -528,19 +522,7 @@ impl Submenu {
         self.0.borrow().hpopupmenu
     }
 
-    pub fn append(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Append)
-    }
-
-    pub fn prepend(&self, item: &dyn crate::MenuItemExt) {
-        self.add_menu_item(item, AddOp::Insert(0))
-    }
-
-    pub fn insert(&self, item: &dyn crate::MenuItemExt, position: usize) {
-        self.add_menu_item(item, AddOp::Insert(position))
-    }
-
-    fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
+    pub fn add_menu_item(&self, item: &dyn crate::MenuItemExt, op: AddOp) {
         let mut flags = 0;
         let child = match item.type_() {
             MenuItemType::Submenu => {
