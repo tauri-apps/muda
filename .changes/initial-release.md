@@ -1,5 +1,0 @@
----
-"muda": "minor"
----
-
-Initial Release.
