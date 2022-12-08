@@ -77,61 +77,72 @@ fn parse_accelerator(accelerator_string: &str) -> crate::Result<Accelerator> {
     let mut mods = Modifiers::empty();
     let mut key = Code::Unidentified;
 
-    for raw in accelerator_string.split('+') {
-        let token = raw.trim().to_string();
-        if token.is_empty() {
-            return Err(crate::Error::AcceleratorParseError(
-                "Unexpected empty token while parsing accelerator".into(),
-            ));
-        }
-
-        if key != Code::Unidentified {
-            // at this point we already parsed the modifiers and found a main key but
-            // the function received more then one main key or it is not in the right order
-            // examples:
-            // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
-            // 2. "Ctrl+C+Shift" => wrong order
-            return Err(crate::Error::AcceleratorParseError(format!(
-                "Unexpected accelerator string format: \"{}\"",
-                accelerator_string
-            )));
-        }
-
-        match token.to_uppercase().as_str() {
-            "OPTION" | "ALT" => {
-                mods.set(Modifiers::ALT, true);
-            }
-            "CONTROL" | "CTRL" => {
-                mods.set(Modifiers::CONTROL, true);
-            }
-            "COMMAND" | "CMD" | "SUPER" => {
-                mods.set(Modifiers::META, true);
-            }
-            "SHIFT" => {
-                mods.set(Modifiers::SHIFT, true);
-            }
-            "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
-                #[cfg(target_os = "macos")]
-                mods.set(Modifiers::META, true);
-                #[cfg(not(target_os = "macos"))]
-                mods.set(Modifiers::CONTROL, true);
-            }
-            _ => {
-                if let Ok(code) = Code::from_str(token.as_str()) {
-                    match code {
-                        Code::Unidentified => {
-                            return Err(crate::Error::AcceleratorParseError(format!(
-                                "Couldn't identify \"{}\" as a valid `Code`",
-                                token
-                            )))
-                        }
-                        _ => key = code,
-                    }
-                } else {
+    let mut split = accelerator_string.split('+');
+    let len = split.clone().count();
+    let parse_key = |token: &str| -> crate::Result<Code> {
+        if let Ok(code) = Code::from_str(token) {
+            match code {
+                Code::Unidentified => {
                     return Err(crate::Error::AcceleratorParseError(format!(
                         "Couldn't identify \"{}\" as a valid `Code`",
                         token
-                    )));
+                    )))
+                }
+                _ => Ok(code),
+            }
+        } else {
+            return Err(crate::Error::AcceleratorParseError(format!(
+                "Couldn't identify \"{}\" as a valid `Code`",
+                token
+            )));
+        }
+    };
+
+    if len == 1 {
+        let token = split.next().unwrap();
+        key = parse_key(token)?;
+    } else {
+        for raw in accelerator_string.split('+') {
+            let token = raw.trim().to_string();
+            if token.is_empty() {
+                return Err(crate::Error::AcceleratorParseError(
+                    "Unexpected empty token while parsing accelerator".into(),
+                ));
+            }
+
+            if key != Code::Unidentified {
+                // at this point we already parsed the modifiers and found a main key but
+                // the function received more then one main key or it is not in the right order
+                // examples:
+                // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
+                // 2. "Ctrl+C+Shift" => wrong order
+                return Err(crate::Error::AcceleratorParseError(format!(
+                    "Unexpected accelerator string format: \"{}\"",
+                    accelerator_string
+                )));
+            }
+
+            match token.to_uppercase().as_str() {
+                "OPTION" | "ALT" => {
+                    mods.set(Modifiers::ALT, true);
+                }
+                "CONTROL" | "CTRL" => {
+                    mods.set(Modifiers::CONTROL, true);
+                }
+                "COMMAND" | "CMD" | "SUPER" => {
+                    mods.set(Modifiers::META, true);
+                }
+                "SHIFT" => {
+                    mods.set(Modifiers::SHIFT, true);
+                }
+                "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
+                    #[cfg(target_os = "macos")]
+                    mods.set(Modifiers::META, true);
+                    #[cfg(not(target_os = "macos"))]
+                    mods.set(Modifiers::CONTROL, true);
+                }
+                _ => {
+                    key = parse_key(token.as_str())?;
                 }
             }
         }
