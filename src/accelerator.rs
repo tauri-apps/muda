@@ -1,3 +1,7 @@
+// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! Accelerators describe keyboard shortcuts for menu items.
 //!
 //! [`Accelerator`s](crate::accelerator::Accelerator) are used to define a keyboard shortcut consisting

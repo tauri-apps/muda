@@ -1,3 +1,7 @@
+// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 

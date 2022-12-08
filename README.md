@@ -87,3 +87,7 @@ Debian / Ubuntu:
 ```sh
 sudo apt install libxdo-dev
 ```
+
+## License
+
+Apache-2.0/MIT

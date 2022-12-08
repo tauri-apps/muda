@@ -1,3 +1,7 @@
+// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
