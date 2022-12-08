@@ -82,19 +82,17 @@ fn parse_accelerator(accelerator_string: &str) -> crate::Result<Accelerator> {
     let parse_key = |token: &str| -> crate::Result<Code> {
         if let Ok(code) = Code::from_str(token) {
             match code {
-                Code::Unidentified => {
-                    return Err(crate::Error::AcceleratorParseError(format!(
-                        "Couldn't identify \"{}\" as a valid `Code`",
-                        token
-                    )))
-                }
+                Code::Unidentified => Err(crate::Error::AcceleratorParseError(format!(
+                    "Couldn't identify \"{}\" as a valid `Code`",
+                    token
+                ))),
                 _ => Ok(code),
             }
         } else {
-            return Err(crate::Error::AcceleratorParseError(format!(
+            Err(crate::Error::AcceleratorParseError(format!(
                 "Couldn't identify \"{}\" as a valid `Code`",
                 token
-            )));
+            )))
         }
     };
 
