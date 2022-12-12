@@ -162,7 +162,7 @@ fn key_to_vk(key: &Code) -> VIRTUAL_KEY {
         Code::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
         Code::LaunchMail => VK_LAUNCH_MAIL,
         Code::Convert => VK_CONVERT,
-        key => panic!("Unsupported modifier: {}", key),
+        key => panic!("Unsupported key: {}", key),
     }
 }
 

@@ -33,7 +33,7 @@ use std::{borrow::Borrow, hash::Hash, str::FromStr};
 /// A keyboard shortcut that consists of an optional combination
 /// of modifier keys (provided by [`Modifiers`](crate::accelerator::Modifiers)) and
 /// one key ([`Code`](crate::accelerator::Code)).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Accelerator {
     pub(crate) mods: Modifiers,
     pub(crate) key: Code,
