@@ -862,7 +862,7 @@ impl PredefinedMenuItem {
     ) -> gtk::MenuItem {
         let self_ = self.0.borrow();
         let text = self_.text.clone();
-        let accelerator = self_.accelerator.clone();
+        let accelerator = self_.accelerator;
         let predefined_item_type = self_.predefined_item_type.clone();
         drop(self_);
 
