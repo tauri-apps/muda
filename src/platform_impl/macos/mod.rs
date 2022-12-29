@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 mod accelerator;
+mod icon;
 mod util;
+
+pub(crate) use icon::PlatformIcon;
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 

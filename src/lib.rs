@@ -108,6 +108,7 @@ use once_cell::sync::Lazy;
 pub mod accelerator;
 mod check_menu_item;
 mod error;
+mod icon_menu_item;
 mod menu;
 mod menu_item;
 mod platform_impl;
@@ -121,7 +122,9 @@ extern crate objc;
 
 pub use self::error::*;
 pub use check_menu_item::CheckMenuItem;
+pub use icon_menu_item::IconMenuItem;
 pub use menu::Menu;
+pub mod icon;
 pub use menu_item::MenuItem;
 pub use predefined::{AboutMetadata, PredefinedMenuItem};
 pub use submenu::Submenu;
@@ -132,6 +135,7 @@ pub enum MenuItemType {
     Normal,
     Predefined,
     Check,
+    Icon,
 }
 
 impl Default for MenuItemType {

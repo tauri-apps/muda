@@ -41,8 +41,8 @@ impl Accelerator {
         let raw_key = vk_code & 0x00ff;
 
         ACCEL {
-            fVirt: virt_key as u8,
-            key: raw_key as u16,
+            fVirt: virt_key,
+            key: raw_key,
             cmd: menu_id,
         }
     }

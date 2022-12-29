@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 mod accelerator;
+mod icon;
 mod util;
+
+pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
+    icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
     MenuItemType,
@@ -15,7 +19,7 @@ use std::{cell::RefCell, fmt::Debug, rc::Rc};
 use util::{decode_wide, encode_wide, Accel};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
-    Graphics::Gdi::ClientToScreen,
+    Graphics::Gdi::{ClientToScreen, HBITMAP},
     UI::{
         Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, KEYEVENTF_KEYUP, VK_CONTROL},
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
@@ -26,7 +30,8 @@ use windows_sys::Win32::{
             SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION,
             MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED,
             MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED,
-            MIIM_STATE, MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND, WM_DESTROY,
+            MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_MINIMIZE, TPM_LEFTALIGN, WM_COMMAND,
+            WM_DESTROY,
         },
     },
 };
@@ -56,6 +61,9 @@ struct MenuChild {
 
     // check menu item fields
     checked: bool,
+
+    // icon menu item fields
+    icon: Option<Icon>,
 
     // submenu fields
     hmenu: HMENU,
@@ -164,6 +172,16 @@ impl MenuChild {
             };
         }
     }
+
+    fn set_icon(&mut self, icon: Option<Icon>) {
+        self.icon = icon.clone();
+
+        let hbitmap = icon.map(|i| unsafe { i.inner.to_hbitmap() }).unwrap_or(0);
+        let info = create_icon_item_info(hbitmap);
+        for parent in &self.parents_hemnu {
+            unsafe { SetMenuItemInfoW(*parent, self.id(), false.into(), &info) };
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -243,6 +261,14 @@ impl Menu {
 
                 child
             }
+            MenuItemType::Icon => {
+                let item = item.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
+                let child = &item.0 .0;
+
+                flags |= MF_STRING;
+
+                child
+            }
         }
         .clone();
 
@@ -295,11 +321,31 @@ impl Menu {
                 }
             }
         }
+
+        {
+            let child_ = child.borrow();
+
+            if child_.type_ == MenuItemType::Icon {
+                let hbitmap = child_
+                    .icon
+                    .as_ref()
+                    .map(|i| unsafe { i.inner.to_hbitmap() })
+                    .unwrap_or(0);
+                let info = create_icon_item_info(hbitmap);
+
+                unsafe {
+                    SetMenuItemInfoW(self.hmenu, child_.id, false.into(), &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.id, false.into(), &info);
+                };
+            }
+        }
+
         {
             let mut child_ = child.borrow_mut();
             child_.parents_hemnu.push(self.hmenu);
             child_.parents_hemnu.push(self.hpopupmenu);
         }
+
         {
             let mut children = self.children.borrow_mut();
             match op {
@@ -340,6 +386,10 @@ impl Menu {
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
+                &item.0 .0
+            }
+            MenuItemType::Icon => {
+                let item = item.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
                 &item.0 .0
             }
         };
@@ -383,6 +433,7 @@ impl Menu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -588,6 +639,14 @@ impl Submenu {
 
                 child
             }
+            MenuItemType::Icon => {
+                let item = item.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
+                let child = &item.0 .0;
+
+                flags |= MF_STRING;
+
+                child
+            }
         }
         .clone();
 
@@ -643,12 +702,33 @@ impl Submenu {
                 }
             }
         }
+
+        {
+            let self_ = self.0.borrow();
+            let child_ = child.borrow();
+
+            if child_.type_ == MenuItemType::Icon {
+                let hbitmap = child_
+                    .icon
+                    .as_ref()
+                    .map(|i| unsafe { i.inner.to_hbitmap() })
+                    .unwrap_or(0);
+                let info = create_icon_item_info(hbitmap);
+
+                unsafe {
+                    SetMenuItemInfoW(self_.hmenu, child_.id, false.into(), &info);
+                    SetMenuItemInfoW(self_.hpopupmenu, child_.id, false.into(), &info);
+                };
+            }
+        }
+
         {
             let self_ = self.0.borrow();
             let mut child_ = child.borrow_mut();
             child_.parents_hemnu.push(self_.hmenu);
             child_.parents_hemnu.push(self_.hpopupmenu);
         }
+
         {
             let mut self_ = self.0.borrow_mut();
             let children = self_.children.as_mut().unwrap();
@@ -686,6 +766,10 @@ impl Submenu {
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
+                &item.0 .0
+            }
+            MenuItemType::Icon => {
+                let item = item.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
                 &item.0 .0
             }
         };
@@ -733,6 +817,7 @@ impl Submenu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -905,6 +990,53 @@ impl CheckMenuItem {
 
     pub fn set_checked(&self, checked: bool) {
         self.0.borrow_mut().set_checked(checked)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IconMenuItem(Rc<RefCell<MenuChild>>);
+
+impl IconMenuItem {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        icon: Option<Icon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(MenuChild {
+            type_: MenuItemType::Icon,
+            text: text.to_string(),
+            enabled,
+            parents_hemnu: Vec::new(),
+            id: COUNTER.next(),
+            accelerator,
+            icon,
+            ..Default::default()
+        })))
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.borrow().id()
+    }
+
+    pub fn text(&self) -> String {
+        self.0.borrow().text()
+    }
+
+    pub fn set_text(&self, text: &str) {
+        self.0.borrow_mut().set_text(text)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0.borrow().is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.borrow_mut().set_enabled(enabled)
+    }
+
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.0.borrow_mut().set_icon(icon)
     }
 }
 
@@ -1088,4 +1220,12 @@ fn execute_edit_command(command: EditCommand) {
 
         SendInput(4, &inputs as *const _, std::mem::size_of::<INPUT>() as _);
     }
+}
+
+fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
+    let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+    info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+    info.fMask = MIIM_BITMAP;
+    info.hbmpItem = hbitmap;
+    info
 }

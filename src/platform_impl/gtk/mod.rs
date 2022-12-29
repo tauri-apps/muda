@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 mod accelerator;
+mod icon;
+
+pub(crate) use icon::PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
