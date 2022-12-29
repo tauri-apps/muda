@@ -80,7 +80,12 @@ fn main() {
 
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
     let icon = load_icon(std::path::Path::new(path));
-    let image_item = IconMenuItem::new("Custom 2", true, Some(icon), None);
+    let image_item = IconMenuItem::new(
+        "Image custom 1",
+        true,
+        Some(icon),
+        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+    );
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);

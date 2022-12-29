@@ -90,9 +90,12 @@ pub fn register_accelerator<M: IsA<gtk::Widget>>(
     item: &M,
     accel_group: &AccelGroup,
     accelerator: &Accelerator,
-) {
+) -> Option<(gdk::ModifierType, u32)> {
     if let Ok((mods, key)) = parse_accelerator(accelerator) {
         item.add_accelerator("activate", accel_group, key, mods, gtk::AccelFlags::VISIBLE);
+        Some((mods, key))
+    } else {
+        None
     }
 }
 

@@ -9,6 +9,7 @@ pub(crate) use icon::PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
+    icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
     MenuItemType,
@@ -41,7 +42,8 @@ macro_rules! return_if_predefined_item_not_supported {
             (
                 crate::MenuItemType::Submenu
                 | crate::MenuItemType::Normal
-                | crate::MenuItemType::Check,
+                | crate::MenuItemType::Check
+                | crate::MenuItemType::Icon,
                 _,
             ) => {}
             _ => return,
@@ -73,6 +75,9 @@ struct MenuChild {
     // check menu item fields
     checked: bool,
     is_syncing_checked_state: Rc<AtomicBool>,
+
+    // icon menu item fields
+    icon: Option<Icon>,
 
     // submenu fields
     children: Option<Vec<Rc<RefCell<MenuChild>>>>,
@@ -159,6 +164,21 @@ impl MenuChild {
         }
         self.is_syncing_checked_state
             .store(false, Ordering::Release);
+    }
+
+    fn set_icon(&mut self, icon: Option<Icon>) {
+        self.icon = icon.clone();
+
+        let pixbuf = icon.map(|i| i.inner.to_pixbuf(16, 16));
+        for items in self.gtk_menu_items.values() {
+            for i in items {
+                let box_container = i.child().unwrap().downcast::<gtk::Box>().unwrap();
+                box_container.children()[0]
+                    .downcast_ref::<gtk::Image>()
+                    .unwrap()
+                    .set_pixbuf(pixbuf.as_ref())
+            }
+        }
     }
 }
 
@@ -319,6 +339,7 @@ impl Menu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -651,6 +672,7 @@ impl Submenu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -1092,6 +1114,118 @@ impl CheckMenuItem {
     }
 }
 
+#[derive(Clone)]
+pub struct IconMenuItem(Rc<RefCell<MenuChild>>);
+
+impl IconMenuItem {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        icon: Option<Icon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        let child = Rc::new(RefCell::new(MenuChild {
+            text: text.to_string(),
+            enabled,
+            icon,
+            accelerator,
+            id: COUNTER.next(),
+            type_: MenuItemType::Icon,
+            gtk_menu_items: HashMap::new(),
+            is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
+            ..Default::default()
+        }));
+
+        Self(child)
+    }
+
+    fn make_gtk_menu_item(
+        &self,
+        menu_id: u32,
+        accel_group: Option<&gtk::AccelGroup>,
+        add_to_cache: bool,
+    ) -> gtk::MenuItem {
+        let mut self_ = self.0.borrow_mut();
+
+        let image = self_
+            .icon
+            .as_ref()
+            .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf(16, 16))))
+            .unwrap_or_else(gtk::Image::default);
+
+        let label = gtk::AccelLabel::builder()
+            .label(&to_gtk_mnemonic(&self_.text))
+            .use_underline(true)
+            .xalign(0.0)
+            .build();
+
+        let box_container = gtk::Box::new(Orientation::Horizontal, 6);
+        let style_context = box_container.style_context();
+        let css_provider = gtk::CssProvider::new();
+        let theme = r#"
+            box {
+                margin-left: -22px;
+            }
+          "#;
+        let _ = css_provider.load_from_data(theme.as_bytes());
+        style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        box_container.pack_start(&image, false, false, 0);
+        box_container.pack_start(&label, true, true, 0);
+        box_container.show_all();
+
+        let item = gtk::MenuItem::builder()
+            .child(&box_container)
+            .sensitive(self_.enabled)
+            .build();
+
+        if let Some(accelerator) = &self_.accelerator {
+            if let Some(accel_group) = accel_group {
+                if let Some((mods, key)) = register_accelerator(&item, accel_group, accelerator) {
+                    label.set_accel(key, mods);
+                }
+            }
+        }
+
+        let id = self_.id;
+        item.connect_activate(move |_| {
+            let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+        });
+
+        if add_to_cache {
+            self_
+                .gtk_menu_items
+                .entry(menu_id)
+                .or_insert_with(Vec::new)
+                .push(item.clone());
+        }
+
+        item
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.borrow().id()
+    }
+    pub fn text(&self) -> String {
+        self.0.borrow().text()
+    }
+
+    pub fn set_text(&self, text: &str) {
+        self.0.borrow_mut().set_text(text)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0.borrow().is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.borrow_mut().set_enabled(enabled)
+    }
+
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.0.borrow_mut().set_icon(icon)
+    }
+}
+
 impl dyn crate::MenuItemExt + '_ {
     fn get_child(&self) -> Rc<RefCell<MenuChild>> {
         match self.type_() {
@@ -1103,6 +1237,14 @@ impl dyn crate::MenuItemExt + '_ {
                 let menuitem = self.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 Rc::clone(&menuitem.0 .0)
             }
+
+            MenuItemType::Predefined => {
+                let menuitem = self
+                    .as_any()
+                    .downcast_ref::<crate::PredefinedMenuItem>()
+                    .unwrap();
+                Rc::clone(&menuitem.0 .0)
+            }
             MenuItemType::Check => {
                 let menuitem = self
                     .as_any()
@@ -1110,11 +1252,8 @@ impl dyn crate::MenuItemExt + '_ {
                     .unwrap();
                 Rc::clone(&menuitem.0 .0)
             }
-            MenuItemType::Predefined => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
+            MenuItemType::Icon => {
+                let menuitem = self.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
                 Rc::clone(&menuitem.0 .0)
             }
         }
@@ -1153,6 +1292,12 @@ impl dyn crate::MenuItemExt + '_ {
                     .as_any()
                     .downcast_ref::<crate::CheckMenuItem>()
                     .unwrap();
+                menuitem
+                    .0
+                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
+            }
+            MenuItemType::Icon => {
+                let menuitem = self.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
                 menuitem
                     .0
                     .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
