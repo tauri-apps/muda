@@ -29,7 +29,7 @@ features = [
 ]
 
 [target."cfg(target_os = \"linux\")".dependencies]
-gtk = { version = "0.15", features = [ "v3_22" ] }
+gtk = { version = "0.16", features = [ "v3_22" ] }
 gdk = { version = "0.15", features = [ "v3_22" ] }
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libxdo = "0.6.0"
