@@ -37,6 +37,7 @@ libxdo = "0.6.0"
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.24"
 objc = "0.2"
+png = "0.17"
 
 [dev-dependencies]
 winit = "0.27"

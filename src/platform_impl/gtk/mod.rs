@@ -1229,33 +1229,42 @@ impl IconMenuItem {
 impl dyn crate::MenuItemExt + '_ {
     fn get_child(&self) -> Rc<RefCell<MenuChild>> {
         match self.type_() {
-            MenuItemType::Submenu => {
-                let submenu = self.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                Rc::clone(&submenu.0 .0)
-            }
-            MenuItemType::Normal => {
-                let menuitem = self.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
+            MenuItemType::Submenu => self
+                .as_any()
+                .downcast_ref::<crate::Submenu>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Normal => self
+                .as_any()
+                .downcast_ref::<crate::MenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
 
-            MenuItemType::Predefined => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
-            MenuItemType::Check => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::CheckMenuItem>()
-                    .unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
-            MenuItemType::Icon => {
-                let menuitem = self.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
+            MenuItemType::Predefined => self
+                .as_any()
+                .downcast_ref::<crate::PredefinedMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Check => self
+                .as_any()
+                .downcast_ref::<crate::CheckMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Icon => self
+                .as_any()
+                .downcast_ref::<crate::IconMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
         }
     }
 
@@ -1266,42 +1275,36 @@ impl dyn crate::MenuItemExt + '_ {
         add_to_cache: bool,
     ) -> gtk::MenuItem {
         match self.type_() {
-            MenuItemType::Submenu => {
-                let submenu = self.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                submenu
-                    .0
-                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Normal => {
-                let menuitem = self.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                menuitem
-                    .0
-                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Predefined => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
-                menuitem
-                    .0
-                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Check => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::CheckMenuItem>()
-                    .unwrap();
-                menuitem
-                    .0
-                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Icon => {
-                let menuitem = self.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
-                menuitem
-                    .0
-                    .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
-            }
+            MenuItemType::Submenu => self
+                .as_any()
+                .downcast_ref::<crate::Submenu>()
+                .unwrap()
+                .0
+                .make_gtk_menu_item(menu_id, accel_group, add_to_cache),
+            MenuItemType::Normal => self
+                .as_any()
+                .downcast_ref::<crate::MenuItem>()
+                .unwrap()
+                .0
+                .make_gtk_menu_item(menu_id, accel_group, add_to_cache),
+            MenuItemType::Predefined => self
+                .as_any()
+                .downcast_ref::<crate::PredefinedMenuItem>()
+                .unwrap()
+                .0
+                .make_gtk_menu_item(menu_id, accel_group, add_to_cache),
+            MenuItemType::Check => self
+                .as_any()
+                .downcast_ref::<crate::CheckMenuItem>()
+                .unwrap()
+                .0
+                .make_gtk_menu_item(menu_id, accel_group, add_to_cache),
+            MenuItemType::Icon => self
+                .as_any()
+                .downcast_ref::<crate::IconMenuItem>()
+                .unwrap()
+                .0
+                .make_gtk_menu_item(menu_id, accel_group, add_to_cache),
         }
     }
 }
