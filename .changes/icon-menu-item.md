@@ -1,5 +1,0 @@
----
-"muda": "minor"
----
-
-Add `IconMenuItem`
