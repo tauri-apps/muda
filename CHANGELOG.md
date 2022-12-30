@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.0]
+
+- Add `IconMenuItem`
+  - [7fc1b02](https://www.github.com/tauri-apps/muda/commit/7fc1b02cac65f2524220cb79263643505e286863) feat: add `IconMenuItem`, closes [#30](https://www.github.com/tauri-apps/muda/pull/30) ([#32](https://www.github.com/tauri-apps/muda/pull/32)) on 2022-12-30
+
 ## \[0.1.1]
 
 - Derive `Copy` for `Accelerator` type.
