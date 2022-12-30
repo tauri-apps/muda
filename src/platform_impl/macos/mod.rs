@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: MIT
 
 mod accelerator;
+mod icon;
 mod util;
+
+pub(crate) use icon::PlatformIcon;
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 
 use cocoa::{
-    appkit::{CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
+    appkit::{CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO, YES},
-    foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSRect, NSString},
+    foundation::{NSAutoreleasePool, NSData, NSInteger, NSPoint, NSRect, NSSize, NSString},
 };
 use objc::{
     declare::ClassDecl,
@@ -20,6 +23,7 @@ use objc::{
 use self::util::{app_name_string, strip_mnemonic};
 use crate::{
     accelerator::Accelerator,
+    icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
     MenuItemExt, MenuItemType,
@@ -31,7 +35,7 @@ static BLOCK_PTR: &str = "mudaMenuItemBlockPtr";
 /// A generic child in a menu
 ///
 /// Be careful when cloning this item and treat it as read-only
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 #[allow(dead_code)]
 struct MenuChild {
     // shared fields between submenus and menu items
@@ -51,6 +55,9 @@ struct MenuChild {
     // check menu item fields
     checked: bool,
 
+    // icon menu item fields
+    icon: Option<Icon>,
+
     // submenu fields
     children: Option<Vec<Rc<RefCell<MenuChild>>>>,
     ns_menus: HashMap<u32, Vec<id>>,
@@ -68,6 +75,7 @@ impl Default for MenuChild {
             accelerator: Default::default(),
             predefined_item_type: Default::default(),
             checked: Default::default(),
+            icon: Default::default(),
             children: Default::default(),
             ns_menus: Default::default(),
             ns_menu: (0, 0 as _),
@@ -129,6 +137,15 @@ impl MenuChild {
             }
         }
     }
+
+    fn set_icon(&mut self, icon: Option<Icon>) {
+        self.icon = icon.clone();
+        for ns_items in self.ns_menu_items.values() {
+            for &ns_item in ns_items {
+                menuitem_set_icon(ns_item, icon.as_ref());
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -180,6 +197,13 @@ impl Menu {
                 let menuitem = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
                 menuitem.0 .0.borrow_mut()
             }
+            MenuItemType::Predefined => {
+                let menuitem = item
+                    .as_any()
+                    .downcast_ref::<crate::PredefinedMenuItem>()
+                    .unwrap();
+                menuitem.0 .0.borrow_mut()
+            }
             MenuItemType::Check => {
                 let menuitem = item
                     .as_any()
@@ -187,11 +211,8 @@ impl Menu {
                     .unwrap();
                 menuitem.0 .0.borrow_mut()
             }
-            MenuItemType::Predefined => {
-                let menuitem = item
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
+            MenuItemType::Icon => {
+                let menuitem = item.as_any().downcast_ref::<crate::IconMenuItem>().unwrap();
                 menuitem.0 .0.borrow_mut()
             }
         }
@@ -230,6 +251,7 @@ impl Menu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -306,6 +328,7 @@ impl Submenu {
                     PredefinedMenuItem(item.clone()).make_ns_item_for_menu(menu_id)
                 }
                 MenuItemType::Check => CheckMenuItem(item.clone()).make_ns_item_for_menu(menu_id),
+                MenuItemType::Icon => IconMenuItem(item.clone()).make_ns_item_for_menu(menu_id),
             };
             unsafe { ns_submenu.addItem_(ns_item) };
         }
@@ -399,7 +422,7 @@ impl Submenu {
         let children = self_.children.as_mut().unwrap();
         let index = children
             .iter()
-            .position(|e| e == &child)
+            .position(|e| e.borrow().id == item.id())
             .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
 
@@ -422,6 +445,7 @@ impl Submenu {
                         Box::new(crate::PredefinedMenuItem(PredefinedMenuItem(c.clone())))
                     }
                     MenuItemType::Check => Box::new(crate::CheckMenuItem(CheckMenuItem(c.clone()))),
+                    MenuItemType::Icon => Box::new(crate::IconMenuItem(IconMenuItem(c.clone()))),
                 }
             })
             .collect()
@@ -697,6 +721,85 @@ impl CheckMenuItem {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct IconMenuItem(Rc<RefCell<MenuChild>>);
+
+impl IconMenuItem {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        icon: Option<Icon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(MenuChild {
+            type_: MenuItemType::Icon,
+            text: text.to_string(),
+            enabled,
+            id: COUNTER.next(),
+            icon,
+            accelerator,
+            ..Default::default()
+        })))
+    }
+
+    pub fn make_ns_item_for_menu(&self, menu_id: u32) -> id {
+        let mut child = self.0.borrow_mut();
+
+        let ns_menu_item = create_ns_menu_item(
+            &child.text,
+            Some(sel!(fireMenuItemAction:)),
+            &child.accelerator,
+        );
+
+        unsafe {
+            let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
+            let _: () = msg_send![ns_menu_item, setTag:child.id()];
+
+            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
+            let ptr = Box::into_raw(Box::new(&*child));
+            (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+
+            if !child.enabled {
+                let () = msg_send![ns_menu_item, setEnabled: NO];
+            }
+
+            menuitem_set_icon(ns_menu_item, child.icon.as_ref());
+        }
+
+        child
+            .ns_menu_items
+            .entry(menu_id)
+            .or_insert_with(Vec::new)
+            .push(ns_menu_item);
+
+        ns_menu_item
+    }
+
+    pub fn id(&self) -> u32 {
+        self.0.borrow().id()
+    }
+
+    pub fn text(&self) -> String {
+        self.0.borrow().text()
+    }
+
+    pub fn set_text(&self, text: &str) {
+        self.0.borrow_mut().set_text(text)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0.borrow().is_enabled()
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.borrow_mut().set_enabled(enabled)
+    }
+
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.0.borrow_mut().set_icon(icon)
+    }
+}
+
 impl PredfinedMenuItemType {
     pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
@@ -725,55 +828,76 @@ impl PredfinedMenuItemType {
 impl dyn MenuItemExt + '_ {
     fn get_child(&self) -> Rc<RefCell<MenuChild>> {
         match self.type_() {
-            MenuItemType::Submenu => {
-                let submenu = self.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                Rc::clone(&submenu.0 .0)
-            }
-            MenuItemType::Normal => {
-                let menuitem = self.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
-            MenuItemType::Check => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::CheckMenuItem>()
-                    .unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
-            MenuItemType::Predefined => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
-                Rc::clone(&menuitem.0 .0)
-            }
+            MenuItemType::Submenu => self
+                .as_any()
+                .downcast_ref::<crate::Submenu>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Normal => self
+                .as_any()
+                .downcast_ref::<crate::MenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Predefined => self
+                .as_any()
+                .downcast_ref::<crate::PredefinedMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Check => self
+                .as_any()
+                .downcast_ref::<crate::CheckMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
+            MenuItemType::Icon => self
+                .as_any()
+                .downcast_ref::<crate::IconMenuItem>()
+                .unwrap()
+                .0
+                 .0
+                .clone(),
         }
     }
 
     fn make_ns_item_for_menu(&self, menu_id: u32) -> *mut Object {
         match self.type_() {
-            MenuItemType::Submenu => {
-                let submenu = self.as_any().downcast_ref::<crate::Submenu>().unwrap();
-                submenu.0.make_ns_item_for_menu(menu_id)
-            }
-            MenuItemType::Normal => {
-                let menuitem = self.as_any().downcast_ref::<crate::MenuItem>().unwrap();
-                menuitem.0.make_ns_item_for_menu(menu_id)
-            }
-            MenuItemType::Check => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::CheckMenuItem>()
-                    .unwrap();
-                menuitem.0.make_ns_item_for_menu(menu_id)
-            }
-            MenuItemType::Predefined => {
-                let menuitem = self
-                    .as_any()
-                    .downcast_ref::<crate::PredefinedMenuItem>()
-                    .unwrap();
-                menuitem.0.make_ns_item_for_menu(menu_id)
-            }
+            MenuItemType::Submenu => self
+                .as_any()
+                .downcast_ref::<crate::Submenu>()
+                .unwrap()
+                .0
+                .make_ns_item_for_menu(menu_id),
+            MenuItemType::Normal => self
+                .as_any()
+                .downcast_ref::<crate::MenuItem>()
+                .unwrap()
+                .0
+                .make_ns_item_for_menu(menu_id),
+            MenuItemType::Predefined => self
+                .as_any()
+                .downcast_ref::<crate::PredefinedMenuItem>()
+                .unwrap()
+                .0
+                .make_ns_item_for_menu(menu_id),
+            MenuItemType::Check => self
+                .as_any()
+                .downcast_ref::<crate::CheckMenuItem>()
+                .unwrap()
+                .0
+                .make_ns_item_for_menu(menu_id),
+            MenuItemType::Icon => self
+                .as_any()
+                .downcast_ref::<crate::IconMenuItem>()
+                .unwrap()
+                .0
+                .make_ns_item_for_menu(menu_id),
         }
     }
 }
@@ -842,16 +966,14 @@ fn create_ns_menu_item(
 
         let selector = selector.unwrap_or_else(|| Sel::from_ptr(std::ptr::null()));
 
-        let key_equivalent = accelerator
-            .clone()
+        let key_equivalent = (*accelerator)
             .map(|accel| accel.key_equivalent())
             .unwrap_or_default();
         let key_equivalent = NSString::alloc(nil)
             .init_str(key_equivalent.as_str())
             .autorelease();
 
-        let modifier_mask = accelerator
-            .clone()
+        let modifier_mask = (*accelerator)
             .map(|accel| accel.key_modifier_mask())
             .unwrap_or_else(NSEventModifierFlags::empty);
 
@@ -861,5 +983,32 @@ fn create_ns_menu_item(
         ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
 
         ns_menu_item.autorelease()
+    }
+}
+
+fn menuitem_set_icon(menuitem: id, icon: Option<&Icon>) {
+    if let Some(icon) = icon {
+        let (width, height) = icon.inner.get_size();
+        let icon = icon.inner.to_png();
+
+        let icon_height: f64 = 18.0;
+        let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
+
+        unsafe {
+            let nsdata = NSData::dataWithBytes_length_(
+                nil,
+                icon.as_ptr() as *const std::os::raw::c_void,
+                icon.len() as u64,
+            );
+
+            let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
+            let new_size = NSSize::new(icon_width, icon_height);
+            let _: () = msg_send![nsimage, setSize: new_size];
+            let _: () = msg_send![menuitem, setImage: nsimage];
+        }
+    } else {
+        unsafe {
+            let _: () = msg_send![menuitem, setImage: nil];
+        }
     }
 }

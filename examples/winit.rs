@@ -5,11 +5,13 @@
 #![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, Menu, MenuItem,
+    menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
+#[cfg(target_os = "linux")]
+use winit::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
@@ -77,7 +79,11 @@ fn main() {
         true,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
-    let custom_i_2 = MenuItem::new("Custom 2", false, None);
+
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
     let check_custom_i_3 = CheckMenuItem::new(
@@ -93,7 +99,7 @@ fn main() {
 
     file_m.append_items(&[
         &custom_i_1,
-        &custom_i_2,
+        &image_item,
         &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
@@ -113,11 +119,11 @@ fn main() {
             }),
         ),
         &check_custom_i_3,
-        &custom_i_2,
+        &image_item,
         &custom_i_1,
     ]);
 
-    edit_m.append_items(&[&copy_i, &paste_i, &PredefinedMenuItem::separator()]);
+    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
     {
@@ -163,7 +169,7 @@ fn main() {
                 ..
             } => {
                 if window_id == window2.id() {
-                    show_context_menu(&window2, &window_m, x, y);
+                    show_context_menu(&window2, &file_m, x, y);
                 }
             }
             Event::MainEventsCleared => {
@@ -174,7 +180,7 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                file_m.insert(&MenuItem::new("New Menu Item", false, None), 2);
+                file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
             }
             println!("{:?}", event);
         }
@@ -186,4 +192,16 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, x: f64, y: f64) {
     menu.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
     #[cfg(target_os = "macos")]
     menu.show_context_menu_for_nsview(window.ns_view() as _, x, y);
+}
+
+fn load_icon(path: &std::path::Path) -> muda::icon::Icon {
+    let (icon_rgba, icon_width, icon_height) = {
+        let image = image::open(path)
+            .expect("Failed to open icon path")
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        (rgba, width, height)
+    };
+    muda::icon::Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
 }
