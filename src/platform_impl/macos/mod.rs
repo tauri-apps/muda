@@ -26,7 +26,7 @@ use crate::{
     icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    MenuItemExt, MenuItemType,
+    MenuEvent, MenuItemExt, MenuItemType,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -952,7 +952,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
             (*item).set_checked(!(*item).is_checked());
         }
 
-        let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+        MenuEvent::send(crate::MenuEvent { id });
     }
 }
 

@@ -79,13 +79,13 @@
 //! ```
 //! # Processing menu events
 //!
-//! You can use [`menu_event_receiver`] to get a reference to the [`MenuEventReceiver`]
+//! You can use [`MenuEvent::receiver`] to get a reference to the [`MenuEventReceiver`]
 //! which you can use to listen to events when a menu item is activated
 //! ```no_run
-//! # use muda::menu_event_receiver;
+//! # use muda::MenuEvent;
 //! #
 //! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
-//! if let Ok(event) = menu_event_receiver().try_recv() {
+//! if let Ok(event) = MenuEvent::receiver().try_recv() {
 //!     match event.id {
 //!         id if id == save_item.id() => {
 //!             println!("Save menu item activated");
@@ -103,7 +103,7 @@
 //! See [`Menu::init_for_hwnd`] for more details
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 
 pub mod accelerator;
 mod check_menu_item;
@@ -231,11 +231,41 @@ pub struct MenuEvent {
 
 /// A reciever that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
+type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(unbounded);
+static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
 
-/// Gets a reference to the event channel's [MenuEventReceiver]
-/// which can be used to listen for menu events.
-pub fn menu_event_receiver<'a>() -> &'a MenuEventReceiver {
-    &MENU_CHANNEL.1
+impl MenuEvent {
+    /// Gets a reference to the event channel's [`MenuEventReceiver`]
+    /// which can be used to listen for menu events.
+    ///
+    /// ## Note
+    ///
+    /// This will not receive any events if [`MenuEvent::set_event_handler`] has been called with a `Some` value.
+    pub fn receiver<'a>() -> &'a MenuEventReceiver {
+        &MENU_CHANNEL.1
+    }
+
+    /// Set a handler to be called for new events. Useful for implementing custom event sender.
+    ///
+    /// ## Note
+    ///
+    /// Calling this function with a `Some` value,
+    /// will not send new events to the channel associated with [`MenuEvent::receiver`]
+    pub fn set_event_handler<F: Fn(MenuEvent) + Send + Sync + 'static>(f: Option<F>) {
+        if let Some(f) = f {
+            let _ = MENU_EVENT_HANDLER.set(Some(Box::new(f)));
+        } else {
+            let _ = MENU_EVENT_HANDLER.set(None);
+        }
+    }
+
+    pub(crate) fn send(event: MenuEvent) {
+        if let Some(handler) = MENU_EVENT_HANDLER.get_or_init(|| None) {
+            handler(event);
+        } else {
+            let _ = MENU_CHANNEL.0.send(event);
+        }
+    }
 }

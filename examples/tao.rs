@@ -5,7 +5,7 @@
 #![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
-    menu_event_receiver, AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -144,7 +144,7 @@ fn main() {
         window_m.set_windows_menu_for_nsapp();
     }
 
-    let menu_channel = menu_event_receiver();
+    let menu_channel = MenuEvent::receiver();
 
     let mut x = 0_f64;
     let mut y = 0_f64;
