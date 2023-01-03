@@ -192,7 +192,7 @@ pub trait ContextMenu {
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
 
     /// Attach the menu subclass handler to the given hwnd
-    /// so you can recieve events from that window using [menu_event_receiver]
+    /// so you can recieve events from that window using [MenuEvent::receiver]
     ///
     /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
     #[cfg(target_os = "windows")]
