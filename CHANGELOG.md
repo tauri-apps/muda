@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.3.0]
+
+- Add `MenuEvent::set_event_handler` to set a handler for new menu events.
+  - [f871c68](https://www.github.com/tauri-apps/muda/commit/f871c68e81aa10f9541c386615a05a2e455e5a82) refactor: allow changing the menu event sender ([#35](https://www.github.com/tauri-apps/muda/pull/35)) on 2023-01-03
+- **Breaking change** Remove `menu_event_receiver` function, use `MenuEvent::receiver` instead.
+  - [f871c68](https://www.github.com/tauri-apps/muda/commit/f871c68e81aa10f9541c386615a05a2e455e5a82) refactor: allow changing the menu event sender ([#35](https://www.github.com/tauri-apps/muda/pull/35)) on 2023-01-03
+
 ## \[0.2.0]
 
 - Add `IconMenuItem`
