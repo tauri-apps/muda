@@ -12,7 +12,7 @@ use crate::{
     icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    MenuItemType,
+    MenuEvent, MenuItemType,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, register_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -826,7 +826,7 @@ impl MenuItem {
 
         let id = self_.id;
         item.connect_activate(move |_| {
-            let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+            MenuEvent::send(crate::MenuEvent { id });
         });
 
         if add_to_cache {
@@ -1069,7 +1069,7 @@ impl CheckMenuItem {
 
                 is_syncing_checked_state_c.store(false, Ordering::Release);
 
-                let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+                MenuEvent::send(crate::MenuEvent { id });
             }
         });
 
@@ -1188,7 +1188,7 @@ impl IconMenuItem {
 
         let id = self_.id;
         item.connect_activate(move |_| {
-            let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+            MenuEvent::send(crate::MenuEvent { id });
         });
 
         if add_to_cache {

@@ -13,7 +13,7 @@ use crate::{
     icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    MenuItemType,
+    MenuEvent, MenuItemType,
 };
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 use util::{decode_wide, encode_wide, Accel};
@@ -1144,7 +1144,7 @@ website: {} {}
             }
 
             if dispatch {
-                let _ = crate::MENU_CHANNEL.0.send(crate::MenuEvent { id });
+                MenuEvent::send(crate::MenuEvent { id });
             }
         }
     }

@@ -52,10 +52,10 @@ menu.show_context_menu_for_nsview(nsview, x, y);
 ```
 ## Processing menu events
 
-You can use [`menu_event_receiver`](https://docs.rs/muda/latest/muda/fn.menu_event_receiver.html) to get a reference to the [`MenuEventReceiver`](https://docs.rs/muda/latest/muda/type.MenuEventReceiver.html)
+You can use `MenuEvent::receiver` to get a reference to the `MenuEventReceiver`
 which you can use to listen to events when a menu item is activated
 ```rs
-if let Ok(event) = menu_event_receiver().try_recv() {
+if let Ok(event) = MenuEvent::receiver().try_recv() {
     match event.id {
         _ if event.id == save_item.id() => {
             println!("Save menu item activated");
