@@ -52,7 +52,7 @@ menu.show_context_menu_for_nsview(nsview, x, y);
 ```
 ## Processing menu events
 
-You can use [`MenuEvent::receiver`](https://docs.rs/muda/latest/muda/struct.MenuEvent.html#method.receiver) to get a reference to the [`MenuEventReceiver`](https://docs.rs/muda/latest/muda/type.MenuEventReceiver.html)
+You can use `MenuEvent::receiver` to get a reference to the `MenuEventReceiver`
 which you can use to listen to events when a menu item is activated
 ```rs
 if let Ok(event) = MenuEvent::receiver().try_recv() {
