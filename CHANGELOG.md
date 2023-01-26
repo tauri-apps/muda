@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.4.0]
+
+- Bump gtk version: 0.15 -> 0.16
+  - [fb3d0aa](https://www.github.com/tauri-apps/muda/commit/fb3d0aa303a0ee4ffff6d3de97cc363f1ef6d34b) chore(deps): bump gtk version 0.15 -> 0.16 ([#38](https://www.github.com/tauri-apps/muda/pull/38)) on 2023-01-26
+
 ## \[0.3.0]
 
 - Add `MenuEvent::set_event_handler` to set a handler for new menu events.
