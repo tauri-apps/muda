@@ -3,12 +3,12 @@ name = "muda"
 version = "0.3.0"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
-keywords = [ "windowing", "menu" ]
+keywords = ["windowing", "menu"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
-categories = [ "gui" ]
+categories = ["gui"]
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -25,13 +25,13 @@ features = [
   "Win32_UI_Shell",
   "Win32_Globalization",
   "Win32_UI_Input_KeyboardAndMouse",
-  "Win32_System_SystemServices"
+  "Win32_System_SystemServices",
 ]
 
 [target."cfg(target_os = \"linux\")".dependencies]
-gtk = { version = "0.15", features = [ "v3_22" ] }
-gdk = { version = "0.15", features = [ "v3_22" ] }
-gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
+gtk = "0.16"
+gdk = "0.16"
+gdk-pixbuf = "0.16"
 libxdo = "0.6.0"
 
 [target."cfg(target_os = \"macos\")".dependencies]
