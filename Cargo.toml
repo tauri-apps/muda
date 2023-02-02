@@ -40,6 +40,6 @@ objc = "0.2"
 png = "0.17"
 
 [dev-dependencies]
-winit = "0.27"
+winit = "0.28"
 tao = { git = "https://github.com/tauri-apps/tao", branch = "muda" }
 image = "0.24"
