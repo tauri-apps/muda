@@ -10,8 +10,6 @@ use muda::{
 };
 #[cfg(target_os = "macos")]
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
-#[cfg(target_os = "linux")]
-use winit::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use winit::{
