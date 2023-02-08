@@ -180,7 +180,7 @@ fn main() {
             if event.id == custom_i_1.id() {
                 file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
             }
-            println!("{:?}", event);
+            println!("{event:?}");
         }
     })
 }

@@ -2,7 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(clippy::uninlined_format_args)]
+
 //! muda is a Menu Utilities library for Desktop Applications.
+//!
+//! # Platforms supported:
+//!
+//! - Windows
+//! - macOS
+//! - Linux (gtk Only)
+//!
+//! # Platform-specific notes:
+//!
+//! - On Windows, accelerators don't work unless the win32 message loop calls
+//!   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
+//!   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/muda/struct.Menu.html#method.init_for_hwnd) for more details
+//!
+//! # Dependencies (Linux Only)
+//!
+//! `gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+//!
+//! #### Arch Linux / Manjaro:
+//!
+//! ```sh
+//! pacman -S gtk3 xdotool
+//! ```
+//!
+//! #### Debian / Ubuntu:
+//!
+//! ```sh
+//! sudo apt install libgtk-3-dev libxdo-dev
+//! ```
 //!
 //! # Example
 //!
@@ -94,13 +124,6 @@
 //!     }
 //! }
 //! ```
-//!
-//! # Accelerators on Windows
-//!
-//! Accelerators don't work unless the win32 message loop calls
-//! [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
-//!
-//! See [`Menu::init_for_hwnd`] for more details
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};

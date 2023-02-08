@@ -1,5 +1,33 @@
 muda is a Menu Utilities library for Desktop Applications.
 
+## Platforms supported:
+
+- Windows
+- macOS
+- Linux (gtk Only)
+
+## Platform-specific notes:
+
+- On Windows, accelerators don't work unless the win32 message loop calls
+  [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
+  See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/muda/struct.Menu.html#method.init_for_hwnd) for more details
+
+## Dependencies (Linux Only)
+
+`gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+
+#### Arch Linux / Manjaro:
+
+```sh
+pacman -S gtk3 xdotool
+```
+
+#### Debian / Ubuntu:
+
+```sh
+sudo apt install libgtk-3-dev libxdo-dev
+```
+
 ## Example
 
 Create the menu and add your items
@@ -50,10 +78,12 @@ menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
 #[cfg(target_os = "macos")]
 menu.show_context_menu_for_nsview(nsview, x, y);
 ```
+
 ## Processing menu events
 
 You can use `MenuEvent::receiver` to get a reference to the `MenuEventReceiver`
 which you can use to listen to events when a menu item is activated
+
 ```rs
 if let Ok(event) = MenuEvent::receiver().try_recv() {
     match event.id {
@@ -63,29 +93,6 @@ if let Ok(event) = MenuEvent::receiver().try_recv() {
         _ => {}
     }
 }
-```
-
-## Platform-specific notes:
-
-### Accelerators on Windows
-
-Accelerators don't work unless the win32 message loop calls
-[`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html)
-
-See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/muda/struct.Menu.html#method.init_for_hwnd) for more details
-
-### Linux
-
-`libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
-
-Arch Linux / Manjaro:
-```sh
-pacman -S xdotool
-```
-
-Debian / Ubuntu:
-```sh
-sudo apt install libxdo-dev
 ```
 
 ## License
