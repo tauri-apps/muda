@@ -1,5 +1,0 @@
----
-"muda": "patch"
----
-
-Update docs
