@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.4.1]
+
+- Update docs
+  - [4b2ebc2](https://www.github.com/tauri-apps/muda/commit/4b2ebc247cfef64bcaab2ab619e30b65db37a72f) docs: update docs on 2023-02-08
+
 ## \[0.4.0]
 
 - Bump gtk version: 0.15 -> 0.16
