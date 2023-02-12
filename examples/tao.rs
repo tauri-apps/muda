@@ -106,6 +106,7 @@ fn main() {
         &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
+        &check_custom_i_2,
     ]);
 
     window_m.append_items(&[
