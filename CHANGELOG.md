@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.4.2]
+
+- Fix panic when updating a `CheckMenuItem` right after it was clicked.
+  - [923af09](https://www.github.com/tauri-apps/muda/commit/923af09abfe885995ae0a4ef30f8a304cc4c20d2) fix(linux): fix multiple borrow panic ([#48](https://www.github.com/tauri-apps/muda/pull/48)) on 2023-02-14
+
 ## \[0.4.1]
 
 - Update docs
