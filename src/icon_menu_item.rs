@@ -4,9 +4,8 @@
 
 use crate::{accelerator::Accelerator, icon::Icon, MenuItemExt, MenuItemType};
 
-/// A check menu item inside a [`Menu`] or [`Submenu`]
-/// and usually contains a text and a check mark or a similar toggle
-/// that corresponds to a checked and unchecked states.
+/// An icon menu item inside a [`Menu`] or [`Submenu`]
+/// and usually contains an icon and a text.
 ///
 /// [`Menu`]: crate::Menu
 /// [`Submenu`]: crate::Submenu

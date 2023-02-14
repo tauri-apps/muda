@@ -1041,10 +1041,9 @@ impl CheckMenuItem {
 
         let id = self_.id;
         let self_c = self.0.clone();
+        let is_syncing_checked_state = self_.is_syncing_checked_state.clone();
         item.connect_toggled(move |i| {
-            let should_dispatch = self_c
-                .borrow()
-                .is_syncing_checked_state
+            let should_dispatch = is_syncing_checked_state
                 .compare_exchange(false, true, Ordering::Release, Ordering::Relaxed)
                 .is_ok();
 
