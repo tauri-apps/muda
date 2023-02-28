@@ -27,73 +27,134 @@ unsafe impl MenuItemExt for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
+    /// Separator menu item
     pub fn separator() -> PredefinedMenuItem {
         PredefinedMenuItem::new::<&str>(PredfinedMenuItemType::Separator, None)
     }
 
+    /// Copy menu item
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Copy, text)
     }
 
+    /// Cut menu item
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Cut, text)
     }
 
+    /// Paste menu item
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Paste, text)
     }
 
+    /// SelectAll menu item
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::SelectAll, text)
     }
 
+    /// Undo menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Undo, text)
     }
-
+    /// Redo menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Redo, text)
     }
 
+    /// Minimize window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Minimize, text)
     }
 
+    /// Maximize window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Maximize, text)
     }
 
+    /// Fullscreen menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
     pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Fullscreen, text)
     }
 
+    /// Hide window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Hide, text)
     }
 
+    /// Hide other windows menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn hide_others(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::HideOthers, text)
     }
 
+    /// Show all app windows menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
     pub fn show_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::ShowAll, text)
     }
 
+    /// Close window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::CloseWindow, text)
     }
 
+    /// Quit app menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Quit, text)
     }
 
+    /// About app menu item
     pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::About(metadata), text)
     }
 
+    /// Services menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
     pub fn services(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredfinedMenuItemType::Services, text)
     }
+
     fn new<S: AsRef<str>>(item: PredfinedMenuItemType, text: Option<S>) -> Self {
         Self(crate::platform_impl::PredefinedMenuItem::new(
             item,
@@ -184,9 +245,9 @@ impl PredfinedMenuItemType {
             #[cfg(target_os = "macos")]
             PredfinedMenuItemType::Maximize => "Zoom",
             #[cfg(not(target_os = "macos"))]
-            PredfinedMenuItemType::Maximize => "Maximize",
+            PredfinedMenuItemType::Maximize => "Ma&ximize",
             PredfinedMenuItemType::Fullscreen => "Toggle Full Screen",
-            PredfinedMenuItemType::Hide => "Hide",
+            PredfinedMenuItemType::Hide => "&Hide",
             PredfinedMenuItemType::HideOthers => "Hide Others",
             PredfinedMenuItemType::ShowAll => "Show All",
             #[cfg(windows)]
