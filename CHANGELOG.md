@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.4.3]
+
+- Implement `PredefinedMenuItemm::maximize` and `PredefinedMenuItemm::hide` on Windows.
+  - [d2bd85b](https://www.github.com/tauri-apps/muda/commit/d2bd85bf7ec4b0bc974d487adaacb6a99b82fa91) docs: add docs for `PredefinedMenuItem` ([#51](https://www.github.com/tauri-apps/muda/pull/51)) on 2023-02-28
+- Add docs for predefined menu items
+  - [d2bd85b](https://www.github.com/tauri-apps/muda/commit/d2bd85bf7ec4b0bc974d487adaacb6a99b82fa91) docs: add docs for `PredefinedMenuItem` ([#51](https://www.github.com/tauri-apps/muda/pull/51)) on 2023-02-28
+
 ## \[0.4.2]
 
 - Fix panic when updating a `CheckMenuItem` right after it was clicked.
