@@ -1074,17 +1074,17 @@ unsafe extern "system" fn menu_subclass_proc(
         if let Some(item) = item {
             ret = 0;
 
-            let mut dispatch = false;
+            let mut dispatch = true;
 
             {
                 let mut item = item.borrow_mut();
-                match item.type_ {
-                    MenuItemType::Normal | MenuItemType::Icon => {
-                        dispatch = true;
-                    }
-                    MenuItemType::Check => {
-                        dispatch = true;
 
+                if item.type_ == MenuItemType::Predefined {
+                    dispatch = false;
+                }
+
+                match item.type_ {
+                    MenuItemType::Check => {
                         let checked = !item.checked;
                         item.set_checked(checked);
                     }
@@ -1112,35 +1112,46 @@ unsafe extern "system" fn menu_subclass_proc(
                             PostQuitMessage(0);
                         }
                         PredfinedMenuItemType::About(Some(metadata)) => {
-                            MessageBoxW(
-                                hwnd,
-                                encode_wide(format!(
-                                    r#"
-        {}
-version: {}
-authors: {}
-license: {}
-website: {} {}
-        {}
-        {}
-                                        "#,
-                                    metadata.name.as_deref().unwrap_or_default(),
-                                    metadata.version.as_deref().unwrap_or_default(),
-                                    metadata.authors.as_deref().unwrap_or_default().join(","),
-                                    metadata.license.as_deref().unwrap_or_default(),
-                                    metadata.website_label.as_deref().unwrap_or_default(),
-                                    metadata.website.as_deref().unwrap_or_default(),
-                                    metadata.comments.as_deref().unwrap_or_default(),
-                                    metadata.copyright.as_deref().unwrap_or_default(),
-                                ))
-                                .as_ptr(),
-                                encode_wide(format!(
-                                    "About {}",
-                                    metadata.name.as_deref().unwrap_or_default()
-                                ))
-                                .as_ptr(),
-                                MB_ICONINFORMATION,
-                            );
+                            use std::fmt::Write;
+
+                            let mut message = String::new();
+                            if let Some(name) = &metadata.name {
+                                let _ = writeln!(&mut message, "Name: {}", name);
+                            }
+                            if let Some(version) = &metadata.version {
+                                let _ = writeln!(&mut message, "Version: {}", version);
+                            }
+                            if let Some(authors) = &metadata.authors {
+                                let _ = writeln!(&mut message, "Authors: {}", authors.join(", "));
+                            }
+                            if let Some(license) = &metadata.license {
+                                let _ = writeln!(&mut message, "License: {}", license);
+                            }
+                            match (&metadata.website_label, &metadata.website) {
+                                (Some(label), None) => {
+                                    let _ = writeln!(&mut message, "Website: {}", label);
+                                }
+                                (None, Some(url)) => {
+                                    let _ = writeln!(&mut message, "Website: {}", url);
+                                }
+                                (Some(label), Some(url)) => {
+                                    let _ = writeln!(&mut message, "Website: {} {}", label, url);
+                                }
+                                _ => {}
+                            }
+                            if let Some(comments) = &metadata.comments {
+                                let _ = writeln!(&mut message, "\n{}", comments);
+                            }
+                            if let Some(copyright) = &metadata.copyright {
+                                let _ = writeln!(&mut message, "\n{}", copyright);
+                            }
+
+                            let message = encode_wide(message);
+                            let title = encode_wide(format!(
+                                "About {}",
+                                metadata.name.as_deref().unwrap_or_default()
+                            ));
+                            MessageBoxW(hwnd, message.as_ptr(), title.as_ptr(), MB_ICONINFORMATION);
                         }
 
                         _ => {}
