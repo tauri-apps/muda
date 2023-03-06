@@ -1079,7 +1079,7 @@ unsafe extern "system" fn menu_subclass_proc(
             {
                 let mut item = item.borrow_mut();
                 match item.type_ {
-                    MenuItemType::Normal => {
+                    MenuItemType::Normal | MenuItemType::Icon => {
                         dispatch = true;
                     }
                     MenuItemType::Check => {
