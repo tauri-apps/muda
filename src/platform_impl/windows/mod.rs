@@ -25,12 +25,12 @@ use windows_sys::Win32::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
-            DestroyAcceleratorTable, DestroyWindow, DrawMenuBar, EnableMenuItem, GetMenuItemInfoW,
-            InsertMenuW, MessageBoxW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu,
-            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION,
-            MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED,
-            MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED,
-            MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN,
+            DestroyAcceleratorTable, DrawMenuBar, EnableMenuItem, GetMenuItemInfoW, InsertMenuW,
+            MessageBoxW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu, SetMenuItemInfoW,
+            ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
+            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
+            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
+            MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE,
             WM_COMMAND, WM_DESTROY,
         },
     },
@@ -1106,7 +1106,7 @@ unsafe extern "system" fn menu_subclass_proc(
                             ShowWindow(hwnd, SW_HIDE);
                         }
                         PredfinedMenuItemType::CloseWindow => {
-                            DestroyWindow(hwnd);
+                            SendMessageW(hwnd, WM_CLOSE, 0, 0);
                         }
                         PredfinedMenuItemType::Quit => {
                             PostQuitMessage(0);
