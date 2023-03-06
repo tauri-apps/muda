@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.4.4]
+
+- On Windows, fix `MenuEvent` not triggered for `IconMenuItem`.
+  - [88d3520](https://www.github.com/tauri-apps/muda/commit/88d352033ba571126a11bc681ee3b346b7579916) fix(Windows): dispatch menu event for icon menu item ([#53](https://www.github.com/tauri-apps/muda/pull/53)) on 2023-03-06
+- On Windows, The `Close` predefined menu item will send `WM_CLOSE` to the window instead of calling `DestroyWindow` to let the developer catch this event and decide whether to close the window or not.
+  - [f322ad4](https://www.github.com/tauri-apps/muda/commit/f322ad454dcd206e2802bb7c65f0a55616a8d002) fix(Windows): send `WM_CLOSE` instead of `DestroyWindow` ([#55](https://www.github.com/tauri-apps/muda/pull/55)) on 2023-03-06
+
 ## \[0.4.3]
 
 - Implement `PredefinedMenuItemm::maximize` and `PredefinedMenuItemm::hide` on Windows.
