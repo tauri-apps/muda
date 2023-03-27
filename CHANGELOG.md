@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.4.5]
+
+- On Windows, fix panic when click a menu item while the `PredefinedMenuItem::about` dialog is open.
+  - [f3883ee](https://www.github.com/tauri-apps/muda/commit/f3883ee2d4d8773e6b77e36700edb4ca7cb0988e) fix(windows): run the about dialog in its own thread, closes [#57](https://www.github.com/tauri-apps/muda/pull/57) ([#60](https://www.github.com/tauri-apps/muda/pull/60)) on 2023-03-27
+- On Windows, Fix a panic when adding `CheckMenuItem` to a `Menu`.
+  - [059fceb](https://www.github.com/tauri-apps/muda/commit/059fceb13007760d9e41b65068c91442eda64626) fix(windows): downcast check menu item correctly ([#58](https://www.github.com/tauri-apps/muda/pull/58)) on 2023-03-27
+
 ## \[0.4.4]
 
 - On Windows, fix `MenuEvent` not triggered for `IconMenuItem`.
