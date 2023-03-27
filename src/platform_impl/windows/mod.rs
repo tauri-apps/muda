@@ -251,7 +251,10 @@ impl Menu {
                 child
             }
             MenuItemType::Check => {
-                let item = item.as_any().downcast_ref::<crate::MenuItem>().unwrap();
+                let item = item
+                    .as_any()
+                    .downcast_ref::<crate::CheckMenuItem>()
+                    .unwrap();
                 let child = &item.0 .0;
 
                 flags |= MF_STRING;
