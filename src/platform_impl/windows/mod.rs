@@ -1154,7 +1154,14 @@ unsafe extern "system" fn menu_subclass_proc(
                                 "About {}",
                                 metadata.name.as_deref().unwrap_or_default()
                             ));
-                            MessageBoxW(hwnd, message.as_ptr(), title.as_ptr(), MB_ICONINFORMATION);
+                            std::thread::spawn(move || {
+                                MessageBoxW(
+                                    hwnd,
+                                    message.as_ptr(),
+                                    title.as_ptr(),
+                                    MB_ICONINFORMATION,
+                                );
+                            });
                         }
 
                         _ => {}
