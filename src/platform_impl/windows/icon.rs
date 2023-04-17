@@ -91,7 +91,7 @@ impl WinIcon {
         bitmap_info.bmiHeader.biHeight = rc.bottom;
         bitmap_info.bmiHeader.biPlanes = 1;
         bitmap_info.bmiHeader.biBitCount = 32;
-        bitmap_info.bmiHeader.biCompression = BI_RGB;
+        bitmap_info.bmiHeader.biCompression = BI_RGB as _;
 
         let h_dc_bitmap = GetDC(0);
 
