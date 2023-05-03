@@ -152,9 +152,11 @@ impl MenuChild {
             .as_ref()
             .map(|accel| accel.key_equivalent())
             .unwrap_or_default();
-        let key_equivalent = NSString::alloc(nil)
-            .init_str(key_equivalent.as_str())
-            .autorelease();
+        let key_equivalent = unsafe {
+            NSString::alloc(nil)
+                .init_str(key_equivalent.as_str())
+                .autorelease()
+        };
 
         let modifier_mask = (accelerator)
             .as_ref()
@@ -163,8 +165,10 @@ impl MenuChild {
 
         for ns_items in self.ns_menu_items.values() {
             for &ns_item in ns_items {
-                let _: () = msg_send![ns_item, setKeyEquivalent: key_equivalent];
-                ns_item.setKeyEquivalentModifierMask_(modifier_mask);
+                unsafe {
+                    let _: () = msg_send![ns_item, setKeyEquivalent: key_equivalent];
+                    ns_item.setKeyEquivalentModifierMask_(modifier_mask);
+                }
             }
         }
 
