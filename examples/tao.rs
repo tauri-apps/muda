@@ -189,6 +189,8 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
+                custom_i_1
+                    .set_accelerator(Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyF)));
                 file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
             }
             println!("{event:?}");

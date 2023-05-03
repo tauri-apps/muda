@@ -146,6 +146,30 @@ impl MenuChild {
             }
         }
     }
+
+    fn set_accelerator(&mut self, accelerator: Option<Accelerator>) {
+        let key_equivalent = (accelerator)
+            .as_ref()
+            .map(|accel| accel.key_equivalent())
+            .unwrap_or_default();
+        let key_equivalent = NSString::alloc(nil)
+            .init_str(key_equivalent.as_str())
+            .autorelease();
+
+        let modifier_mask = (accelerator)
+            .as_ref()
+            .map(|accel| accel.key_modifier_mask())
+            .unwrap_or_else(NSEventModifierFlags::empty);
+
+        for ns_items in self.ns_menu_items.values() {
+            for &ns_item in ns_items {
+                let _: () = msg_send![ns_item, setKeyEquivalent: key_equivalent];
+                ns_item.setKeyEquivalentModifierMask_(modifier_mask);
+            }
+        }
+
+        self.accelerator = accelerator;
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -556,6 +580,10 @@ impl MenuItem {
     pub fn set_enabled(&self, enabled: bool) {
         self.0.borrow_mut().set_enabled(enabled)
     }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -719,6 +747,10 @@ impl CheckMenuItem {
     pub fn set_checked(&self, checked: bool) {
         self.0.borrow_mut().set_checked(checked)
     }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -797,6 +829,10 @@ impl IconMenuItem {
 
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.0.borrow_mut().set_icon(icon)
+    }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
     }
 }
 

@@ -14,7 +14,9 @@ use crate::{
     util::{AddOp, Counter},
     MenuEvent, MenuItemType,
 };
-use accelerator::{from_gtk_mnemonic, parse_accelerator, register_accelerator, to_gtk_mnemonic};
+use accelerator::{
+    from_gtk_mnemonic, parse_accelerator, register_accelerator, remove_accelerator, to_gtk_mnemonic,
+};
 use gtk::{prelude::*, Orientation};
 use std::{
     cell::RefCell,
@@ -179,6 +181,20 @@ impl MenuChild {
                     .set_pixbuf(pixbuf.as_ref())
             }
         }
+    }
+
+    fn set_accelerator(&mut self, accelerator: Option<Accelerator>) {
+        for items in self.gtk_menu_items.values() {
+            for i in items {
+                if let Some(accel) = self.accelerator {
+                    remove_accelerator(i, self.accel_group.as_ref().unwrap(), &accel);
+                }
+                if let Some(accel) = accelerator.as_ref() {
+                    register_accelerator(i, self.accel_group.as_ref().unwrap(), accel);
+                }
+            }
+        }
+        self.accelerator = accelerator;
     }
 }
 
@@ -818,6 +834,8 @@ impl MenuItem {
             .sensitive(self_.enabled)
             .build();
 
+        self_.accel_group = accel_group.cloned();
+
         if let Some(accelerator) = &self_.accelerator {
             if let Some(accel_group) = accel_group {
                 register_accelerator(&item, accel_group, accelerator);
@@ -857,6 +875,10 @@ impl MenuItem {
 
     pub fn set_enabled(&self, enabled: bool) {
         self.0.borrow_mut().set_enabled(enabled)
+    }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
     }
 }
 
@@ -1033,6 +1055,8 @@ impl CheckMenuItem {
             .active(self_.checked)
             .build();
 
+        self_.accel_group = accel_group.cloned();
+
         if let Some(accelerator) = &self_.accelerator {
             if let Some(accel_group) = accel_group {
                 register_accelerator(&item, accel_group, accelerator);
@@ -1111,6 +1135,10 @@ impl CheckMenuItem {
     pub fn set_checked(&self, checked: bool) {
         self.0.borrow_mut().set_checked(checked)
     }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
+    }
 }
 
 #[derive(Clone)]
@@ -1151,6 +1179,8 @@ impl IconMenuItem {
             .as_ref()
             .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf(16, 16))))
             .unwrap_or_else(gtk::Image::default);
+
+        self_.accel_group = accel_group.cloned();
 
         let label = gtk::AccelLabel::builder()
             .label(&to_gtk_mnemonic(&self_.text))
@@ -1222,6 +1252,10 @@ impl IconMenuItem {
 
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.0.borrow_mut().set_icon(icon)
+    }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
     }
 }
 

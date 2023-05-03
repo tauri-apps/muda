@@ -15,7 +15,12 @@ use crate::{
     util::{AddOp, Counter},
     MenuEvent, MenuItemType,
 };
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{
+    cell::{RefCell, RefMut},
+    collections::HashMap,
+    fmt::Debug,
+    rc::Rc,
+};
 use util::{decode_wide, encode_wide, Accel};
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
@@ -39,7 +44,7 @@ use windows_sys::Win32::{
 const COUNTER_START: u32 = 1000;
 static COUNTER: Counter = Counter::new_with_start(COUNTER_START);
 
-type AccelWrapper = (HACCEL, Vec<Accel>);
+type AccelWrapper = (HACCEL, HashMap<u32, Accel>);
 
 /// A generic child in a menu
 ///
@@ -51,6 +56,7 @@ struct MenuChild {
     text: String,
     enabled: bool,
     parents_hemnu: Vec<HMENU>,
+    root_menu_haccel_stores: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
 
     // menu item fields
     id: u32,
@@ -69,7 +75,6 @@ struct MenuChild {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    root_menu_haccel: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
 }
 
 impl MenuChild {
@@ -104,12 +109,16 @@ impl MenuChild {
     }
 
     fn set_text(&mut self, text: &str) {
-        self.text = text.to_string();
+        self.text = if let Some(accelerator) = self.accelerator {
+            format!("{text}\t{}", accelerator)
+        } else {
+            text.to_string()
+        };
         for parent in &self.parents_hemnu {
             let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
             info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
             info.fMask = MIIM_STRING;
-            info.dwTypeData = encode_wide(text).as_mut_ptr();
+            info.dwTypeData = encode_wide(&self.text).as_mut_ptr();
 
             unsafe { SetMenuItemInfoW(*parent, self.id(), false.into(), &info) };
         }
@@ -182,6 +191,21 @@ impl MenuChild {
             unsafe { SetMenuItemInfoW(*parent, self.id(), false.into(), &info) };
         }
     }
+
+    fn set_accelerator(&mut self, accelerator: Option<Accelerator>) {
+        self.accelerator = accelerator;
+        self.set_text(&self.text.clone());
+
+        let haccel_stores = self.root_menu_haccel_stores.as_mut().unwrap();
+        for store in haccel_stores {
+            let mut store = store.borrow_mut();
+            if let Some(accelerator) = self.accelerator {
+                AccelAction::add(&mut store, self.id, &accelerator)
+            } else {
+                AccelAction::remove(&mut store, self.id)
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -189,7 +213,7 @@ pub(crate) struct Menu {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     hwnds: Rc<RefCell<Vec<HWND>>>,
-    haccel: Rc<RefCell<(HACCEL, Vec<Accel>)>>,
+    haccel_store: Rc<RefCell<AccelWrapper>>,
     children: Rc<RefCell<Vec<Rc<RefCell<MenuChild>>>>>,
 }
 
@@ -198,7 +222,7 @@ impl Menu {
         Self {
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
-            haccel: Rc::new(RefCell::new((0, Vec::new()))),
+            haccel_store: Rc::new(RefCell::new((0, HashMap::new()))),
             children: Rc::new(RefCell::new(Vec::new())),
             hwnds: Rc::new(RefCell::new(Vec::new())),
         }
@@ -212,12 +236,6 @@ impl Menu {
                 let child = &submenu.0 .0;
 
                 flags |= MF_POPUP;
-                child
-                    .borrow_mut()
-                    .root_menu_haccel
-                    .as_mut()
-                    .unwrap()
-                    .push(self.haccel.clone());
 
                 child
             }
@@ -276,6 +294,15 @@ impl Menu {
         .clone();
 
         {
+            child
+                .borrow_mut()
+                .root_menu_haccel_stores
+                .as_mut()
+                .unwrap()
+                .push(self.haccel_store.clone());
+        }
+
+        {
             let child_ = child.borrow();
             if !child_.enabled {
                 flags |= MF_GRAYED;
@@ -285,15 +312,12 @@ impl Menu {
 
             if let Some(accelerator) = &child_.accelerator {
                 let accel_str = accelerator.to_string();
-                let accel = accelerator.to_accel(child_.id() as u16);
 
                 text.push('\t');
                 text.push_str(&accel_str);
 
-                let mut haccel = self.haccel.borrow_mut();
-                haccel.1.push(Accel(accel));
-                let accels = haccel.1.clone();
-                update_haccel(&mut haccel.0, accels)
+                let mut haccel_store = self.haccel_store.borrow_mut();
+                AccelAction::add(&mut haccel_store, child_.id(), accelerator);
             }
 
             let id = child_.id() as usize;
@@ -461,7 +485,7 @@ impl Menu {
     }
 
     pub fn haccel(&self) -> HACCEL {
-        self.haccel.borrow().0
+        self.haccel_store.borrow().0
     }
 
     pub fn hpopupmenu(&self) -> HMENU {
@@ -567,7 +591,7 @@ impl Submenu {
             children: Some(Vec::new()),
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
-            root_menu_haccel: Some(Vec::new()),
+            root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         })))
     }
@@ -588,13 +612,6 @@ impl Submenu {
                 let child = &submenu.0 .0;
 
                 flags |= MF_POPUP;
-
-                child
-                    .borrow_mut()
-                    .root_menu_haccel
-                    .as_mut()
-                    .unwrap()
-                    .extend_from_slice(self.0.borrow_mut().root_menu_haccel.as_ref().unwrap());
 
                 child
             }
@@ -654,6 +671,21 @@ impl Submenu {
         .clone();
 
         {
+            child
+                .borrow_mut()
+                .root_menu_haccel_stores
+                .as_mut()
+                .unwrap()
+                .extend_from_slice(
+                    self.0
+                        .borrow_mut()
+                        .root_menu_haccel_stores
+                        .as_ref()
+                        .unwrap(),
+                );
+        }
+
+        {
             let mut self_ = self.0.borrow_mut();
 
             let child_ = child.borrow();
@@ -665,16 +697,13 @@ impl Submenu {
 
             if let Some(accelerator) = &child_.accelerator {
                 let accel_str = accelerator.to_string();
-                let accel = accelerator.to_accel(child_.id() as u16);
 
                 text.push('\t');
                 text.push_str(&accel_str);
 
-                for root_menu in self_.root_menu_haccel.as_mut().unwrap() {
+                for root_menu in self_.root_menu_haccel_stores.as_mut().unwrap() {
                     let mut haccel = root_menu.borrow_mut();
-                    haccel.1.push(Accel(accel));
-                    let accels = haccel.1.clone();
-                    update_haccel(&mut haccel.0, accels)
+                    AccelAction::add(&mut haccel, child_.id(), accelerator);
                 }
             }
 
@@ -895,6 +924,7 @@ impl MenuItem {
             parents_hemnu: Vec::new(),
             id: COUNTER.next(),
             accelerator,
+            root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         })))
     }
@@ -918,6 +948,10 @@ impl MenuItem {
     pub fn set_enabled(&self, enabled: bool) {
         self.0.borrow_mut().set_enabled(enabled)
     }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -933,6 +967,7 @@ impl PredefinedMenuItem {
             id: COUNTER.next(),
             accelerator: item_type.accelerator(),
             predefined_item_type: item_type,
+            root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         })))
     }
@@ -963,6 +998,7 @@ impl CheckMenuItem {
             id: COUNTER.next(),
             accelerator,
             checked,
+            root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         })))
     }
@@ -994,6 +1030,10 @@ impl CheckMenuItem {
     pub fn set_checked(&self, checked: bool) {
         self.0.borrow_mut().set_checked(checked)
     }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1014,6 +1054,7 @@ impl IconMenuItem {
             id: COUNTER.next(),
             accelerator,
             icon,
+            root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         })))
     }
@@ -1040,6 +1081,10 @@ impl IconMenuItem {
 
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.0.borrow_mut().set_icon(icon)
+    }
+
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.borrow_mut().set_accelerator(acccelerator)
     }
 }
 
@@ -1183,13 +1228,34 @@ unsafe extern "system" fn menu_subclass_proc(
     }
 }
 
-fn update_haccel(haccel: &mut HMENU, accels: Vec<Accel>) {
-    unsafe {
-        DestroyAcceleratorTable(*haccel);
-        *haccel = CreateAcceleratorTableW(
-            accels.iter().map(|i| i.0).collect::<Vec<_>>().as_ptr(),
-            accels.len() as _,
-        );
+struct AccelAction;
+
+impl AccelAction {
+    fn add(haccel_store: &mut RefMut<AccelWrapper>, id: u32, accelerator: &Accelerator) {
+        let accel = accelerator.to_accel(id as _);
+        haccel_store.1.insert(id, Accel(accel));
+
+        Self::update_store(haccel_store)
+    }
+    fn remove(haccel_store: &mut RefMut<AccelWrapper>, id: u32) {
+        haccel_store.1.remove(&id);
+
+        Self::update_store(haccel_store)
+    }
+
+    fn update_store(haccel_store: &mut RefMut<AccelWrapper>) {
+        unsafe {
+            DestroyAcceleratorTable(haccel_store.0);
+            haccel_store.0 = CreateAcceleratorTableW(
+                haccel_store
+                    .1
+                    .values()
+                    .map(|i| i.0)
+                    .collect::<Vec<_>>()
+                    .as_ptr(),
+                haccel_store.1.len() as _,
+            );
+        }
     }
 }
 
