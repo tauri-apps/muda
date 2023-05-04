@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.5.0]
+
+- Add `(MenuItem|CheckMenuItem|IconMenuItem)::set_accelerator` to change or disable the accelerator after creation.
+  - [47ba0b4](https://www.github.com/tauri-apps/muda/commit/47ba0b47ed28a93428c253e8bac397e0b9cb8dec) feat: add `set_accelerator` ([#64](https://www.github.com/tauri-apps/muda/pull/64)) on 2023-05-04
+
 ## \[0.4.5]
 
 - On Windows, fix panic when click a menu item while the `PredefinedMenuItem::about` dialog is open.
