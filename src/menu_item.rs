@@ -63,4 +63,9 @@ impl MenuItem {
     pub fn set_enabled(&self, enabled: bool) {
         self.0.set_enabled(enabled)
     }
+
+    /// Set this menu item accelerator.
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.set_accelerator(acccelerator)
+    }
 }

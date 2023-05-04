@@ -75,4 +75,9 @@ impl IconMenuItem {
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.0.set_icon(icon)
     }
+
+    /// Set this icon menu item accelerator.
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.set_accelerator(acccelerator)
+    }
 }

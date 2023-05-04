@@ -81,4 +81,9 @@ impl CheckMenuItem {
     pub fn set_checked(&self, checked: bool) {
         self.0.set_checked(checked)
     }
+
+    /// Set this check menu item accelerator.
+    pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) {
+        self.0.set_accelerator(acccelerator)
+    }
 }

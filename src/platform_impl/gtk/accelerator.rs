@@ -99,6 +99,16 @@ pub fn register_accelerator<M: IsA<gtk::Widget>>(
     }
 }
 
+pub fn remove_accelerator<M: IsA<gtk::Widget>>(
+    item: &M,
+    accel_group: &AccelGroup,
+    accelerator: &Accelerator,
+) {
+    if let Ok((mods, key)) = parse_accelerator(accelerator) {
+        item.remove_accelerator(accel_group, key, mods);
+    }
+}
+
 fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
     let mut result = gdk::ModifierType::empty();
 
