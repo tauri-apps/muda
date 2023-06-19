@@ -45,7 +45,7 @@ impl PlatformIcon {
         })
     }
 
-    pub fn to_pixbuf(&self, w: i32, h: i32) -> Pixbuf {
+    pub fn to_pixbuf(&self) -> Pixbuf {
         Pixbuf::from_mut_slice(
             self.raw.clone(),
             gdk_pixbuf::Colorspace::Rgb,
@@ -55,7 +55,11 @@ impl PlatformIcon {
             self.height,
             self.row_stride,
         )
-        .scale_simple(w, h, gdk_pixbuf::InterpType::Bilinear)
-        .unwrap()
+    }
+
+    pub fn to_pixbuf_scale(&self, w: i32, h: i32) -> Pixbuf {
+        self.to_pixbuf()
+            .scale_simple(w, h, gdk_pixbuf::InterpType::Bilinear)
+            .unwrap()
     }
 }

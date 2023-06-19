@@ -11,9 +11,9 @@ pub(crate) use icon::PlatformIcon;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 
 use cocoa::{
-    appkit::{CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
+    appkit::{CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO, YES},
-    foundation::{NSAutoreleasePool, NSData, NSInteger, NSPoint, NSRect, NSSize, NSString},
+    foundation::{NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSString},
 };
 use objc::{
     declare::ClassDecl,
@@ -31,6 +31,19 @@ use crate::{
 
 static COUNTER: Counter = Counter::new();
 static BLOCK_PTR: &str = "mudaMenuItemBlockPtr";
+
+#[link(name = "AppKit", kind = "framework")]
+extern "C" {
+    static NSAboutPanelOptionApplicationName: id;
+    static NSAboutPanelOptionApplicationIcon: id;
+    static NSAboutPanelOptionApplicationVersion: id;
+    static NSAboutPanelOptionCredits: id;
+    static NSAboutPanelOptionVersion: id;
+}
+
+/// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
+#[allow(non_upper_case_globals)]
+const NSAboutPanelOptionCopyright: &str = "Copyright";
 
 /// A generic child in a menu
 ///
@@ -640,11 +653,22 @@ impl PredefinedMenuItem {
             _ => create_ns_menu_item(&child.text, item_type.selector(), &child.accelerator),
         };
 
+        if let PredfinedMenuItemType::About(_) = child.predefined_item_type {
+            unsafe {
+                let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
+                let _: () = msg_send![ns_menu_item, setTag:child.id()];
+
+                // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
+                let ptr = Box::into_raw(Box::new(&*child));
+                (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
+            }
+        }
+
         unsafe {
             if !child.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
-            if child.predefined_item_type == PredfinedMenuItemType::Services {
+            if let PredfinedMenuItemType::Services = child.predefined_item_type {
                 // we have to assign an empty menu as the app's services menu, and macOS will populate it
                 let services_menu = NSMenu::new(nil).autorelease();
                 let () = msg_send![NSApp(), setServicesMenu: services_menu];
@@ -858,7 +882,8 @@ impl PredfinedMenuItemType {
             PredfinedMenuItemType::ShowAll => Some(selector("unhideAllApplications:")),
             PredfinedMenuItemType::CloseWindow => Some(selector("performClose:")),
             PredfinedMenuItemType::Quit => Some(selector("terminate:")),
-            PredfinedMenuItemType::About(_) => Some(selector("orderFrontStandardAboutPanel:")),
+            // manual implementation in `fire_menu_item_click`
+            PredfinedMenuItemType::About(_) => Some(selector("fireMenuItemAction:")),
             PredfinedMenuItemType::Services => None,
             PredfinedMenuItemType::None => None,
         }
@@ -988,6 +1013,63 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
         let item = ptr as *mut &mut MenuChild;
 
+        if let PredfinedMenuItemType::About(about_meta) = &(*item).predefined_item_type {
+            match about_meta {
+                Some(about_meta) => {
+                    unsafe fn mkstr(s: &str) -> id {
+                        NSString::alloc(nil).init_str(s)
+                    }
+
+                    let mut keys: Vec<id> = Default::default();
+                    let mut objects: Vec<id> = Default::default();
+
+                    if let Some(name) = &about_meta.name {
+                        keys.push(NSAboutPanelOptionApplicationName);
+                        objects.push(mkstr(name));
+                    }
+
+                    if let Some(version) = &about_meta.version {
+                        keys.push(NSAboutPanelOptionApplicationVersion);
+                        objects.push(mkstr(version));
+                    }
+
+                    if let Some(short_version) = &about_meta.short_version {
+                        keys.push(NSAboutPanelOptionVersion);
+                        objects.push(mkstr(short_version));
+                    }
+
+                    if let Some(copyright) = &about_meta.copyright {
+                        keys.push(mkstr(NSAboutPanelOptionCopyright));
+                        objects.push(mkstr(copyright));
+                    }
+
+                    if let Some(icon) = &about_meta.icon {
+                        keys.push(NSAboutPanelOptionApplicationIcon);
+                        objects.push(icon.inner.to_nsimage(None));
+                    }
+
+                    if let Some(credits) = &about_meta.credits {
+                        keys.push(NSAboutPanelOptionCredits);
+                        let attributed_str: id = msg_send![class!(NSAttributedString), alloc];
+                        let _: () = msg_send![attributed_str, initWithString: mkstr(credits)];
+                        objects.push(attributed_str);
+                    }
+
+                    let keys_array = NSArray::arrayWithObjects(nil, &keys);
+                    let objs_array = NSArray::arrayWithObjects(nil, &objects);
+
+                    let dict =
+                        NSDictionary::dictionaryWithObjects_forKeys_(nil, objs_array, keys_array);
+
+                    let _: () = msg_send![NSApp(), orderFrontStandardAboutPanelWithOptions: dict];
+                }
+
+                None => {
+                    let _: () = msg_send![NSApp(), orderFrontStandardAboutPanel: this];
+                }
+            }
+        }
+
         if (*item).type_ == MenuItemType::Check {
             (*item).set_checked(!(*item).is_checked());
         }
@@ -1028,22 +1110,8 @@ fn create_ns_menu_item(
 
 fn menuitem_set_icon(menuitem: id, icon: Option<&Icon>) {
     if let Some(icon) = icon {
-        let (width, height) = icon.inner.get_size();
-        let icon = icon.inner.to_png();
-
-        let icon_height: f64 = 18.0;
-        let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
-
         unsafe {
-            let nsdata = NSData::dataWithBytes_length_(
-                nil,
-                icon.as_ptr() as *const std::os::raw::c_void,
-                icon.len() as u64,
-            );
-
-            let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-            let new_size = NSSize::new(icon_width, icon_height);
-            let _: () = msg_send![nsimage, setSize: new_size];
+            let nsimage = icon.inner.to_nsimage(Some(18.));
             let _: () = msg_send![menuitem, setImage: nsimage];
         }
     } else {

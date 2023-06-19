@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
+use crate::{accelerator::Accelerator, icon::Icon, MenuItemExt, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 
 #[cfg(target_os = "macos")]
@@ -178,32 +178,109 @@ impl PredefinedMenuItem {
 }
 
 /// Application metadata for the [`PredefinedMenuItem::about`].
-///
-/// ## Platform-specific
-///
-/// - **macOS:** The metadata is ignored.
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AboutMetadata {
     /// The application name.
     pub name: Option<String>,
     /// The application version.
     pub version: Option<String>,
+    /// The short version, e.g. "1.0".
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux:** Appended to the end of `version` in parentheses.
+    pub short_version: Option<String>,
     /// The authors of the application.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** Unsupported.
     pub authors: Option<Vec<String>>,
     /// Application comments.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** Unsupported.
     pub comments: Option<String>,
     /// The copyright of the application.
     pub copyright: Option<String>,
     /// The license of the application.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** Unsupported.
     pub license: Option<String>,
     /// The application website.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** Unsupported.
     pub website: Option<String>,
     /// The website label.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** Unsupported.
     pub website_label: Option<String>,
+    /// The credits.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux:** Unsupported.
+    pub credits: Option<String>,
+    /// The application icon.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows:** Unsupported.
+    pub icon: Option<Icon>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+impl AboutMetadata {
+    pub(crate) fn full_version(&self) -> Option<String> {
+        Some(format!(
+            "{}{}",
+            (self.version.as_ref())?,
+            (self.short_version.as_ref())
+                .map(|v| format!(" ({v})"))
+                .unwrap_or_default()
+        ))
+    }
+}
+
+#[test]
+fn test_about_metadata() {
+    assert_eq!(
+        AboutMetadata {
+            ..Default::default()
+        }
+        .full_version(),
+        None
+    );
+
+    assert_eq!(
+        AboutMetadata {
+            version: Some("Version: 1.0".into()),
+            ..Default::default()
+        }
+        .full_version(),
+        Some("Version: 1.0".into())
+    );
+
+    assert_eq!(
+        AboutMetadata {
+            version: Some("Version: 1.0".into()),
+            short_version: Some("Universal".into()),
+            ..Default::default()
+        }
+        .full_version(),
+        Some("Version: 1.0 (Universal)".into())
+    );
+}
+
+#[derive(Debug, Clone)]
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum PredfinedMenuItemType {
     Separator,
     Copy,
