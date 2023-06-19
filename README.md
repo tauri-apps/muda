@@ -14,7 +14,8 @@ muda is a Menu Utilities library for Desktop Applications.
 
 ### Cargo Features
 
-- `libxdo` (enabled by default): Enables linking to `libxdo` which is used for the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
+- `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
+- `libxdo`: Enables linking to `libxdo` on Linux which is used for the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
 
 ## Dependencies (Linux Only)
 

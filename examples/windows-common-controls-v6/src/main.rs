@@ -9,12 +9,10 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
-use tao::platform::unix::WindowExtUnix;
+use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
 #[cfg(target_os = "windows")]
-use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-use tao::{
+use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
@@ -37,6 +35,8 @@ fn main() {
             }
         });
     }
+    #[cfg(target_os = "macos")]
+    event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build();
 
@@ -78,14 +78,9 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "../../icon.png");
     let icon = load_icon(std::path::Path::new(path));
-    let image_item = IconMenuItem::new(
-        "Image custom 1",
-        true,
-        Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
-    );
+    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -117,9 +112,9 @@ fn main() {
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
-                name: Some("tao".to_string()),
+                name: Some("winit".to_string()),
                 version: Some("1.2.3".to_string()),
-                copyright: Some("Copyright tao".to_string()),
+                copyright: Some("Copyright winit".to_string()),
                 ..Default::default()
             }),
         ),
@@ -134,11 +129,6 @@ fn main() {
     {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(window2.hwnd() as _);
-    }
-    #[cfg(target_os = "linux")]
-    {
-        menu_bar.init_for_gtk_window(window.gtk_window());
-        menu_bar.init_for_gtk_window(window2.gtk_window());
     }
     #[cfg(target_os = "macos")]
     {
@@ -190,8 +180,6 @@ fn main() {
 
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
-                custom_i_1
-                    .set_accelerator(Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyF)));
                 file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
             }
             println!("{event:?}");
@@ -202,8 +190,6 @@ fn main() {
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, x: f64, y: f64) {
     #[cfg(target_os = "windows")]
     menu.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
-    #[cfg(target_os = "linux")]
-    menu.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
     #[cfg(target_os = "macos")]
     menu.show_context_menu_for_nsview(window.ns_view() as _, x, y);
 }

@@ -113,6 +113,7 @@ fn main() {
             None,
             Some(AboutMetadata {
                 name: Some("winit".to_string()),
+                version: Some("1.2.3".to_string()),
                 copyright: Some("Copyright winit".to_string()),
                 ..Default::default()
             }),
