@@ -946,6 +946,7 @@ impl PredefinedMenuItem {
                     .set_accel(key, mods);
                 item.connect_activate(move |_| {
                     // TODO: wayland
+                    #[cfg(feature = "libxdo")]
                     if let Ok(xdo) = libxdo::XDo::new(None) {
                         let _ = xdo.send_keysequence(predefined_item_type.xdo_keys(), 0);
                     }

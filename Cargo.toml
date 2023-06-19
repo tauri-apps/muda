@@ -10,6 +10,10 @@ repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
 categories = [ "gui" ]
 
+[features]
+default = [ "libxdo" ]
+libxdo = [ "dep:libxdo" ]
+
 [dependencies]
 crossbeam-channel = "0.5"
 keyboard-types = "0.6"
@@ -32,7 +36,7 @@ features = [
 gtk = "0.16"
 gdk = "0.16"
 gdk-pixbuf = "0.16"
-libxdo = "0.6.0"
+libxdo = { version = "0.6.0", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.24"
