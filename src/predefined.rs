@@ -188,7 +188,7 @@ pub struct AboutMetadata {
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** This is ignored
+    /// - **Windows / Linux:** Appended to the end of `version` in parentheses
     pub short_version: Option<String>,
     /// The authors of the application.
     ///
@@ -234,6 +234,48 @@ pub struct AboutMetadata {
     ///
     /// - **Windows / Linux:** This is ignored
     pub icon: Option<Icon>,
+}
+
+impl AboutMetadata {
+    pub(crate) fn full_version(&self) -> Option<String> {
+        Some(format!(
+            "{}{}",
+            (self.version.as_ref())?,
+            (self.short_version.as_ref())
+                .map(|v| format!(" ({v})"))
+                .unwrap_or_default()
+        ))
+    }
+}
+
+#[test]
+fn test_about_metadata() {
+    assert_eq!(
+        AboutMetadata {
+            ..Default::default()
+        }
+        .full_version(),
+        None
+    );
+
+    assert_eq!(
+        AboutMetadata {
+            version: Some("Version: 1.0".into()),
+            ..Default::default()
+        }
+        .full_version(),
+        Some("Version: 1.0".into())
+    );
+
+    assert_eq!(
+        AboutMetadata {
+            version: Some("Version: 1.0".into()),
+            short_version: Some("Universal".into()),
+            ..Default::default()
+        }
+        .full_version(),
+        Some("Version: 1.0 (Universal)".into())
+    );
 }
 
 #[derive(Debug, Clone)]

@@ -964,7 +964,7 @@ impl PredefinedMenuItem {
                         if let Some(name) = &metadata.name {
                             builder = builder.program_name(name);
                         }
-                        if let Some(version) = &metadata.version {
+                        if let Some(version) = &metadata.full_version() {
                             builder = builder.version(version);
                         }
                         if let Some(authors) = &metadata.authors {
