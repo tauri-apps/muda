@@ -47,6 +47,6 @@ jobs:
           command: test
 
       - name: test common-controls-v6
-        if: matrix.os == "windows-latest"
+        if: matrix.os == 'windows-latest'
         working-directory: examples/windows-common-controls-v6
         run: cargo run
