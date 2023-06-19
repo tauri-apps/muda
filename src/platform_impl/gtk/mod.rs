@@ -986,7 +986,7 @@ impl PredefinedMenuItem {
                             builder = builder.website_label(website_label);
                         }
                         if let Some(icon) = &metadata.icon {
-                            builder = builder.icon(&icon.inner.to_pixbuf());
+                            builder = builder.logo(&icon.inner.to_pixbuf());
                         }
 
                         let about = builder.build();
