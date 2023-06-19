@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, MenuItemExt, MenuItemType};
+use crate::{accelerator::Accelerator, icon::Icon, MenuItemExt, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 
 #[cfg(target_os = "macos")]
@@ -178,31 +178,69 @@ impl PredefinedMenuItem {
 }
 
 /// Application metadata for the [`PredefinedMenuItem::about`].
-///
-/// ## Platform-specific
-///
-/// - **macOS:** The metadata is ignored.
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AboutMetadata {
     /// The application name.
     pub name: Option<String>,
     /// The application version.
     pub version: Option<String>,
+    /// The short version, e.g. "1.0"
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux:** This is ignored
+    pub short_version: Option<String>,
     /// The authors of the application.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub authors: Option<Vec<String>>,
     /// Application comments.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub comments: Option<String>,
     /// The copyright of the application.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub copyright: Option<String>,
     /// The license of the application.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub license: Option<String>,
     /// The application website.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub website: Option<String>,
     /// The website label.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS:** This is ignored
     pub website_label: Option<String>,
+    /// The credits.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux:** This is ignored
+    pub credits: Option<String>,
+    /// The application icon.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux:** This is ignored
+    pub icon: Option<Icon>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub(crate) enum PredfinedMenuItemType {
     Separator,
