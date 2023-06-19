@@ -1009,61 +1009,61 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
         let item = ptr as *mut &mut MenuChild;
 
-        match &(*item).predefined_item_type {
-            PredfinedMenuItemType::About(Some(about_meta)) => {
-                unsafe fn mkstr(s: &str) -> id {
-                    NSString::alloc(nil).init_str(s)
+        if let PredfinedMenuItemType::About(about_meta) = &(*item).predefined_item_type {
+            match about_meta {
+                Some(about_meta) => {
+                    unsafe fn mkstr(s: &str) -> id {
+                        NSString::alloc(nil).init_str(s)
+                    }
+
+                    let mut keys: Vec<id> = Default::default();
+                    let mut objects: Vec<id> = Default::default();
+
+                    if let Some(name) = &about_meta.name {
+                        keys.push(NSAboutPanelOptionApplicationName);
+                        objects.push(mkstr(&name));
+                    }
+
+                    if let Some(version) = &about_meta.version {
+                        keys.push(NSAboutPanelOptionApplicationVersion);
+                        objects.push(mkstr(&version));
+                    }
+
+                    if let Some(short_version) = &about_meta.short_version {
+                        keys.push(NSAboutPanelOptionVersion);
+                        objects.push(mkstr(&short_version));
+                    }
+
+                    if let Some(copyright) = &about_meta.copyright {
+                        keys.push(NSString::alloc(nil).init_str("Copyright"));
+                        objects.push(mkstr(&copyright));
+                    }
+
+                    if let Some(icon) = &about_meta.icon {
+                        keys.push(NSAboutPanelOptionApplicationIcon);
+                        objects.push(icon.inner.to_nsimage(None));
+                    }
+
+                    if let Some(credits) = &about_meta.credits {
+                        keys.push(NSAboutPanelOptionCredits);
+                        let attributed_str: id = msg_send![class!(NSAttributedString), alloc];
+                        let _: () = msg_send![attributed_str, initWithString: mkstr(&credits)];
+                        objects.push(attributed_str);
+                    }
+
+                    let keys_array = NSArray::arrayWithObjects(nil, &keys);
+                    let objs_array = NSArray::arrayWithObjects(nil, &objects);
+
+                    let dict =
+                        NSDictionary::dictionaryWithObjects_forKeys_(nil, objs_array, keys_array);
+
+                    let _: () = msg_send![NSApp(), orderFrontStandardAboutPanelWithOptions: dict];
                 }
 
-                let mut keys: Vec<id> = Default::default();
-                let mut objects: Vec<id> = Default::default();
-
-                if let Some(name) = &about_meta.name {
-                    keys.push(NSAboutPanelOptionApplicationName);
-                    objects.push(mkstr(&name));
+                None => {
+                    let _: () = msg_send![NSApp(), orderFrontStandardAboutPanel: this];
                 }
-
-                if let Some(version) = &about_meta.version {
-                    keys.push(NSAboutPanelOptionApplicationVersion);
-                    objects.push(mkstr(&version));
-                }
-
-                if let Some(short_version) = &about_meta.short_version {
-                    keys.push(NSAboutPanelOptionVersion);
-                    objects.push(mkstr(&short_version));
-                }
-
-                if let Some(copyright) = &about_meta.copyright {
-                    keys.push(NSString::alloc(nil).init_str("Copyright"));
-                    objects.push(mkstr(&copyright));
-                }
-
-                if let Some(icon) = &about_meta.icon {
-                    keys.push(NSAboutPanelOptionApplicationIcon);
-                    objects.push(icon.inner.to_nsimage(None));
-                }
-
-                if let Some(credits) = &about_meta.credits {
-                    keys.push(NSAboutPanelOptionCredits);
-                    let attributed_str: id = msg_send![class!(NSAttributedString), alloc];
-                    let _: () = msg_send![attributed_str, initWithString: mkstr(&credits)];
-                    objects.push(attributed_str);
-                }
-
-                let keys_array = NSArray::arrayWithObjects(nil, &keys);
-                let objs_array = NSArray::arrayWithObjects(nil, &objects);
-
-                let dict =
-                    NSDictionary::dictionaryWithObjects_forKeys_(nil, objs_array, keys_array);
-
-                let _: () = msg_send![NSApp(), orderFrontStandardAboutPanelWithOptions: dict];
             }
-
-            PredfinedMenuItemType::About(None) => {
-                let _: () = msg_send![NSApp(), orderFrontStandardAboutPanel: this];
-            }
-
-            _ => {}
         }
 
         if (*item).type_ == MenuItemType::Check {
