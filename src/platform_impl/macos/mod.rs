@@ -1025,22 +1025,22 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
 
                     if let Some(name) = &about_meta.name {
                         keys.push(NSAboutPanelOptionApplicationName);
-                        objects.push(mkstr(&name));
+                        objects.push(mkstr(name));
                     }
 
                     if let Some(version) = &about_meta.version {
                         keys.push(NSAboutPanelOptionApplicationVersion);
-                        objects.push(mkstr(&version));
+                        objects.push(mkstr(version));
                     }
 
                     if let Some(short_version) = &about_meta.short_version {
                         keys.push(NSAboutPanelOptionVersion);
-                        objects.push(mkstr(&short_version));
+                        objects.push(mkstr(short_version));
                     }
 
                     if let Some(copyright) = &about_meta.copyright {
                         keys.push(mkstr(NSAboutPanelOptionCopyright));
-                        objects.push(mkstr(&copyright));
+                        objects.push(mkstr(copyright));
                     }
 
                     if let Some(icon) = &about_meta.icon {
@@ -1051,7 +1051,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
                     if let Some(credits) = &about_meta.credits {
                         keys.push(NSAboutPanelOptionCredits);
                         let attributed_str: id = msg_send![class!(NSAttributedString), alloc];
-                        let _: () = msg_send![attributed_str, initWithString: mkstr(&credits)];
+                        let _: () = msg_send![attributed_str, initWithString: mkstr(credits)];
                         objects.push(attributed_str);
                     }
 
