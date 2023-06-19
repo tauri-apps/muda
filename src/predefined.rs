@@ -203,10 +203,6 @@ pub struct AboutMetadata {
     /// - **macOS:** This is ignored
     pub comments: Option<String>,
     /// The copyright of the application.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** This is ignored
     pub copyright: Option<String>,
     /// The license of the application.
     ///
