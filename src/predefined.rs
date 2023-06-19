@@ -194,13 +194,13 @@ pub struct AboutMetadata {
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS:** This is ignored
+    /// - **macOS:** Unsupported.
     pub authors: Option<Vec<String>>,
     /// Application comments.
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS:** This is ignored
+    /// - **macOS:** Unsupported.
     pub comments: Option<String>,
     /// The copyright of the application.
     pub copyright: Option<String>,
@@ -208,31 +208,31 @@ pub struct AboutMetadata {
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS:** This is ignored
+    /// - **macOS:** Unsupported.
     pub license: Option<String>,
     /// The application website.
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS:** This is ignored
+    /// - **macOS:** Unsupported.
     pub website: Option<String>,
     /// The website label.
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS:** This is ignored
+    /// - **macOS:** Unsupported.
     pub website_label: Option<String>,
     /// The credits.
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** This is ignored
+    /// - **Windows / Linux:** Unsupported.
     pub credits: Option<String>,
     /// The application icon.
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** This is ignored
+    /// - **Windows:** Unsupported.
     pub icon: Option<Icon>,
 }
 
