@@ -184,11 +184,11 @@ pub struct AboutMetadata {
     pub name: Option<String>,
     /// The application version.
     pub version: Option<String>,
-    /// The short version, e.g. "1.0"
+    /// The short version, e.g. "1.0".
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** Appended to the end of `version` in parentheses
+    /// - **Windows / Linux:** Appended to the end of `version` in parentheses.
     pub short_version: Option<String>,
     /// The authors of the application.
     ///
