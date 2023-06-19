@@ -1284,7 +1284,7 @@ fn show_about_dialog(hwnd: HWND, metadata: &AboutMetadata) {
         let _ = writeln!(&mut message, "Name: {}", name);
     }
     if let Some(version) = &metadata.full_version() {
-       let _ = writeln!(&mut message, "Version: {}", version);
+        let _ = writeln!(&mut message, "Version: {}", version);
     }
     if let Some(authors) = &metadata.authors {
         let _ = writeln!(&mut message, "Authors: {}", authors.join(", "));
