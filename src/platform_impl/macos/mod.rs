@@ -653,8 +653,8 @@ impl PredefinedMenuItem {
             _ => create_ns_menu_item(&child.text, item_type.selector(), &child.accelerator),
         };
 
-        unsafe {
-            if let PredfinedMenuItemType::About(_) = child.predefined_item_type {
+        if let PredfinedMenuItemType::About(_) = child.predefined_item_type {
+            unsafe {
                 let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
                 let _: () = msg_send![ns_menu_item, setTag:child.id()];
 
