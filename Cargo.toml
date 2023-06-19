@@ -1,19 +1,19 @@
 [package]
 name = "muda"
-version = "0.5.0"
+version = "0.6.0"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
-keywords = ["windowing", "menu"]
+keywords = [ "windowing", "menu" ]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
-categories = ["gui"]
+categories = [ "gui" ]
 
 [features]
-default = ["libxdo"]
-libxdo = ["dep:libxdo"]
-common-controls-v6 = ["windows-sys/Win32_UI_Controls"]
+default = [ "libxdo" ]
+libxdo = [ "dep:libxdo" ]
+common-controls-v6 = [ "windows-sys/Win32_UI_Controls" ]
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -30,7 +30,7 @@ features = [
   "Win32_UI_Shell",
   "Win32_Globalization",
   "Win32_UI_Input_KeyboardAndMouse",
-  "Win32_System_SystemServices",
+  "Win32_System_SystemServices"
 ]
 
 [target."cfg(target_os = \"linux\")".dependencies]
