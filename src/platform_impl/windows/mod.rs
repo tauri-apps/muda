@@ -13,7 +13,7 @@ use crate::{
     icon::Icon,
     predefined::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    MenuEvent, MenuItemType,
+    AboutMetadata, MenuEvent, MenuItemType,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -31,12 +31,11 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DrawMenuBar, EnableMenuItem, GetMenuItemInfoW, InsertMenuW,
-            MessageBoxW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu, SetMenuItemInfoW,
-            ShowWindow, TrackPopupMenu, HACCEL, HMENU, MB_ICONINFORMATION, MENUITEMINFOW,
-            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
-            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
-            MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE,
-            WM_COMMAND, WM_DESTROY,
+            PostQuitMessage, RemoveMenu, SendMessageW, SetMenu, SetMenuItemInfoW, ShowWindow,
+            TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND,
+            MF_BYPOSITION, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR,
+            MF_STRING, MF_UNCHECKED, MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE,
+            SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE, WM_COMMAND, WM_DESTROY,
         },
     },
 };
@@ -1160,53 +1159,7 @@ unsafe extern "system" fn menu_subclass_proc(
                             PostQuitMessage(0);
                         }
                         PredfinedMenuItemType::About(Some(metadata)) => {
-                            use std::fmt::Write;
-
-                            let mut message = String::new();
-                            if let Some(name) = &metadata.name {
-                                let _ = writeln!(&mut message, "Name: {}", name);
-                            }
-                            if let Some(version) = &metadata.full_version() {
-                                let _ = writeln!(&mut message, "Version: {}", version);
-                            }
-                            if let Some(authors) = &metadata.authors {
-                                let _ = writeln!(&mut message, "Authors: {}", authors.join(", "));
-                            }
-                            if let Some(license) = &metadata.license {
-                                let _ = writeln!(&mut message, "License: {}", license);
-                            }
-                            match (&metadata.website_label, &metadata.website) {
-                                (Some(label), None) => {
-                                    let _ = writeln!(&mut message, "Website: {}", label);
-                                }
-                                (None, Some(url)) => {
-                                    let _ = writeln!(&mut message, "Website: {}", url);
-                                }
-                                (Some(label), Some(url)) => {
-                                    let _ = writeln!(&mut message, "Website: {} {}", label, url);
-                                }
-                                _ => {}
-                            }
-                            if let Some(comments) = &metadata.comments {
-                                let _ = writeln!(&mut message, "\n{}", comments);
-                            }
-                            if let Some(copyright) = &metadata.copyright {
-                                let _ = writeln!(&mut message, "\n{}", copyright);
-                            }
-
-                            let message = encode_wide(message);
-                            let title = encode_wide(format!(
-                                "About {}",
-                                metadata.name.as_deref().unwrap_or_default()
-                            ));
-                            std::thread::spawn(move || {
-                                MessageBoxW(
-                                    hwnd,
-                                    message.as_ptr(),
-                                    title.as_ptr(),
-                                    MB_ICONINFORMATION,
-                                );
-                            });
+                            show_about_dialog(hwnd, metadata)
                         }
 
                         _ => {}
@@ -1321,4 +1274,104 @@ fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
     info.fMask = MIIM_BITMAP;
     info.hbmpItem = hbitmap;
     info
+}
+
+fn show_about_dialog(hwnd: HWND, metadata: &AboutMetadata) {
+    use std::fmt::Write;
+
+    let mut message = String::new();
+    if let Some(name) = &metadata.name {
+        let _ = writeln!(&mut message, "Name: {}", name);
+    }
+    if let Some(version) = &metadata.full_version() {
+       let _ = writeln!(&mut message, "Version: {}", version);
+    }
+    if let Some(authors) = &metadata.authors {
+        let _ = writeln!(&mut message, "Authors: {}", authors.join(", "));
+    }
+    if let Some(license) = &metadata.license {
+        let _ = writeln!(&mut message, "License: {}", license);
+    }
+    match (&metadata.website_label, &metadata.website) {
+        (Some(label), None) => {
+            let _ = writeln!(&mut message, "Website: {}", label);
+        }
+        (None, Some(url)) => {
+            let _ = writeln!(&mut message, "Website: {}", url);
+        }
+        (Some(label), Some(url)) => {
+            let _ = writeln!(&mut message, "Website: {} {}", label, url);
+        }
+        _ => {}
+    }
+    if let Some(comments) = &metadata.comments {
+        let _ = writeln!(&mut message, "\n{}", comments);
+    }
+    if let Some(copyright) = &metadata.copyright {
+        let _ = writeln!(&mut message, "\n{}", copyright);
+    }
+
+    let message = encode_wide(message);
+    let title = encode_wide(format!(
+        "About {}",
+        metadata.name.as_deref().unwrap_or_default()
+    ));
+
+    #[cfg(not(feature = "common-controls-v6"))]
+    std::thread::spawn(move || unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONINFORMATION};
+        MessageBoxW(hwnd, message.as_ptr(), title.as_ptr(), MB_ICONINFORMATION);
+    });
+
+    #[cfg(feature = "common-controls-v6")]
+    {
+        use windows_sys::Win32::UI::Controls::{
+            TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0, TASKDIALOGCONFIG_1,
+            TDCBF_OK_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION, TD_INFORMATION_ICON,
+        };
+
+        std::thread::spawn(move || unsafe {
+            let task_dialog_config = TASKDIALOGCONFIG {
+                cbSize: core::mem::size_of::<TASKDIALOGCONFIG>() as u32,
+                hwndParent: hwnd,
+                dwFlags: TDF_ALLOW_DIALOG_CANCELLATION,
+                pszWindowTitle: title.as_ptr(),
+                pszContent: message.as_ptr(),
+                Anonymous1: TASKDIALOGCONFIG_0 {
+                    pszMainIcon: TD_INFORMATION_ICON,
+                },
+                Anonymous2: TASKDIALOGCONFIG_1 {
+                    pszFooterIcon: std::ptr::null(),
+                },
+                dwCommonButtons: TDCBF_OK_BUTTON,
+                pButtons: std::ptr::null(),
+                cButtons: 0,
+                pRadioButtons: std::ptr::null(),
+                cRadioButtons: 0,
+                cxWidth: 0,
+                hInstance: 0,
+                pfCallback: None,
+                lpCallbackData: 0,
+                nDefaultButton: 0,
+                nDefaultRadioButton: 0,
+                pszCollapsedControlText: std::ptr::null(),
+                pszExpandedControlText: std::ptr::null(),
+                pszExpandedInformation: std::ptr::null(),
+                pszMainInstruction: std::ptr::null(),
+                pszVerificationText: std::ptr::null(),
+                pszFooter: std::ptr::null(),
+            };
+
+            let mut pf_verification_flag_checked = 0;
+            let mut pn_button = 0;
+            let mut pn_radio_button = 0;
+
+            TaskDialogIndirect(
+                &task_dialog_config,
+                &mut pn_button,
+                &mut pn_radio_button,
+                &mut pf_verification_flag_checked,
+            )
+        });
+    }
 }
