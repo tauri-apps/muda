@@ -41,6 +41,10 @@ extern "C" {
     static NSAboutPanelOptionVersion: id;
 }
 
+/// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
+#[allow(non_upper_case_globals)]
+const NSAboutPanelOptionCopyright: &str = "Copyright";
+
 /// A generic child in a menu
 ///
 /// Be careful when cloning this item and treat it as read-only
@@ -1035,7 +1039,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
                     }
 
                     if let Some(copyright) = &about_meta.copyright {
-                        keys.push(NSString::alloc(nil).init_str("Copyright"));
+                        keys.push(mkstr(NSAboutPanelOptionCopyright));
                         objects.push(mkstr(&copyright));
                     }
 
