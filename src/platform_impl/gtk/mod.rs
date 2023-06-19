@@ -171,7 +171,7 @@ impl MenuChild {
     fn set_icon(&mut self, icon: Option<Icon>) {
         self.icon = icon.clone();
 
-        let pixbuf = icon.map(|i| i.inner.to_pixbuf(16, 16));
+        let pixbuf = icon.map(|i| i.inner.to_pixbuf_scale(16, 16));
         for items in self.gtk_menu_items.values() {
             for i in items {
                 let box_container = i.child().unwrap().downcast::<gtk::Box>().unwrap();
@@ -985,6 +985,9 @@ impl PredefinedMenuItem {
                         if let Some(website_label) = &metadata.website_label {
                             builder = builder.website_label(website_label);
                         }
+                        if let Some(icon) = &metadata.icon {
+                            builder = builder.icon(&icon.inner.to_pixbuf());
+                        }
 
                         let about = builder.build();
                         about.run();
@@ -1177,7 +1180,7 @@ impl IconMenuItem {
         let image = self_
             .icon
             .as_ref()
-            .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf(16, 16))))
+            .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf_scale(16, 16))))
             .unwrap_or_else(gtk::Image::default);
 
         self_.accel_group = accel_group.cloned();
