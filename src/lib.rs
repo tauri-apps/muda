@@ -129,14 +129,10 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
 pub mod accelerator;
-mod check_menu_item;
 mod error;
-mod icon_menu_item;
+mod items;
 mod menu;
-mod menu_item;
 mod platform_impl;
-mod predefined;
-mod submenu;
 mod util;
 
 #[cfg(target_os = "macos")]
@@ -144,14 +140,12 @@ mod util;
 extern crate objc;
 
 pub use self::error::*;
-pub use check_menu_item::CheckMenuItem;
-pub use icon_menu_item::IconMenuItem;
+pub use items::*;
 pub use menu::Menu;
 pub mod icon;
-pub use menu_item::MenuItem;
-pub use predefined::{AboutMetadata, PredefinedMenuItem};
-pub use submenu::Submenu;
 
+/// An enumeration of all available menu types, useful to match against
+/// the items return from [`Menu::items`] or [`Submenu::items`]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MenuItemType {
     Submenu,
@@ -174,7 +168,7 @@ impl Default for MenuItemType {
 /// This trait is ONLY meant to be implemented internally.
 // TODO(amrbashir): first person to replace this trait with an enum while keeping `Menu.append_items`
 // taking mix of types (`MenuItem`, `CheckMenuItem`, `Submenu`...etc) in the same call, gets a cookie.
-pub unsafe trait MenuItemExt {
+pub unsafe trait IsMenuItem {
     /// Get the type of this menu entry
     fn type_(&self) -> MenuItemType;
 
@@ -246,7 +240,7 @@ pub trait ContextMenu {
 }
 
 /// Describes a menu event emitted when a menu item is activated
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MenuEvent {
     /// Id of the menu item which triggered this event
     pub id: u32,

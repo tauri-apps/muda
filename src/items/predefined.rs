@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, icon::Icon, MenuItemExt, MenuItemType};
+use std::{cell::RefCell, rc::Rc};
+
+use crate::{accelerator::Accelerator, icon::Icon, IsMenuItem, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 
 #[cfg(target_os = "macos")]
@@ -11,12 +13,13 @@ pub const CMD_OR_CTRL: Modifiers = Modifiers::META;
 pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
-pub struct PredefinedMenuItem(pub(crate) crate::platform_impl::PredefinedMenuItem);
+pub struct PredefinedMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
-unsafe impl MenuItemExt for PredefinedMenuItem {
+unsafe impl IsMenuItem for PredefinedMenuItem {
     fn type_(&self) -> MenuItemType {
         MenuItemType::Predefined
     }
+
     fn as_any(&self) -> &(dyn std::any::Any + 'static) {
         self
     }
@@ -156,24 +159,26 @@ impl PredefinedMenuItem {
     }
 
     fn new<S: AsRef<str>>(item: PredfinedMenuItemType, text: Option<S>) -> Self {
-        Self(crate::platform_impl::PredefinedMenuItem::new(
-            item,
-            text.map(|t| t.as_ref().to_string()),
-        ))
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_predefined(
+                item,
+                text.map(|t| t.as_ref().to_string()),
+            ),
+        )))
     }
 
     fn id(&self) -> u32 {
-        self.0.id()
+        self.0.borrow().id()
     }
 
     /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
-        self.0.text()
+        self.0.borrow().text()
     }
 
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.0.set_text(text.as_ref())
+        self.0.borrow_mut().set_text(text.as_ref())
     }
 }
 
@@ -237,6 +242,7 @@ pub struct AboutMetadata {
 }
 
 impl AboutMetadata {
+    #[allow(unused)]
     pub(crate) fn full_version(&self) -> Option<String> {
         Some(format!(
             "{}{}",

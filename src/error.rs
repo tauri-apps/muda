@@ -24,8 +24,12 @@ pub enum Error {
     AlreadyInitialized,
     #[error("{0}")]
     AcceleratorParseError(String),
-    #[error("Cannot map {0} to gdk key")]
-    AcceleratorKeyNotSupported(keyboard_types::Code),
+    #[error("Couldn't recognize \"{0}\" as a valid Accelerator Code, if you feel like it should be, please report this to https://github.com/tauri-apps/muda")]
+    UnrecognizedAcceleratorCode(String),
+    #[error("Unexpected empty token while parsing accelerator: \"{0}\"")]
+    EmptyAcceleratorToken(String),
+    #[error("Unexpected accelerator string format: \"{0}\", a accelerator should have the modifiers first and only contain one main key")]
+    UnexpectedAcceleratorFormat(String),
 }
 
 /// Convenient type alias of Result type for muda.

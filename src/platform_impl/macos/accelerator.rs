@@ -11,8 +11,8 @@ impl Accelerator {
     /// Return the string value of this hotkey, without modifiers.
     ///
     /// Returns the empty string if no key equivalent is known.
-    pub fn key_equivalent(self) -> String {
-        match self.key {
+    pub fn key_equivalent(self) -> crate::Result<String> {
+        Ok(match self.key {
             Code::KeyA => "a".into(),
             Code::KeyB => "b".into(),
             Code::KeyC => "c".into(),
@@ -103,12 +103,8 @@ impl Accelerator {
             Code::F22 => "\u{F719}".into(),
             Code::F23 => "\u{F71A}".into(),
             Code::F24 => "\u{F71B}".into(),
-            _ => {
-                #[cfg(debug_assertions)]
-                eprintln!("no key equivalent for {:?}", self);
-                "".into()
-            }
-        }
+            key => return Err(crate::Error::UnrecognizedAcceleratorCode(key.to_string())),
+        })
     }
 
     /// Return the modifiers of this hotkey, as an NSEventModifierFlags bitflag.
