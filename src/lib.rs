@@ -63,7 +63,7 @@
 //!                 &PredefinedMenuItem::separator(),
 //!                 &menu_item2,
 //!             ],
-//!         ),
+//!         ).unwrap(),
 //!     ],
 //! );
 //! ```
