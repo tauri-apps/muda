@@ -43,18 +43,15 @@ impl PlatformIcon {
         let (width, height) = self.get_size();
         let icon = self.to_png();
 
-        let (icon_height, icon_width) = match fixed_height {
+        let (icon_width, icon_height) = match fixed_height {
             Some(fixed_height) => {
                 let icon_height: f64 = fixed_height;
                 let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
-                (icon_height, icon_width)
+                (icon_width, icon_height)
             }
 
-            None => {
-                let (icon_height, icon_width) = self.get_size();
-                (icon_height as f64, icon_width as f64)
-            }
+            None => (width as f64, height as f64),
         };
 
         let nsdata = NSData::dataWithBytes_length_(

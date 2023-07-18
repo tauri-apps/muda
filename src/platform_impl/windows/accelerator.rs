@@ -14,7 +14,7 @@ use crate::accelerator::Accelerator;
 
 impl Accelerator {
     // Convert a hotkey to an accelerator.
-    pub fn to_accel(&self, menu_id: u16) -> ACCEL {
+    pub fn to_accel(&self, menu_id: u16) -> crate::Result<ACCEL> {
         let mut virt_key = FVIRTKEY;
         let key_mods: Modifiers = self.mods;
         if key_mods.contains(Modifiers::CONTROL) {
@@ -27,7 +27,7 @@ impl Accelerator {
             virt_key |= FSHIFT;
         }
 
-        let vk_code = key_to_vk(&self.key);
+        let vk_code = key_to_vk(&self.key)?;
         let mod_code = vk_code >> 8;
         if mod_code & 0x1 != 0 {
             virt_key |= FSHIFT;
@@ -40,17 +40,17 @@ impl Accelerator {
         }
         let raw_key = vk_code & 0x00ff;
 
-        ACCEL {
+        Ok(ACCEL {
             fVirt: virt_key,
             key: raw_key,
             cmd: menu_id,
-        }
+        })
     }
 }
 
 // used to build accelerators table from Key
-fn key_to_vk(key: &Code) -> VIRTUAL_KEY {
-    match key {
+fn key_to_vk(key: &Code) -> crate::Result<VIRTUAL_KEY> {
+    Ok(match key {
         Code::KeyA => unsafe { VkKeyScanW('a' as u16) as u16 },
         Code::KeyB => unsafe { VkKeyScanW('b' as u16) as u16 },
         Code::KeyC => unsafe { VkKeyScanW('c' as u16) as u16 },
@@ -162,8 +162,8 @@ fn key_to_vk(key: &Code) -> VIRTUAL_KEY {
         Code::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
         Code::LaunchMail => VK_LAUNCH_MAIL,
         Code::Convert => VK_CONVERT,
-        key => panic!("Unsupported key: {}", key),
-    }
+        key => return Err(crate::Error::UnrecognizedAcceleratorCode(key.to_string())),
+    })
 }
 
 impl fmt::Display for Accelerator {

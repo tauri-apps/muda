@@ -25,12 +25,12 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     {
-        let menu_bar_c = menu_bar.clone();
+        let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
             use windows_sys::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, MSG};
             unsafe {
                 let msg = msg as *const MSG;
-                let translated = TranslateAcceleratorW((*msg).hwnd, menu_bar_c.haccel(), msg);
+                let translated = TranslateAcceleratorW((*msg).hwnd, menu_bar.haccel(), msg);
                 translated == 1
             }
         });

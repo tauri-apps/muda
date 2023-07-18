@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use gtk::{prelude::*, AccelGroup};
 use keyboard_types::{Code, Modifiers};
 
 use crate::accelerator::Accelerator;
@@ -78,35 +77,12 @@ pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::Modif
             if let Some(gdk_key) = key_to_raw_key(k) {
                 *gdk_key
             } else {
-                return Err(crate::Error::AcceleratorKeyNotSupported(*k));
+                return Err(crate::Error::UnrecognizedAcceleratorCode(k.to_string()));
             }
         }
     };
 
     Ok((modifiers_to_gdk_modifier_type(accelerator.mods), key))
-}
-
-pub fn register_accelerator<M: IsA<gtk::Widget>>(
-    item: &M,
-    accel_group: &AccelGroup,
-    accelerator: &Accelerator,
-) -> Option<(gdk::ModifierType, u32)> {
-    if let Ok((mods, key)) = parse_accelerator(accelerator) {
-        item.add_accelerator("activate", accel_group, key, mods, gtk::AccelFlags::VISIBLE);
-        Some((mods, key))
-    } else {
-        None
-    }
-}
-
-pub fn remove_accelerator<M: IsA<gtk::Widget>>(
-    item: &M,
-    accel_group: &AccelGroup,
-    accelerator: &Accelerator,
-) {
-    if let Ok((mods, key)) = parse_accelerator(accelerator) {
-        item.remove_accelerator(accel_group, key, mods);
-    }
 }
 
 fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
