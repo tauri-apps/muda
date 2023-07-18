@@ -175,7 +175,8 @@ pub unsafe trait IsMenuItem {
     /// Casts this menu entry to [`Any`](std::any::Any).
     ///
     /// You can use this to get the concrete underlying type
-    /// when calling [`Menu::items`] or [`Submenu::items`] by calling [`downcast_ref`](https://doc.rust-lang.org/std/any/trait.Any.html#method.downcast_ref-1)
+    /// when calling [`Menu::items`] or [`Submenu::items`]
+    /// by calling [`downcast_ref`](https://doc.rust-lang.org/std/any/trait.Any.html#method.downcast_ref-1)
     ///
     /// ## Example
     ///
@@ -193,6 +194,46 @@ pub unsafe trait IsMenuItem {
 
     /// Returns the id associated with this menu entry
     fn id(&self) -> u32;
+
+    /// Casts this item to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        self.as_any().downcast_ref()
+    }
+
+    /// Casts this item to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Submenu {
+        self.as_any().downcast_ref().unwrap()
+    }
+
+    /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
+    fn as_menuitem(&self) -> Option<&MenuItem> {
+        self.as_any().downcast_ref()
+    }
+
+    /// Casts this item to a [`MenuItem`], and panics if it wasn't.
+    fn as_menuitem_unchecked(&self) -> &MenuItem {
+        self.as_any().downcast_ref().unwrap()
+    }
+
+    /// Casts this item to a [`CheckMenuItem`], and returns `None` if it wasn't.
+    fn as_check_menuitem(&self) -> Option<&CheckMenuItem> {
+        self.as_any().downcast_ref()
+    }
+
+    /// Casts this item to a [`CheckMenuItem`], and panics if it wasn't.
+    fn as_check_menuitem_unchecked(&self) -> &CheckMenuItem {
+        self.as_any().downcast_ref().unwrap()
+    }
+
+    /// Casts this item to a [`IconMenuItem`], and returns `None` if it wasn't.
+    fn as_icon_menuitem(&self) -> Option<&IconMenuItem> {
+        self.as_any().downcast_ref()
+    }
+
+    /// Casts this item to a [`IconMenuItem`], and panics if it wasn't.
+    fn as_icon_menuitem_unchecked(&self) -> &IconMenuItem {
+        self.as_any().downcast_ref().unwrap()
+    }
 }
 
 pub trait ContextMenu {
@@ -254,6 +295,11 @@ static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(un
 static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
 
 impl MenuEvent {
+    /// Returns the id of the menu item which triggered this event
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
     /// Gets a reference to the event channel's [`MenuEventReceiver`]
     /// which can be used to listen for menu events.
     ///
