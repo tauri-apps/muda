@@ -26,7 +26,7 @@ impl<'a> SubmenuBuilder<'a> {
         Default::default()
     }
 
-    /// Set the text for this menu item.
+    /// Set the text for this submenu.
     ///
     /// See [`Submenu::set_text`] for more info.
     pub fn text<S: Into<String>>(mut self, text: S) -> Self {
@@ -34,7 +34,7 @@ impl<'a> SubmenuBuilder<'a> {
         self
     }
 
-    /// Enable or disable this menu item.
+    /// Enable or disable this submenu.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
