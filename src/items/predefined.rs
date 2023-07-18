@@ -4,13 +4,11 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::Accelerator, AboutMetadata, IsMenuItem, MenuItemType};
+use crate::{
+    accelerator::{Accelerator, CMD_OR_CTRL},
+    AboutMetadata, IsMenuItem, MenuItemType,
+};
 use keyboard_types::{Code, Modifiers};
-
-#[cfg(target_os = "macos")]
-pub const CMD_OR_CTRL: Modifiers = Modifiers::META;
-#[cfg(not(target_os = "macos"))]
-pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 pub struct PredefinedMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
