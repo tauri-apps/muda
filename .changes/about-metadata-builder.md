@@ -1,0 +1,5 @@
+---
+"muda": "patch"
+---
+
+Add `AboutMetadataBuilder`.

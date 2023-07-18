@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::Accelerator, icon::Icon, IsMenuItem, MenuItemType};
+use crate::{accelerator::Accelerator, AboutMetadata, IsMenuItem, MenuItemType};
 use keyboard_types::{Code, Modifiers};
 
 #[cfg(target_os = "macos")]
@@ -179,78 +179,6 @@ impl PredefinedMenuItem {
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.0.borrow_mut().set_text(text.as_ref())
-    }
-}
-
-/// Application metadata for the [`PredefinedMenuItem::about`].
-#[derive(Debug, Clone, Default)]
-pub struct AboutMetadata {
-    /// The application name.
-    pub name: Option<String>,
-    /// The application version.
-    pub version: Option<String>,
-    /// The short version, e.g. "1.0".
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **Windows / Linux:** Appended to the end of `version` in parentheses.
-    pub short_version: Option<String>,
-    /// The authors of the application.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** Unsupported.
-    pub authors: Option<Vec<String>>,
-    /// Application comments.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** Unsupported.
-    pub comments: Option<String>,
-    /// The copyright of the application.
-    pub copyright: Option<String>,
-    /// The license of the application.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** Unsupported.
-    pub license: Option<String>,
-    /// The application website.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** Unsupported.
-    pub website: Option<String>,
-    /// The website label.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **macOS:** Unsupported.
-    pub website_label: Option<String>,
-    /// The credits.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **Windows / Linux:** Unsupported.
-    pub credits: Option<String>,
-    /// The application icon.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **Windows:** Unsupported.
-    pub icon: Option<Icon>,
-}
-
-impl AboutMetadata {
-    #[allow(unused)]
-    pub(crate) fn full_version(&self) -> Option<String> {
-        Some(format!(
-            "{}{}",
-            (self.version.as_ref())?,
-            (self.short_version.as_ref())
-                .map(|v| format!(" ({v})"))
-                .unwrap_or_default()
-        ))
     }
 }
 

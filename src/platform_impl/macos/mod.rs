@@ -311,6 +311,23 @@ impl MenuChild {
             ..Default::default()
         }
     }
+
+    pub fn new_native_icon(
+        text: &str,
+        enabled: bool,
+        native_icon: Option<NativeIcon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        Self {
+            type_: MenuItemType::Icon,
+            text: text.to_string(),
+            enabled,
+            id: COUNTER.next(),
+            native_icon,
+            accelerator,
+            ..Default::default()
+        }
+    }
 }
 
 /// Shared methods
@@ -695,7 +712,11 @@ impl MenuChild {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
 
-            menuitem_set_icon(ns_menu_item, self.icon.as_ref());
+            if self.icon.is_some() {
+                menuitem_set_icon(ns_menu_item, self.icon.as_ref());
+            } else if self.native_icon.is_some() {
+                menuitem_set_native_icon(ns_menu_item, self.native_icon);
+            }
         }
 
         self.ns_menu_items

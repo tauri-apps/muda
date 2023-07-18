@@ -9,7 +9,7 @@ pub(crate) use icon::PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
-    icon::Icon,
+    icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
     MenuEvent, MenuItemType,
@@ -472,6 +472,24 @@ impl MenuChild {
             text: text.to_string(),
             enabled,
             icon,
+            accelerator,
+            id: COUNTER.next(),
+            type_: MenuItemType::Icon,
+            gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
+            is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_native_icon(
+        text: &str,
+        enabled: bool,
+        _native_icon: Option<NativeIcon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        Self {
+            text: text.to_string(),
+            enabled,
             accelerator,
             id: COUNTER.next(),
             type_: MenuItemType::Icon,

@@ -128,7 +128,9 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
+mod about_metadata;
 pub mod accelerator;
+pub mod builders;
 mod error;
 mod items;
 mod menu;
@@ -139,7 +141,8 @@ mod util;
 #[macro_use]
 extern crate objc;
 
-pub use self::error::*;
+pub use about_metadata::AboutMetadata;
+pub use error::*;
 pub use items::*;
 pub use menu::Menu;
 pub mod icon;
