@@ -60,7 +60,7 @@ impl CheckMenuItem {
         self.0.borrow().text()
     }
 
-    /// Get the text for this check menu item. `text` could optionally contain
+    /// Set the text for this check menu item. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {

@@ -10,11 +10,11 @@ pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
-    icon::Icon,
-    items::{AboutMetadata, PredfinedMenuItemType},
+    icon::{Icon, NativeIcon},
+    items::PredfinedMenuItemType,
     util::{AddOp, Counter},
-    CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemType, PredefinedMenuItem,
-    Submenu,
+    AboutMetadata, CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemType,
+    PredefinedMenuItem, Submenu,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -470,6 +470,24 @@ impl MenuChild {
             id: COUNTER.next(),
             accelerator,
             icon,
+            root_menu_haccel_stores: Some(Vec::new()),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_native_icon(
+        text: &str,
+        enabled: bool,
+        _native_icon: Option<NativeIcon>,
+        accelerator: Option<Accelerator>,
+    ) -> Self {
+        Self {
+            type_: MenuItemType::Icon,
+            text: text.to_string(),
+            enabled,
+            parents_hemnu: Vec::new(),
+            id: COUNTER.next(),
+            accelerator,
             root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         }

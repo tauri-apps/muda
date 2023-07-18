@@ -41,7 +41,7 @@ impl MenuItem {
         self.0.borrow().id()
     }
 
-    /// Get the text for this menu item.
+    /// Set the text for this menu item.
     pub fn text(&self) -> String {
         self.0.borrow().text()
     }

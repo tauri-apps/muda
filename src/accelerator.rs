@@ -101,6 +101,22 @@ impl FromStr for Accelerator {
     }
 }
 
+impl TryFrom<&str> for Accelerator {
+    type Error = crate::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        parse_accelerator(value)
+    }
+}
+
+impl TryFrom<String> for Accelerator {
+    type Error = crate::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        parse_accelerator(&value)
+    }
+}
+
 fn parse_accelerator(accelerator: &str) -> crate::Result<Accelerator> {
     let tokens = accelerator.split('+').collect::<Vec<&str>>();
 

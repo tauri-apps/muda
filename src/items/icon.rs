@@ -48,6 +48,29 @@ impl IconMenuItem {
         )))
     }
 
+    /// Create a new icon menu item but with a native icon.
+    ///
+    /// See [`IconMenuItem::new`] for more info.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    pub fn with_native_icon<S: AsRef<str>>(
+        text: S,
+        enabled: bool,
+        native_icon: Option<NativeIcon>,
+        acccelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_native_icon(
+                text.as_ref(),
+                enabled,
+                native_icon,
+                acccelerator,
+            ),
+        )))
+    }
+
     /// Returns a unique identifier associated with this submenu.
     pub fn id(&self) -> u32 {
         self.0.borrow().id()
@@ -58,7 +81,7 @@ impl IconMenuItem {
         self.0.borrow().text()
     }
 
-    /// Get the text for this check menu item. `text` could optionally contain
+    /// Set the text for this check menu item. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
