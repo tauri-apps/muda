@@ -114,7 +114,7 @@ impl Accelerator {
         if mods.contains(Modifiers::SHIFT) {
             flags.insert(NSEventModifierFlags::NSShiftKeyMask);
         }
-        if mods.contains(Modifiers::META) {
+        if mods.contains(Modifiers::SUPER) {
             flags.insert(NSEventModifierFlags::NSCommandKeyMask);
         }
         if mods.contains(Modifiers::ALT) {
