@@ -55,7 +55,7 @@ macro_rules! return_if_predefined_item_not_supported {
 pub struct Menu {
     id: u32,
     children: Vec<Rc<RefCell<MenuChild>>>,
-    gtk_menubars: HashMap<u32, (Option<gtk::MenuBar>, gtk::Box)>,
+    gtk_menubars: HashMap<u32, gtk::MenuBar>,
     accel_group: Option<gtk::AccelGroup>,
     gtk_menu: (u32, Option<gtk::Menu>), // dedicated menu for tray or context menus
 }
@@ -78,16 +78,13 @@ impl Menu {
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
         return_if_predefined_item_not_supported!(item);
 
-        for (menu_id, (menu_bar, _)) in &self.gtk_menubars {
-            if let Some(menu_bar) = menu_bar {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
-                match op {
-                    AddOp::Append => menu_bar.append(&gtk_item),
-                    AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
-                }
-                gtk_item.show();
+        for (menu_id, menu_bar) in &self.gtk_menubars {
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
+            match op {
+                AddOp::Append => menu_bar.append(&gtk_item),
+                AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
             }
+            gtk_item.show();
         }
 
         {
@@ -114,13 +111,10 @@ impl Menu {
     fn add_menu_item_with_id(&self, item: &dyn crate::IsMenuItem, id: u32) -> crate::Result<()> {
         return_if_predefined_item_not_supported!(item);
 
-        for (menu_id, (menu_bar, _)) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
-            if let Some(menu_bar) = menu_bar {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
-                menu_bar.append(&gtk_item);
-                gtk_item.show();
-            }
+        for (menu_id, menu_bar) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
+            menu_bar.append(&gtk_item);
+            gtk_item.show();
         }
 
         Ok(())
@@ -176,18 +170,16 @@ impl Menu {
             }
         }
 
-        for (menu_id, (menu_bar, _)) in &self.gtk_menubars {
+        for (menu_id, menu_bar) in &self.gtk_menubars {
             if id.map(|i| i == *menu_id).unwrap_or(true) {
-                if let Some(menu_bar) = menu_bar {
-                    if let Some(items) = child
-                        .borrow_mut()
-                        .gtk_menu_items
-                        .borrow_mut()
-                        .remove(menu_id)
-                    {
-                        for item in items {
-                            menu_bar.remove(&item);
-                        }
+                if let Some(items) = child
+                    .borrow_mut()
+                    .gtk_menu_items
+                    .borrow_mut()
+                    .remove(menu_id)
+                {
+                    for item in items {
+                        menu_bar.remove(&item);
                     }
                 }
             }
@@ -218,11 +210,16 @@ impl Menu {
             .collect()
     }
 
-    pub fn init_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<gtk::Box>
+    pub fn init_for_gtk_window<W, C>(
+        &mut self,
+        window: &W,
+        container: Option<&C>,
+    ) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
-        W: IsA<gtk::Container>,
         W: IsA<gtk::Window>,
+        W: IsA<gtk::Container>,
+        C: IsA<gtk::Container>,
     {
         let id = window.as_ptr() as u32;
 
@@ -234,25 +231,13 @@ impl Menu {
         // so we need to create the menubar and its parent box
         if self.gtk_menubars.get(&id).is_none() {
             let menu_bar = gtk::MenuBar::new();
-            let vbox = gtk::Box::new(Orientation::Vertical, 0);
-            window.add(&vbox);
-            vbox.show();
-            self.gtk_menubars.insert(id, (Some(menu_bar), vbox));
-        } else if let Some((menu_bar, _)) = self.gtk_menubars.get_mut(&id) {
-            // This is NOT the first time this method has been called on a window.
-            // So it already contains a [`gtk::Box`] but it doesn't have a [`gtk::MenuBar`]
-            // because it was probably removed using [`Menu::remove_for_gtk_window`]
-            // so we only need to create the menubar
-            if menu_bar.is_none() {
-                menu_bar.replace(gtk::MenuBar::new());
-            } else {
-                return Err(crate::Error::AlreadyInitialized);
-            }
+            self.gtk_menubars.insert(id, menu_bar);
+        } else {
+            return Err(crate::Error::AlreadyInitialized);
         }
 
         // Construct the entries of the menubar
-        let (menu_bar, vbox) = self.gtk_menubars.get(&id).cloned().unwrap();
-        let menu_bar = menu_bar.as_ref().unwrap();
+        let menu_bar = &self.gtk_menubars[&id];
 
         window.add_accel_group(self.accel_group.as_ref().unwrap());
 
@@ -260,11 +245,17 @@ impl Menu {
             self.add_menu_item_with_id(item.as_ref(), id)?;
         }
 
-        // Show the menubar on the window
-        vbox.pack_start(menu_bar, false, false, 0);
+        // add the menubar to the specified widget, otherwise to the window
+        if let Some(container) = container {
+            container.add(menu_bar);
+        } else {
+            window.add(menu_bar);
+        }
+
+        // Show the menubar
         menu_bar.show();
 
-        Ok(vbox)
+        Ok(())
     }
 
     pub fn remove_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
@@ -273,51 +264,44 @@ impl Menu {
         W: IsA<gtk::Window>,
     {
         let id = window.as_ptr() as u32;
+
+        // Remove from our cache
         let menu_bar = self
             .gtk_menubars
             .remove(&id)
             .ok_or(crate::Error::NotInitialized)?;
 
-        if let (Some(menu_bar), vbox) = menu_bar {
-            for item in self.items() {
-                let _ = self.remove_inner(item.as_ref(), false, Some(id));
-            }
-
-            // Remove the [`gtk::Menubar`] from the widget tree
-            unsafe { menu_bar.destroy() };
-            // Detach the accelerators from the window
-            window.remove_accel_group(self.accel_group.as_ref().unwrap());
-            // Remove the removed [`gtk::Menubar`] from our cache
-            self.gtk_menubars.insert(id, (None, vbox));
-            Ok(())
-        } else {
-            self.gtk_menubars.insert(id, menu_bar);
-            Err(crate::Error::NotInitialized)
+        for item in self.items() {
+            let _ = self.remove_inner(item.as_ref(), false, Some(id));
         }
+
+        // Remove the [`gtk::Menubar`] from the widget tree
+        unsafe { menu_bar.destroy() };
+        // Detach the accelerators from the window
+        window.remove_accel_group(self.accel_group.as_ref().unwrap());
+        Ok(())
     }
 
     pub fn hide_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
     {
-        if let Some((Some(menu_bar), _)) = self.gtk_menubars.get(&(window.as_ptr() as u32)) {
-            menu_bar.hide();
-            Ok(())
-        } else {
-            Err(crate::Error::NotInitialized)
-        }
+        self.gtk_menubars
+            .get(&(window.as_ptr() as u32))
+            .ok_or(crate::Error::NotInitialized)?
+            .hide();
+        Ok(())
     }
 
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::ApplicationWindow>,
     {
-        if let Some((Some(menu_bar), _)) = self.gtk_menubars.get(&(window.as_ptr() as u32)) {
-            menu_bar.show_all();
-            Ok(())
-        } else {
-            Err(crate::Error::NotInitialized)
-        }
+        self.gtk_menubars
+            .get(&(window.as_ptr() as u32))
+            .ok_or(crate::Error::NotInitialized)?
+            .show_all();
+        Ok(())
     }
 
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
@@ -326,7 +310,7 @@ impl Menu {
     {
         self.gtk_menubars
             .get(&(window.as_ptr() as u32))
-            .map(|m| m.0.as_ref().map(|m| m.get_visible()).unwrap_or(false))
+            .map(|m| m.get_visible())
             .unwrap_or(false)
     }
 
@@ -562,16 +546,20 @@ impl MenuChild {
         for items in self.gtk_menu_items.borrow().values() {
             for i in items {
                 if let Some((mods, key)) = prev_accel {
-                    i.remove_accelerator(self.accel_group.as_ref().unwrap(), *key, *mods);
+                    if let Some(accel_group) = &self.accel_group {
+                        i.remove_accelerator(accel_group, *key, *mods);
+                    }
                 }
                 if let Some((mods, key)) = new_accel {
-                    i.add_accelerator(
-                        "activate",
-                        self.accel_group.as_ref().unwrap(),
-                        key,
-                        mods,
-                        gtk::AccelFlags::VISIBLE,
-                    )
+                    if let Some(accel_group) = &self.accel_group {
+                        i.add_accelerator(
+                            "activate",
+                            accel_group,
+                            key,
+                            mods,
+                            gtk::AccelFlags::VISIBLE,
+                        )
+                    }
                 }
             }
         }
@@ -1210,6 +1198,7 @@ impl dyn crate::IsMenuItem + '_ {
 }
 
 impl PredfinedMenuItemType {
+    #[cfg(feature = "libxdo")]
     fn xdo_keys(&self) -> &str {
         match self {
             PredfinedMenuItemType::Copy => "ctrl+c",

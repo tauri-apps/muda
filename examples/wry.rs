@@ -19,8 +19,9 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
+use wry::webview::WebViewBuilder;
 
-fn main() {
+fn main() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::new();
 
     let menu_bar = Menu::new();
@@ -44,10 +45,12 @@ fn main() {
         .with_title("Window 1")
         .build(&event_loop)
         .unwrap();
+
     let window2 = WindowBuilder::new()
         .with_title("Window 2")
         .build(&event_loop)
         .unwrap();
+    let window2_id = window2.id();
 
     #[cfg(target_os = "macos")]
     {
@@ -146,46 +149,62 @@ fn main() {
         window_m.set_windows_menu_for_nsapp();
     }
 
+    const HTML: &str = r#"
+    <html>
+    <body>
+        <style>
+            main {
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+        <main>
+            <h4> WRYYYYYYYYYYYYYYYYYYYYYY! </h4>
+            <input />
+            <button> Hi </button>
+        </main>
+        <script>
+            window.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
+            })
+        </script>
+    </body>
+    </html>
+  "#;
+
+    let handler = move |window: &Window, req: String| {
+        if let Some(rest) = req.strip_prefix("showContextMenu:") {
+            let (x, y) = rest
+                .split_once(',')
+                .map(|(x, y)| (x.parse::<f64>().unwrap(), y.parse::<f64>().unwrap()))
+                .unwrap();
+            if window.id() == window2_id {
+                show_context_menu(window, &window_m, x, y)
+            }
+        }
+    };
+
+    let webview = WebViewBuilder::new(window)?
+        .with_html(HTML)?
+        .with_ipc_handler(handler.clone())
+        .build()?;
+    let webview2 = WebViewBuilder::new(window2)?
+        .with_html(HTML)?
+        .with_ipc_handler(handler)
+        .build()?;
+
     let menu_channel = MenuEvent::receiver();
 
-    let mut x = 0_f64;
-    let mut y = 0_f64;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                window_id,
-                ..
-            } => {
-                if window_id == window2.id() {
-                    x = position.x;
-                    y = position.y;
-                }
-            }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::MouseInput {
-                        state: ElementState::Pressed,
-                        button: MouseButton::Right,
-                        ..
-                    },
-                window_id,
-                ..
-            } => {
-                if window_id == window2.id() {
-                    show_context_menu(&window2, &file_m, x, y);
-                }
-            }
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            _ => (),
+        if let Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } = event
+        {
+            *control_flow = ControlFlow::Exit;
         }
 
         if let Ok(event) = menu_channel.try_recv() {

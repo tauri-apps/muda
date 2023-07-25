@@ -123,25 +123,32 @@ impl Menu {
 
     /// Adds this menu to a [`gtk::ApplicationWindow`]
     ///
-    /// This method adds a [`gtk::Box`] then adds a [`gtk::MenuBar`] as its first child and returns the [`gtk::Box`].
-    /// So if more widgets need to be added, then [`gtk::prelude::BoxExt::pack_start`] or
-    /// similiar methods should be used on the returned [`gtk::Box`].
+    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
+    /// it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
+    /// which is usually not the desired behavior.
     ///
-    /// ## Safety:
-    ///
-    /// This should be called before anything is added to the window.
+    /// ## Example:
+    /// ```no_run
+    /// let window = gtk::ApplicationWindow::builder().build();
+    /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    /// let menu = muda::Menu::new();
+    /// // -- snip, add your menu items --
+    /// menu.init_for_gtk_window(&window, Some(&vbox));
+    /// // then proceed to add your widgets to the `vbox`
+    /// ```
     ///
     /// ## Panics:
     ///
     /// Panics if the gtk event loop hasn't been initialized on the thread.
     #[cfg(target_os = "linux")]
-    pub fn init_for_gtk_window<W>(&self, w: &W) -> crate::Result<gtk::Box>
+    pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
-        W: gtk::prelude::IsA<gtk::Container>,
         W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::Container>,
+        C: gtk::prelude::IsA<gtk::Container>,
     {
-        self.0.borrow_mut().init_for_gtk_window(w)
+        self.0.borrow_mut().init_for_gtk_window(window, container)
     }
 
     /// Adds this menu to a win32 window.
@@ -183,12 +190,12 @@ impl Menu {
 
     /// Removes this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn remove_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
+    pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
-        self.0.borrow_mut().remove_for_gtk_window(w)
+        self.0.borrow_mut().remove_for_gtk_window(window)
     }
 
     /// Removes this menu from a win32 window
@@ -199,11 +206,11 @@ impl Menu {
 
     /// Hides this menu from a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn hide_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
+    pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow_mut().hide_for_gtk_window(w)
+        self.0.borrow_mut().hide_for_gtk_window(window)
     }
 
     /// Hides this menu from a win32 window
@@ -214,11 +221,11 @@ impl Menu {
 
     /// Shows this menu on a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn show_for_gtk_window<W>(&self, w: &W) -> crate::Result<()>
+    pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow_mut().show_for_gtk_window(w)
+        self.0.borrow_mut().show_for_gtk_window(window)
     }
 
     /// Shows this menu on a win32 window
@@ -229,11 +236,11 @@ impl Menu {
 
     /// Returns whether this menu visible on a [`gtk::ApplicationWindow`]
     #[cfg(target_os = "linux")]
-    pub fn is_visible_on_gtk_window<W>(&self, w: &W) -> bool
+    pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow().is_visible_on_gtk_window(w)
+        self.0.borrow().is_visible_on_gtk_window(window)
     }
 
     /// Returns whether this menu visible on a on a win32 window
@@ -277,10 +284,10 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
+    fn show_context_menu_for_gtk_window(&self, window: &gtk::ApplicationWindow, x: f64, y: f64) {
         self.0
             .borrow_mut()
-            .show_context_menu_for_gtk_window(w, x, y)
+            .show_context_menu_for_gtk_window(window, x, y)
     }
 
     #[cfg(target_os = "linux")]

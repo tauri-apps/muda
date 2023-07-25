@@ -76,11 +76,12 @@
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
+//! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! menu.init_for_hwnd(window_hwnd);
 //! #[cfg(target_os = "linux")]
-//! menu.init_for_gtk_window(&gtk_window);
+//! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
 //! ```
@@ -268,17 +269,18 @@ pub trait ContextMenu {
     /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
+
     /// Get the underlying gtk menu reserved for context menus.
     #[cfg(target_os = "linux")]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
-    /// The menu will be shown at the coordinates of the current event
-    /// (the click which triggered the menu to be shown).
+    /// `x` and `y` are relative to the window's top-left corner.
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64);
 
+    /// Get the underlying NSMenu reserved for context menus.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
 }
