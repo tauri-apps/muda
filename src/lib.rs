@@ -76,6 +76,7 @@
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
 //! # let gtk_window = gtk::ApplicationWindow::builder().build();
+//! # #[cfg(target_os = "linux")]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
