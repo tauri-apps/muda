@@ -186,10 +186,23 @@ fn main() -> wry::Result<()> {
         if &req == "showContextMenu" {
             show_context_menu(window, &file_m_c, None)
         } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
-            let (x, y) = rest
+            let (mut x, mut y) = rest
                 .split_once(',')
-                .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
+                .map(|(x, y)| (x.parse::<f64>().unwrap(), y.parse::<f64>().unwrap()))
                 .unwrap();
+
+            // on macOS we must reverse the Y coordinate
+            #[cfg(target_os = "macos")]
+            unsafe {
+                y = window
+                    .current_monitor()
+                    .unwrap()
+                    .size()
+                    .to_logical::<f64>(window.scale_factor())
+                    .height
+                    - y;
+            }
+
             show_context_menu(
                 window,
                 &file_m_c,
