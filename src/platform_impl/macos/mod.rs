@@ -154,14 +154,7 @@ impl Menu {
     }
 
     pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
-        unsafe {
-            let window: id = msg_send![view, window];
-            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-            let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
-            let view_rect: NSRect = msg_send![view, frame];
-            let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
-            msg_send![self.ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: view]
-        }
+        show_context_menu_for_nsview(self.ns_menu, view, x, y)
     }
 
     pub fn ns_menu(&self) -> *mut std::ffi::c_void {
@@ -533,14 +526,7 @@ impl MenuChild {
     }
 
     pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
-        unsafe {
-            let window: id = msg_send![view, window];
-            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-            let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
-            let view_rect: NSRect = msg_send![view, frame];
-            let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
-            msg_send![self.ns_menu.1, popUpMenuPositioningItem: nil atLocation: location inView: view]
-        }
+        show_context_menu_for_nsview(self.ns_menu.1, view, x, y)
     }
 
     pub fn set_windows_menu_for_nsapp(&self) {
@@ -974,6 +960,18 @@ fn menuitem_set_native_icon(menuitem: id, icon: Option<NativeIcon>) {
         unsafe {
             let _: () = msg_send![menuitem, setImage: nil];
         }
+    }
+}
+
+fn show_context_menu_for_nsview(ns_menu: id, view: id, x: f64, y: f64) {
+    use core_graphics::display::CGDisplay;
+
+    unsafe {
+        let location = NSPoint::new(
+            x as CGFloat,
+            CGDisplay::main().pixels_high() as CGFloat - y as CGFloat,
+        );
+        msg_send![ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: view]
     }
 }
 

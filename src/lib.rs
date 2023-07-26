@@ -250,7 +250,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// `x` and `y` are relative to the screen's top-left corner.
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
 
@@ -267,7 +267,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// `x` and `y` are relative to the screen's top-left corner.
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
 
@@ -277,7 +277,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// `x` and `y` are relative to the screen's top-left corner.
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64);
 

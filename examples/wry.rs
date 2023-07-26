@@ -166,7 +166,7 @@ fn main() -> wry::Result<()> {
         <script>
             window.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
-                window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
+                window.ipc.postMessage(`showContextMenu:${e.screenX},${e.screenY}`);
             })
         </script>
     </body>

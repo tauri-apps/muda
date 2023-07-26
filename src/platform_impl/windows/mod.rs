@@ -832,7 +832,6 @@ fn show_context_menu(hwnd: HWND, hmenu: HMENU, x: f64, y: f64) {
             x: x as _,
             y: y as _,
         };
-        ClientToScreen(hwnd, &mut point);
         TrackPopupMenu(
             hmenu,
             TPM_LEFTALIGN,

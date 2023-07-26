@@ -315,7 +315,7 @@ impl Menu {
     }
 
     pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        if let Some(window) = window.window() {
+        if let Some(window) = window.screen().and_then(|s| s.root_window()) {
             let gtk_menu = gtk::Menu::new();
 
             for item in self.items() {
@@ -776,7 +776,7 @@ impl MenuChild {
     }
 
     pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        if let Some(window) = window.window() {
+        if let Some(window) = window.screen().and_then(|s| s.root_window()) {
             let gtk_menu = gtk::Menu::new();
 
             for item in self.items() {
