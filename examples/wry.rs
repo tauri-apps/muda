@@ -166,7 +166,15 @@ fn main() -> wry::Result<()> {
         <script>
             window.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
-                window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
+                // if e.button is -1 on chromuim or e.buttons is 0 (as a fallback on webkit2gtk) then this event was fired by keyboard
+                if (e.button === -1 || e.buttons === 0) {
+                    window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
+                }
+            })
+            window.addEventListener('mouseup', (e) => {
+                if (e.button === 2) {
+                    window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
+                }
             })
         </script>
     </body>
