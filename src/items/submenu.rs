@@ -172,10 +172,14 @@ impl ContextMenu for Submenu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64) {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        w: &gtk::ApplicationWindow,
+        position: Option<Position>,
+    ) {
         self.0
             .borrow_mut()
-            .show_context_menu_for_gtk_window(w, x, y)
+            .show_context_menu_for_gtk_window(w, position)
     }
 
     #[cfg(target_os = "linux")]
@@ -184,8 +188,10 @@ impl ContextMenu for Submenu {
     }
 
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64) {
-        self.0.borrow_mut().show_context_menu_for_nsview(view, x, y)
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>) {
+        self.0
+            .borrow_mut()
+            .show_context_menu_for_nsview(view, position)
     }
 
     #[cfg(target_os = "macos")]

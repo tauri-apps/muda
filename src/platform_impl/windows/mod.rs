@@ -829,16 +829,14 @@ fn find_by_id(id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) -> Option<Rc<RefC
 
 fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>) {
     unsafe {
-        let pt = if let Some(position) = position {
+        let pt = if let Some(pos) = position {
             let dpi = util::hwnd_dpi(hwnd);
             let scale_factor = util::dpi_to_scale_factor(dpi);
-            let position = position.to_physical::<i32>(scale_factor);
-            let mut pt = POINT {
-                x: position.x as _,
-                y: position.y as _,
-            };
-            ClientToScreen(hwnd, &mut pt);
-            pt
+            let pos = pos.to_physical::<i32>(scale_factor);
+            POINT {
+                x: pos.x as _,
+                y: pos.y as _,
+            }
         } else {
             let mut pt = POINT { x: 0, y: 0 };
             GetCursorPos(&mut pt);

@@ -167,8 +167,8 @@ fn main() -> wry::Result<()> {
             window.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 // contextmenu was requested from keyboard
-                if (e.button !== 2) {
-                    window.ipc.postMessage(`showContextMenuPos:${e.clientX},${e.clientY}`);
+                if (e.button !== 2 || (e.button === 2 && e.buttons === 0)) {
+                    window.ipc.postMessage(`showContextMenuPos:${e.screenX},${e.screenY}`);
                 }
             })
             window.addEventListener('mouseup', (e) => {
@@ -192,7 +192,7 @@ fn main() -> wry::Result<()> {
                 .unwrap();
             show_context_menu(
                 window,
-                &window_m,
+                &file_m_c,
                 Some(muda::Position::Logical((x, y).into())),
             )
         }
@@ -206,7 +206,6 @@ fn main() -> wry::Result<()> {
         .with_html(HTML)?
         .with_ipc_handler(handler)
         .build()?;
-
     let menu_channel = MenuEvent::receiver();
 
     event_loop.run(move |event, _, control_flow| {

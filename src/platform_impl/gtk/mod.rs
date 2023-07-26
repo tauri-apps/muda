@@ -12,7 +12,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    MenuEvent, MenuItemType,
+    MenuEvent, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -314,7 +314,11 @@ impl Menu {
             .unwrap_or(false)
     }
 
-    pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
+    pub fn show_context_menu_for_gtk_window(
+        &self,
+        window: &impl IsA<gtk::Widget>,
+        position: Option<Position>,
+    ) {
         if let Some(window) = window.window() {
             let gtk_menu = gtk::Menu::new();
 
@@ -324,13 +328,18 @@ impl Menu {
             }
             gtk_menu.show_all();
 
-            gtk_menu.popup_at_rect(
-                &window,
-                &gdk::Rectangle::new(x as _, y as _, 0, 0),
-                gdk::Gravity::NorthWest,
-                gdk::Gravity::NorthWest,
-                None,
-            );
+            if let Some(pos) = position {
+                let pos = pos.to_logical::<i32>(window.scale_factor() as _);
+                gtk_menu.popup_at_rect(
+                    &window,
+                    &gdk::Rectangle::new(pos.x, pos.y, 0, 0),
+                    gdk::Gravity::NorthWest,
+                    gdk::Gravity::NorthWest,
+                    None,
+                );
+            } else {
+                gtk_menu.popup_at_pointer(None);
+            }
         }
     }
 
@@ -775,22 +784,42 @@ impl MenuChild {
             .collect()
     }
 
-    pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        if let Some(window) = window.window() {
-            let gtk_menu = gtk::Menu::new();
+    pub fn show_context_menu_for_gtk_window(
+        &mut self,
+        widget: &impl IsA<gtk::Widget>,
+        position: Option<Position>,
+    ) {
+        if let Some(window) = widget.screen().and_then(|s| s.root_window()) {
+            let gtk_menu = self.gtk_context_menu();
 
-            for item in self.items() {
-                let gtk_item = item.make_gtk_menu_item(0, None, false).unwrap();
-                gtk_menu.append(&gtk_item);
-            }
-            gtk_menu.show_all();
+            let pos = if let Some(pos) = position {
+                pos.to_logical::<i32>(window.scale_factor() as _).into()
+            } else {
+                window
+                    .display()
+                    .default_seat()
+                    .and_then(|s| s.pointer())
+                    .map(|s| {
+                        let p = s.position();
+                        (p.1, p.2)
+                    })
+                    .unwrap_or_default()
+            };
 
+            let mut event = gdk::Event::new(gdk::EventType::ButtonPress);
+            event.set_device(
+                window
+                    .display()
+                    .default_seat()
+                    .and_then(|d| d.pointer())
+                    .as_ref(),
+            );
             gtk_menu.popup_at_rect(
                 &window,
-                &gdk::Rectangle::new(x as _, y as _, 0, 0),
+                &gdk::Rectangle::new(pos.0, pos.1, 0, 0),
                 gdk::Gravity::NorthWest,
                 gdk::Gravity::NorthWest,
-                None,
+                Some(&event),
             );
         }
     }
