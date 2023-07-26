@@ -173,7 +173,7 @@ fn main() -> wry::Result<()> {
             })
             window.addEventListener('mouseup', (e) => {
                 if (e.button === 2) {
-                    window.ipc.postMessage(`showContextMenu:${e.screenX},${e.cscreenY}`);
+                    window.ipc.postMessage(`showContextMenu:${e.screenX},${e.screenY}`);
                 }
             })
         </script>
