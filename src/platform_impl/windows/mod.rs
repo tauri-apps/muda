@@ -14,7 +14,7 @@ use crate::{
     items::PredfinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemType,
-    PredefinedMenuItem, Submenu,
+    Position, PredefinedMenuItem, Submenu,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -31,12 +31,13 @@ use windows_sys::Win32::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
-            DestroyAcceleratorTable, DrawMenuBar, EnableMenuItem, GetMenu, GetMenuItemInfoW,
-            InsertMenuW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu, SetMenuItemInfoW,
-            ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED,
-            MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP,
-            MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE,
-            SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE, WM_COMMAND, WM_DESTROY,
+            DestroyAcceleratorTable, DrawMenuBar, EnableMenuItem, GetCursorPos, GetMenu,
+            GetMenuItemInfoW, InsertMenuW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu,
+            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
+            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
+            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
+            MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE,
+            WM_COMMAND, WM_DESTROY,
         },
     },
 };
@@ -360,8 +361,8 @@ impl Menu {
             .unwrap_or(false)
     }
 
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        show_context_menu(hwnd, self.hpopupmenu, x, y)
+    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
+        show_context_menu(hwnd, self.hpopupmenu, position)
     }
 }
 
@@ -779,8 +780,8 @@ impl MenuChild {
             .collect()
     }
 
-    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        show_context_menu(hwnd, self.hpopupmenu, x, y)
+    pub fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
+        show_context_menu(hwnd, self.hpopupmenu, position)
     }
 
     pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
@@ -826,22 +827,24 @@ fn find_by_id(id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) -> Option<Rc<RefC
     None
 }
 
-fn show_context_menu(hwnd: HWND, hmenu: HMENU, x: f64, y: f64) {
+fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>) {
     unsafe {
-        let mut point = POINT {
-            x: x as _,
-            y: y as _,
+        let pt = if let Some(position) = position {
+            let dpi = util::hwnd_dpi(hwnd);
+            let scale_factor = util::dpi_to_scale_factor(dpi);
+            let position = position.to_physical::<i32>(scale_factor);
+            let mut pt = POINT {
+                x: position.x as _,
+                y: position.y as _,
+            };
+            ClientToScreen(hwnd, &mut pt);
+            pt
+        } else {
+            let mut pt = POINT { x: 0, y: 0 };
+            GetCursorPos(&mut pt);
+            pt
         };
-        ClientToScreen(hwnd, &mut point);
-        TrackPopupMenu(
-            hmenu,
-            TPM_LEFTALIGN,
-            point.x,
-            point.y,
-            0,
-            hwnd,
-            std::ptr::null(),
-        );
+        TrackPopupMenu(hmenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, std::ptr::null());
     }
 }
 

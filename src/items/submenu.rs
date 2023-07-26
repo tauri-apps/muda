@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemType};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemType, Position};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -155,8 +155,10 @@ impl ContextMenu for Submenu {
     }
 
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.borrow_mut().show_context_menu_for_hwnd(hwnd, x, y)
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
+        self.0
+            .borrow_mut()
+            .show_context_menu_for_hwnd(hwnd, position)
     }
 
     #[cfg(target_os = "windows")]

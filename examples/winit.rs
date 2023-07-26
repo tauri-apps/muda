@@ -138,8 +138,6 @@ fn main() {
 
     let menu_channel = MenuEvent::receiver();
 
-    let mut x = 0_f64;
-    let mut y = 0_f64;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -148,16 +146,6 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                window_id,
-                ..
-            } => {
-                if window_id == window2.id() {
-                    x = position.x;
-                    y = position.y;
-                }
-            }
             Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
@@ -168,9 +156,14 @@ fn main() {
                 window_id,
                 ..
             } => {
-                if window_id == window2.id() {
-                    show_context_menu(&window2, &file_m, x, y);
-                }
+                show_context_menu(
+                    if window_id == window.id() {
+                        &window
+                    } else {
+                        &window2
+                    },
+                    &file_m,
+                );
             }
             Event::MainEventsCleared => {
                 window.request_redraw();
@@ -187,11 +180,11 @@ fn main() {
     })
 }
 
-fn show_context_menu(window: &Window, menu: &dyn ContextMenu, x: f64, y: f64) {
+fn show_context_menu(window: &Window, menu: &dyn ContextMenu) {
     #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+    menu.show_context_menu_for_hwnd(window.hwnd() as _, None);
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(window.ns_view() as _, x, y);
+    menu.show_context_menu_for_nsview(window.ns_view() as _, None);
 }
 
 fn load_icon(path: &std::path::Path) -> muda::icon::Icon {

@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, Position};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
@@ -269,8 +269,8 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.borrow().show_context_menu_for_hwnd(hwnd, x, y)
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
+        self.0.borrow().show_context_menu_for_hwnd(hwnd, position)
     }
 
     #[cfg(target_os = "windows")]
