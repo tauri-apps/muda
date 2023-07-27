@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemType, Position};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemKind, Position};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -13,16 +13,8 @@ use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemType, Position};
 pub struct Submenu(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
 unsafe impl IsMenuItem for Submenu {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Submenu
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
-    }
-
-    fn id(&self) -> u32 {
-        self.id()
+    fn kind(&self) -> MenuItemKind {
+        MenuItemKind::Submenu(self.clone())
     }
 }
 
@@ -101,7 +93,7 @@ impl Submenu {
     }
 
     /// Returns a list of menu items that has been added to this submenu.
-    pub fn items(&self) -> Vec<Box<dyn IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.0.borrow().items()
     }
 

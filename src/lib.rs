@@ -152,96 +152,136 @@ pub mod icon;
 
 /// An enumeration of all available menu types, useful to match against
 /// the items return from [`Menu::items`] or [`Submenu::items`]
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MenuItemType {
+#[derive(Clone)]
+pub enum MenuItemKind {
+    MenuItem(MenuItem),
+    Submenu(Submenu),
+    Predefined(PredefinedMenuItem),
+    Check(CheckMenuItem),
+    Icon(IconMenuItem),
+}
+
+impl MenuItemKind {
+    /// Returns the id associated with this menu entry
+    fn id(&self) -> u32 {
+        match self {
+            MenuItemKind::MenuItem(i) => i.id(),
+            MenuItemKind::Submenu(i) => i.id(),
+            MenuItemKind::Predefined(i) => i.id(),
+            MenuItemKind::Check(i) => i.id(),
+            MenuItemKind::Icon(i) => i.id(),
+        }
+    }
+
+    /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
+    pub fn as_menuitem(&self) -> Option<&MenuItem> {
+        match self {
+            MenuItemKind::MenuItem(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Casts this item to a [`MenuItem`], and panics if it wasn't.
+    pub fn as_menuitem_unchecked(&self) -> &MenuItem {
+        match self {
+            MenuItemKind::MenuItem(i) => i,
+            _ => panic!("Not a MenuItem"),
+        }
+    }
+
+    /// Casts this item to a [`Submenu`], and returns `None` if it wasn't.
+    pub fn as_submenu(&self) -> Option<&Submenu> {
+        match self {
+            MenuItemKind::Submenu(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Casts this item to a [`Submenu`], and panics if it wasn't.
+    pub fn as_submenu_unchecked(&self) -> &Submenu {
+        match self {
+            MenuItemKind::Submenu(i) => i,
+            _ => panic!("Not a Submenu"),
+        }
+    }
+
+    /// Casts this item to a [`PredefinedMenuItem`], and returns `None` if it wasn't.
+    pub fn as_predefined_menuitem(&self) -> Option<&PredefinedMenuItem> {
+        match self {
+            MenuItemKind::Predefined(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Casts this item to a [`PredefinedMenuItem`], and panics if it wasn't.
+    pub fn as_predefined_menuitem_unchecked(&self) -> &PredefinedMenuItem {
+        match self {
+            MenuItemKind::Predefined(i) => i,
+            _ => panic!("Not a PredefinedMenuItem"),
+        }
+    }
+
+    /// Casts this item to a [`CheckMenuItem`], and returns `None` if it wasn't.
+    pub fn as_check_menuitem(&self) -> Option<&CheckMenuItem> {
+        match self {
+            MenuItemKind::Check(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Casts this item to a [`CheckMenuItem`], and panics if it wasn't.
+    pub fn as_check_menuitem_unchecked(&self) -> &CheckMenuItem {
+        match self {
+            MenuItemKind::Check(i) => i,
+            _ => panic!("Not a CheckMenuItem"),
+        }
+    }
+
+    /// Casts this item to a [`IconMenuItem`], and returns `None` if it wasn't.
+    pub fn as_icon_menuitem(&self) -> Option<&IconMenuItem> {
+        match self {
+            MenuItemKind::Icon(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Casts this item to a [`IconMenuItem`], and panics if it wasn't.
+    pub fn as_icon_menuitem_unchecked(&self) -> &IconMenuItem {
+        match self {
+            MenuItemKind::Icon(i) => i,
+            _ => panic!("Not an IconMenuItem"),
+        }
+    }
+}
+
+/// A trait that defines a generic item in a menu, which may be one of [`MenuItemKind`]
+///
+/// # Safety
+///
+/// This trait is ONLY meant to be implemented internally by the crate.
+pub unsafe trait IsMenuItem {
+    fn kind(&self) -> MenuItemKind;
+
+    fn id(&self) -> u32 {
+        self.kind().id()
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+pub(crate) enum MenuItemType {
+    MenuItem,
     Submenu,
-    Normal,
     Predefined,
     Check,
     Icon,
 }
-
 impl Default for MenuItemType {
     fn default() -> Self {
-        Self::Normal
+        Self::MenuItem
     }
 }
 
-/// A trait that defines a generic item in a menu, which may be one of [MenuItemType]
-///
-/// # Safety
-///
-/// This trait is ONLY meant to be implemented internally.
-// TODO(amrbashir): first person to replace this trait with an enum while keeping `Menu.append_items`
-// taking mix of types (`MenuItem`, `CheckMenuItem`, `Submenu`...etc) in the same call, gets a cookie.
-pub unsafe trait IsMenuItem {
-    /// Get the type of this menu entry
-    fn type_(&self) -> MenuItemType;
-
-    /// Casts this menu entry to [`Any`](std::any::Any).
-    ///
-    /// You can use this to get the concrete underlying type
-    /// when calling [`Menu::items`] or [`Submenu::items`]
-    /// by calling [`downcast_ref`](https://doc.rust-lang.org/std/any/trait.Any.html#method.downcast_ref-1)
-    ///
-    /// ## Example
-    ///
-    /// ```no_run
-    /// # use muda::{Submenu, MenuItem};
-    /// let submenu = Submenu::new("Submenu", true);
-    /// let item = MenuItem::new("Text", true, None);
-    /// submenu.append(&item);
-    /// // --snip--
-    /// let item = &submenu.items()[0];
-    /// let item = item.as_any().downcast_ref::<MenuItem>().unwrap();
-    /// item.set_text("New text")
-    /// ````
-    fn as_any(&self) -> &(dyn std::any::Any + 'static);
-
-    /// Returns the id associated with this menu entry
-    fn id(&self) -> u32;
-
-    /// Casts this item to a [`Submenu`], and returns `None` if it wasn't.
-    fn as_submenu(&self) -> Option<&Submenu> {
-        self.as_any().downcast_ref()
-    }
-
-    /// Casts this item to a [`Submenu`], and panics if it wasn't.
-    fn as_submenu_unchecked(&self) -> &Submenu {
-        self.as_any().downcast_ref().unwrap()
-    }
-
-    /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
-    fn as_menuitem(&self) -> Option<&MenuItem> {
-        self.as_any().downcast_ref()
-    }
-
-    /// Casts this item to a [`MenuItem`], and panics if it wasn't.
-    fn as_menuitem_unchecked(&self) -> &MenuItem {
-        self.as_any().downcast_ref().unwrap()
-    }
-
-    /// Casts this item to a [`CheckMenuItem`], and returns `None` if it wasn't.
-    fn as_check_menuitem(&self) -> Option<&CheckMenuItem> {
-        self.as_any().downcast_ref()
-    }
-
-    /// Casts this item to a [`CheckMenuItem`], and panics if it wasn't.
-    fn as_check_menuitem_unchecked(&self) -> &CheckMenuItem {
-        self.as_any().downcast_ref().unwrap()
-    }
-
-    /// Casts this item to a [`IconMenuItem`], and returns `None` if it wasn't.
-    fn as_icon_menuitem(&self) -> Option<&IconMenuItem> {
-        self.as_any().downcast_ref()
-    }
-
-    /// Casts this item to a [`IconMenuItem`], and panics if it wasn't.
-    fn as_icon_menuitem_unchecked(&self) -> &IconMenuItem {
-        self.as_any().downcast_ref().unwrap()
-    }
-}
-
+/// A helper trait with methods to help creating a context menu.
 pub trait ContextMenu {
     /// Get the popup [`HMENU`] for this menu.
     ///

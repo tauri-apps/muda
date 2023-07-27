@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::Accelerator, IsMenuItem, MenuItemType};
+use crate::{accelerator::Accelerator, IsMenuItem, MenuItemKind};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -16,16 +16,8 @@ use crate::{accelerator::Accelerator, IsMenuItem, MenuItemType};
 pub struct CheckMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
 unsafe impl IsMenuItem for CheckMenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Check
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
-    }
-
-    fn id(&self) -> u32 {
-        self.id()
+    fn kind(&self) -> MenuItemKind {
+        MenuItemKind::Check(self.clone())
     }
 }
 

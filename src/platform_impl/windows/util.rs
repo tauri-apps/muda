@@ -134,6 +134,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
         // We are on Windows 10 Anniversary Update (1607) or later.
         match GetDpiForWindow(hwnd) {
             0 => BASE_DPI, // 0 is returned if hwnd is invalid
+            #[allow(clippy::unnecessary_cast)]
             dpi => dpi as u32,
         }
     } else if let Some(GetDpiForMonitor) = *GET_DPI_FOR_MONITOR {
@@ -145,6 +146,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
 
         let mut dpi_x = 0;
         let mut dpi_y = 0;
+        #[allow(clippy::unnecessary_cast)]
         if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) == S_OK {
             dpi_x as u32
         } else {

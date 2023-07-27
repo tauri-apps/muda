@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::Accelerator, IsMenuItem, MenuItemType};
+use crate::{accelerator::Accelerator, IsMenuItem, MenuItemKind};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -10,16 +10,8 @@ use crate::{accelerator::Accelerator, IsMenuItem, MenuItemType};
 pub struct MenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
 unsafe impl IsMenuItem for MenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Normal
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
-    }
-
-    fn id(&self) -> u32 {
-        self.id()
+    fn kind(&self) -> MenuItemKind {
+        MenuItemKind::MenuItem(self.clone())
     }
 }
 

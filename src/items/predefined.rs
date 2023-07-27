@@ -6,24 +6,17 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
-    AboutMetadata, IsMenuItem, MenuItemType,
+    AboutMetadata, IsMenuItem, MenuItemKind,
 };
 use keyboard_types::{Code, Modifiers};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+#[derive(Clone)]
 pub struct PredefinedMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
 unsafe impl IsMenuItem for PredefinedMenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Predefined
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
-    }
-
-    fn id(&self) -> u32 {
-        self.id()
+    fn kind(&self) -> MenuItemKind {
+        MenuItemKind::Predefined(self.clone())
     }
 }
 
@@ -165,7 +158,7 @@ impl PredefinedMenuItem {
         )))
     }
 
-    fn id(&self) -> u32 {
+    pub(crate) fn id(&self) -> u32 {
         self.0.borrow().id()
     }
 

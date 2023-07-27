@@ -7,7 +7,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
-    IsMenuItem, MenuItemType,
+    IsMenuItem, MenuItemKind,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -19,16 +19,8 @@ use crate::{
 pub struct IconMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 
 unsafe impl IsMenuItem for IconMenuItem {
-    fn type_(&self) -> MenuItemType {
-        MenuItemType::Icon
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
-    }
-
-    fn id(&self) -> u32 {
-        self.id()
+    fn kind(&self) -> MenuItemKind {
+        MenuItemKind::Icon(self.clone())
     }
 }
 
