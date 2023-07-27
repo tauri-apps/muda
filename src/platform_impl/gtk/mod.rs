@@ -32,12 +32,12 @@ macro_rules! return_if_predefined_item_not_supported {
         match (&child_.type_, &child_.predefined_item_type) {
             (
                 crate::MenuItemType::Predefined,
-                PredfinedMenuItemType::Separator
-                | PredfinedMenuItemType::Copy
-                | PredfinedMenuItemType::Cut
-                | PredfinedMenuItemType::Paste
-                | PredfinedMenuItemType::SelectAll
-                | PredfinedMenuItemType::About(_),
+                PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::About(_),
             ) => {}
             (
                 crate::MenuItemType::Submenu
@@ -365,7 +365,7 @@ pub struct MenuChild {
     gtk_accelerator: Option<(gdk::ModifierType, u32)>,
 
     // predefined menu item fields
-    predefined_item_type: PredfinedMenuItemType,
+    predefined_item_type: PredefinedMenuItemType,
 
     // check menu item fields
     checked: Rc<AtomicBool>,
@@ -409,7 +409,7 @@ impl MenuChild {
         }
     }
 
-    pub(crate) fn new_predefined(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
+    pub(crate) fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         Self {
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
@@ -935,13 +935,13 @@ impl MenuChild {
         };
 
         let item = match predefined_item_type {
-            PredfinedMenuItemType::Separator => {
+            PredefinedMenuItemType::Separator => {
                 gtk::SeparatorMenuItem::new().upcast::<gtk::MenuItem>()
             }
-            PredfinedMenuItemType::Copy
-            | PredfinedMenuItemType::Cut
-            | PredfinedMenuItemType::Paste
-            | PredfinedMenuItemType::SelectAll => {
+            PredefinedMenuItemType::Copy
+            | PredefinedMenuItemType::Cut
+            | PredefinedMenuItemType::Paste
+            | PredefinedMenuItemType::SelectAll => {
                 let item = make_item();
                 let (mods, key) =
                     parse_accelerator(&predefined_item_type.accelerator().unwrap()).unwrap();
@@ -959,7 +959,7 @@ impl MenuChild {
                 });
                 item
             }
-            PredfinedMenuItemType::About(metadata) => {
+            PredefinedMenuItemType::About(metadata) => {
                 let item = make_item();
                 register_accel(&item);
                 item.connect_activate(move |_| {
@@ -1230,14 +1230,14 @@ fn show_context_menu(
     }
 }
 
-impl PredfinedMenuItemType {
+impl PredefinedMenuItemType {
     #[cfg(feature = "libxdo")]
     fn xdo_keys(&self) -> &str {
         match self {
-            PredfinedMenuItemType::Copy => "ctrl+c",
-            PredfinedMenuItemType::Cut => "ctrl+X",
-            PredfinedMenuItemType::Paste => "ctrl+v",
-            PredfinedMenuItemType::SelectAll => "ctrl+a",
+            PredefinedMenuItemType::Copy => "ctrl+c",
+            PredefinedMenuItemType::Cut => "ctrl+X",
+            PredefinedMenuItemType::Paste => "ctrl+v",
+            PredefinedMenuItemType::SelectAll => "ctrl+a",
             _ => unreachable!(),
         }
     }

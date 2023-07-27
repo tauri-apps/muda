@@ -177,7 +177,7 @@ pub struct MenuChild {
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
-    predefined_item_type: PredfinedMenuItemType,
+    predefined_item_type: PredefinedMenuItemType,
 
     // check menu item fields
     checked: bool,
@@ -236,20 +236,20 @@ impl MenuChild {
         }
     }
 
-    pub(crate) fn new_predefined(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
+    pub(crate) fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         let text = strip_mnemonic(text.unwrap_or_else(|| {
             match item_type {
-                PredfinedMenuItemType::About(_) => {
+                PredefinedMenuItemType::About(_) => {
                     format!("About {}", unsafe { app_name_string() }.unwrap_or_default())
                         .trim()
                         .to_string()
                 }
-                PredfinedMenuItemType::Hide => {
+                PredefinedMenuItemType::Hide => {
                     format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default())
                         .trim()
                         .to_string()
                 }
-                PredfinedMenuItemType::Quit => {
+                PredefinedMenuItemType::Quit => {
                     format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default())
                         .trim()
                         .to_string()
@@ -611,13 +611,13 @@ impl MenuChild {
     pub fn create_ns_item_for_predefined_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
         let item_type = &self.predefined_item_type;
         let ns_menu_item = match item_type {
-            PredfinedMenuItemType::Separator => unsafe {
+            PredefinedMenuItemType::Separator => unsafe {
                 NSMenuItem::separatorItem(nil).autorelease()
             },
             _ => create_ns_menu_item(&self.text, item_type.selector(), &self.accelerator)?,
         };
 
-        if let PredfinedMenuItemType::About(_) = self.predefined_item_type {
+        if let PredefinedMenuItemType::About(_) = self.predefined_item_type {
             unsafe {
                 let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
                 let _: () = msg_send![ns_menu_item, setTag:self.id()];
@@ -632,7 +632,7 @@ impl MenuChild {
             if !self.enabled {
                 let () = msg_send![ns_menu_item, setEnabled: NO];
             }
-            if let PredfinedMenuItemType::Services = self.predefined_item_type {
+            if let PredefinedMenuItemType::Services = self.predefined_item_type {
                 // we have to assign an empty menu as the app's services menu, and macOS will populate it
                 let services_menu = NSMenu::new(nil).autorelease();
                 let () = msg_send![NSApp(), setServicesMenu: services_menu];
@@ -724,28 +724,28 @@ impl MenuChild {
     }
 }
 
-impl PredfinedMenuItemType {
+impl PredefinedMenuItemType {
     pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
-            PredfinedMenuItemType::Separator => None,
-            PredfinedMenuItemType::Copy => Some(selector("copy:")),
-            PredfinedMenuItemType::Cut => Some(selector("cut:")),
-            PredfinedMenuItemType::Paste => Some(selector("paste:")),
-            PredfinedMenuItemType::SelectAll => Some(selector("selectAll:")),
-            PredfinedMenuItemType::Undo => Some(selector("undo:")),
-            PredfinedMenuItemType::Redo => Some(selector("redo:")),
-            PredfinedMenuItemType::Minimize => Some(selector("performMiniaturize:")),
-            PredfinedMenuItemType::Maximize => Some(selector("performZoom:")),
-            PredfinedMenuItemType::Fullscreen => Some(selector("toggleFullScreen:")),
-            PredfinedMenuItemType::Hide => Some(selector("hide:")),
-            PredfinedMenuItemType::HideOthers => Some(selector("hideOtherApplications:")),
-            PredfinedMenuItemType::ShowAll => Some(selector("unhideAllApplications:")),
-            PredfinedMenuItemType::CloseWindow => Some(selector("performClose:")),
-            PredfinedMenuItemType::Quit => Some(selector("terminate:")),
+            PredefinedMenuItemType::Separator => None,
+            PredefinedMenuItemType::Copy => Some(selector("copy:")),
+            PredefinedMenuItemType::Cut => Some(selector("cut:")),
+            PredefinedMenuItemType::Paste => Some(selector("paste:")),
+            PredefinedMenuItemType::SelectAll => Some(selector("selectAll:")),
+            PredefinedMenuItemType::Undo => Some(selector("undo:")),
+            PredefinedMenuItemType::Redo => Some(selector("redo:")),
+            PredefinedMenuItemType::Minimize => Some(selector("performMiniaturize:")),
+            PredefinedMenuItemType::Maximize => Some(selector("performZoom:")),
+            PredefinedMenuItemType::Fullscreen => Some(selector("toggleFullScreen:")),
+            PredefinedMenuItemType::Hide => Some(selector("hide:")),
+            PredefinedMenuItemType::HideOthers => Some(selector("hideOtherApplications:")),
+            PredefinedMenuItemType::ShowAll => Some(selector("unhideAllApplications:")),
+            PredefinedMenuItemType::CloseWindow => Some(selector("performClose:")),
+            PredefinedMenuItemType::Quit => Some(selector("terminate:")),
             // manual implementation in `fire_menu_item_click`
-            PredfinedMenuItemType::About(_) => Some(selector("fireMenuItemAction:")),
-            PredfinedMenuItemType::Services => None,
-            PredfinedMenuItemType::None => None,
+            PredefinedMenuItemType::About(_) => Some(selector("fireMenuItemAction:")),
+            PredefinedMenuItemType::Services => None,
+            PredefinedMenuItemType::None => None,
         }
     }
 }
@@ -838,7 +838,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
         let item = ptr as *mut &mut MenuChild;
 
-        if let PredfinedMenuItemType::About(about_meta) = &(*item).predefined_item_type {
+        if let PredefinedMenuItemType::About(about_meta) = &(*item).predefined_item_type {
             match about_meta {
                 Some(about_meta) => {
                     unsafe fn mkstr(s: &str) -> id {
