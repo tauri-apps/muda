@@ -13,7 +13,9 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Once};
 use cocoa::{
     appkit::{self, CGFloat, NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
     base::{id, nil, selector, NO, YES},
-    foundation::{NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSSize, NSString},
+    foundation::{
+        NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize, NSString,
+    },
 };
 use objc::{
     declare::ClassDecl,
@@ -965,8 +967,8 @@ fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
     unsafe {
         let window: id = msg_send![view, window];
         let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-        let location = if let Some(pos) = position {
-            let view_point = NSPoint::new(pos.x / scale_factor, pos.y / scale_factor);
+        let location = if let Some(pos) = position.map(|p| p.to_logical(scale_factor)) {
+            let view_point = NSPoint::new(pos.x, pos.y);
             let view_rect: NSRect = msg_send![view, frame];
             NSPoint::new(view_point.x, view_rect.size.height - view_point.y)
         } else {
@@ -975,7 +977,6 @@ fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
                 x: mouse_location.x,
                 y: mouse_location.y,
             });
-            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
             let pos = pos.to_logical(scale_factor);
             NSPoint::new(pos.x, pos.y)
         };
