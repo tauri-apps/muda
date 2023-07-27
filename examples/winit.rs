@@ -6,7 +6,7 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
-    PredefinedMenuItem, Submenu,
+    PhysicalPosition, Position, PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
@@ -137,6 +137,8 @@ fn main() {
     }
 
     let menu_channel = MenuEvent::receiver();
+    let mut window_cursor_position = PhysicalPosition { x: 0., y: 0. };
+    let mut use_window_pos = false;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -146,6 +148,14 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                window_id,
+                ..
+            } => {
+                window_cursor_position.x = position.x;
+                window_cursor_position.y = position.y;
+            }
             Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
@@ -163,7 +173,13 @@ fn main() {
                         &window2
                     },
                     &file_m,
+                    if use_window_pos {
+                        Some(window_cursor_position.into())
+                    } else {
+                        None
+                    },
                 );
+                use_window_pos = !use_window_pos;
             }
             Event::MainEventsCleared => {
                 window.request_redraw();
@@ -180,11 +196,12 @@ fn main() {
     })
 }
 
-fn show_context_menu(window: &Window, menu: &dyn ContextMenu) {
+fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
+    println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(window.hwnd() as _, None);
+    menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(window.ns_view() as _, None);
+    menu.show_context_menu_for_nsview(window.ns_view() as _, position);
 }
 
 fn load_icon(path: &std::path::Path) -> muda::icon::Icon {

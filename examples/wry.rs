@@ -257,6 +257,7 @@ fn main() -> wry::Result<()> {
 }
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<muda::Position>) {
+    println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
     menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     #[cfg(target_os = "linux")]
