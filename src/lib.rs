@@ -100,14 +100,13 @@
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
-//! let x = 100.0;
-//! let y = 120.0;
+//! let position = muda::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
-//! menu.show_context_menu_for_hwnd(window_hwnd, x, y);
+//! menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into()));
 //! #[cfg(target_os = "linux")]
-//! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
+//! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
-//! menu.show_context_menu_for_nsview(nsview, x, y);
+//! menu.show_context_menu_for_nsview(nsview, Some(position.into()));
 //! ```
 //! # Processing menu events
 //!
