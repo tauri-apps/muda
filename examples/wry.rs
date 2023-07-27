@@ -211,7 +211,7 @@ fn main() -> wry::Result<()> {
                     .gtk_menubar_for_gtk_window(window.gtk_window())
                 {
                     use gtk::prelude::*;
-                    y = y + menu_bar.allocated_height();
+                    y += menu_bar.allocated_height();
                 }
             }
 
