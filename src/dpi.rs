@@ -62,7 +62,7 @@ pub fn validate_scale_factor(scale_factor: f64) -> bool {
 /// fractional part, which can cause noticable issues. To help with that, an `Into<(i32, i32)>`
 /// implementation is provided which does the rounding for you.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LogicalPosition<P> {
     pub x: P,
     pub y: P,
@@ -127,7 +127,7 @@ impl<P: Pixel, X: Pixel> From<LogicalPosition<P>> for [X; 2] {
 
 /// A position represented in physical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PhysicalPosition<P> {
     pub x: P,
     pub y: P,
@@ -192,7 +192,7 @@ impl<P: Pixel, X: Pixel> From<PhysicalPosition<P>> for [X; 2] {
 
 /// A position that's either physical or logical.
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Position {
     Physical(PhysicalPosition<i32>),
     Logical(LogicalPosition<f64>),
