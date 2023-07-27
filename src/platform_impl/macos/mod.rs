@@ -963,18 +963,22 @@ fn menuitem_set_native_icon(menuitem: id, icon: Option<NativeIcon>) {
 
 fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
     unsafe {
-        let position = position.unwrap_or_else(|| {
-            let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
-            Position::Logical(LogicalPosition {
-                x: mouse_location.x,
-                y: mouse_location.y,
-            })
-        });
         let window: id = msg_send![view, window];
         let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-        let pos = position.to_logical(scale_factor);
-
-        let location = NSPoint::new(pos.x, pos.y);
+        let location = if let Some(pos) = position {
+            let view_point = NSPoint::new(pos.x / scale_factor, pos.y / scale_factor);
+            let view_rect: NSRect = msg_send![view, frame];
+            NSPoint::new(view_point.x, view_rect.size.height - view_point.y)
+        } else {
+            let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+            let pos = Position::Logical(LogicalPosition {
+                x: mouse_location.x,
+                y: mouse_location.y,
+            });
+            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
+            let pos = pos.to_logical(scale_factor);
+            NSPoint::new(pos.x, pos.y)
+        };
         msg_send![ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: nil]
     }
 }

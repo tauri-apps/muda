@@ -833,10 +833,12 @@ fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>) {
             let dpi = util::hwnd_dpi(hwnd);
             let scale_factor = util::dpi_to_scale_factor(dpi);
             let pos = pos.to_physical::<i32>(scale_factor);
-            POINT {
+            let mut pt = POINT {
                 x: pos.x as _,
                 y: pos.y as _,
-            }
+            };
+            ClientToScreen(hwnd, &mut pt);
+            pt
         } else {
             let mut pt = POINT { x: 0, y: 0 };
             GetCursorPos(&mut pt);

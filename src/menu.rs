@@ -243,6 +243,16 @@ impl Menu {
         self.0.borrow().is_visible_on_gtk_window(window)
     }
 
+    #[cfg(target_os = "linux")]
+    /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
+    /// This is useful to get information about the menubar for example its height.
+    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+    {
+        self.0.borrow().gtk_menubar_for_gtk_window(window)
+    }
+
     /// Returns whether this menu visible on a on a win32 window
     #[cfg(target_os = "windows")]
     pub fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {

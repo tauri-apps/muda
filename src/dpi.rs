@@ -5,62 +5,51 @@ pub trait Pixel: Copy + Into<f64> {
     }
 }
 
-macro_rules! pixel_int_impl {
-    ($($t:ty),*) => {$(
-        impl Pixel for $t {
-            fn from_f64(f: f64) -> Self {
-                f.round() as $t
-            }
-        }
-    )*}
-  }
-
-pixel_int_impl!(u8, u16, u32, i8, i16, i32);
-
+impl Pixel for u8 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as u8
+    }
+}
+impl Pixel for u16 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as u16
+    }
+}
+impl Pixel for u32 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as u32
+    }
+}
+impl Pixel for i8 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as i8
+    }
+}
+impl Pixel for i16 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as i16
+    }
+}
+impl Pixel for i32 {
+    fn from_f64(f: f64) -> Self {
+        f.round() as i32
+    }
+}
 impl Pixel for f32 {
     fn from_f64(f: f64) -> Self {
         f as f32
     }
 }
-
 impl Pixel for f64 {
     fn from_f64(f: f64) -> Self {
         f
     }
 }
 
-macro_rules! from_impls {
-    ($t:ident ) => {
-        impl<P: Pixel, X: Pixel> From<(X, X)> for $t<P> {
-            fn from((x, y): (X, X)) -> Self {
-                Self::new(x.cast(), y.cast())
-            }
-        }
-
-        impl<P: Pixel, X: Pixel> From<$t<P>> for (X, X) {
-            fn from(p: $t<P>) -> Self {
-                (p.x.cast(), p.y.cast())
-            }
-        }
-
-        impl<P: Pixel, X: Pixel> From<[X; 2]> for $t<P> {
-            fn from([x, y]: [X; 2]) -> Self {
-                Self::new(x.cast(), y.cast())
-            }
-        }
-
-        impl<P: Pixel, X: Pixel> From<$t<P>> for [X; 2] {
-            fn from(p: $t<P>) -> Self {
-                [p.x.cast(), p.y.cast()]
-            }
-        }
-    };
-}
-
 /// Checks that the scale factor is a normal positive `f64`.
 ///
 /// All functions that take a scale factor assert that this will return `true`. If you're sourcing scale factors from
-/// anywhere other than tao, it's recommended to validate them using this function before passing them to tao;
+/// anywhere other than winit, it's recommended to validate them using this function before passing them to winit;
 /// otherwise, you risk panics.
 #[inline]
 pub fn validate_scale_factor(scale_factor: f64) -> bool {
@@ -72,7 +61,7 @@ pub fn validate_scale_factor(scale_factor: f64) -> bool {
 /// The position is stored as floats, so please be careful. Casting floats to integers truncates the
 /// fractional part, which can cause noticable issues. To help with that, an `Into<(i32, i32)>`
 /// implementation is provided which does the rounding for you.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LogicalPosition<P> {
     pub x: P,
@@ -112,10 +101,32 @@ impl<P: Pixel> LogicalPosition<P> {
     }
 }
 
-from_impls!(LogicalPosition);
+impl<P: Pixel, X: Pixel> From<(X, X)> for LogicalPosition<P> {
+    fn from((x, y): (X, X)) -> LogicalPosition<P> {
+        LogicalPosition::new(x.cast(), y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<LogicalPosition<P>> for (X, X) {
+    fn from(p: LogicalPosition<P>) -> (X, X) {
+        (p.x.cast(), p.y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<[X; 2]> for LogicalPosition<P> {
+    fn from([x, y]: [X; 2]) -> LogicalPosition<P> {
+        LogicalPosition::new(x.cast(), y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<LogicalPosition<P>> for [X; 2] {
+    fn from(p: LogicalPosition<P>) -> [X; 2] {
+        [p.x.cast(), p.y.cast()]
+    }
+}
 
 /// A position represented in physical pixels.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PhysicalPosition<P> {
     pub x: P,
@@ -155,10 +166,32 @@ impl<P: Pixel> PhysicalPosition<P> {
     }
 }
 
-from_impls!(PhysicalPosition);
+impl<P: Pixel, X: Pixel> From<(X, X)> for PhysicalPosition<P> {
+    fn from((x, y): (X, X)) -> PhysicalPosition<P> {
+        PhysicalPosition::new(x.cast(), y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<PhysicalPosition<P>> for (X, X) {
+    fn from(p: PhysicalPosition<P>) -> (X, X) {
+        (p.x.cast(), p.y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<[X; 2]> for PhysicalPosition<P> {
+    fn from([x, y]: [X; 2]) -> PhysicalPosition<P> {
+        PhysicalPosition::new(x.cast(), y.cast())
+    }
+}
+
+impl<P: Pixel, X: Pixel> From<PhysicalPosition<P>> for [X; 2] {
+    fn from(p: PhysicalPosition<P>) -> [X; 2] {
+        [p.x.cast(), p.y.cast()]
+    }
+}
 
 /// A position that's either physical or logical.
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Position {
     Physical(PhysicalPosition<i32>),
@@ -166,35 +199,35 @@ pub enum Position {
 }
 
 impl Position {
-    pub fn new<S: Into<Position>>(val: S) -> Position {
-        val.into()
+    pub fn new<S: Into<Position>>(position: S) -> Position {
+        position.into()
     }
 
     pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalPosition<P> {
         match *self {
-            Position::Physical(val) => val.to_logical(scale_factor),
-            Position::Logical(val) => val.cast(),
+            Position::Physical(position) => position.to_logical(scale_factor),
+            Position::Logical(position) => position.cast(),
         }
     }
 
     pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<P> {
         match *self {
-            Position::Physical(val) => val.cast(),
-            Position::Logical(val) => val.to_physical(scale_factor),
+            Position::Physical(position) => position.cast(),
+            Position::Logical(position) => position.to_physical(scale_factor),
         }
     }
 }
 
 impl<P: Pixel> From<PhysicalPosition<P>> for Position {
     #[inline]
-    fn from(val: PhysicalPosition<P>) -> Position {
-        Position::Physical(val.cast())
+    fn from(position: PhysicalPosition<P>) -> Position {
+        Position::Physical(position.cast())
     }
 }
 
 impl<P: Pixel> From<LogicalPosition<P>> for Position {
     #[inline]
-    fn from(val: LogicalPosition<P>) -> Position {
-        Position::Logical(val.cast())
+    fn from(position: LogicalPosition<P>) -> Position {
+        Position::Logical(position.cast())
     }
 }

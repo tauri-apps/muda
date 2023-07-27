@@ -149,14 +149,19 @@ fn main() -> wry::Result<()> {
         window_m.set_windows_menu_for_nsapp();
     }
 
-    const HTML: &str = r#"
+    #[cfg(windows)]
+    let condition = "e.button !== 2";
+    #[cfg(not(windows))]
+    let condition = "e.button == 2 && e.buttons === 0";
+    let html: String = format!(
+        r#"
     <html>
     <body>
         <style>
-            main {
+            main {{
                 width: 100vw;
                 height: 100vh;
-            }
+            }}
         </style>
         <main>
             <h4> WRYYYYYYYYYYYYYYYYYYYYYY! </h4>
@@ -164,43 +169,50 @@ fn main() -> wry::Result<()> {
             <button> Hi </button>
         </main>
         <script>
-            window.addEventListener('contextmenu', (e) => {
+            window.addEventListener('contextmenu', (e) => {{
                 e.preventDefault();
+                console.log(e)
                 // contextmenu was requested from keyboard
-                if (e.button !== 2 || (e.button === 2 && e.buttons === 0)) {
-                    window.ipc.postMessage(`showContextMenuPos:${e.screenX},${e.screenY}`);
-                }
-            })
-            window.addEventListener('mouseup', (e) => {
-                if (e.button === 2) {
-                    window.ipc.postMessage(`showContextMenu`);
-                }
-            })
+                if ({condition}) {{
+                    window.ipc.postMessage(`showContextMenuPos:${{e.clientX}},${{e.clientY}}`);
+                }}
+            }})
+            let x = true;
+            window.addEventListener('mouseup', (e) => {{
+                if (e.button === 2) {{
+                    if (x) {{
+                        window.ipc.postMessage(`showContextMenuPos:${{e.clientX}},${{e.clientY}}`);
+                    }} else {{
+                        window.ipc.postMessage(`showContextMenu`);
+                    }}
+                    x = !x;
+                }}
+            }})
         </script>
     </body>
     </html>
-  "#;
+  "#,
+    );
 
     let file_m_c = file_m.clone();
     let handler = move |window: &Window, req: String| {
         if &req == "showContextMenu" {
             show_context_menu(window, &file_m_c, None)
         } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
-            let (mut x, mut y) = rest
+            let (x, mut y) = rest
                 .split_once(',')
-                .map(|(x, y)| (x.parse::<f64>().unwrap(), y.parse::<f64>().unwrap()))
+                .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                 .unwrap();
 
-            // on macOS we must reverse the Y coordinate
-            #[cfg(target_os = "macos")]
-            unsafe {
-                y = window
-                    .current_monitor()
-                    .unwrap()
-                    .size()
-                    .to_logical::<f64>(window.scale_factor())
-                    .height
-                    - y;
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(menu_bar) = menu_bar
+                    .clone()
+                    .gtk_menubar_for_gtk_window(window.gtk_window())
+                {
+                    use gtk::prelude::*;
+                    y = y + menu_bar.allocated_height();
+                }
             }
 
             show_context_menu(
@@ -212,13 +224,14 @@ fn main() -> wry::Result<()> {
     };
 
     let webview = WebViewBuilder::new(window)?
-        .with_html(HTML)?
+        .with_html(&html)?
         .with_ipc_handler(handler.clone())
         .build()?;
     let webview2 = WebViewBuilder::new(window2)?
-        .with_html(HTML)?
+        .with_html(html)?
         .with_ipc_handler(handler)
         .build()?;
+    webview2.open_devtools();
     let menu_channel = MenuEvent::receiver();
 
     event_loop.run(move |event, _, control_flow| {

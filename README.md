@@ -16,6 +16,7 @@ muda is a Menu Utilities library for Desktop Applications.
 
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
 - `libxdo`: Enables linking to `libxdo` on Linux which is used for the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
+- `serde`: Enables de/serializing the dpi types.
 
 ## Dependencies (Linux Only)
 

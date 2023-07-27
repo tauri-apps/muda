@@ -252,7 +252,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// - `position` is in screen coordinates, if `None`, the cursor position is used.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>);
 
@@ -269,7 +269,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// - `position` is in screen coordinates, if `None`, the cursor position is used.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -283,7 +283,7 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
-    /// - `position` is in screen coordinates, if `None`, the cursor position is used.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>);
 

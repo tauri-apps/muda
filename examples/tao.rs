@@ -159,7 +159,7 @@ fn main() {
             Event::WindowEvent {
                 event:
                     WindowEvent::MouseInput {
-                        state: ElementState::Pressed,
+                        state: ElementState::Released,
                         button: MouseButton::Right,
                         ..
                     },
