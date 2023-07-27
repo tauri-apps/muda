@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, Position};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
@@ -243,6 +243,16 @@ impl Menu {
         self.0.borrow().is_visible_on_gtk_window(window)
     }
 
+    #[cfg(target_os = "linux")]
+    /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
+    /// This is useful to get information about the menubar for example its height.
+    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+    {
+        self.0.borrow().gtk_menubar_for_gtk_window(window)
+    }
+
     /// Returns whether this menu visible on a on a win32 window
     #[cfg(target_os = "windows")]
     pub fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
@@ -269,8 +279,8 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64) {
-        self.0.borrow().show_context_menu_for_hwnd(hwnd, x, y)
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
+        self.0.borrow().show_context_menu_for_hwnd(hwnd, position)
     }
 
     #[cfg(target_os = "windows")]
@@ -284,10 +294,14 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, window: &gtk::ApplicationWindow, x: f64, y: f64) {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        window: &gtk::ApplicationWindow,
+        position: Option<Position>,
+    ) {
         self.0
             .borrow_mut()
-            .show_context_menu_for_gtk_window(window, x, y)
+            .show_context_menu_for_gtk_window(window, position)
     }
 
     #[cfg(target_os = "linux")]
@@ -296,8 +310,10 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64) {
-        self.0.borrow_mut().show_context_menu_for_nsview(view, x, y)
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>) {
+        self.0
+            .borrow_mut()
+            .show_context_menu_for_nsview(view, position)
     }
 
     #[cfg(target_os = "macos")]

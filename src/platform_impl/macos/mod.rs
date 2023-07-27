@@ -28,7 +28,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuItemType,
+    IsMenuItem, LogicalPosition, MenuEvent, MenuItemType, Position,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -153,15 +153,8 @@ impl Menu {
         unsafe { NSApp().setMainMenu_(nil) }
     }
 
-    pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
-        unsafe {
-            let window: id = msg_send![view, window];
-            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-            let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
-            let view_rect: NSRect = msg_send![view, frame];
-            let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
-            msg_send![self.ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: view]
-        }
+    pub fn show_context_menu_for_nsview(&self, view: id, position: Option<Position>) {
+        show_context_menu(self.ns_menu, view, position)
     }
 
     pub fn ns_menu(&self) -> *mut std::ffi::c_void {
@@ -532,15 +525,8 @@ impl MenuChild {
             .collect()
     }
 
-    pub fn show_context_menu_for_nsview(&self, view: id, x: f64, y: f64) {
-        unsafe {
-            let window: id = msg_send![view, window];
-            let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-            let view_point = NSPoint::new(x / scale_factor, y / scale_factor);
-            let view_rect: NSRect = msg_send![view, frame];
-            let location = NSPoint::new(view_point.x, view_rect.size.height - view_point.y);
-            msg_send![self.ns_menu.1, popUpMenuPositioningItem: nil atLocation: location inView: view]
-        }
+    pub fn show_context_menu_for_nsview(&self, view: id, position: Option<Position>) {
+        show_context_menu(self.ns_menu.1, view, position)
     }
 
     pub fn set_windows_menu_for_nsapp(&self) {
@@ -974,6 +960,29 @@ fn menuitem_set_native_icon(menuitem: id, icon: Option<NativeIcon>) {
         unsafe {
             let _: () = msg_send![menuitem, setImage: nil];
         }
+    }
+}
+
+fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
+    unsafe {
+        let window: id = msg_send![view, window];
+        let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
+        let (location, in_view) = if let Some(pos) = position.map(|p| p.to_logical(scale_factor)) {
+            let view_rect: NSRect = msg_send![view, frame];
+            let location = NSPoint::new(pos.x, view_rect.size.height - pos.y);
+            (location, view)
+        } else {
+            let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+            let pos = Position::Logical(LogicalPosition {
+                x: mouse_location.x,
+                y: mouse_location.y,
+            });
+            let pos = pos.to_logical(scale_factor);
+            let location = NSPoint::new(pos.x, pos.y);
+            (location, nil)
+        };
+
+        msg_send![ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: in_view]
     }
 }
 

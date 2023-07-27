@@ -12,7 +12,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    MenuEvent, MenuItemType,
+    MenuEvent, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -314,24 +314,19 @@ impl Menu {
             .unwrap_or(false)
     }
 
-    pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        if let Some(window) = window.window() {
-            let gtk_menu = gtk::Menu::new();
+    pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+    {
+        self.gtk_menubars.get(&(window.as_ptr() as u32)).cloned()
+    }
 
-            for item in self.items() {
-                let gtk_item = item.make_gtk_menu_item(0, None, false).unwrap();
-                gtk_menu.append(&gtk_item);
-            }
-            gtk_menu.show_all();
-
-            gtk_menu.popup_at_rect(
-                &window,
-                &gdk::Rectangle::new(x as _, y as _, 0, 0),
-                gdk::Gravity::NorthWest,
-                gdk::Gravity::NorthWest,
-                None,
-            );
-        }
+    pub fn show_context_menu_for_gtk_window(
+        &mut self,
+        widget: &impl IsA<gtk::Widget>,
+        position: Option<Position>,
+    ) {
+        show_context_menu(self.gtk_context_menu(), widget, position)
     }
 
     pub fn gtk_context_menu(&mut self) -> gtk::Menu {
@@ -775,24 +770,12 @@ impl MenuChild {
             .collect()
     }
 
-    pub fn show_context_menu_for_gtk_window(&self, window: &impl IsA<gtk::Widget>, x: f64, y: f64) {
-        if let Some(window) = window.window() {
-            let gtk_menu = gtk::Menu::new();
-
-            for item in self.items() {
-                let gtk_item = item.make_gtk_menu_item(0, None, false).unwrap();
-                gtk_menu.append(&gtk_item);
-            }
-            gtk_menu.show_all();
-
-            gtk_menu.popup_at_rect(
-                &window,
-                &gdk::Rectangle::new(x as _, y as _, 0, 0),
-                gdk::Gravity::NorthWest,
-                gdk::Gravity::NorthWest,
-                None,
-            );
-        }
+    pub fn show_context_menu_for_gtk_window(
+        &mut self,
+        widget: &impl IsA<gtk::Widget>,
+        position: Option<Position>,
+    ) {
+        show_context_menu(self.gtk_context_menu(), widget, position)
     }
 
     pub fn gtk_context_menu(&mut self) -> gtk::Menu {
@@ -1194,6 +1177,56 @@ impl dyn crate::IsMenuItem + '_ {
                 .borrow_mut()
                 .create_gtk_item_for_icon_menu_item(menu_id, accel_group, add_to_cache),
         }
+    }
+}
+
+fn show_context_menu(
+    gtk_menu: gtk::Menu,
+    widget: &impl IsA<gtk::Widget>,
+    position: Option<Position>,
+) {
+    let (pos, window) = if let Some(pos) = position {
+        let window = widget.window();
+        (
+            pos.to_logical::<i32>(window.as_ref().map(|w| w.scale_factor()).unwrap_or(1) as _)
+                .into(),
+            window,
+        )
+    } else {
+        let window = widget.screen().and_then(|s| s.root_window());
+        (
+            window
+                .as_ref()
+                .and_then(|w| {
+                    w.display()
+                        .default_seat()
+                        .and_then(|s| s.pointer())
+                        .map(|s| {
+                            let p = s.position();
+                            (p.1, p.2)
+                        })
+                })
+                .unwrap_or_default(),
+            window,
+        )
+    };
+
+    if let Some(window) = window {
+        let mut event = gdk::Event::new(gdk::EventType::ButtonPress);
+        event.set_device(
+            window
+                .display()
+                .default_seat()
+                .and_then(|d| d.pointer())
+                .as_ref(),
+        );
+        gtk_menu.popup_at_rect(
+            &window,
+            &gdk::Rectangle::new(pos.0, pos.1, 0, 0),
+            gdk::Gravity::NorthWest,
+            gdk::Gravity::NorthWest,
+            Some(&event),
+        );
     }
 }
 

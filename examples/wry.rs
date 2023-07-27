@@ -149,14 +149,19 @@ fn main() -> wry::Result<()> {
         window_m.set_windows_menu_for_nsapp();
     }
 
-    const HTML: &str = r#"
+    #[cfg(windows)]
+    let condition = "e.button !== 2";
+    #[cfg(not(windows))]
+    let condition = "e.button == 2 && e.buttons === 0";
+    let html: String = format!(
+        r#"
     <html>
     <body>
         <style>
-            main {
+            main {{
                 width: 100vw;
                 height: 100vh;
-            }
+            }}
         </style>
         <main>
             <h4> WRYYYYYYYYYYYYYYYYYYYYYY! </h4>
@@ -164,41 +169,66 @@ fn main() -> wry::Result<()> {
             <button> Hi </button>
         </main>
         <script>
-            window.addEventListener('contextmenu', (e) => {
+            window.addEventListener('contextmenu', (e) => {{
                 e.preventDefault();
-                // if e.button is -1 on chromuim or e.buttons is 0 (as a fallback on webkit2gtk) then this event was fired by keyboard
-                if (e.button === -1 || e.buttons === 0) {
-                    window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
-                }
-            })
-            window.addEventListener('mouseup', (e) => {
-                if (e.button === 2) {
-                    window.ipc.postMessage(`showContextMenu:${e.clientX},${e.clientY}`);
-                }
-            })
+                console.log(e)
+                // contextmenu was requested from keyboard
+                if ({condition}) {{
+                    window.ipc.postMessage(`showContextMenuPos:${{e.clientX}},${{e.clientY}}`);
+                }}
+            }})
+            let x = true;
+            window.addEventListener('mouseup', (e) => {{
+                if (e.button === 2) {{
+                    if (x) {{
+                        window.ipc.postMessage(`showContextMenuPos:${{e.clientX}},${{e.clientY}}`);
+                    }} else {{
+                        window.ipc.postMessage(`showContextMenu`);
+                    }}
+                    x = !x;
+                }}
+            }})
         </script>
     </body>
     </html>
-  "#;
+  "#,
+    );
 
+    let file_m_c = file_m.clone();
     let handler = move |window: &Window, req: String| {
-        if let Some(rest) = req.strip_prefix("showContextMenu:") {
-            let (x, y) = rest
+        if &req == "showContextMenu" {
+            show_context_menu(window, &file_m_c, None)
+        } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
+            let (x, mut y) = rest
                 .split_once(',')
-                .map(|(x, y)| (x.parse::<f64>().unwrap(), y.parse::<f64>().unwrap()))
+                .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                 .unwrap();
-            if window.id() == window2_id {
-                show_context_menu(window, &window_m, x, y)
+
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(menu_bar) = menu_bar
+                    .clone()
+                    .gtk_menubar_for_gtk_window(window.gtk_window())
+                {
+                    use gtk::prelude::*;
+                    y += menu_bar.allocated_height();
+                }
             }
+
+            show_context_menu(
+                window,
+                &file_m_c,
+                Some(muda::Position::Logical((x, y).into())),
+            )
         }
     };
 
     let webview = WebViewBuilder::new(window)?
-        .with_html(HTML)?
+        .with_html(&html)?
         .with_ipc_handler(handler.clone())
         .build()?;
     let webview2 = WebViewBuilder::new(window2)?
-        .with_html(HTML)?
+        .with_html(html)?
         .with_ipc_handler(handler)
         .build()?;
 
@@ -226,13 +256,14 @@ fn main() -> wry::Result<()> {
     })
 }
 
-fn show_context_menu(window: &Window, menu: &dyn ContextMenu, x: f64, y: f64) {
+fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<muda::Position>) {
+    println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(window.hwnd() as _, x, y);
+    menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     #[cfg(target_os = "linux")]
-    menu.show_context_menu_for_gtk_window(window.gtk_window(), x, y);
+    menu.show_context_menu_for_gtk_window(window.gtk_window(), position);
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(window.ns_view() as _, x, y);
+    menu.show_context_menu_for_nsview(window.ns_view() as _, position);
 }
 
 fn load_icon(path: &std::path::Path) -> muda::icon::Icon {

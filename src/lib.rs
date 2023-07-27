@@ -100,14 +100,13 @@
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
-//! let x = 100.0;
-//! let y = 120.0;
+//! let position = muda::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
-//! menu.show_context_menu_for_hwnd(window_hwnd, x, y);
+//! menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into()));
 //! #[cfg(target_os = "linux")]
-//! menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
+//! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
-//! menu.show_context_menu_for_nsview(nsview, x, y);
+//! menu.show_context_menu_for_nsview(nsview, Some(position.into()));
 //! ```
 //! # Processing menu events
 //!
@@ -133,6 +132,7 @@ use once_cell::sync::{Lazy, OnceCell};
 mod about_metadata;
 pub mod accelerator;
 pub mod builders;
+mod dpi;
 mod error;
 mod items;
 mod menu;
@@ -144,6 +144,7 @@ mod util;
 extern crate objc;
 
 pub use about_metadata::AboutMetadata;
+pub use dpi::*;
 pub use error::*;
 pub use items::*;
 pub use menu::Menu;
@@ -250,9 +251,9 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a win32 window.
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, x: f64, y: f64);
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>);
 
     /// Attach the menu subclass handler to the given hwnd
     /// so you can recieve events from that window using [MenuEvent::receiver]
@@ -267,9 +268,13 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, w: &gtk::ApplicationWindow, x: f64, y: f64);
+    fn show_context_menu_for_gtk_window(
+        &self,
+        w: &gtk::ApplicationWindow,
+        position: Option<Position>,
+    );
 
     /// Get the underlying gtk menu reserved for context menus.
     #[cfg(target_os = "linux")]
@@ -277,9 +282,9 @@ pub trait ContextMenu {
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
-    /// `x` and `y` are relative to the window's top-left corner.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, x: f64, y: f64);
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>);
 
     /// Get the underlying NSMenu reserved for context menus.
     #[cfg(target_os = "macos")]
