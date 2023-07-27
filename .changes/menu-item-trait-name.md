@@ -2,4 +2,4 @@
 "muda": "minor"
 ---
 
-Changed `MenuItemExt` trait name to `IsMenuItem`
+**Breaking Change**: Changed `MenuItemExt` trait name to `IsMenuItem`

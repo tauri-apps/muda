@@ -2,4 +2,4 @@
 "muda": "patch"
 ---
 
-Add `builders` module with `MenuItemBuilder`, `SubmenuBuilder`, `CheckMenuItemBuilder` and `IconMenuItemBuilder`.
+Added the `builders` which contains convenient builder types, like `AboutMetadataBuilder`, `MenuItemBuilder`, `SubmenuBuilder` ...etc.
