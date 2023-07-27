@@ -11,7 +11,7 @@ pub(crate) use self::icon::WinIcon as PlatformIcon;
 use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
-    items::PredfinedMenuItemType,
+    items::PredefinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuItemKind, MenuItemType, Position,
 };
@@ -62,8 +62,8 @@ macro_rules! inner_menu_child_and_flags {
                 let child = i.0.clone();
                 let child_ = child.borrow();
                 match child_.predefined_item_type {
-                    PredfinedMenuItemType::None => return Ok(()),
-                    PredfinedMenuItemType::Separator => {
+                    PredefinedMenuItemType::None => return Ok(()),
+                    PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
                     _ => {
@@ -379,7 +379,7 @@ pub(crate) struct MenuChild {
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
-    predefined_item_type: PredfinedMenuItemType,
+    predefined_item_type: PredefinedMenuItemType,
 
     // check menu item fields
     checked: bool,
@@ -422,7 +422,7 @@ impl MenuChild {
         }
     }
 
-    pub fn new_predefined(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
+    pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         Self {
             item_type: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
@@ -945,29 +945,29 @@ unsafe extern "system" fn menu_subclass_proc(
                         item.set_checked(checked);
                     }
                     MenuItemType::Predefined => match &item.predefined_item_type {
-                        PredfinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
-                        PredfinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
-                        PredfinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
-                        PredfinedMenuItemType::SelectAll => {
+                        PredefinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
+                        PredefinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
+                        PredefinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
+                        PredefinedMenuItemType::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
-                        PredfinedMenuItemType::Separator => {}
-                        PredfinedMenuItemType::Minimize => {
+                        PredefinedMenuItemType::Separator => {}
+                        PredefinedMenuItemType::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
                         }
-                        PredfinedMenuItemType::Maximize => {
+                        PredefinedMenuItemType::Maximize => {
                             ShowWindow(hwnd, SW_MAXIMIZE);
                         }
-                        PredfinedMenuItemType::Hide => {
+                        PredefinedMenuItemType::Hide => {
                             ShowWindow(hwnd, SW_HIDE);
                         }
-                        PredfinedMenuItemType::CloseWindow => {
+                        PredefinedMenuItemType::CloseWindow => {
                             SendMessageW(hwnd, WM_CLOSE, 0, 0);
                         }
-                        PredfinedMenuItemType::Quit => {
+                        PredefinedMenuItemType::Quit => {
                             PostQuitMessage(0);
                         }
-                        PredfinedMenuItemType::About(Some(ref metadata)) => {
+                        PredefinedMenuItemType::About(Some(ref metadata)) => {
                             show_about_dialog(hwnd, metadata)
                         }
 
