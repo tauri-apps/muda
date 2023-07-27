@@ -967,10 +967,10 @@ fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
     unsafe {
         let window: id = msg_send![view, window];
         let scale_factor: CGFloat = msg_send![window, backingScaleFactor];
-        let location = if let Some(pos) = position.map(|p| p.to_logical(scale_factor)) {
-            let view_point = NSPoint::new(pos.x, pos.y);
+        let (location, in_view) = if let Some(pos) = position.map(|p| p.to_logical(scale_factor)) {
             let view_rect: NSRect = msg_send![view, frame];
-            NSPoint::new(view_point.x, view_rect.size.height - view_point.y)
+            let location = NSPoint::new(pos.x, view_rect.size.height - pos.y);
+            (location, view)
         } else {
             let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
             let pos = Position::Logical(LogicalPosition {
@@ -978,9 +978,11 @@ fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
                 y: mouse_location.y,
             });
             let pos = pos.to_logical(scale_factor);
-            NSPoint::new(pos.x, pos.y)
+            let location = NSPoint::new(pos.x, pos.y);
+            (location, nil)
         };
-        msg_send![ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: nil]
+
+        msg_send![ns_menu, popUpMenuPositioningItem: nil atLocation: location inView: in_view]
     }
 }
 

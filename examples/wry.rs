@@ -231,7 +231,7 @@ fn main() -> wry::Result<()> {
         .with_html(html)?
         .with_ipc_handler(handler)
         .build()?;
-    webview2.open_devtools();
+
     let menu_channel = MenuEvent::receiver();
 
     event_loop.run(move |event, _, control_flow| {
