@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, Position};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemKind, Position};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
@@ -117,7 +117,7 @@ impl Menu {
     }
 
     /// Returns a list of menu items that has been added to this menu.
-    pub fn items(&self) -> Vec<Box<dyn IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.0.borrow().items()
     }
 

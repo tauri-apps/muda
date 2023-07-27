@@ -12,22 +12,25 @@ mod platform;
 #[path = "macos/mod.rs"]
 mod platform;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    rc::Rc,
+};
 
-use crate::{items::*, IsMenuItem, MenuItemType};
+use crate::{items::*, sealed::MenuItemType, IsMenuItem, MenuItemKind};
 
 pub(crate) use self::platform::*;
 
 impl dyn IsMenuItem + '_ {
     fn child(&self) -> Rc<RefCell<MenuChild>> {
-        match self.type_() {
+        match self.item_type() {
             MenuItemType::Submenu => self
                 .as_any()
                 .downcast_ref::<crate::Submenu>()
                 .unwrap()
                 .0
                 .clone(),
-            MenuItemType::Normal => self
+            MenuItemType::MenuItem => self
                 .as_any()
                 .downcast_ref::<crate::MenuItem>()
                 .unwrap()
@@ -57,13 +60,46 @@ impl dyn IsMenuItem + '_ {
 
 /// Internal utilities
 impl MenuChild {
-    fn boxed(&self, c: Rc<RefCell<MenuChild>>) -> Box<dyn IsMenuItem> {
-        match self.type_ {
-            MenuItemType::Submenu => Box::new(Submenu(c)),
-            MenuItemType::Normal => Box::new(MenuItem(c)),
-            MenuItemType::Predefined => Box::new(PredefinedMenuItem(c)),
-            MenuItemType::Check => Box::new(CheckMenuItem(c)),
-            MenuItemType::Icon => Box::new(IconMenuItem(c)),
+    fn kind(&self, c: Rc<RefCell<MenuChild>>) -> MenuItemKind {
+        match self.item_type() {
+            MenuItemType::Submenu => MenuItemKind::Submenu(Submenu(c)),
+            MenuItemType::MenuItem => MenuItemKind::MenuItem(MenuItem(c)),
+            MenuItemType::Predefined => MenuItemKind::Predefined(PredefinedMenuItem(c)),
+            MenuItemType::Check => MenuItemKind::Check(CheckMenuItem(c)),
+            MenuItemType::Icon => MenuItemKind::Icon(IconMenuItem(c)),
+        }
+    }
+}
+
+#[allow(unused)]
+impl MenuItemKind {
+    pub(crate) fn as_ref(&self) -> &dyn IsMenuItem {
+        match self {
+            MenuItemKind::MenuItem(i) => i,
+            MenuItemKind::Submenu(i) => i,
+            MenuItemKind::Predefined(i) => i,
+            MenuItemKind::Check(i) => i,
+            MenuItemKind::Icon(i) => i,
+        }
+    }
+
+    pub(crate) fn child(&self) -> Ref<MenuChild> {
+        match self {
+            MenuItemKind::MenuItem(i) => i.0.borrow(),
+            MenuItemKind::Submenu(i) => i.0.borrow(),
+            MenuItemKind::Predefined(i) => i.0.borrow(),
+            MenuItemKind::Check(i) => i.0.borrow(),
+            MenuItemKind::Icon(i) => i.0.borrow(),
+        }
+    }
+
+    pub(crate) fn child_mut(&self) -> RefMut<MenuChild> {
+        match self {
+            MenuItemKind::MenuItem(i) => i.0.borrow_mut(),
+            MenuItemKind::Submenu(i) => i.0.borrow_mut(),
+            MenuItemKind::Predefined(i) => i.0.borrow_mut(),
+            MenuItemKind::Check(i) => i.0.borrow_mut(),
+            MenuItemKind::Icon(i) => i.0.borrow_mut(),
         }
     }
 }

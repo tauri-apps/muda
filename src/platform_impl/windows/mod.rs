@@ -12,8 +12,9 @@ use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
     items::PredfinedMenuItemType,
+    sealed::MenuItemType,
     util::{AddOp, Counter},
-    AboutMetadata, CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemType,
+    AboutMetadata, CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemKind,
     Position, PredefinedMenuItem, Submenu,
 };
 use std::{
@@ -49,12 +50,12 @@ type AccelWrapper = (HACCEL, HashMap<u32, Accel>);
 macro_rules! inner_menu_child_and_flags {
     ($item:ident) => {{
         let mut flags = 0;
-        let child = match $item.type_() {
+        let child = match $item.item_type() {
             MenuItemType::Submenu => {
                 flags |= MF_POPUP;
                 &$item.as_any().downcast_ref::<Submenu>().unwrap().0
             }
-            MenuItemType::Normal => {
+            MenuItemType::MenuItem => {
                 flags |= MF_STRING;
                 &$item.as_any().downcast_ref::<MenuItem>().unwrap().0
             }
@@ -184,7 +185,7 @@ impl Menu {
         {
             let child_ = child.borrow();
 
-            if child_.type_ == MenuItemType::Icon {
+            if child_.item_type() == MenuItemType::Icon {
                 let hbitmap = child_
                     .icon
                     .as_ref()
@@ -253,10 +254,10 @@ impl Menu {
         Ok(())
     }
 
-    pub fn items(&self) -> Vec<Box<dyn IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.children
             .iter()
-            .map(|c| c.borrow().boxed(c.clone()))
+            .map(|c| c.borrow().kind(c.clone()))
             .collect()
     }
 
@@ -370,7 +371,7 @@ impl Menu {
 #[derive(Debug, Default)]
 pub(crate) struct MenuChild {
     // shared fields between submenus and menu items
-    pub type_: MenuItemType,
+    item_type: MenuItemType,
     text: String,
     enabled: bool,
     parents_hemnu: Vec<HMENU>,
@@ -399,7 +400,7 @@ pub(crate) struct MenuChild {
 impl MenuChild {
     pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
         Self {
-            type_: MenuItemType::Normal,
+            item_type: MenuItemType::MenuItem,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -412,7 +413,7 @@ impl MenuChild {
 
     pub fn new_submenu(text: &str, enabled: bool) -> Self {
         Self {
-            type_: MenuItemType::Submenu,
+            item_type: MenuItemType::Submenu,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -426,7 +427,7 @@ impl MenuChild {
 
     pub fn new_predefined(item_type: PredfinedMenuItemType, text: Option<String>) -> Self {
         Self {
-            type_: MenuItemType::Predefined,
+            item_type: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
             parents_hemnu: Vec::new(),
@@ -445,7 +446,7 @@ impl MenuChild {
         accelerator: Option<Accelerator>,
     ) -> Self {
         Self {
-            type_: MenuItemType::Check,
+            item_type: MenuItemType::Check,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -464,7 +465,7 @@ impl MenuChild {
         accelerator: Option<Accelerator>,
     ) -> Self {
         Self {
-            type_: MenuItemType::Icon,
+            item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -483,7 +484,7 @@ impl MenuChild {
         accelerator: Option<Accelerator>,
     ) -> Self {
         Self {
-            type_: MenuItemType::Icon,
+            item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
@@ -497,8 +498,12 @@ impl MenuChild {
 
 /// Shared methods
 impl MenuChild {
+    pub fn item_type(&self) -> MenuItemType {
+        self.item_type
+    }
+
     pub fn id(&self) -> u32 {
-        match self.type_ {
+        match self.item_type() {
             MenuItemType::Submenu => self.hmenu as u32,
             _ => self.id,
         }
@@ -705,7 +710,7 @@ impl MenuChild {
         {
             let child_ = child.borrow();
 
-            if child_.type_ == MenuItemType::Icon {
+            if child_.item_type() == MenuItemType::Icon {
                 let hbitmap = child_
                     .icon
                     .as_ref()
@@ -771,12 +776,12 @@ impl MenuChild {
         Ok(())
     }
 
-    pub fn items(&self) -> Vec<Box<dyn IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.children
             .as_ref()
             .unwrap()
             .iter()
-            .map(|c| c.borrow().boxed(c.clone()))
+            .map(|c| c.borrow().kind(c.clone()))
             .collect()
     }
 
@@ -818,7 +823,7 @@ fn find_by_id(id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) -> Option<Rc<RefC
             return Some(i.clone());
         }
 
-        if item.type_ == MenuItemType::Submenu {
+        if item.item_type() == MenuItemType::Submenu {
             if let Some(child) = item.find_by_id(id) {
                 return Some(child);
             }
@@ -933,11 +938,11 @@ unsafe extern "system" fn menu_subclass_proc(
             {
                 let mut item = item.borrow_mut();
 
-                if item.type_ == MenuItemType::Predefined {
+                if item.item_type() == MenuItemType::Predefined {
                     dispatch = false;
                 }
 
-                match item.type_ {
+                match item.item_type() {
                     MenuItemType::Check => {
                         let checked = !item.checked;
                         item.set_checked(checked);

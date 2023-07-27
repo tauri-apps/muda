@@ -11,8 +11,9 @@ use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
     items::*,
+    sealed::MenuItemType,
     util::{AddOp, Counter},
-    MenuEvent, MenuItemType, Position,
+    IsMenuItem, MenuEvent, MenuItemKind, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -29,9 +30,9 @@ macro_rules! return_if_predefined_item_not_supported {
     ($item:tt) => {
         let child = $item.child();
         let child_ = child.borrow();
-        match (&child_.type_, &child_.predefined_item_type) {
+        match (&child_.item_type, &child_.predefined_item_type) {
             (
-                crate::MenuItemType::Predefined,
+                MenuItemType::Predefined,
                 PredfinedMenuItemType::Separator
                 | PredfinedMenuItemType::Copy
                 | PredfinedMenuItemType::Cut
@@ -40,10 +41,10 @@ macro_rules! return_if_predefined_item_not_supported {
                 | PredfinedMenuItemType::About(_),
             ) => {}
             (
-                crate::MenuItemType::Submenu
-                | crate::MenuItemType::Normal
-                | crate::MenuItemType::Check
-                | crate::MenuItemType::Icon,
+                MenuItemType::Submenu
+                | MenuItemType::MenuItem
+                | MenuItemType::Check
+                | MenuItemType::Icon,
                 _,
             ) => {}
             _ => return Ok(()),
@@ -156,7 +157,7 @@ impl Menu {
             }
         };
 
-        if item.type_() == crate::MenuItemType::Submenu {
+        if item.item_type() == MenuItemType::Submenu {
             let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
             let gtk_menus = submenu.0.borrow().gtk_menus.clone();
 
@@ -203,10 +204,10 @@ impl Menu {
         Ok(())
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.children
             .iter()
-            .map(|c| c.borrow().boxed(c.clone()))
+            .map(|c| c.borrow().kind(c.clone()))
             .collect()
     }
 
@@ -353,7 +354,7 @@ impl Menu {
 #[derive(Debug, Default)]
 pub struct MenuChild {
     // shared fields between submenus and menu items
-    pub type_: MenuItemType,
+    item_type: MenuItemType,
     text: String,
     enabled: bool,
     id: u32,
@@ -389,7 +390,7 @@ impl MenuChild {
             enabled,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuItemType::Normal,
+            item_type: MenuItemType::MenuItem,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             ..Default::default()
         }
@@ -401,7 +402,7 @@ impl MenuChild {
             enabled,
             id: COUNTER.next(),
             children: Some(Vec::new()),
-            type_: MenuItemType::Submenu,
+            item_type: MenuItemType::Submenu,
             gtk_menu: (COUNTER.next(), None),
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             gtk_menus: HashMap::new(),
@@ -415,7 +416,7 @@ impl MenuChild {
             enabled: true,
             accelerator: item_type.accelerator(),
             id: COUNTER.next(),
-            type_: MenuItemType::Predefined,
+            item_type: MenuItemType::Predefined,
             predefined_item_type: item_type,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             ..Default::default()
@@ -434,7 +435,7 @@ impl MenuChild {
             checked: Rc::new(AtomicBool::new(checked)),
             accelerator,
             id: COUNTER.next(),
-            type_: MenuItemType::Check,
+            item_type: MenuItemType::Check,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
             ..Default::default()
@@ -453,7 +454,7 @@ impl MenuChild {
             icon,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuItemType::Icon,
+            item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
             ..Default::default()
@@ -471,7 +472,7 @@ impl MenuChild {
             enabled,
             accelerator,
             id: COUNTER.next(),
-            type_: MenuItemType::Icon,
+            item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
             ..Default::default()
@@ -481,6 +482,10 @@ impl MenuChild {
 
 /// Shared methods
 impl MenuChild {
+    pub fn item_type(&self) -> MenuItemType {
+        self.item_type
+    }
+
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -711,7 +716,7 @@ impl MenuChild {
             }
         };
 
-        if item.type_() == crate::MenuItemType::Submenu {
+        if item.item_type() == MenuItemType::Submenu {
             let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
             let gtk_menus = submenu.0.borrow().gtk_menus.clone();
 
@@ -761,12 +766,12 @@ impl MenuChild {
         Ok(())
     }
 
-    pub fn items(&self) -> Vec<Box<dyn crate::IsMenuItem>> {
+    pub fn items(&self) -> Vec<MenuItemKind> {
         self.children
             .as_ref()
             .unwrap()
             .iter()
-            .map(|c| c.borrow().boxed(c.clone()))
+            .map(|c| c.borrow().kind(c.clone()))
             .collect()
     }
 
@@ -1133,50 +1138,43 @@ impl MenuChild {
     }
 }
 
-impl dyn crate::IsMenuItem + '_ {
+impl MenuItemKind {
     fn make_gtk_menu_item(
         &self,
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
-        match self.type_() {
-            MenuItemType::Submenu => self
-                .as_any()
-                .downcast_ref::<Submenu>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache),
-            MenuItemType::Normal => self
-                .as_any()
-                .downcast_ref::<MenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_gtk_item_for_menu_item(menu_id, accel_group, add_to_cache),
-            MenuItemType::Predefined => self
-                .as_any()
-                .downcast_ref::<PredefinedMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_gtk_item_for_predefined_menu_item(menu_id, accel_group, add_to_cache),
-            MenuItemType::Check => self
-                .as_any()
-                .downcast_ref::<CheckMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_gtk_item_for_check_menu_item(menu_id, accel_group, add_to_cache),
-            MenuItemType::Icon => self
-                .as_any()
-                .downcast_ref::<IconMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_gtk_item_for_icon_menu_item(menu_id, accel_group, add_to_cache),
+        let mut child = self.child_mut();
+        match child.item_type() {
+            MenuItemType::Submenu => {
+                child.create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache)
+            }
+            MenuItemType::MenuItem => {
+                child.create_gtk_item_for_menu_item(menu_id, accel_group, add_to_cache)
+            }
+            MenuItemType::Predefined => {
+                child.create_gtk_item_for_predefined_menu_item(menu_id, accel_group, add_to_cache)
+            }
+            MenuItemType::Check => {
+                child.create_gtk_item_for_check_menu_item(menu_id, accel_group, add_to_cache)
+            }
+            MenuItemType::Icon => {
+                child.create_gtk_item_for_icon_menu_item(menu_id, accel_group, add_to_cache)
+            }
         }
+    }
+}
+
+impl dyn IsMenuItem + '_ {
+    fn make_gtk_menu_item(
+        &self,
+        menu_id: u32,
+        accel_group: Option<&gtk::AccelGroup>,
+        add_to_cache: bool,
+    ) -> crate::Result<gtk::MenuItem> {
+        self.kind()
+            .make_gtk_menu_item(menu_id, accel_group, add_to_cache)
     }
 }
 
