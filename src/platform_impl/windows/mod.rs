@@ -12,10 +12,8 @@ use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
     items::PredfinedMenuItemType,
-    sealed::MenuItemType,
     util::{AddOp, Counter},
-    AboutMetadata, CheckMenuItem, IconMenuItem, IsMenuItem, MenuEvent, MenuItem, MenuItemKind,
-    Position, PredefinedMenuItem, Submenu,
+    AboutMetadata, IsMenuItem, MenuEvent, MenuItemKind, MenuItemType, Position,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -50,19 +48,18 @@ type AccelWrapper = (HACCEL, HashMap<u32, Accel>);
 macro_rules! inner_menu_child_and_flags {
     ($item:ident) => {{
         let mut flags = 0;
-        let child = match $item.item_type() {
-            MenuItemType::Submenu => {
+        let child = match $item.kind() {
+            MenuItemKind::Submenu(i) => {
                 flags |= MF_POPUP;
-                &$item.as_any().downcast_ref::<Submenu>().unwrap().0
+                i.0.clone()
             }
-            MenuItemType::MenuItem => {
+            MenuItemKind::MenuItem(i) => {
                 flags |= MF_STRING;
-                &$item.as_any().downcast_ref::<MenuItem>().unwrap().0
+                i.0.clone()
             }
 
-            MenuItemType::Predefined => {
-                let item = $item.as_any().downcast_ref::<PredefinedMenuItem>().unwrap();
-                let child = &item.0;
+            MenuItemKind::Predefined(i) => {
+                let child = i.0.clone();
                 let child_ = child.borrow();
                 match child_.predefined_item_type {
                     PredfinedMenuItemType::None => return Ok(()),
@@ -73,24 +70,24 @@ macro_rules! inner_menu_child_and_flags {
                         flags |= MF_STRING;
                     }
                 }
+                drop(child_);
                 child
             }
-            MenuItemType::Check => {
-                let item = $item.as_any().downcast_ref::<CheckMenuItem>().unwrap();
-                let child = &item.0;
+            MenuItemKind::Check(i) => {
+                let child = i.0.clone();
                 flags |= MF_STRING;
                 if child.borrow().checked {
                     flags |= MF_CHECKED;
                 }
                 child
             }
-            MenuItemType::Icon => {
+            MenuItemKind::Icon(i) => {
                 flags |= MF_STRING;
-                &$item.as_any().downcast_ref::<IconMenuItem>().unwrap().0
+                i.0.clone()
             }
         };
 
-        (child.clone(), flags)
+        (child, flags)
     }};
 }
 

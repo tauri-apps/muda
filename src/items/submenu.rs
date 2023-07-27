@@ -4,11 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    sealed::{IsMenuItemBase, MenuItemType},
-    util::AddOp,
-    ContextMenu, IsMenuItem, MenuItemKind, Position,
-};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemKind, Position};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -19,16 +15,6 @@ pub struct Submenu(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
 unsafe impl IsMenuItem for Submenu {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Submenu(self.clone())
-    }
-}
-
-impl IsMenuItemBase for Submenu {
-    fn item_type(&self) -> MenuItemType {
-        MenuItemType::Submenu
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
     }
 }
 

@@ -7,7 +7,6 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
-    sealed::{IsMenuItemBase, MenuItemType},
     IsMenuItem, MenuItemKind,
 };
 
@@ -22,16 +21,6 @@ pub struct IconMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>)
 unsafe impl IsMenuItem for IconMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Icon(self.clone())
-    }
-}
-
-impl IsMenuItemBase for IconMenuItem {
-    fn item_type(&self) -> MenuItemType {
-        MenuItemType::Icon
-    }
-
-    fn as_any(&self) -> &(dyn std::any::Any + 'static) {
-        self
     }
 }
 

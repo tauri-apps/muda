@@ -17,44 +17,20 @@ use std::{
     rc::Rc,
 };
 
-use crate::{items::*, sealed::MenuItemType, IsMenuItem, MenuItemKind};
+use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType};
 
 pub(crate) use self::platform::*;
 
 impl dyn IsMenuItem + '_ {
     fn child(&self) -> Rc<RefCell<MenuChild>> {
-        match self.item_type() {
-            MenuItemType::Submenu => self
-                .as_any()
-                .downcast_ref::<crate::Submenu>()
-                .unwrap()
-                .0
-                .clone(),
-            MenuItemType::MenuItem => self
-                .as_any()
-                .downcast_ref::<crate::MenuItem>()
-                .unwrap()
-                .0
-                .clone(),
-            MenuItemType::Predefined => self
-                .as_any()
-                .downcast_ref::<crate::PredefinedMenuItem>()
-                .unwrap()
-                .0
-                .clone(),
-            MenuItemType::Check => self
-                .as_any()
-                .downcast_ref::<crate::CheckMenuItem>()
-                .unwrap()
-                .0
-                .clone(),
-            MenuItemType::Icon => self
-                .as_any()
-                .downcast_ref::<crate::IconMenuItem>()
-                .unwrap()
-                .0
-                .clone(),
+        match self.kind() {
+            MenuItemKind::MenuItem(i) => i.0,
+            MenuItemKind::Submenu(i) => i.0,
+            MenuItemKind::Predefined(i) => i.0,
+            MenuItemKind::Check(i) => i.0,
+            MenuItemKind::Icon(i) => i.0,
         }
+        .clone()
     }
 }
 

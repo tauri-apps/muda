@@ -11,9 +11,8 @@ use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
     items::*,
-    sealed::MenuItemType,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuItemKind, Position,
+    IsMenuItem, MenuEvent, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -157,15 +156,12 @@ impl Menu {
             }
         };
 
-        if item.item_type() == MenuItemType::Submenu {
-            let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-            let gtk_menus = submenu.0.borrow().gtk_menus.clone();
+        if let MenuItemKind::Submenu(i) = item.kind() {
+            let gtk_menus = i.0.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
-                for item in submenu.items() {
-                    submenu
-                        .0
-                        .borrow_mut()
+                for item in i.items() {
+                    i.0.borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }
@@ -482,7 +478,7 @@ impl MenuChild {
 
 /// Shared methods
 impl MenuChild {
-    pub fn item_type(&self) -> MenuItemType {
+    pub(crate) fn item_type(&self) -> MenuItemType {
         self.item_type
     }
 
@@ -716,15 +712,12 @@ impl MenuChild {
             }
         };
 
-        if item.item_type() == MenuItemType::Submenu {
-            let submenu = item.as_any().downcast_ref::<crate::Submenu>().unwrap();
-            let gtk_menus = submenu.0.borrow().gtk_menus.clone();
+        if let MenuItemKind::Submenu(i) = item.kind() {
+            let gtk_menus = i.0.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
-                for item in submenu.items() {
-                    submenu
-                        .0
-                        .borrow_mut()
+                for item in i.items() {
+                    i.0.borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }

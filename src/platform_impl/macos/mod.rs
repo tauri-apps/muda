@@ -27,9 +27,8 @@ use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
     items::*,
-    sealed::MenuItemType,
     util::{AddOp, Counter},
-    IsMenuItem, LogicalPosition, MenuEvent, MenuItemKind, Position,
+    IsMenuItem, LogicalPosition, MenuEvent, MenuItemKind, MenuItemType, Position,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -93,32 +92,16 @@ impl Menu {
     }
 
     pub fn remove(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        // get a list of instances of the specified NSMenuItem in this menu
-        if let Some(ns_menu_items) = match item.item_type() {
-            MenuItemType::Submenu => {
-                let submenu = item.as_any().downcast_ref::<Submenu>().unwrap();
-                submenu.0.borrow_mut()
-            }
-            MenuItemType::MenuItem => {
-                let menuitem = item.as_any().downcast_ref::<MenuItem>().unwrap();
-                menuitem.0.borrow_mut()
-            }
-            MenuItemType::Predefined => {
-                let menuitem = item.as_any().downcast_ref::<PredefinedMenuItem>().unwrap();
-                menuitem.0.borrow_mut()
-            }
-            MenuItemType::Check => {
-                let menuitem = item.as_any().downcast_ref::<CheckMenuItem>().unwrap();
-                menuitem.0.borrow_mut()
-            }
-            MenuItemType::Icon => {
-                let menuitem = item.as_any().downcast_ref::<IconMenuItem>().unwrap();
-                menuitem.0.borrow_mut()
-            }
-        }
-        .ns_menu_items
-        .remove(&self.id)
-        {
+        // get a list of instances of the specified `NSMenuItem` in this menu
+        let child = match item.kind() {
+            MenuItemKind::Submenu(i) => i.0.clone(),
+            MenuItemKind::MenuItem(i) => i.0.clone(),
+            MenuItemKind::Predefined(i) => i.0.clone(),
+            MenuItemKind::Check(i) => i.0.clone(),
+            MenuItemKind::Icon(i) => i.0.clone(),
+        };
+        let mut child_ = child.borrow_mut();
+        if let Some(ns_menu_items) = child_.ns_menu_items.remove(&self.id) {
             // remove each NSMenuItem from the NSMenu
             unsafe {
                 for item in ns_menu_items {
@@ -326,7 +309,7 @@ impl MenuChild {
 
 /// Shared methods
 impl MenuChild {
-    pub fn item_type(&self) -> MenuItemType {
+    pub(crate) fn item_type(&self) -> MenuItemType {
         self.item_type
     }
 
@@ -757,42 +740,15 @@ impl PredfinedMenuItemType {
 
 impl dyn IsMenuItem + '_ {
     fn make_ns_item_for_menu(&self, menu_id: u32) -> crate::Result<*mut Object> {
-        match self.item_type() {
-            MenuItemType::Submenu => self
-                .as_any()
-                .downcast_ref::<Submenu>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_ns_item_for_submenu(menu_id),
-            MenuItemType::MenuItem => self
-                .as_any()
-                .downcast_ref::<MenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_ns_item_for_menu_item(menu_id),
-            MenuItemType::Predefined => self
-                .as_any()
-                .downcast_ref::<PredefinedMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_ns_item_for_predefined_menu_item(menu_id),
-            MenuItemType::Check => self
-                .as_any()
-                .downcast_ref::<CheckMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_ns_item_for_check_menu_item(menu_id),
-            MenuItemType::Icon => self
-                .as_any()
-                .downcast_ref::<IconMenuItem>()
-                .unwrap()
-                .0
-                .borrow_mut()
-                .create_ns_item_for_icon_menu_item(menu_id),
+        match self.kind() {
+            MenuItemKind::Submenu(i) => i.0.borrow_mut().create_ns_item_for_submenu(menu_id),
+            MenuItemKind::MenuItem(i) => i.0.borrow_mut().create_ns_item_for_menu_item(menu_id),
+            MenuItemKind::Predefined(i) => {
+                i.0.borrow_mut()
+                    .create_ns_item_for_predefined_menu_item(menu_id)
+            }
+            MenuItemKind::Check(i) => i.0.borrow_mut().create_ns_item_for_check_menu_item(menu_id),
+            MenuItemKind::Icon(i) => i.0.borrow_mut().create_ns_item_for_icon_menu_item(menu_id),
         }
     }
 }

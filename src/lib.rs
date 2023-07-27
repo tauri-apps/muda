@@ -259,7 +259,7 @@ impl MenuItemKind {
 /// # Safety
 ///
 /// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait IsMenuItem: sealed::IsMenuItemBase {
+pub unsafe trait IsMenuItem {
     fn kind(&self) -> MenuItemKind;
 
     fn id(&self) -> u32 {
@@ -267,23 +267,17 @@ pub unsafe trait IsMenuItem: sealed::IsMenuItemBase {
     }
 }
 
-pub(crate) mod sealed {
-    #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-    pub enum MenuItemType {
-        MenuItem,
-        Submenu,
-        Predefined,
-        Check,
-        Icon,
-    }
-    impl Default for MenuItemType {
-        fn default() -> Self {
-            Self::MenuItem
-        }
-    }
-    pub trait IsMenuItemBase {
-        fn item_type(&self) -> MenuItemType;
-        fn as_any(&self) -> &(dyn std::any::Any + 'static);
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+pub(crate) enum MenuItemType {
+    MenuItem,
+    Submenu,
+    Predefined,
+    Check,
+    Icon,
+}
+impl Default for MenuItemType {
+    fn default() -> Self {
+        Self::MenuItem
     }
 }
 
