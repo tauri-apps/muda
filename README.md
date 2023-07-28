@@ -56,15 +56,15 @@ let submenu = Submenu::with_items("Submenu Outer", true,&[
 
 ```
 
-Then Add your root menu to a Window on Windows and Linux Only or use it
-as your global app menu on macOS
+Then add your root menu to a Window on Windows and Linux
+or use it as your global app menu on macOS
 
 ```rs
 // --snip--
 #[cfg(target_os = "windows")]
 menu.init_for_hwnd(window.hwnd() as isize);
 #[cfg(target_os = "linux")]
-menu.init_for_gtk_window(&gtk_window);
+menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 #[cfg(target_os = "macos")]
 menu.init_for_nsapp();
 ```
@@ -75,14 +75,13 @@ You can also use a [`Menu`] or a [`Submenu`] show a context menu.
 
 ```rs
 // --snip--
-let x = 100;
-let y = 120;
+let position = muda::PhysicalPosition { x: 100., y: 120. };
 #[cfg(target_os = "windows")]
-menu.show_context_menu_for_hwnd(window.hwnd() as isize, x, y);
+menu.show_context_menu_for_hwnd(window.hwnd() as isize, Some(position.into()));
 #[cfg(target_os = "linux")]
-menu.show_context_menu_for_gtk_window(&gtk_window, x, y);
+menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 #[cfg(target_os = "macos")]
-menu.show_context_menu_for_nsview(nsview, x, y);
+menu.show_context_menu_for_nsview(nsview, Some(position.into()));
 ```
 
 ## Processing menu events

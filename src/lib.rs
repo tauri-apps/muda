@@ -68,8 +68,8 @@
 //! );
 //! ```
 //!
-//! Then Add your root menu to a Window on Windows and Linux Only or use it
-//! as your global app menu on macOS
+//! Then add your root menu to a Window on Windows and Linux
+//! or use it as your global app menu on macOS
 //!
 //! ```no_run
 //! # let menu = muda::Menu::new();
