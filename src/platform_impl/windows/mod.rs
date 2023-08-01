@@ -36,7 +36,7 @@ use windows_sys::Win32::{
             MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
             MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
             MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE,
-            WM_COMMAND, WM_DESTROY,
+            WM_COMMAND,
         },
     },
 };
@@ -298,7 +298,6 @@ impl Menu {
             .ok_or(crate::Error::NotInitialized)?;
         self.hwnds.remove(index);
         unsafe {
-            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
@@ -320,7 +319,6 @@ impl Menu {
 
     pub fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         unsafe {
-            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
         }
     }
@@ -799,7 +797,6 @@ impl MenuChild {
 
     pub fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         unsafe {
-            SendMessageW(hwnd, WM_CLEAR_MENU_DATA, 0, 0);
             RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), SUBMENU_SUBCLASS_ID);
         }
     }
@@ -898,7 +895,6 @@ fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
 
 const MENU_SUBCLASS_ID: usize = 200;
 const SUBMENU_SUBCLASS_ID: usize = 201;
-const WM_CLEAR_MENU_DATA: u32 = 600;
 
 unsafe extern "system" fn menu_subclass_proc(
     hwnd: HWND,
@@ -909,14 +905,6 @@ unsafe extern "system" fn menu_subclass_proc(
     dwrefdata: usize,
 ) -> LRESULT {
     let mut ret = -1;
-    if msg == WM_DESTROY || msg == WM_CLEAR_MENU_DATA {
-        if uidsubclass == MENU_SUBCLASS_ID {
-            drop(Box::from_raw(dwrefdata as *mut Menu));
-        } else {
-            drop(Box::from_raw(dwrefdata as *mut MenuChild));
-        }
-    }
-
     if msg == WM_COMMAND {
         let id = util::LOWORD(wparam as _) as u32;
         let item = if uidsubclass == MENU_SUBCLASS_ID {
