@@ -326,7 +326,6 @@ impl MenuChild {
             id: COUNTER.next(),
             native_icon,
             accelerator,
-            children: None,
             ..Default::default()
         }
     }
