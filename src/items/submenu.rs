@@ -119,6 +119,8 @@ impl Submenu {
         self.0.borrow_mut().set_enabled(enabled)
     }
 
+    // TODO: in a minor release, rename the following two functions to be `set_as_*`
+
     /// Set this submenu as the Window menu for the application on macOS.
     ///
     /// This will cause macOS to automatically add window-switching items and
