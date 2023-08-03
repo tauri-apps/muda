@@ -182,7 +182,18 @@ pub struct MenuChild {
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
     ns_menus: HashMap<u32, Vec<id>>,
-    ns_menu: (u32, id),
+    ns_menu: NsMenuRef,
+}
+
+#[derive(Debug)]
+struct NsMenuRef(u32, id);
+
+impl Drop for NsMenuRef {
+    fn drop(&mut self) {
+        unsafe {
+            let _: () = msg_send![self.1, release];
+        }
+    }
 }
 
 impl Default for MenuChild {
@@ -200,7 +211,7 @@ impl Default for MenuChild {
             native_icon: Default::default(),
             children: Default::default(),
             ns_menus: Default::default(),
-            ns_menu: (0, 0 as _),
+            ns_menu: NsMenuRef(0, 0 as _),
         }
     }
 }
@@ -224,7 +235,11 @@ impl MenuChild {
             text: strip_mnemonic(text),
             enabled,
             children: Some(Vec::new()),
-            ns_menu: (COUNTER.next(), unsafe { NSMenu::alloc(nil).autorelease() }),
+            ns_menu: NsMenuRef(COUNTER.next(), unsafe {
+                let menu = NSMenu::new(nil);
+                let _: () = msg_send![menu, retain];
+                menu
+            }),
             ..Default::default()
         }
     }
@@ -311,6 +326,7 @@ impl MenuChild {
             id: COUNTER.next(),
             native_icon,
             accelerator,
+            children: None,
             ..Default::default()
         }
     }
