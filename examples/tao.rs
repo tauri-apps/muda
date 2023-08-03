@@ -143,7 +143,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     {
         menu_bar.init_for_nsapp();
-        window_m.set_windows_menu_for_nsapp();
+        window_m.set_as_windows_menu_for_nsapp();
     }
 
     let menu_channel = MenuEvent::receiver();
