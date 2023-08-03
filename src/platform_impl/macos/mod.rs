@@ -54,19 +54,6 @@ pub struct Menu {
     children: Rc<RefCell<Vec<Rc<RefCell<MenuChild>>>>>,
 }
 
-impl Clone for Menu {
-    fn clone(&self) -> Self {
-        unsafe {
-            let _: () = msg_send![self.ns_menu, retain];
-        }
-        Self {
-            id: self.id,
-            ns_menu: self.ns_menu.clone(),
-            children: self.children.clone(),
-        }
-    }
-}
-
 impl Drop for Menu {
     fn drop(&mut self) {
         unsafe {
