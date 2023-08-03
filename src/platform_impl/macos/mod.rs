@@ -47,11 +47,32 @@ extern "C" {
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Menu {
     id: u32,
     ns_menu: id,
     children: Rc<RefCell<Vec<Rc<RefCell<MenuChild>>>>>,
+}
+
+impl Clone for Menu {
+    fn clone(&self) -> Self {
+        unsafe {
+            let _: () = msg_send![self.ns_menu, retain];
+        }
+        Self {
+            id: self.id,
+            ns_menu: self.ns_menu.clone(),
+            children: self.children.clone(),
+        }
+    }
+}
+
+impl Drop for Menu {
+    fn drop(&mut self) {
+        unsafe {
+            let _: () = msg_send![self.ns_menu, release];
+        }
+    }
 }
 
 impl Menu {
@@ -59,8 +80,9 @@ impl Menu {
         Self {
             id: COUNTER.next(),
             ns_menu: unsafe {
-                let ns_menu = NSMenu::alloc(nil).autorelease();
+                let ns_menu = NSMenu::new(nil);
                 ns_menu.setAutoenablesItems(NO);
+                let _: () = msg_send![ns_menu, retain];
                 ns_menu
             },
             children: Rc::new(RefCell::new(Vec::new())),
