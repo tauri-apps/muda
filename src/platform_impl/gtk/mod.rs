@@ -217,6 +217,7 @@ impl Menu {
         W: IsA<gtk::Window>,
         W: IsA<gtk::Container>,
         C: IsA<gtk::Container>,
+        C: IsA<gtk::Box>,
     {
         let id = window.as_ptr() as u32;
 
@@ -245,6 +246,7 @@ impl Menu {
         // add the menubar to the specified widget, otherwise to the window
         if let Some(container) = container {
             container.add(menu_bar);
+            container.reorder_child(menu_bar, 0);
         } else {
             window.add(menu_bar);
         }

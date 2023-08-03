@@ -147,6 +147,7 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::Window>,
         W: gtk::prelude::IsA<gtk::Container>,
         C: gtk::prelude::IsA<gtk::Container>,
+        C: gtk::prelude::IsA<gtk::Box>,
     {
         self.0.borrow_mut().init_for_gtk_window(window, container)
     }
