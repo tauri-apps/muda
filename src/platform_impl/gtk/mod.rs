@@ -245,15 +245,8 @@ impl Menu {
 
         // add the menubar to the specified widget, otherwise to the window
         if let Some(container) = container {
-            if &container.type_().to_string() == "GtkBox" {
-                unsafe {
-                    container
-                        .unsafe_cast_ref::<gtk::Box>()
-                        .pack_start(menu_bar, false, false, 0);
-                }
-            } else {
-                container.add(menu_bar);
-            }
+            container.add(menu_bar);
+            container.reorder_child(menu_bar, 0);
         } else {
             window.add(menu_bar);
         }
