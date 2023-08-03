@@ -143,7 +143,7 @@ impl Menu {
     }
 
     pub fn remove_for_nsapp(&self) {
-        unsafe { NSApp().setMainMenu_(nil) }
+        unsafe { NSApp().setMainMenu_(NSMenu::new(nil) as _) }
     }
 
     pub fn show_context_menu_for_nsview(&self, view: id, position: Option<Position>) {
