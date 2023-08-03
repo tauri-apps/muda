@@ -123,8 +123,10 @@ impl Menu {
 
     /// Adds this menu to a [`gtk::ApplicationWindow`]
     ///
-    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
-    /// it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
+    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`] to be added to,
+    /// if the container is [`gtk::Box`], it will call [`Box::pack_start`](gtk::prelude::BoxExt::pack_start),
+    /// otherwise it will call [`Container::add`]((gtk::prelude::ContainerExt::add)).
+    /// It is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
     /// which is usually not the desired behavior.
     ///
     /// ## Example:
