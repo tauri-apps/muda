@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.7.2]
+
+- [`0bad3ac`](https://www.github.com/tauri-apps/muda/commit/0bad3aca9608df04656757064fe85d757ff17513)([#84](https://www.github.com/tauri-apps/muda/pull/84)) Manually retain/release NSMenu reference.
+
 ## \[0.7.1]
 
 - [`7a3bc55`](https://www.github.com/tauri-apps/muda/commit/7a3bc5505f60fa16a34aac4fb209dbb4968db9bf)([#81](https://www.github.com/tauri-apps/muda/pull/81)) On Windows, fix `ContextMenu::detach_menu_subclass_from_hwnd` crashing and terminating the thread.
