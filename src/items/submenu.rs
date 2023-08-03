@@ -126,8 +126,8 @@ impl Submenu {
     /// This will cause macOS to automatically add window-switching items and
     /// certain other items to the menu.
     #[cfg(target_os = "macos")]
-    pub fn set_windows_menu_for_nsapp(&self) {
-        self.0.borrow_mut().set_windows_menu_for_nsapp()
+    pub fn set_as_windows_menu_for_nsapp(&self) {
+        self.0.borrow_mut().set_as_windows_menu_for_nsapp()
     }
 
     /// Set this submenu as the Help menu for the application on macOS.
@@ -137,8 +137,8 @@ impl Submenu {
     /// If no menu is set as the Help menu, macOS will automatically use any menu
     /// which has a title matching the localized word "Help".
     #[cfg(target_os = "macos")]
-    pub fn set_help_menu_for_nsapp(&self) {
-        self.0.borrow_mut().set_help_menu_for_nsapp()
+    pub fn set_as_help_menu_for_nsapp(&self) {
+        self.0.borrow_mut().set_as_help_menu_for_nsapp()
     }
 }
 

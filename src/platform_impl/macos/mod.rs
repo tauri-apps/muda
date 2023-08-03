@@ -541,11 +541,11 @@ impl MenuChild {
         show_context_menu(self.ns_menu.1, view, position)
     }
 
-    pub fn set_windows_menu_for_nsapp(&self) {
+    pub fn set_as_windows_menu_for_nsapp(&self) {
         unsafe { NSApp().setWindowsMenu_(self.ns_menu.1) }
     }
 
-    pub fn set_help_menu_for_nsapp(&self) {
+    pub fn set_as_help_menu_for_nsapp(&self) {
         unsafe { msg_send![NSApp(), setHelpMenu: self.ns_menu.1] }
     }
 
