@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.7.3]
+
+- [`22956ec`](https://www.github.com/tauri-apps/muda/commit/22956ec724673d21e1d6a675c536eff060737e02)([#87](https://www.github.com/tauri-apps/muda/pull/87)) Fix `remove_for_nsapp` not working.
+
 ## \[0.7.2]
 
 - [`0bad3ac`](https://www.github.com/tauri-apps/muda/commit/0bad3aca9608df04656757064fe85d757ff17513)([#84](https://www.github.com/tauri-apps/muda/pull/84)) Manually retain/release NSMenu reference.
