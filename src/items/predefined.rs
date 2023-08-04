@@ -1,5 +1,5 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, rc::Rc};
@@ -12,11 +12,18 @@ use keyboard_types::{Code, Modifiers};
 
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 #[derive(Clone)]
-pub struct PredefinedMenuItem(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
+pub struct PredefinedMenuItem {
+    pub(crate) id: Rc<MenuId>,
+    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+}
 
 unsafe impl IsMenuItem for PredefinedMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Predefined(self.clone())
+    }
+
+    fn id(&self) -> &MenuId {
+        self.id()
     }
 }
 
@@ -150,27 +157,29 @@ impl PredefinedMenuItem {
     }
 
     fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
-        Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_predefined(
-                item,
-                text.map(|t| t.as_ref().to_string()),
-            ),
-        )))
+        let item = crate::platform_impl::MenuChild::new_predefined(
+            item,
+            text.map(|t| t.as_ref().to_string()),
+        );
+        Self {
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
+        }
     }
 
     /// Returns a unique identifier associated with this predefined menu item.
-    pub fn id(&self) -> MenuId {
-        self.0.borrow().id()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
-        self.0.borrow().text()
+        self.inner.borrow().text()
     }
 
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.0.borrow_mut().set_text(text.as_ref())
+        self.inner.borrow_mut().set_text(text.as_ref())
     }
 }
 
@@ -186,21 +195,21 @@ fn test_about_metadata() {
 
     assert_eq!(
         AboutMetadata {
-            version: Some("Version: 1.0".into()),
+            version: Some("Version: 1.inner".into()),
             ..Default::default()
         }
         .full_version(),
-        Some("Version: 1.0".into())
+        Some("Version: 1.inner".into())
     );
 
     assert_eq!(
         AboutMetadata {
-            version: Some("Version: 1.0".into()),
+            version: Some("Version: 1.inner".into()),
             short_version: Some("Universal".into()),
             ..Default::default()
         }
         .full_version(),
-        Some("Version: 1.0 (Universal)".into())
+        Some("Version: 1.inner (Universal)".into())
     );
 }
 

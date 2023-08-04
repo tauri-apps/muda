@@ -76,8 +76,8 @@ impl Menu {
         }
     }
 
-    pub fn id(&self) -> MenuId {
-        self.id.clone()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
@@ -103,11 +103,11 @@ impl Menu {
     pub fn remove(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         // get a list of instances of the specified `NSMenuItem` in this menu
         let child = match item.kind() {
-            MenuItemKind::Submenu(i) => i.0.clone(),
-            MenuItemKind::MenuItem(i) => i.0.clone(),
-            MenuItemKind::Predefined(i) => i.0.clone(),
-            MenuItemKind::Check(i) => i.0.clone(),
-            MenuItemKind::Icon(i) => i.0.clone(),
+            MenuItemKind::Submenu(i) => i.inner.clone(),
+            MenuItemKind::MenuItem(i) => i.inner.clone(),
+            MenuItemKind::Predefined(i) => i.inner.clone(),
+            MenuItemKind::Check(i) => i.inner.clone(),
+            MenuItemKind::Icon(i) => i.inner.clone(),
         };
         let mut child_ = child.borrow_mut();
         if let Some(ns_menu_items) = child_.ns_menu_items.remove(&self.id) {
@@ -346,8 +346,8 @@ impl MenuChild {
         self.item_type
     }
 
-    pub fn id(&self) -> MenuId {
-        self.id.clone()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn text(&self) -> String {
@@ -773,14 +773,20 @@ impl PredefinedMenuItemType {
 impl dyn IsMenuItem + '_ {
     fn make_ns_item_for_menu(&self, menu_id: &MenuId) -> crate::Result<*mut Object> {
         match self.kind() {
-            MenuItemKind::Submenu(i) => i.0.borrow_mut().create_ns_item_for_submenu(menu_id),
-            MenuItemKind::MenuItem(i) => i.0.borrow_mut().create_ns_item_for_menu_item(menu_id),
-            MenuItemKind::Predefined(i) => {
-                i.0.borrow_mut()
-                    .create_ns_item_for_predefined_menu_item(menu_id)
-            }
-            MenuItemKind::Check(i) => i.0.borrow_mut().create_ns_item_for_check_menu_item(menu_id),
-            MenuItemKind::Icon(i) => i.0.borrow_mut().create_ns_item_for_icon_menu_item(menu_id),
+            MenuItemKind::Submenu(i) => i.inner.borrow_mut().create_ns_item_for_submenu(menu_id),
+            MenuItemKind::MenuItem(i) => i.inner.borrow_mut().create_ns_item_for_menu_item(menu_id),
+            MenuItemKind::Predefined(i) => i
+                .inner
+                .borrow_mut()
+                .create_ns_item_for_predefined_menu_item(menu_id),
+            MenuItemKind::Check(i) => i
+                .inner
+                .borrow_mut()
+                .create_ns_item_for_check_menu_item(menu_id),
+            MenuItemKind::Icon(i) => i
+                .inner
+                .borrow_mut()
+                .create_ns_item_for_icon_menu_item(menu_id),
         }
     }
 }
@@ -890,7 +896,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
             (*item).set_checked(!(*item).is_checked());
         }
 
-        let id = (*item).id();
+        let id = (*item).id().clone();
         MenuEvent::send(crate::MenuEvent { id });
     }
 }

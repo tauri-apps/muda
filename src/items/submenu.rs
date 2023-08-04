@@ -1,5 +1,5 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, rc::Rc};
@@ -10,11 +10,18 @@ use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position
 ///
 /// [`Menu`]: crate::Menu
 #[derive(Clone)]
-pub struct Submenu(pub(crate) Rc<RefCell<crate::platform_impl::MenuChild>>);
+pub struct Submenu {
+    pub(crate) id: Rc<MenuId>,
+    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+}
 
 unsafe impl IsMenuItem for Submenu {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Submenu(self.clone())
+    }
+
+    fn id(&self) -> &MenuId {
+        self.id()
     }
 }
 
@@ -24,9 +31,11 @@ impl Submenu {
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
-        Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, None),
-        )))
+        let submenu = crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, None);
+        Self {
+            id: Rc::new(submenu.id().clone()),
+            inner: Rc::new(RefCell::new(submenu)),
+        }
     }
 
     /// Create a new submenu with the specified id.
@@ -34,9 +43,16 @@ impl Submenu {
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S, enabled: bool) -> Self {
-        Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, Some(id.into())),
-        )))
+        let id = id.into();
+
+        Self {
+            id: Rc::new(id.clone()),
+            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_submenu(
+                text.as_ref(),
+                enabled,
+                Some(id),
+            ))),
+        }
     }
 
     /// Creates a new submenu with given `items`. It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
@@ -63,13 +79,13 @@ impl Submenu {
     }
 
     /// Returns a unique identifier associated with this submenu.
-    pub fn id(&self) -> MenuId {
-        self.0.borrow().id()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     /// Add a menu item to the end of this menu.
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().add_menu_item(item, AddOp::Append)
+        self.inner.borrow_mut().add_menu_item(item, AddOp::Append)
     }
 
     /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.
@@ -83,7 +99,9 @@ impl Submenu {
 
     /// Add a menu item to the beginning of this submenu.
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().add_menu_item(item, AddOp::Insert(0))
+        self.inner
+            .borrow_mut()
+            .add_menu_item(item, AddOp::Insert(0))
     }
 
     /// Add menu items to the beginning of this submenu.
@@ -95,7 +113,7 @@ impl Submenu {
 
     /// Insert a menu item at the specified `postion` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.0
+        self.inner
             .borrow_mut()
             .add_menu_item(item, AddOp::Insert(position))
     }
@@ -111,34 +129,34 @@ impl Submenu {
 
     /// Remove a menu item from this submenu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().remove(item)
+        self.inner.borrow_mut().remove(item)
     }
 
     /// Returns a list of menu items that has been added to this submenu.
     pub fn items(&self) -> Vec<MenuItemKind> {
-        self.0.borrow().items()
+        self.inner.borrow().items()
     }
 
     /// Get the text for this submenu.
     pub fn text(&self) -> String {
-        self.0.borrow().text()
+        self.inner.borrow().text()
     }
 
     /// Set the text for this submenu. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.0.borrow_mut().set_text(text.as_ref())
+        self.inner.borrow_mut().set_text(text.as_ref())
     }
 
     /// Get whether this submenu is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.0.borrow().is_enabled()
+        self.inner.borrow().is_enabled()
     }
 
     /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
-        self.0.borrow_mut().set_enabled(enabled)
+        self.inner.borrow_mut().set_enabled(enabled)
     }
 
     // TODO: in a minor release, rename the following two functions to be `set_as_*`
@@ -149,7 +167,7 @@ impl Submenu {
     /// certain other items to the menu.
     #[cfg(target_os = "macos")]
     pub fn set_as_windows_menu_for_nsapp(&self) {
-        self.0.borrow_mut().set_as_windows_menu_for_nsapp()
+        self.inner.borrow_mut().set_as_windows_menu_for_nsapp()
     }
 
     /// Set this submenu as the Help menu for the application on macOS.
@@ -160,31 +178,31 @@ impl Submenu {
     /// which has a title matching the localized word "Help".
     #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
-        self.0.borrow_mut().set_as_help_menu_for_nsapp()
+        self.inner.borrow_mut().set_as_help_menu_for_nsapp()
     }
 }
 
 impl ContextMenu for Submenu {
     #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
-        self.0.borrow().hpopupmenu()
+        self.inner.borrow().hpopupmenu()
     }
 
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
-        self.0
+        self.inner
             .borrow_mut()
             .show_context_menu_for_hwnd(hwnd, position)
     }
 
     #[cfg(target_os = "windows")]
     fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.0.borrow_mut().attach_menu_subclass_for_hwnd(hwnd)
+        self.inner.borrow_mut().attach_menu_subclass_for_hwnd(hwnd)
     }
 
     #[cfg(target_os = "windows")]
     fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.0.borrow_mut().detach_menu_subclass_from_hwnd(hwnd)
+        self.inner.borrow_mut().detach_menu_subclass_from_hwnd(hwnd)
     }
 
     #[cfg(target_os = "linux")]
@@ -193,25 +211,25 @@ impl ContextMenu for Submenu {
         w: &gtk::ApplicationWindow,
         position: Option<Position>,
     ) {
-        self.0
+        self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(w, position)
     }
 
     #[cfg(target_os = "linux")]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        self.0.borrow_mut().gtk_context_menu()
+        self.inner.borrow_mut().gtk_context_menu()
     }
 
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>) {
-        self.0
+        self.inner
             .borrow_mut()
             .show_context_menu_for_nsview(view, position)
     }
 
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
-        self.0.borrow().ns_menu()
+        self.inner.borrow().ns_menu()
     }
 }

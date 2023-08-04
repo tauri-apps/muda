@@ -188,6 +188,12 @@ impl PartialEq<String> for MenuId {
     }
 }
 
+impl PartialEq<&MenuId> for MenuId {
+    fn eq(&self, other: &&MenuId) -> bool {
+        other.0 == self.0
+    }
+}
+
 impl FromStr for MenuId {
     type Err = Infallible;
 
@@ -208,17 +214,6 @@ pub enum MenuItemKind {
 }
 
 impl MenuItemKind {
-    /// Returns the id associated with this menu entry
-    fn id(&self) -> MenuId {
-        match self {
-            MenuItemKind::MenuItem(i) => i.id(),
-            MenuItemKind::Submenu(i) => i.id(),
-            MenuItemKind::Predefined(i) => i.id(),
-            MenuItemKind::Check(i) => i.id(),
-            MenuItemKind::Icon(i) => i.id(),
-        }
-    }
-
     /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
     pub fn as_menuitem(&self) -> Option<&MenuItem> {
         match self {
@@ -308,9 +303,7 @@ impl MenuItemKind {
 pub unsafe trait IsMenuItem {
     fn kind(&self) -> MenuItemKind;
 
-    fn id(&self) -> MenuId {
-        self.kind().id()
-    }
+    fn id(&self) -> &MenuId;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]

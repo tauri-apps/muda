@@ -1,5 +1,5 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, rc::Rc};
@@ -9,7 +9,10 @@ use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
 #[derive(Clone)]
-pub struct Menu(Rc<RefCell<crate::platform_impl::Menu>>);
+pub struct Menu {
+    id: MenuId,
+    inner: Rc<RefCell<crate::platform_impl::Menu>>,
+}
 
 impl Default for Menu {
     fn default() -> Self {
@@ -20,14 +23,20 @@ impl Default for Menu {
 impl Menu {
     /// Creates a new menu.
     pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new(None))))
+        let menu = crate::platform_impl::Menu::new(None);
+        Self {
+            id: menu.id().clone(),
+            inner: Rc::new(RefCell::new(menu)),
+        }
     }
 
     /// Creates a new menu with the specified id.
     pub fn with_id<I: Into<MenuId>>(id: I) -> Self {
-        Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new(
-            Some(id.into()),
-        ))))
+        let id = id.into();
+        Self {
+            id: id.clone(),
+            inner: Rc::new(RefCell::new(crate::platform_impl::Menu::new(Some(id)))),
+        }
     }
 
     /// Creates a new menu with given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
@@ -48,8 +57,8 @@ impl Menu {
     }
 
     /// Returns a unique identifier associated with this menu.
-    pub fn id(&self) -> MenuId {
-        self.0.borrow().id()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     /// Add a menu item to the end of this menu.
@@ -60,7 +69,7 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().add_menu_item(item, AddOp::Append)
+        self.inner.borrow_mut().add_menu_item(item, AddOp::Append)
     }
 
     /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
@@ -86,7 +95,9 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().add_menu_item(item, AddOp::Insert(0))
+        self.inner
+            .borrow_mut()
+            .add_menu_item(item, AddOp::Insert(0))
     }
 
     /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
@@ -108,7 +119,7 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.0
+        self.inner
             .borrow_mut()
             .add_menu_item(item, AddOp::Insert(position))
     }
@@ -130,12 +141,12 @@ impl Menu {
 
     /// Remove a menu item from this menu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.0.borrow_mut().remove(item)
+        self.inner.borrow_mut().remove(item)
     }
 
     /// Returns a list of menu items that has been added to this menu.
     pub fn items(&self) -> Vec<MenuItemKind> {
-        self.0.borrow().items()
+        self.inner.borrow().items()
     }
 
     /// Adds this menu to a [`gtk::ApplicationWindow`]
@@ -166,7 +177,9 @@ impl Menu {
         C: gtk::prelude::IsA<gtk::Container>,
         C: gtk::prelude::IsA<gtk::Box>,
     {
-        self.0.borrow_mut().init_for_gtk_window(window, container)
+        self.inner
+            .borrow_mut()
+            .init_for_gtk_window(window, container)
     }
 
     /// Adds this menu to a win32 window.
@@ -195,7 +208,7 @@ impl Menu {
     /// ```
     #[cfg(target_os = "windows")]
     pub fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.0.borrow_mut().init_for_hwnd(hwnd)
+        self.inner.borrow_mut().init_for_hwnd(hwnd)
     }
 
     /// Returns The [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) associated with this menu
@@ -203,7 +216,7 @@ impl Menu {
     /// in the event loop to enable accelerators
     #[cfg(target_os = "windows")]
     pub fn haccel(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HACCEL {
-        self.0.borrow_mut().haccel()
+        self.inner.borrow_mut().haccel()
     }
 
     /// Removes this menu from a [`gtk::ApplicationWindow`]
@@ -213,13 +226,13 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
-        self.0.borrow_mut().remove_for_gtk_window(window)
+        self.inner.borrow_mut().remove_for_gtk_window(window)
     }
 
     /// Removes this menu from a win32 window
     #[cfg(target_os = "windows")]
     pub fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.0.borrow_mut().remove_for_hwnd(hwnd)
+        self.inner.borrow_mut().remove_for_hwnd(hwnd)
     }
 
     /// Hides this menu from a [`gtk::ApplicationWindow`]
@@ -228,13 +241,13 @@ impl Menu {
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow_mut().hide_for_gtk_window(window)
+        self.inner.borrow_mut().hide_for_gtk_window(window)
     }
 
     /// Hides this menu from a win32 window
     #[cfg(target_os = "windows")]
     pub fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.0.borrow().hide_for_hwnd(hwnd)
+        self.inner.borrow().hide_for_hwnd(hwnd)
     }
 
     /// Shows this menu on a [`gtk::ApplicationWindow`]
@@ -243,13 +256,13 @@ impl Menu {
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow_mut().show_for_gtk_window(window)
+        self.inner.borrow_mut().show_for_gtk_window(window)
     }
 
     /// Shows this menu on a win32 window
     #[cfg(target_os = "windows")]
     pub fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.0.borrow().show_for_hwnd(hwnd)
+        self.inner.borrow().show_for_hwnd(hwnd)
     }
 
     /// Returns whether this menu visible on a [`gtk::ApplicationWindow`]
@@ -258,7 +271,7 @@ impl Menu {
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow().is_visible_on_gtk_window(window)
+        self.inner.borrow().is_visible_on_gtk_window(window)
     }
 
     #[cfg(target_os = "linux")]
@@ -268,47 +281,49 @@ impl Menu {
     where
         W: gtk::prelude::IsA<gtk::ApplicationWindow>,
     {
-        self.0.borrow().gtk_menubar_for_gtk_window(window)
+        self.inner.borrow().gtk_menubar_for_gtk_window(window)
     }
 
     /// Returns whether this menu visible on a on a win32 window
     #[cfg(target_os = "windows")]
     pub fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
-        self.0.borrow().is_visible_on_hwnd(hwnd)
+        self.inner.borrow().is_visible_on_hwnd(hwnd)
     }
 
     /// Adds this menu to an NSApp.
     #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
-        self.0.borrow_mut().init_for_nsapp()
+        self.inner.borrow_mut().init_for_nsapp()
     }
 
     /// Removes this menu from an NSApp.
     #[cfg(target_os = "macos")]
     pub fn remove_for_nsapp(&self) {
-        self.0.borrow_mut().remove_for_nsapp()
+        self.inner.borrow_mut().remove_for_nsapp()
     }
 }
 
 impl ContextMenu for Menu {
     #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> windows_sys::Win32::UI::WindowsAndMessaging::HMENU {
-        self.0.borrow().hpopupmenu()
+        self.inner.borrow().hpopupmenu()
     }
 
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
-        self.0.borrow().show_context_menu_for_hwnd(hwnd, position)
+        self.inner
+            .borrow()
+            .show_context_menu_for_hwnd(hwnd, position)
     }
 
     #[cfg(target_os = "windows")]
     fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.0.borrow().attach_menu_subclass_for_hwnd(hwnd)
+        self.inner.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
     #[cfg(target_os = "windows")]
     fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.0.borrow().detach_menu_subclass_from_hwnd(hwnd)
+        self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
     #[cfg(target_os = "linux")]
@@ -317,25 +332,25 @@ impl ContextMenu for Menu {
         window: &gtk::ApplicationWindow,
         position: Option<Position>,
     ) {
-        self.0
+        self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(window, position)
     }
 
     #[cfg(target_os = "linux")]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        self.0.borrow_mut().gtk_context_menu()
+        self.inner.borrow_mut().gtk_context_menu()
     }
 
     #[cfg(target_os = "macos")]
     fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>) {
-        self.0
+        self.inner
             .borrow_mut()
             .show_context_menu_for_nsview(view, position)
     }
 
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
-        self.0.borrow().ns_menu()
+        self.inner.borrow().ns_menu()
     }
 }

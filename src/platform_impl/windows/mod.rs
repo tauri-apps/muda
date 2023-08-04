@@ -113,8 +113,8 @@ impl Menu {
         }
     }
 
-    pub fn id(&self) -> MenuId {
-        self.id.clone()
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn add_menu_item(&mut self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
@@ -520,10 +520,8 @@ impl MenuChild {
         self.item_type
     }
 
-    pub fn id(&self) -> MenuId {
-        match self.item_type() {
-            _ => self.id.clone(),
-        }
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn internal_id(&self) -> u32 {
