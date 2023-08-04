@@ -904,7 +904,7 @@ impl AccelAction {
                 haccel_store
                     .1
                     .values()
-                    .map(|i| i.inner)
+                    .map(|i| i.0)
                     .collect::<Vec<_>>()
                     .as_ptr(),
                 haccel_store.1.len() as _,
