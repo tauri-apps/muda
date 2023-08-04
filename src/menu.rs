@@ -24,9 +24,9 @@ impl Menu {
     }
 
     /// Creates a new menu with the specified id.
-    pub fn with_id(id: MenuId) -> Self {
+    pub fn with_id<I: Into<MenuId>>(id: I) -> Self {
         Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new(
-            Some(id),
+            Some(id.into()),
         ))))
     }
 
@@ -38,7 +38,10 @@ impl Menu {
     }
 
     /// Creates a new menu with the specified id and given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
-    pub fn with_id_and_items(id: MenuId, items: &[&dyn IsMenuItem]) -> crate::Result<Self> {
+    pub fn with_id_and_items<I: Into<MenuId>>(
+        id: I,
+        items: &[&dyn IsMenuItem],
+    ) -> crate::Result<Self> {
         let menu = Self::with_id(id);
         menu.append_items(items)?;
         Ok(menu)

@@ -33,9 +33,9 @@ impl Submenu {
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
-    pub fn with_id<S: AsRef<str>>(id: MenuId, text: S, enabled: bool) -> Self {
+    pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S, enabled: bool) -> Self {
         Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, Some(id)),
+            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, Some(id.into())),
         )))
     }
 
@@ -51,8 +51,8 @@ impl Submenu {
     }
 
     /// Creates a new submenu with the specified id and given `items`. It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
-    pub fn with_id_and_items<S: AsRef<str>>(
-        id: MenuId,
+    pub fn with_id_and_items<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
         text: S,
         enabled: bool,
         items: &[&dyn IsMenuItem],

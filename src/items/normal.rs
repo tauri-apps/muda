@@ -33,8 +33,8 @@ impl MenuItem {
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-    pub fn with_id<S: AsRef<str>>(
-        id: MenuId,
+    pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
         text: S,
         enabled: bool,
         acccelerator: Option<Accelerator>,
@@ -43,7 +43,7 @@ impl MenuItem {
             text.as_ref(),
             enabled,
             acccelerator,
-            Some(id),
+            Some(id.into()),
         ))))
     }
 

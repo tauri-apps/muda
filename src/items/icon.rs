@@ -50,8 +50,8 @@ impl IconMenuItem {
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     /// for this icon menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-    pub fn with_id<S: AsRef<str>>(
-        id: MenuId,
+    pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
         text: S,
         enabled: bool,
         icon: Option<Icon>,
@@ -63,7 +63,7 @@ impl IconMenuItem {
                 enabled,
                 icon,
                 acccelerator,
-                Some(id),
+                Some(id.into()),
             ),
         )))
     }
@@ -99,8 +99,8 @@ impl IconMenuItem {
     /// ## Platform-specific:
     ///
     /// - **Windows / Linux**: Unsupported.
-    pub fn with_id_and_native_icon<S: AsRef<str>>(
-        id: MenuId,
+    pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
         text: S,
         enabled: bool,
         native_icon: Option<NativeIcon>,
@@ -112,7 +112,7 @@ impl IconMenuItem {
                 enabled,
                 native_icon,
                 acccelerator,
-                Some(id),
+                Some(id.into()),
             ),
         )))
     }
