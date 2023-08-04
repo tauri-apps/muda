@@ -157,11 +157,12 @@ impl Menu {
         };
 
         if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.0.borrow().gtk_menus.clone();
+            let gtk_menus = i.inner.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
                 for item in i.items() {
-                    i.0.borrow_mut()
+                    i.inner
+                        .borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }
@@ -723,11 +724,12 @@ impl MenuChild {
         };
 
         if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.0.borrow().gtk_menus.clone();
+            let gtk_menus = i.inner.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
                 for item in i.items() {
-                    i.0.borrow_mut()
+                    i.inner
+                        .borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }

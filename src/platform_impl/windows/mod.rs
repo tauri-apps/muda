@@ -51,15 +51,15 @@ macro_rules! inner_menu_child_and_flags {
         let child = match $item.kind() {
             MenuItemKind::Submenu(i) => {
                 flags |= MF_POPUP;
-                i.0.clone()
+                i.inner.clone()
             }
             MenuItemKind::MenuItem(i) => {
                 flags |= MF_STRING;
-                i.0.clone()
+                i.inner.clone()
             }
 
             MenuItemKind::Predefined(i) => {
-                let child = i.0.clone();
+                let child = i.inner.clone();
                 let child_ = child.borrow();
                 match child_.predefined_item_type {
                     PredefinedMenuItemType::None => return Ok(()),
@@ -74,7 +74,7 @@ macro_rules! inner_menu_child_and_flags {
                 child
             }
             MenuItemKind::Check(i) => {
-                let child = i.0.clone();
+                let child = i.inner.clone();
                 flags |= MF_STRING;
                 if child.borrow().checked {
                     flags |= MF_CHECKED;
@@ -83,7 +83,7 @@ macro_rules! inner_menu_child_and_flags {
             }
             MenuItemKind::Icon(i) => {
                 flags |= MF_STRING;
-                i.0.clone()
+                i.inner.clone()
             }
         };
 
@@ -904,7 +904,7 @@ impl AccelAction {
                 haccel_store
                     .1
                     .values()
-                    .map(|i| i.0)
+                    .map(|i| i.inner)
                     .collect::<Vec<_>>()
                     .as_ptr(),
                 haccel_store.1.len() as _,
