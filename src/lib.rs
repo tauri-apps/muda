@@ -126,7 +126,7 @@
 //! }
 //! ```
 
-use std::str::FromStr;
+use std::{convert::Infallible, str::FromStr};
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
@@ -177,7 +177,7 @@ impl From<&str> for MenuId {
 }
 
 impl FromStr for MenuId {
-    type Err = ();
+    type Err = Infallible;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(Self(s.to_string()))
