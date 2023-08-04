@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{IsMenuItem, Submenu};
+use crate::{IsMenuItem, MenuId, Submenu};
 
 /// A builder type for [`Submenu`]
 #[derive(Clone, Default)]
 pub struct SubmenuBuilder<'a> {
     text: String,
     enabled: bool,
+    id: Option<MenuId>,
     items: Vec<&'a dyn IsMenuItem>,
 }
 
@@ -24,6 +25,12 @@ impl std::fmt::Debug for SubmenuBuilder<'_> {
 impl<'a> SubmenuBuilder<'a> {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Set the id this submenu.
+    pub fn id(mut self, id: MenuId) -> Self {
+        self.id.replace(id);
+        self
     }
 
     /// Set the text for this submenu.
@@ -54,6 +61,10 @@ impl<'a> SubmenuBuilder<'a> {
 
     /// Build this menu item.
     pub fn build(self) -> crate::Result<Submenu> {
-        Submenu::with_items(self.text, self.enabled, &self.items)
+        if let Some(id) = self.id {
+            Submenu::with_id_and_items(id, self.text, self.enabled, &self.items)
+        } else {
+            Submenu::with_items(self.text, self.enabled, &self.items)
+        }
     }
 }

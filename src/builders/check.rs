@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, CheckMenuItem};
+use crate::{accelerator::Accelerator, CheckMenuItem, MenuId};
 
 /// A builder type for [`CheckMenuItem`]
 #[derive(Clone, Debug, Default)]
@@ -11,11 +11,18 @@ pub struct CheckMenuItemBuilder {
     enabled: bool,
     checked: bool,
     acccelerator: Option<Accelerator>,
+    id: Option<MenuId>,
 }
 
 impl CheckMenuItemBuilder {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Set the id this check menu item.
+    pub fn id(mut self, id: MenuId) -> Self {
+        self.id.replace(id);
+        self
     }
 
     /// Set the text for this check menu item.
@@ -52,6 +59,10 @@ impl CheckMenuItemBuilder {
 
     /// Build this check menu item.
     pub fn build(self) -> CheckMenuItem {
-        CheckMenuItem::new(self.text, self.enabled, self.checked, self.acccelerator)
+        if let Some(id) = self.id {
+            CheckMenuItem::with_id(id, self.text, self.enabled, self.checked, self.acccelerator)
+        } else {
+            CheckMenuItem::new(self.text, self.enabled, self.checked, self.acccelerator)
+        }
     }
 }

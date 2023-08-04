@@ -5,7 +5,7 @@
 use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
-    IconMenuItem,
+    IconMenuItem, MenuId,
 };
 
 /// A builder type for [`IconMenuItem`]
@@ -13,6 +13,7 @@ use crate::{
 pub struct IconMenuItemBuilder {
     text: String,
     enabled: bool,
+    id: Option<MenuId>,
     acccelerator: Option<Accelerator>,
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
@@ -21,6 +22,12 @@ pub struct IconMenuItemBuilder {
 impl IconMenuItemBuilder {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Set the id this icon menu item.
+    pub fn id(mut self, id: MenuId) -> Self {
+        self.id.replace(id);
+        self
     }
 
     /// Set the text for this icon menu item.
@@ -65,7 +72,19 @@ impl IconMenuItemBuilder {
 
     /// Build this icon menu item.
     pub fn build(self) -> IconMenuItem {
-        if self.icon.is_some() {
+        if let Some(id) = self.id {
+            if self.icon.is_some() {
+                IconMenuItem::with_id(id, self.text, self.enabled, self.icon, self.acccelerator)
+            } else {
+                IconMenuItem::with_id_and_native_icon(
+                    id,
+                    self.text,
+                    self.enabled,
+                    self.native_icon,
+                    self.acccelerator,
+                )
+            }
+        } else if self.icon.is_some() {
             IconMenuItem::new(self.text, self.enabled, self.icon, self.acccelerator)
         } else {
             IconMenuItem::with_native_icon(

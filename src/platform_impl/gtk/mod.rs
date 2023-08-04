@@ -12,7 +12,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuItemKind, MenuItemType, Position,
+    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{prelude::*, Orientation};
@@ -53,7 +53,7 @@ macro_rules! return_if_predefined_item_not_supported {
 }
 
 pub struct Menu {
-    id: u32,
+    id: MenuId,
     children: Vec<Rc<RefCell<MenuChild>>>,
     gtk_menubars: HashMap<u32, gtk::MenuBar>,
     accel_group: Option<gtk::AccelGroup>,
@@ -61,9 +61,9 @@ pub struct Menu {
 }
 
 impl Menu {
-    pub fn new() -> Self {
+    pub fn new(id: Option<MenuId>) -> Self {
         Self {
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             children: Vec::new(),
             gtk_menubars: HashMap::new(),
             accel_group: None,
@@ -71,8 +71,8 @@ impl Menu {
         }
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
@@ -157,11 +157,12 @@ impl Menu {
         };
 
         if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.0.borrow().gtk_menus.clone();
+            let gtk_menus = i.inner.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
                 for item in i.items() {
-                    i.0.borrow_mut()
+                    i.inner
+                        .borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }
@@ -355,7 +356,7 @@ pub struct MenuChild {
     item_type: MenuItemType,
     text: String,
     enabled: bool,
-    id: u32,
+    id: MenuId,
 
     gtk_menu_items: Rc<RefCell<HashMap<u32, Vec<gtk::MenuItem>>>>,
 
@@ -382,23 +383,28 @@ pub struct MenuChild {
 
 /// Constructors
 impl MenuChild {
-    pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
+    ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
             accelerator,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::MenuItem,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             ..Default::default()
         }
     }
 
-    pub fn new_submenu(text: &str, enabled: bool) -> Self {
+    pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
         Self {
             text: text.to_string(),
             enabled,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             children: Some(Vec::new()),
             item_type: MenuItemType::Submenu,
             gtk_menu: (COUNTER.next(), None),
@@ -413,7 +419,7 @@ impl MenuChild {
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
             accelerator: item_type.accelerator(),
-            id: COUNTER.next(),
+            id: MenuId(COUNTER.next().to_string()),
             item_type: MenuItemType::Predefined,
             predefined_item_type: item_type,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
@@ -426,13 +432,14 @@ impl MenuChild {
         enabled: bool,
         checked: bool,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
             checked: Rc::new(AtomicBool::new(checked)),
             accelerator,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Check,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
@@ -445,13 +452,14 @@ impl MenuChild {
         enabled: bool,
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
             icon,
             accelerator,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
@@ -464,12 +472,13 @@ impl MenuChild {
         enabled: bool,
         _native_icon: Option<NativeIcon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
             accelerator,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
@@ -484,8 +493,8 @@ impl MenuChild {
         self.item_type
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     pub fn text(&self) -> String {
@@ -715,11 +724,12 @@ impl MenuChild {
         };
 
         if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.0.borrow().gtk_menus.clone();
+            let gtk_menus = i.inner.borrow().gtk_menus.clone();
 
             for (menu_id, _) in gtk_menus {
                 for item in i.items() {
-                    i.0.borrow_mut()
+                    i.inner
+                        .borrow_mut()
                         .remove_inner(item.as_ref(), false, Some(menu_id))?;
                 }
             }
@@ -883,9 +893,9 @@ impl MenuChild {
 
         register_accel!(self, item, accel_group);
 
-        let id = self.id;
+        let id = self.id.clone();
         item.connect_activate(move |_| {
-            MenuEvent::send(crate::MenuEvent { id });
+            MenuEvent::send(crate::MenuEvent { id: id.clone() });
         });
 
         if add_to_cache {
@@ -1035,7 +1045,7 @@ impl MenuChild {
 
         register_accel!(self, item, accel_group);
 
-        let id = self.id;
+        let id = self.id.clone();
         let is_syncing_checked_state = self.is_syncing_checked_state.clone();
         let checked = self.checked.clone();
         let store = self.gtk_menu_items.clone();
@@ -1058,7 +1068,7 @@ impl MenuChild {
 
                 is_syncing_checked_state.store(false, Ordering::Release);
 
-                MenuEvent::send(crate::MenuEvent { id });
+                MenuEvent::send(crate::MenuEvent { id: id.clone() });
             }
         });
 
@@ -1116,9 +1126,9 @@ impl MenuChild {
 
         register_accel!(self, item, accel_group);
 
-        let id = self.id;
+        let id = self.id.clone();
         item.connect_activate(move |_| {
-            MenuEvent::send(crate::MenuEvent { id });
+            MenuEvent::send(crate::MenuEvent { id: id.clone() });
         });
 
         if add_to_cache {

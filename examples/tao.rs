@@ -72,7 +72,8 @@ fn main() {
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
-    let custom_i_1 = MenuItem::new(
+    let custom_i_1 = MenuItem::with_id(
+        "custom-i-1",
         "C&ustom 1",
         true,
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
@@ -80,16 +81,20 @@ fn main() {
 
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
     let icon = load_icon(std::path::Path::new(path));
-    let image_item = IconMenuItem::new(
+    let image_item = IconMenuItem::with_id(
+        "image-custom-1",
         "Image custom 1",
         true,
         Some(icon),
         Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
     );
 
-    let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
-    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
-    let check_custom_i_3 = CheckMenuItem::new(
+    let check_custom_i_1 =
+        CheckMenuItem::with_id("check-custom-1", "Check Custom 1", true, true, None);
+    let check_custom_i_2 =
+        CheckMenuItem::with_id("check-custom-2", "Check Custom 2", false, true, None);
+    let check_custom_i_3 = CheckMenuItem::with_id(
+        "check-custom-3",
         "Check Custom 3",
         true,
         true,
@@ -201,7 +206,10 @@ fn main() {
             if event.id == custom_i_1.id() {
                 custom_i_1
                     .set_accelerator(Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyF)));
-                file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
+                file_m.insert(
+                    &MenuItem::with_id("new-menu-id", "New Menu Item", true, None),
+                    2,
+                );
             }
             println!("{event:?}");
         }
@@ -218,7 +226,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     menu.show_context_menu_for_nsview(window.ns_view() as _, position);
 }
 
-fn load_icon(path: &std::path::Path) -> muda::icon::Icon {
+fn load_icon(path: &std::path::Path) -> muda::Icon {
     let (icon_rgba, icon_width, icon_height) = {
         let image = image::open(path)
             .expect("Failed to open icon path")
@@ -227,5 +235,5 @@ fn load_icon(path: &std::path::Path) -> muda::icon::Icon {
         let rgba = image.into_raw();
         (rgba, width, height)
     };
-    muda::icon::Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
+    muda::Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
 }

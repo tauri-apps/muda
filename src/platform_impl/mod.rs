@@ -24,13 +24,12 @@ pub(crate) use self::platform::*;
 impl dyn IsMenuItem + '_ {
     fn child(&self) -> Rc<RefCell<MenuChild>> {
         match self.kind() {
-            MenuItemKind::MenuItem(i) => i.0,
-            MenuItemKind::Submenu(i) => i.0,
-            MenuItemKind::Predefined(i) => i.0,
-            MenuItemKind::Check(i) => i.0,
-            MenuItemKind::Icon(i) => i.0,
+            MenuItemKind::MenuItem(i) => i.inner,
+            MenuItemKind::Submenu(i) => i.inner,
+            MenuItemKind::Predefined(i) => i.inner,
+            MenuItemKind::Check(i) => i.inner,
+            MenuItemKind::Icon(i) => i.inner,
         }
-        .clone()
     }
 }
 
@@ -38,11 +37,41 @@ impl dyn IsMenuItem + '_ {
 impl MenuChild {
     fn kind(&self, c: Rc<RefCell<MenuChild>>) -> MenuItemKind {
         match self.item_type() {
-            MenuItemType::Submenu => MenuItemKind::Submenu(Submenu(c)),
-            MenuItemType::MenuItem => MenuItemKind::MenuItem(MenuItem(c)),
-            MenuItemType::Predefined => MenuItemKind::Predefined(PredefinedMenuItem(c)),
-            MenuItemType::Check => MenuItemKind::Check(CheckMenuItem(c)),
-            MenuItemType::Icon => MenuItemKind::Icon(IconMenuItem(c)),
+            MenuItemType::Submenu => {
+                let id = c.borrow().id().clone();
+                MenuItemKind::Submenu(Submenu {
+                    id: Rc::new(id),
+                    inner: c,
+                })
+            }
+            MenuItemType::MenuItem => {
+                let id = c.borrow().id().clone();
+                MenuItemKind::MenuItem(MenuItem {
+                    id: Rc::new(id),
+                    inner: c,
+                })
+            }
+            MenuItemType::Predefined => {
+                let id = c.borrow().id().clone();
+                MenuItemKind::Predefined(PredefinedMenuItem {
+                    id: Rc::new(id),
+                    inner: c,
+                })
+            }
+            MenuItemType::Check => {
+                let id = c.borrow().id().clone();
+                MenuItemKind::Check(CheckMenuItem {
+                    id: Rc::new(id),
+                    inner: c,
+                })
+            }
+            MenuItemType::Icon => {
+                let id = c.borrow().id().clone();
+                MenuItemKind::Icon(IconMenuItem {
+                    id: Rc::new(id),
+                    inner: c,
+                })
+            }
         }
     }
 }
@@ -61,21 +90,21 @@ impl MenuItemKind {
 
     pub(crate) fn child(&self) -> Ref<MenuChild> {
         match self {
-            MenuItemKind::MenuItem(i) => i.0.borrow(),
-            MenuItemKind::Submenu(i) => i.0.borrow(),
-            MenuItemKind::Predefined(i) => i.0.borrow(),
-            MenuItemKind::Check(i) => i.0.borrow(),
-            MenuItemKind::Icon(i) => i.0.borrow(),
+            MenuItemKind::MenuItem(i) => i.inner.borrow(),
+            MenuItemKind::Submenu(i) => i.inner.borrow(),
+            MenuItemKind::Predefined(i) => i.inner.borrow(),
+            MenuItemKind::Check(i) => i.inner.borrow(),
+            MenuItemKind::Icon(i) => i.inner.borrow(),
         }
     }
 
     pub(crate) fn child_mut(&self) -> RefMut<MenuChild> {
         match self {
-            MenuItemKind::MenuItem(i) => i.0.borrow_mut(),
-            MenuItemKind::Submenu(i) => i.0.borrow_mut(),
-            MenuItemKind::Predefined(i) => i.0.borrow_mut(),
-            MenuItemKind::Check(i) => i.0.borrow_mut(),
-            MenuItemKind::Icon(i) => i.0.borrow_mut(),
+            MenuItemKind::MenuItem(i) => i.inner.borrow_mut(),
+            MenuItemKind::Submenu(i) => i.inner.borrow_mut(),
+            MenuItemKind::Predefined(i) => i.inner.borrow_mut(),
+            MenuItemKind::Check(i) => i.inner.borrow_mut(),
+            MenuItemKind::Icon(i) => i.inner.borrow_mut(),
         }
     }
 }
