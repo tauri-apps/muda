@@ -28,7 +28,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, LogicalPosition, MenuEvent, MenuItemKind, MenuItemType, Position,
+    IsMenuItem, LogicalPosition, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -49,7 +49,7 @@ const NSAboutPanelOptionCopyright: &str = "Copyright";
 
 #[derive(Debug)]
 pub struct Menu {
-    id: u32,
+    id: MenuId,
     ns_menu: id,
     children: Rc<RefCell<Vec<Rc<RefCell<MenuChild>>>>>,
 }
@@ -63,9 +63,9 @@ impl Drop for Menu {
 }
 
 impl Menu {
-    pub fn new() -> Self {
+    pub fn new(id: Option<MenuId>) -> Self {
         Self {
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             ns_menu: unsafe {
                 let ns_menu = NSMenu::new(nil);
                 ns_menu.setAutoenablesItems(NO);
@@ -76,12 +76,12 @@ impl Menu {
         }
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> MenuId {
+        self.id.clone()
     }
 
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.id)?;
+        let ns_menu_item: *mut Object = item.make_ns_item_for_menu(&self.id)?;
         let child = item.child();
 
         unsafe {
@@ -160,11 +160,11 @@ impl Menu {
 pub struct MenuChild {
     // shared fields between submenus and menu items
     item_type: MenuItemType,
-    id: u32,
+    id: MenuId,
     text: String,
     enabled: bool,
 
-    ns_menu_items: HashMap<u32, Vec<id>>,
+    ns_menu_items: HashMap<MenuId, Vec<id>>,
 
     // menu item fields
     accelerator: Option<Accelerator>,
@@ -181,12 +181,12 @@ pub struct MenuChild {
 
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    ns_menus: HashMap<u32, Vec<id>>,
+    ns_menus: HashMap<MenuId, Vec<id>>,
     ns_menu: NsMenuRef,
 }
 
 #[derive(Debug)]
-struct NsMenuRef(u32, id);
+struct NsMenuRef(MenuId, id);
 
 impl Drop for NsMenuRef {
     fn drop(&mut self) {
@@ -211,31 +211,37 @@ impl Default for MenuChild {
             native_icon: Default::default(),
             children: Default::default(),
             ns_menus: Default::default(),
-            ns_menu: NsMenuRef(0, 0 as _),
+            ns_menu: NsMenuRef(MenuId(COUNTER.next().to_string()), 0 as _),
         }
     }
 }
 
 /// Constructors
 impl MenuChild {
-    pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
+    ) -> Self {
         Self {
             item_type: MenuItemType::MenuItem,
             text: strip_mnemonic(text),
             enabled,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             accelerator,
             ..Default::default()
         }
     }
 
-    pub fn new_submenu(text: &str, enabled: bool) -> Self {
+    pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
         Self {
             item_type: MenuItemType::Submenu,
             text: strip_mnemonic(text),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             enabled,
             children: Some(Vec::new()),
-            ns_menu: NsMenuRef(COUNTER.next(), unsafe {
+            ns_menu: NsMenuRef(MenuId(COUNTER.next().to_string()), unsafe {
                 let menu = NSMenu::new(nil);
                 let _: () = msg_send![menu, retain];
                 menu
@@ -271,7 +277,7 @@ impl MenuChild {
             item_type: MenuItemType::Predefined,
             text,
             enabled: true,
-            id: COUNTER.next(),
+            id: MenuId(COUNTER.next().to_string()),
             accelerator,
             predefined_item_type: item_type,
             // ns_menu_item,
@@ -284,12 +290,13 @@ impl MenuChild {
         enabled: bool,
         checked: bool,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             item_type: MenuItemType::Check,
             text: text.to_string(),
             enabled,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             accelerator,
             checked,
             ..Default::default()
@@ -301,12 +308,13 @@ impl MenuChild {
         enabled: bool,
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             icon,
             accelerator,
             ..Default::default()
@@ -318,12 +326,13 @@ impl MenuChild {
         enabled: bool,
         native_icon: Option<NativeIcon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
         Self {
             item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             native_icon,
             accelerator,
             ..Default::default()
@@ -337,8 +346,8 @@ impl MenuChild {
         self.item_type
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> MenuId {
+        self.id.clone()
     }
 
     pub fn text(&self) -> String {
@@ -461,12 +470,12 @@ impl MenuChild {
                 AddOp::Append => {
                     for menus in self.ns_menus.values() {
                         for ns_menu in menus {
-                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.id)?;
+                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(&self.id)?;
                             ns_menu.addItem_(ns_menu_item);
                         }
                     }
 
-                    let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.ns_menu.0)?;
+                    let ns_menu_item: *mut Object = item.make_ns_item_for_menu(&self.ns_menu.0)?;
                     self.ns_menu.1.addItem_(ns_menu_item);
 
                     self.children.as_mut().unwrap().push(child);
@@ -474,12 +483,12 @@ impl MenuChild {
                 AddOp::Insert(position) => {
                     for menus in self.ns_menus.values() {
                         for &ns_menu in menus {
-                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.id)?;
+                            let ns_menu_item: *mut Object = item.make_ns_item_for_menu(&self.id)?;
                             let () = msg_send![ns_menu, insertItem: ns_menu_item atIndex: position as NSInteger];
                         }
                     }
 
-                    let ns_menu_item: *mut Object = item.make_ns_item_for_menu(self.ns_menu.0)?;
+                    let ns_menu_item: *mut Object = item.make_ns_item_for_menu(&self.ns_menu.0)?;
                     let () = msg_send![ self.ns_menu.1, insertItem: ns_menu_item atIndex: position as NSInteger];
 
                     self.children.as_mut().unwrap().insert(position, child);
@@ -556,7 +565,7 @@ impl MenuChild {
 
 /// NSMenuItem item creation methods
 impl MenuChild {
-    pub fn create_ns_item_for_submenu(&mut self, menu_id: u32) -> crate::Result<id> {
+    pub fn create_ns_item_for_submenu(&mut self, menu_id: &MenuId) -> crate::Result<id> {
         let ns_menu_item: *mut Object;
         let ns_submenu: *mut Object;
 
@@ -580,19 +589,19 @@ impl MenuChild {
         }
 
         self.ns_menus
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_submenu);
 
         self.ns_menu_items
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
+    pub fn create_ns_item_for_menu_item(&mut self, menu_id: &MenuId) -> crate::Result<id> {
         let ns_menu_item = create_ns_menu_item(
             &self.text,
             Some(sel!(fireMenuItemAction:)),
@@ -601,7 +610,6 @@ impl MenuChild {
 
         unsafe {
             let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
-            let _: () = msg_send![ns_menu_item, setTag:self.id()];
 
             // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
             let ptr = Box::into_raw(Box::new(&*self));
@@ -613,14 +621,17 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_predefined_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
+    pub fn create_ns_item_for_predefined_menu_item(
+        &mut self,
+        menu_id: &MenuId,
+    ) -> crate::Result<id> {
         let item_type = &self.predefined_item_type;
         let ns_menu_item = match item_type {
             PredefinedMenuItemType::Separator => unsafe {
@@ -632,7 +643,6 @@ impl MenuChild {
         if let PredefinedMenuItemType::About(_) = self.predefined_item_type {
             unsafe {
                 let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
-                let _: () = msg_send![ns_menu_item, setTag:self.id()];
 
                 // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
                 let ptr = Box::into_raw(Box::new(&*self));
@@ -653,14 +663,14 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_check_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
+    pub fn create_ns_item_for_check_menu_item(&mut self, menu_id: &MenuId) -> crate::Result<id> {
         let ns_menu_item = create_ns_menu_item(
             &self.text,
             Some(sel!(fireMenuItemAction:)),
@@ -669,7 +679,6 @@ impl MenuChild {
 
         unsafe {
             let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
-            let _: () = msg_send![ns_menu_item, setTag:self.id()];
 
             // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
             let ptr = Box::into_raw(Box::new(&*self));
@@ -684,14 +693,14 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_icon_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
+    pub fn create_ns_item_for_icon_menu_item(&mut self, menu_id: &MenuId) -> crate::Result<id> {
         let ns_menu_item = create_ns_menu_item(
             &self.text,
             Some(sel!(fireMenuItemAction:)),
@@ -700,7 +709,6 @@ impl MenuChild {
 
         unsafe {
             let _: () = msg_send![ns_menu_item, setTarget: ns_menu_item];
-            let _: () = msg_send![ns_menu_item, setTag:self.id()];
 
             // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
             let ptr = Box::into_raw(Box::new(&*self));
@@ -718,14 +726,14 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id)
+            .entry(menu_id.clone())
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
         Ok(ns_menu_item)
     }
 
-    fn make_ns_item_for_menu(&mut self, menu_id: u32) -> crate::Result<*mut Object> {
+    fn make_ns_item_for_menu(&mut self, menu_id: &MenuId) -> crate::Result<*mut Object> {
         match self.item_type {
             MenuItemType::Submenu => self.create_ns_item_for_submenu(menu_id),
             MenuItemType::MenuItem => self.create_ns_item_for_menu_item(menu_id),
@@ -763,7 +771,7 @@ impl PredefinedMenuItemType {
 }
 
 impl dyn IsMenuItem + '_ {
-    fn make_ns_item_for_menu(&self, menu_id: u32) -> crate::Result<*mut Object> {
+    fn make_ns_item_for_menu(&self, menu_id: &MenuId) -> crate::Result<*mut Object> {
         match self.kind() {
             MenuItemKind::Submenu(i) => i.0.borrow_mut().create_ns_item_for_submenu(menu_id),
             MenuItemKind::MenuItem(i) => i.0.borrow_mut().create_ns_item_for_menu_item(menu_id),
@@ -816,8 +824,6 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
 
 extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
     unsafe {
-        let id: u32 = msg_send![this, tag];
-
         // Create a reference to the `MenuChild` from the raw pointer
         // stored as an instance variable on the native menu item
         let ptr: usize = *this.get_ivar(BLOCK_PTR);
@@ -884,6 +890,7 @@ extern "C" fn fire_menu_item_click(this: &Object, _: Sel, _item: id) {
             (*item).set_checked(!(*item).is_checked());
         }
 
+        let id = (*item).id();
         MenuEvent::send(crate::MenuEvent { id });
     }
 }

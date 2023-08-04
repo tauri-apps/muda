@@ -7,7 +7,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     accelerator::Accelerator,
     icon::{Icon, NativeIcon},
-    IsMenuItem, MenuItemKind,
+    IsMenuItem, MenuId, MenuItemKind,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -36,7 +36,35 @@ impl IconMenuItem {
         acccelerator: Option<Accelerator>,
     ) -> Self {
         Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_icon(text.as_ref(), enabled, icon, acccelerator),
+            crate::platform_impl::MenuChild::new_icon(
+                text.as_ref(),
+                enabled,
+                icon,
+                acccelerator,
+                None,
+            ),
+        )))
+    }
+
+    /// Create a new icon menu item with the specified id.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this icon menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+    pub fn with_id<S: AsRef<str>>(
+        id: MenuId,
+        text: S,
+        enabled: bool,
+        icon: Option<Icon>,
+        acccelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_icon(
+                text.as_ref(),
+                enabled,
+                icon,
+                acccelerator,
+                Some(id),
+            ),
         )))
     }
 
@@ -59,12 +87,38 @@ impl IconMenuItem {
                 enabled,
                 native_icon,
                 acccelerator,
+                None,
+            ),
+        )))
+    }
+
+    /// Create a new icon menu item but with the specified id and a native icon.
+    ///
+    /// See [`IconMenuItem::new`] for more info.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    pub fn with_id_and_native_icon<S: AsRef<str>>(
+        id: MenuId,
+        text: S,
+        enabled: bool,
+        native_icon: Option<NativeIcon>,
+        acccelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_native_icon(
+                text.as_ref(),
+                enabled,
+                native_icon,
+                acccelerator,
+                Some(id),
             ),
         )))
     }
 
     /// Returns a unique identifier associated with this submenu.
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> MenuId {
         self.0.borrow().id()
     }
 

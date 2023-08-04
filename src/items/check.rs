@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::Accelerator, IsMenuItem, MenuItemKind};
+use crate::{accelerator::Accelerator, IsMenuItem, MenuId, MenuItemKind};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -38,12 +38,35 @@ impl CheckMenuItem {
                 enabled,
                 checked,
                 acccelerator,
+                None,
+            ),
+        )))
+    }
+
+    /// Create a new check menu item with the specified id.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+    pub fn with_id<S: AsRef<str>>(
+        id: MenuId,
+        text: S,
+        enabled: bool,
+        checked: bool,
+        acccelerator: Option<Accelerator>,
+    ) -> Self {
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_check(
+                text.as_ref(),
+                enabled,
+                checked,
+                acccelerator,
+                Some(id),
             ),
         )))
     }
 
     /// Returns a unique identifier associated with this submenu.
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> MenuId {
         self.0.borrow().id()
     }
 

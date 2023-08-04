@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
-    AboutMetadata, IsMenuItem, MenuItemKind,
+    AboutMetadata, IsMenuItem, MenuId, MenuItemKind,
 };
 use keyboard_types::{Code, Modifiers};
 
@@ -158,7 +158,8 @@ impl PredefinedMenuItem {
         )))
     }
 
-    pub(crate) fn id(&self) -> u32 {
+    /// Returns a unique identifier associated with this predefined menu item.
+    pub fn id(&self) -> MenuId {
         self.0.borrow().id()
     }
 

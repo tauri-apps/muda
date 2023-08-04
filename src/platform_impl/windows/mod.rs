@@ -13,7 +13,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     items::PredefinedMenuItemType,
     util::{AddOp, Counter},
-    AboutMetadata, IsMenuItem, MenuEvent, MenuItemKind, MenuItemType, Position,
+    AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -93,7 +93,7 @@ macro_rules! inner_menu_child_and_flags {
 
 #[derive(Debug)]
 pub(crate) struct Menu {
-    id: u32,
+    id: MenuId,
     hmenu: HMENU,
     hpopupmenu: HMENU,
     hwnds: Vec<HWND>,
@@ -102,9 +102,9 @@ pub(crate) struct Menu {
 }
 
 impl Menu {
-    pub fn new() -> Self {
+    pub fn new(id: Option<MenuId>) -> Self {
         Self {
-            id: COUNTER.next(),
+            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
             haccel_store: Rc::new(RefCell::new((0, HashMap::new()))),
@@ -113,8 +113,8 @@ impl Menu {
         }
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> MenuId {
+        self.id.clone()
     }
 
     pub fn add_menu_item(&mut self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
@@ -145,12 +145,12 @@ impl Menu {
 
                 AccelAction::add(
                     &mut self.haccel_store.borrow_mut(),
-                    child_.id(),
+                    child_.internal_id(),
                     accelerator,
                 )?;
             }
 
-            let id = child_.id() as usize;
+            let id = child_.internal_id() as usize;
 
             let text = encode_wide(text);
             unsafe {
@@ -191,8 +191,8 @@ impl Menu {
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.id, false.into(), &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.id, false.into(), &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id, false.into(), &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, false.into(), &info);
                 };
             }
         }
@@ -214,9 +214,10 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
+        let id = item.child().borrow().internal_id();
         unsafe {
-            RemoveMenu(self.hmenu, item.id(), MF_BYCOMMAND);
-            RemoveMenu(self.hpopupmenu, item.id(), MF_BYCOMMAND);
+            RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
+            RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
 
             for hwnd in &self.hwnds {
                 DrawMenuBar(*hwnd);
@@ -244,7 +245,7 @@ impl Menu {
         let index = self
             .children
             .iter()
-            .position(|e| e.borrow().id() == item.id())
+            .position(|e| e.borrow().internal_id() == id)
             .ok_or(crate::Error::NotAChildOfThisMenu)?;
         self.children.remove(index);
 
@@ -373,7 +374,8 @@ pub(crate) struct MenuChild {
     root_menu_haccel_stores: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
 
     // menu item fields
-    id: u32,
+    internal_id: u32,
+    id: MenuId,
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
@@ -393,20 +395,28 @@ pub(crate) struct MenuChild {
 
 /// Constructors
 impl MenuChild {
-    pub fn new(text: &str, enabled: bool, accelerator: Option<Accelerator>) -> Self {
+    pub fn new(
+        text: &str,
+        enabled: bool,
+        accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
+    ) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::MenuItem,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
+            internal_id,
+            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
         }
     }
 
-    pub fn new_submenu(text: &str, enabled: bool) -> Self {
+    pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Submenu,
             text: text.to_string(),
@@ -414,6 +424,8 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             children: Some(Vec::new()),
             hmenu: unsafe { CreateMenu() },
+            internal_id,
+            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             hpopupmenu: unsafe { CreatePopupMenu() },
             root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
@@ -421,12 +433,14 @@ impl MenuChild {
     }
 
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
             parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
+            internal_id,
+            id: MenuId(internal_id.to_string()),
             accelerator: item_type.accelerator(),
             predefined_item_type: item_type,
             root_menu_haccel_stores: Some(Vec::new()),
@@ -439,13 +453,16 @@ impl MenuChild {
         enabled: bool,
         checked: bool,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Check,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
+            internal_id,
+            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             checked,
             root_menu_haccel_stores: Some(Vec::new()),
@@ -458,13 +475,16 @@ impl MenuChild {
         enabled: bool,
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
+            internal_id,
+            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             icon,
             root_menu_haccel_stores: Some(Vec::new()),
@@ -477,13 +497,16 @@ impl MenuChild {
         enabled: bool,
         _native_icon: Option<NativeIcon>,
         accelerator: Option<Accelerator>,
+        id: Option<MenuId>,
     ) -> Self {
+        let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Icon,
             text: text.to_string(),
             enabled,
             parents_hemnu: Vec::new(),
-            id: COUNTER.next(),
+            internal_id,
+            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: Some(Vec::new()),
             ..Default::default()
@@ -497,10 +520,16 @@ impl MenuChild {
         self.item_type
     }
 
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> MenuId {
+        match self.item_type() {
+            _ => self.id.clone(),
+        }
+    }
+
+    pub fn internal_id(&self) -> u32 {
         match self.item_type() {
             MenuItemType::Submenu => self.hmenu as u32,
-            _ => self.id,
+            _ => self.internal_id,
         }
     }
 
@@ -515,12 +544,12 @@ impl MenuChild {
                 info.fMask = MIIM_STRING;
                 info.dwTypeData = label.as_mut_ptr();
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
 
                 info.cch += 1;
                 info.dwTypeData = Vec::with_capacity(info.cch as usize).as_mut_ptr();
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
 
                 let text = decode_wide(info.dwTypeData);
                 text.split('\t').next().unwrap().to_string()
@@ -540,7 +569,7 @@ impl MenuChild {
             info.fMask = MIIM_STRING;
             info.dwTypeData = encode_wide(&self.text).as_mut_ptr();
 
-            unsafe { SetMenuItemInfoW(*parent, self.id(), false.into(), &info) };
+            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), false.into(), &info) };
         }
     }
 
@@ -552,7 +581,7 @@ impl MenuChild {
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STATE;
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
 
                 (info.fState & MFS_DISABLED) == 0
             })
@@ -565,7 +594,7 @@ impl MenuChild {
             unsafe {
                 EnableMenuItem(
                     *parent,
-                    self.id(),
+                    self.internal_id(),
                     if enabled { MF_ENABLED } else { MF_DISABLED },
                 )
             };
@@ -580,9 +609,9 @@ impl MenuChild {
         for store in haccel_stores {
             let mut store = store.borrow_mut();
             if let Some(accelerator) = self.accelerator {
-                AccelAction::add(&mut store, self.id, &accelerator)?
+                AccelAction::add(&mut store, self.internal_id, &accelerator)?
             } else {
-                AccelAction::remove(&mut store, self.id)
+                AccelAction::remove(&mut store, self.internal_id)
             }
         }
 
@@ -600,7 +629,7 @@ impl MenuChild {
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STATE;
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
 
                 (info.fState & MFS_CHECKED) != 0
             })
@@ -615,7 +644,7 @@ impl MenuChild {
             unsafe {
                 WindowsAndMessaging::CheckMenuItem(
                     *parent,
-                    self.id(),
+                    self.internal_id(),
                     if checked { MF_CHECKED } else { MF_UNCHECKED },
                 )
             };
@@ -631,7 +660,7 @@ impl MenuChild {
         let hbitmap = icon.map(|i| unsafe { i.inner.to_hbitmap() }).unwrap_or(0);
         let info = create_icon_item_info(hbitmap);
         for parent in &self.parents_hemnu {
-            unsafe { SetMenuItemInfoW(*parent, self.id(), false.into(), &info) };
+            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), false.into(), &info) };
         }
     }
 }
@@ -670,11 +699,11 @@ impl MenuChild {
 
                 for root_menu in self.root_menu_haccel_stores.as_mut().unwrap() {
                     let mut haccel = root_menu.borrow_mut();
-                    AccelAction::add(&mut haccel, child_.id(), accelerator)?;
+                    AccelAction::add(&mut haccel, child_.internal_id(), accelerator)?;
                 }
             }
 
-            let id = child_.id() as usize;
+            let id = child_.internal_id() as usize;
             let text = encode_wide(text);
             unsafe {
                 match op {
@@ -714,8 +743,8 @@ impl MenuChild {
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.id, false.into(), &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.id, false.into(), &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id, false.into(), &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, false.into(), &info);
                 };
             }
         }
@@ -738,9 +767,10 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
+        let id = item.child().borrow().internal_id();
         unsafe {
-            RemoveMenu(self.hmenu, item.id(), MF_BYCOMMAND);
-            RemoveMenu(self.hpopupmenu, item.id(), MF_BYCOMMAND);
+            RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
+            RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
         }
 
         let child = item.child();
@@ -764,7 +794,7 @@ impl MenuChild {
         let children = self.children.as_mut().unwrap();
         let index = children
             .iter()
-            .position(|e| e.borrow().id() == item.id())
+            .position(|e| e.borrow().internal_id() == id)
             .ok_or(crate::Error::NotAChildOfThisMenu)?;
         children.remove(index);
 
@@ -813,7 +843,7 @@ impl MenuChild {
 fn find_by_id(id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) -> Option<Rc<RefCell<MenuChild>>> {
     for i in children {
         let item = i.borrow();
-        if item.id() == id {
+        if item.internal_id() == id {
             return Some(i.clone());
         }
 
@@ -918,13 +948,15 @@ unsafe extern "system" fn menu_subclass_proc(
         if let Some(item) = item {
             ret = 0;
 
-            let mut dispatch = true;
+            let (mut dispatch, mut menu_id) = (true, None);
 
             {
                 let mut item = item.borrow_mut();
 
                 if item.item_type() == MenuItemType::Predefined {
                     dispatch = false;
+                } else {
+                    menu_id.replace(item.id.clone());
                 }
 
                 match item.item_type() {
@@ -966,7 +998,9 @@ unsafe extern "system" fn menu_subclass_proc(
             }
 
             if dispatch {
-                MenuEvent::send(MenuEvent { id });
+                MenuEvent::send(MenuEvent {
+                    id: menu_id.unwrap(),
+                });
             }
         }
     }

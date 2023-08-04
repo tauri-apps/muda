@@ -2,19 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, MenuItem};
+use crate::{accelerator::Accelerator, MenuId, MenuItem};
 
 /// A builder type for [`MenuItem`]
 #[derive(Clone, Debug, Default)]
 pub struct MenuItemBuilder {
     text: String,
     enabled: bool,
+    id: Option<MenuId>,
     acccelerator: Option<Accelerator>,
 }
 
 impl MenuItemBuilder {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Set the id this menu item.
+    pub fn id(mut self, id: MenuId) -> Self {
+        self.id.replace(id);
+        self
     }
 
     /// Set the text for this menu item.
@@ -45,6 +52,10 @@ impl MenuItemBuilder {
 
     /// Build this menu item.
     pub fn build(self) -> MenuItem {
-        MenuItem::new(self.text, self.enabled, self.acccelerator)
+        if let Some(id) = self.id {
+            MenuItem::with_id(id, self.text, self.enabled, self.acccelerator)
+        } else {
+            MenuItem::new(self.text, self.enabled, self.acccelerator)
+        }
     }
 }

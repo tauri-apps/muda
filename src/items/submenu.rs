@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemKind, Position};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -25,7 +25,17 @@ impl Submenu {
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
         Self(Rc::new(RefCell::new(
-            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled),
+            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, None),
+        )))
+    }
+
+    /// Create a new submenu with the specified id.
+    ///
+    /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
+    /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
+    pub fn with_id<S: AsRef<str>>(id: MenuId, text: S, enabled: bool) -> Self {
+        Self(Rc::new(RefCell::new(
+            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, Some(id)),
         )))
     }
 
@@ -40,8 +50,20 @@ impl Submenu {
         Ok(menu)
     }
 
+    /// Creates a new submenu with the specified id and given `items`. It calls [`Submenu::new`] and [`Submenu::append_items`] internally.
+    pub fn with_id_and_items<S: AsRef<str>>(
+        id: MenuId,
+        text: S,
+        enabled: bool,
+        items: &[&dyn IsMenuItem],
+    ) -> crate::Result<Self> {
+        let menu = Self::with_id(id, text, enabled);
+        menu.append_items(items)?;
+        Ok(menu)
+    }
+
     /// Returns a unique identifier associated with this submenu.
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> MenuId {
         self.0.borrow().id()
     }
 

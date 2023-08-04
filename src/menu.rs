@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuItemKind, Position};
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
@@ -20,7 +20,14 @@ impl Default for Menu {
 impl Menu {
     /// Creates a new menu.
     pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new())))
+        Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new(None))))
+    }
+
+    /// Creates a new menu with the specified id.
+    pub fn with_id(id: MenuId) -> Self {
+        Self(Rc::new(RefCell::new(crate::platform_impl::Menu::new(
+            Some(id),
+        ))))
     }
 
     /// Creates a new menu with given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
@@ -30,8 +37,15 @@ impl Menu {
         Ok(menu)
     }
 
+    /// Creates a new menu with the specified id and given `items`. It calls [`Menu::new`] and [`Menu::append_items`] internally.
+    pub fn with_id_and_items(id: MenuId, items: &[&dyn IsMenuItem]) -> crate::Result<Self> {
+        let menu = Self::with_id(id);
+        menu.append_items(items)?;
+        Ok(menu)
+    }
+
     /// Returns a unique identifier associated with this menu.
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> MenuId {
         self.0.borrow().id()
     }
 

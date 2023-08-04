@@ -126,14 +126,17 @@
 //! }
 //! ```
 
+use std::str::FromStr;
+
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
 mod about_metadata;
 pub mod accelerator;
-pub mod builders;
+mod builders;
 mod dpi;
 mod error;
+mod icon;
 mod items;
 mod menu;
 mod platform_impl;
@@ -144,14 +147,45 @@ mod util;
 extern crate objc;
 
 pub use about_metadata::AboutMetadata;
+pub use builders::*;
 pub use dpi::*;
 pub use error::*;
+pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
 pub use menu::Menu;
-pub mod icon;
+
+/// An unique id that is associated with a menu item.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct MenuId(String);
+
+impl AsRef<str> for MenuId {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl From<String> for MenuId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for MenuId {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl FromStr for MenuId {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
 
 /// An enumeration of all available menu types, useful to match against
-/// the items return from [`Menu::items`] or [`Submenu::items`]
+/// the items returned from [`Menu::items`] or [`Submenu::items`]
 #[derive(Clone)]
 pub enum MenuItemKind {
     MenuItem(MenuItem),
@@ -163,7 +197,7 @@ pub enum MenuItemKind {
 
 impl MenuItemKind {
     /// Returns the id associated with this menu entry
-    fn id(&self) -> u32 {
+    fn id(&self) -> MenuId {
         match self {
             MenuItemKind::MenuItem(i) => i.id(),
             MenuItemKind::Submenu(i) => i.id(),
@@ -262,7 +296,7 @@ impl MenuItemKind {
 pub unsafe trait IsMenuItem {
     fn kind(&self) -> MenuItemKind;
 
-    fn id(&self) -> u32 {
+    fn id(&self) -> MenuId {
         self.kind().id()
     }
 }
@@ -332,10 +366,10 @@ pub trait ContextMenu {
 }
 
 /// Describes a menu event emitted when a menu item is activated
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MenuEvent {
     /// Id of the menu item which triggered this event
-    pub id: u32,
+    pub id: MenuId,
 }
 
 /// A reciever that could be used to listen to menu events.
@@ -347,8 +381,8 @@ static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
 
 impl MenuEvent {
     /// Returns the id of the menu item which triggered this event
-    pub fn id(&self) -> u32 {
-        self.id
+    pub fn id(&self) -> &MenuId {
+        &self.id
     }
 
     /// Gets a reference to the event channel's [`MenuEventReceiver`]

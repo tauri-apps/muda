@@ -30,7 +30,6 @@ impl dyn IsMenuItem + '_ {
             MenuItemKind::Check(i) => i.0,
             MenuItemKind::Icon(i) => i.0,
         }
-        .clone()
     }
 }
 
