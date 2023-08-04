@@ -176,6 +176,18 @@ impl From<&str> for MenuId {
     }
 }
 
+impl PartialEq<&str> for MenuId {
+    fn eq(&self, other: &&str) -> bool {
+        other == &self.0
+    }
+}
+
+impl PartialEq<String> for MenuId {
+    fn eq(&self, other: &String) -> bool {
+        other == &self.0
+    }
+}
+
 impl FromStr for MenuId {
     type Err = Infallible;
 
