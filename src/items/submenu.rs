@@ -132,6 +132,18 @@ impl Submenu {
         self.inner.borrow_mut().remove(item)
     }
 
+    /// Remove the menu item at the specified position from this submenu.
+    pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
+        let mut items = self.items();
+        if items.len() > position {
+            let item = items.remove(position);
+            let _ = self.remove(item.as_ref());
+            Some(item)
+        } else {
+            None
+        }
+    }
+
     /// Returns a list of menu items that has been added to this submenu.
     pub fn items(&self) -> Vec<MenuItemKind> {
         self.inner.borrow().items()
@@ -158,8 +170,6 @@ impl Submenu {
     pub fn set_enabled(&self, enabled: bool) {
         self.inner.borrow_mut().set_enabled(enabled)
     }
-
-    // TODO: in a minor release, rename the following two functions to be `set_as_*`
 
     /// Set this submenu as the Window menu for the application on macOS.
     ///
