@@ -144,7 +144,17 @@ impl Menu {
         self.inner.borrow_mut().remove(item)
     }
 
-    // TODO: add remove_at position
+    /// Remove the menu item at the specified position from this menu.
+    pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
+        let mut items = self.items();
+        if items.len() > position {
+            let item = items.remove(position);
+            let _ = self.remove(item.as_ref());
+            Some(item)
+        } else {
+            None
+        }
+    }
 
     /// Returns a list of menu items that has been added to this menu.
     pub fn items(&self) -> Vec<MenuItemKind> {

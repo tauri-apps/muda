@@ -156,7 +156,7 @@ pub use menu::Menu;
 
 /// An unique id that is associated with a menu item.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-pub struct MenuId(String);
+pub struct MenuId(pub String);
 
 impl AsRef<str> for MenuId {
     fn as_ref(&self) -> &str {
