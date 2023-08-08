@@ -143,7 +143,7 @@ impl Menu {
 
         let (menu_id, menu) = &self.gtk_menu;
         if let Some(menu) = menu {
-            let gtk_item = item.make_gtk_menu_item(*menu_id, None, true)?;
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
             menu.append(&gtk_item);
             gtk_item.show();
         }
@@ -832,7 +832,7 @@ impl MenuChild {
 
         let (menu_id, menu) = self.gtk_menu.as_ref().unwrap();
         if let Some(menu) = menu {
-            let gtk_item = item.make_gtk_menu_item(*menu_id, None, true)?;
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
             menu.append(&gtk_item);
             gtk_item.show();
         }
