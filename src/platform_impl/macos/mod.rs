@@ -619,19 +619,6 @@ impl MenuChild {
             }
         }
 
-        // get a list of instances of the specified NSMenuItem in this menu
-        for menus in self.ns_menus.as_ref().unwrap().values() {
-            for menu in menus {
-                // TODO remove submenu items
-
-                if let Some(items) = child.borrow_mut().ns_menu_items.remove(&menu.0) {
-                    for item in items {
-                        let () = unsafe { msg_send![menu.1, removeItem: item] };
-                    }
-                }
-            }
-        }
-
         if remove_from_cache {
             if let Some(ns_menu_items) = child
                 .borrow_mut()
