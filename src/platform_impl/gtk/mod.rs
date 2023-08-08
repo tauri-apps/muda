@@ -15,7 +15,7 @@ use crate::{
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
-use gtk::{prelude::*, Orientation};
+use gtk::{prelude::*, Container, Orientation};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -25,39 +25,57 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
-macro_rules! return_if_predefined_item_not_supported {
-    ($item:tt) => {
+macro_rules! is_item_supported {
+    ($item:tt) => {{
         let child = $item.child();
         let child_ = child.borrow();
-        match (&child_.item_type, &child_.predefined_item_type) {
-            (
-                MenuItemType::Predefined,
+        let supported = if let Some(predefined_item_type) = &child_.predefined_item_type {
+            matches!(
+                predefined_item_type,
                 PredefinedMenuItemType::Separator
-                | PredefinedMenuItemType::Copy
-                | PredefinedMenuItemType::Cut
-                | PredefinedMenuItemType::Paste
-                | PredefinedMenuItemType::SelectAll
-                | PredefinedMenuItemType::About(_),
-            ) => {}
-            (
-                MenuItemType::Submenu
-                | MenuItemType::MenuItem
-                | MenuItemType::Check
-                | MenuItemType::Icon,
-                _,
-            ) => {}
-            _ => return Ok(()),
-        }
+                    | PredefinedMenuItemType::Copy
+                    | PredefinedMenuItemType::Cut
+                    | PredefinedMenuItemType::Paste
+                    | PredefinedMenuItemType::SelectAll
+                    | PredefinedMenuItemType::About(_)
+            )
+        } else {
+            true
+        };
         drop(child_);
+        supported
+    }};
+}
+
+macro_rules! return_if_item_not_supported {
+    ($item:tt) => {
+        if !is_item_supported!($item) {
+            return Ok(());
+        }
     };
 }
 
 pub struct Menu {
     id: MenuId,
     children: Vec<Rc<RefCell<MenuChild>>>,
+    // TODO: maybe save a reference to the window?
     gtk_menubars: HashMap<u32, gtk::MenuBar>,
     accel_group: Option<gtk::AccelGroup>,
     gtk_menu: (u32, Option<gtk::Menu>), // dedicated menu for tray or context menus
+}
+
+impl Drop for Menu {
+    fn drop(&mut self) {
+        for (id, menu) in &self.gtk_menubars {
+            drop_children_from_menu_and_destroy(*id, menu, &self.children);
+            unsafe { menu.destroy() }
+        }
+
+        if let (id, Some(menu)) = &self.gtk_menu {
+            drop_children_from_menu_and_destroy(*id, menu, &self.children);
+            unsafe { menu.destroy() }
+        }
+    }
 }
 
 impl Menu {
@@ -76,27 +94,27 @@ impl Menu {
     }
 
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
-
-        for (menu_id, menu_bar) in &self.gtk_menubars {
-            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
-            match op {
-                AddOp::Append => menu_bar.append(&gtk_item),
-                AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
-            }
-            gtk_item.show();
-        }
-
-        {
-            let (menu_id, menu) = &self.gtk_menu;
-            if let Some(menu) = menu {
+        if is_item_supported!(item) {
+            for (menu_id, menu_bar) in &self.gtk_menubars {
                 let gtk_item =
                     item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
                 match op {
-                    AddOp::Append => menu.append(&gtk_item),
-                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+                    AddOp::Append => menu_bar.append(&gtk_item),
+                    AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
                 }
                 gtk_item.show();
+            }
+
+            {
+                if let (menu_id, Some(menu)) = &self.gtk_menu {
+                    let gtk_item =
+                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
+                    match op {
+                        AddOp::Append => menu.append(&gtk_item),
+                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+                    }
+                    gtk_item.show();
+                }
             }
         }
 
@@ -109,7 +127,7 @@ impl Menu {
     }
 
     fn add_menu_item_with_id(&self, item: &dyn crate::IsMenuItem, id: u32) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
+        return_if_item_not_supported!(item);
 
         for (menu_id, menu_bar) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
             let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
@@ -121,7 +139,7 @@ impl Menu {
     }
 
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
+        return_if_item_not_supported!(item);
 
         let (menu_id, menu) = &self.gtk_menu;
         if let Some(menu) = menu {
@@ -137,12 +155,13 @@ impl Menu {
         self.remove_inner(item, true, None)
     }
 
-    pub fn remove_inner(
+    fn remove_inner(
         &mut self,
         item: &dyn crate::IsMenuItem,
         remove_from_cache: bool,
         id: Option<u32>,
     ) -> crate::Result<()> {
+        // get child
         let child = {
             let index = self
                 .children
@@ -156,46 +175,64 @@ impl Menu {
             }
         };
 
-        if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.inner.borrow().gtk_menus.clone();
-
-            for (menu_id, _) in gtk_menus {
-                for item in i.items() {
-                    i.inner
-                        .borrow_mut()
-                        .remove_inner(item.as_ref(), false, Some(menu_id))?;
-                }
-            }
-        }
-
         for (menu_id, menu_bar) in &self.gtk_menubars {
+            // check if we are removing this item from all gtk_menubars
+            //      which is usually when this is the item the user is actaully removing
+            // or if we are removing from a specific menu (id)
+            //      which is when the actual item being removed is a submenu
+            //      and we are iterating through its children and removing
+            //      each child gtk items that are related to this submenu.
             if id.map(|i| i == *menu_id).unwrap_or(true) {
-                if let Some(items) = child
-                    .borrow_mut()
-                    .gtk_menu_items
-                    .borrow_mut()
-                    .remove(menu_id)
-                {
-                    for item in items {
-                        menu_bar.remove(&item);
+                // bail this is not a supported item like a close_window predefined menu item
+                if is_item_supported!(item) {
+                    let mut child_ = child.borrow_mut();
+
+                    if child_.item_type == MenuItemType::Submenu {
+                        let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
+                        if let Some(menus) = menus {
+                            for (id, menu) in menus {
+                                // iterate through children and only remove the gtk items
+                                // related to this submenu
+                                for item in child_.items() {
+                                    child_.remove_inner(item.as_ref(), false, Some(id))?;
+                                }
+                                unsafe { menu.destroy() };
+                            }
+                        }
+                        child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                     }
+
+                    // remove all the gtk items that are related to this gtk menubar and destroy it
+                    if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
+                        for item in items {
+                            menu_bar.remove(&item);
+                            if let Some(accel_group) = &child_.accel_group {
+                                if let Some((mods, key)) = child_.gtk_accelerator {
+                                    item.remove_accelerator(accel_group, key, mods);
+                                }
+                            }
+                            unsafe { item.destroy() };
+                        }
+                    };
                 }
             }
         }
 
+        // remove from the gtk menu assigned to the context menu
         if remove_from_cache {
-            let (menu_id, menu) = &self.gtk_menu;
-            if let Some(menu) = menu {
-                if let Some(items) = child
-                    .borrow_mut()
-                    .gtk_menu_items
-                    .borrow_mut()
-                    .remove(menu_id)
-                {
+            if let (id, Some(menu)) = &self.gtk_menu {
+                let child_ = child.borrow_mut();
+                if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(id) {
                     for item in items {
                         menu.remove(&item);
+                        if let Some(accel_group) = &child_.accel_group {
+                            if let Some((mods, key)) = child_.gtk_accelerator {
+                                item.remove_accelerator(accel_group, key, mods);
+                            }
+                        }
+                        unsafe { item.destroy() };
                     }
-                }
+                };
             }
         }
         Ok(())
@@ -365,20 +402,83 @@ pub struct MenuChild {
     gtk_accelerator: Option<(gdk::ModifierType, u32)>,
 
     // predefined menu item fields
-    predefined_item_type: PredefinedMenuItemType,
+    predefined_item_type: Option<PredefinedMenuItemType>,
 
     // check menu item fields
-    checked: Rc<AtomicBool>,
-    is_syncing_checked_state: Rc<AtomicBool>,
+    checked: Option<Rc<AtomicBool>>,
+    is_syncing_checked_state: Option<Rc<AtomicBool>>,
 
     // icon menu item fields
     icon: Option<Icon>,
 
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    gtk_menus: HashMap<u32, Vec<(u32, gtk::Menu)>>,
-    gtk_menu: (u32, Option<gtk::Menu>), // dedicated menu for tray or context menus
+    gtk_menus: Option<HashMap<u32, Vec<(u32, gtk::Menu)>>>,
+    gtk_menu: Option<(u32, Option<gtk::Menu>)>, // dedicated menu for tray or context menus
     accel_group: Option<gtk::AccelGroup>,
+}
+
+impl Drop for MenuChild {
+    fn drop(&mut self) {
+        if self.item_type == MenuItemType::Submenu {
+            for menus in self.gtk_menus.as_ref().unwrap().values() {
+                for (id, menu) in menus {
+                    drop_children_from_menu_and_destroy(*id, menu, self.children.as_ref().unwrap());
+                    unsafe { menu.destroy() };
+                }
+            }
+
+            if let Some((id, Some(menu))) = &self.gtk_menu {
+                drop_children_from_menu_and_destroy(*id, menu, self.children.as_ref().unwrap());
+                unsafe { menu.destroy() };
+            }
+        }
+
+        for items in self.gtk_menu_items.borrow().values() {
+            for item in items {
+                if let Some(accel_group) = &self.accel_group {
+                    if let Some((mods, key)) = self.gtk_accelerator {
+                        item.remove_accelerator(accel_group, key, mods);
+                    }
+                }
+                unsafe { item.destroy() };
+            }
+        }
+    }
+}
+
+fn drop_children_from_menu_and_destroy(
+    id: u32,
+    menu: &impl IsA<Container>,
+    children: &Vec<Rc<RefCell<MenuChild>>>,
+) {
+    for child in children {
+        let mut child_ = child.borrow_mut();
+        {
+            let mut menu_items = child_.gtk_menu_items.borrow_mut();
+            if let Some(items) = menu_items.remove(&id) {
+                for item in items {
+                    menu.remove(&item);
+                    if let Some(accel_group) = &child_.accel_group {
+                        if let Some((mods, key)) = child_.gtk_accelerator {
+                            item.remove_accelerator(accel_group, key, mods);
+                        }
+                    }
+                    unsafe { item.destroy() }
+                }
+            }
+        }
+
+        if child_.item_type == MenuItemType::Submenu {
+            if let Some(menus) = child_.gtk_menus.as_mut().unwrap().remove(&id) {
+                for (id, menu) in menus {
+                    let children = child_.children.as_ref().unwrap();
+                    drop_children_from_menu_and_destroy(id, &menu, children);
+                    unsafe { menu.destroy() }
+                }
+            }
+        }
+    }
 }
 
 /// Constructors
@@ -396,7 +496,15 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::MenuItem,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            ..Default::default()
+            accel_group: None,
+            checked: None,
+            children: None,
+            gtk_accelerator: None,
+            gtk_menu: None,
+            gtk_menus: None,
+            icon: None,
+            is_syncing_checked_state: None,
+            predefined_item_type: None,
         }
     }
 
@@ -407,10 +515,16 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             children: Some(Vec::new()),
             item_type: MenuItemType::Submenu,
-            gtk_menu: (COUNTER.next(), None),
+            gtk_menu: Some((COUNTER.next(), None)),
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            gtk_menus: HashMap::new(),
-            ..Default::default()
+            gtk_menus: Some(HashMap::new()),
+            accel_group: None,
+            gtk_accelerator: None,
+            icon: None,
+            is_syncing_checked_state: None,
+            predefined_item_type: None,
+            accelerator: None,
+            checked: None,
         }
     }
 
@@ -421,9 +535,16 @@ impl MenuChild {
             accelerator: item_type.accelerator(),
             id: MenuId(COUNTER.next().to_string()),
             item_type: MenuItemType::Predefined,
-            predefined_item_type: item_type,
+            predefined_item_type: Some(item_type),
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            ..Default::default()
+            accel_group: None,
+            checked: None,
+            children: None,
+            gtk_accelerator: None,
+            gtk_menu: None,
+            gtk_menus: None,
+            icon: None,
+            is_syncing_checked_state: None,
         }
     }
 
@@ -437,13 +558,19 @@ impl MenuChild {
         Self {
             text: text.to_string(),
             enabled,
-            checked: Rc::new(AtomicBool::new(checked)),
+            checked: Some(Rc::new(AtomicBool::new(checked))),
+            is_syncing_checked_state: Some(Rc::new(AtomicBool::new(false))),
             accelerator,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Check,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
-            ..Default::default()
+            accel_group: None,
+            children: None,
+            gtk_accelerator: None,
+            gtk_menu: None,
+            gtk_menus: None,
+            icon: None,
+            predefined_item_type: None,
         }
     }
 
@@ -462,8 +589,14 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
-            ..Default::default()
+            accel_group: None,
+            checked: None,
+            children: None,
+            gtk_accelerator: None,
+            gtk_menu: None,
+            gtk_menus: None,
+            is_syncing_checked_state: None,
+            predefined_item_type: None,
         }
     }
 
@@ -481,8 +614,15 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            is_syncing_checked_state: Rc::new(AtomicBool::new(false)),
-            ..Default::default()
+            accel_group: None,
+            checked: None,
+            children: None,
+            gtk_accelerator: None,
+            gtk_menu: None,
+            gtk_menus: None,
+            icon: None,
+            is_syncing_checked_state: None,
+            predefined_item_type: None,
         }
     }
 }
@@ -591,13 +731,17 @@ impl MenuChild {
             .map(|e| e.map(|i| i.downcast_ref::<gtk::CheckMenuItem>().unwrap().is_active()))
         {
             Some(Some(checked)) => checked,
-            _ => self.checked.load(Ordering::Relaxed),
+            _ => self.checked.as_ref().unwrap().load(Ordering::Relaxed),
         }
     }
 
     pub fn set_checked(&mut self, checked: bool) {
-        self.checked.store(checked, Ordering::Release);
-        self.is_syncing_checked_state.store(true, Ordering::Release);
+        self.checked
+            .as_ref()
+            .unwrap()
+            .store(checked, Ordering::Release);
+        let is_syncing = self.is_syncing_checked_state.as_ref().unwrap();
+        is_syncing.store(true, Ordering::Release);
         for items in self.gtk_menu_items.borrow().values() {
             for i in items {
                 i.downcast_ref::<gtk::CheckMenuItem>()
@@ -605,8 +749,7 @@ impl MenuChild {
                     .set_active(checked);
             }
         }
-        self.is_syncing_checked_state
-            .store(false, Ordering::Release);
+        is_syncing.store(false, Ordering::Release);
     }
 }
 
@@ -631,30 +774,29 @@ impl MenuChild {
 /// Submenu methods
 impl MenuChild {
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
-
-        for menus in self.gtk_menus.values() {
-            for (menu_id, menu) in menus {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
-                match op {
-                    AddOp::Append => menu.append(&gtk_item),
-                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+        if is_item_supported!(item) {
+            for menus in self.gtk_menus.as_ref().unwrap().values() {
+                for (menu_id, menu) in menus {
+                    let gtk_item =
+                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
+                    match op {
+                        AddOp::Append => menu.append(&gtk_item),
+                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+                    }
+                    gtk_item.show();
                 }
-                gtk_item.show();
             }
-        }
 
-        {
-            let (menu_id, menu) = &self.gtk_menu;
-            if let Some(menu) = menu {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
-                match op {
-                    AddOp::Append => menu.append(&gtk_item),
-                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+            {
+                if let (menu_id, Some(menu)) = self.gtk_menu.as_ref().unwrap() {
+                    let gtk_item =
+                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
+                    match op {
+                        AddOp::Append => menu.append(&gtk_item),
+                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+                    }
+                    gtk_item.show();
                 }
-                gtk_item.show();
             }
         }
 
@@ -671,9 +813,9 @@ impl MenuChild {
     }
 
     fn add_menu_item_with_id(&self, item: &dyn crate::IsMenuItem, id: u32) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
+        return_if_item_not_supported!(item);
 
-        for menus in self.gtk_menus.values() {
+        for menus in self.gtk_menus.as_ref().unwrap().values() {
             for (menu_id, menu) in menus.iter().filter(|m| m.0 == id) {
                 let gtk_item =
                     item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
@@ -686,11 +828,11 @@ impl MenuChild {
     }
 
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        return_if_predefined_item_not_supported!(item);
+        return_if_item_not_supported!(item);
 
-        let (menu_id, menu) = &self.gtk_menu;
+        let (menu_id, menu) = self.gtk_menu.as_ref().unwrap();
         if let Some(menu) = menu {
-            let gtk_item = item.make_gtk_menu_item(*menu_id, None, true)?;
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true)?;
             menu.append(&gtk_item);
             gtk_item.show();
         }
@@ -708,6 +850,7 @@ impl MenuChild {
         remove_from_cache: bool,
         id: Option<u32>,
     ) -> crate::Result<()> {
+        // get child
         let child = {
             let index = self
                 .children
@@ -723,48 +866,66 @@ impl MenuChild {
             }
         };
 
-        if let MenuItemKind::Submenu(i) = item.kind() {
-            let gtk_menus = i.inner.borrow().gtk_menus.clone();
-
-            for (menu_id, _) in gtk_menus {
-                for item in i.items() {
-                    i.inner
-                        .borrow_mut()
-                        .remove_inner(item.as_ref(), false, Some(menu_id))?;
-                }
-            }
-        }
-
-        for menus in self.gtk_menus.values() {
+        for menus in self.gtk_menus.as_ref().unwrap().values() {
             for (menu_id, menu) in menus {
+                // check if we are removing this item from all gtk_menus
+                //      which is usually when this is the item the user is actaully removing
+                // or if we are removing from a specific menu (id)
+                //      which is when the actual item being removed is a submenu
+                //      and we are iterating through its children and removing
+                //      each child gtk items that are related to this submenu.
                 if id.map(|i| i == *menu_id).unwrap_or(true) {
-                    if let Some(items) = child
-                        .borrow_mut()
-                        .gtk_menu_items
-                        .borrow_mut()
-                        .remove(menu_id)
-                    {
-                        for item in items {
-                            menu.remove(&item);
+                    // bail this is not a supported item like a close_window predefined menu item
+                    if is_item_supported!(item) {
+                        let mut child_ = child.borrow_mut();
+
+                        if child_.item_type == MenuItemType::Submenu {
+                            let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
+                            if let Some(menus) = menus {
+                                for (id, menu) in menus {
+                                    // iterate through children and only remove the gtk items
+                                    // related to this submenu
+                                    for item in child_.items() {
+                                        child_.remove_inner(item.as_ref(), false, Some(id))?;
+                                    }
+                                    unsafe { menu.destroy() };
+                                }
+                            }
+                            child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                         }
+
+                        // remove all the gtk items that are related to this gtk menu and destroy it
+                        if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
+                            for item in items {
+                                menu.remove(&item);
+                                if let Some(accel_group) = &child_.accel_group {
+                                    if let Some((mods, key)) = child_.gtk_accelerator {
+                                        item.remove_accelerator(accel_group, key, mods);
+                                    }
+                                }
+                                unsafe { item.destroy() };
+                            }
+                        };
                     }
                 }
             }
         }
 
+        // remove from the gtk menu assigned to the context menu
         if remove_from_cache {
-            let (menu_id, menu) = &self.gtk_menu;
-            if let Some(menu) = menu {
-                if let Some(items) = child
-                    .borrow_mut()
-                    .gtk_menu_items
-                    .borrow_mut()
-                    .remove(menu_id)
-                {
+            if let (id, Some(menu)) = self.gtk_menu.as_ref().unwrap() {
+                let child_ = child.borrow_mut();
+                if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(id) {
                     for item in items {
                         menu.remove(&item);
+                        if let Some(accel_group) = &child_.accel_group {
+                            if let Some((mods, key)) = child_.gtk_accelerator {
+                                item.remove_accelerator(accel_group, key, mods);
+                            }
+                        }
+                        unsafe { item.destroy() };
                     }
-                }
+                };
             }
         }
 
@@ -791,8 +952,9 @@ impl MenuChild {
     pub fn gtk_context_menu(&mut self) -> gtk::Menu {
         let mut add_items = false;
         {
-            if self.gtk_menu.1.is_none() {
-                self.gtk_menu.1 = Some(gtk::Menu::new());
+            let gtk_menu = self.gtk_menu.as_mut().unwrap();
+            if gtk_menu.1.is_none() {
+                gtk_menu.1 = Some(gtk::Menu::new());
                 add_items = true;
             }
         }
@@ -803,7 +965,7 @@ impl MenuChild {
             }
         }
 
-        self.gtk_menu.1.as_ref().unwrap().clone()
+        self.gtk_menu.as_ref().unwrap().1.as_ref().unwrap().clone()
     }
 }
 
@@ -860,6 +1022,8 @@ impl MenuChild {
                 .or_insert_with(Vec::new)
                 .push(item.clone());
             self.gtk_menus
+                .as_mut()
+                .unwrap()
                 .entry(menu_id)
                 .or_insert_with(Vec::new)
                 .push((id, submenu.clone()));
@@ -921,7 +1085,7 @@ impl MenuChild {
             .as_ref()
             .map(parse_accelerator)
             .transpose()?;
-        let predefined_item_type = self.predefined_item_type.clone();
+        let predefined_item_type = self.predefined_item_type.clone().unwrap();
 
         let make_item = || {
             gtk::MenuItem::builder()
@@ -1038,7 +1202,7 @@ impl MenuChild {
             .label(&to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .sensitive(self.enabled)
-            .active(self.checked.load(Ordering::Relaxed))
+            .active(self.checked.as_ref().unwrap().load(Ordering::Relaxed))
             .build();
 
         self.accel_group = accel_group.cloned();
@@ -1046,8 +1210,8 @@ impl MenuChild {
         register_accel!(self, item, accel_group);
 
         let id = self.id.clone();
-        let is_syncing_checked_state = self.is_syncing_checked_state.clone();
-        let checked = self.checked.clone();
+        let is_syncing_checked_state = self.is_syncing_checked_state.clone().unwrap();
+        let checked = self.checked.clone().unwrap();
         let store = self.gtk_menu_items.clone();
         item.connect_toggled(move |i| {
             let should_dispatch = is_syncing_checked_state
