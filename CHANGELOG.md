@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.2]
+
+- [`829051a`](https://www.github.com/tauri-apps/muda/commit/829051a30a1fef1e83b9bc0d4c10ff9874589f65) Dereference `&String` and `&&str` in `PartialEq` for `MenuId` type
+
 ## \[0.8.1]
 
 - [`32be0c5`](https://www.github.com/tauri-apps/muda/commit/32be0c58841252db4f07c273c894a01f1fa414ff)([#94](https://www.github.com/tauri-apps/muda/pull/94)) On Windows, reduce some unneccassry string cloning.
