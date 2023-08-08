@@ -30,9 +30,9 @@ use windows_sys::Win32::{
         Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
-            DestroyAcceleratorTable, DrawMenuBar, EnableMenuItem, GetCursorPos, GetMenu,
-            GetMenuItemInfoW, InsertMenuW, PostQuitMessage, RemoveMenu, SendMessageW, SetMenu,
-            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
+            DestroyAcceleratorTable, DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos,
+            GetMenu, GetMenuItemInfoW, InsertMenuW, PostQuitMessage, RemoveMenu, SendMessageW,
+            SetMenu, SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
             MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
             MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
             MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, WM_CLOSE,
@@ -61,7 +61,7 @@ macro_rules! inner_menu_child_and_flags {
             MenuItemKind::Predefined(i) => {
                 let child = i.inner.clone();
                 let child_ = child.borrow();
-                match child_.predefined_item_type {
+                match child_.predefined_item_type.as_ref().unwrap() {
                     PredefinedMenuItemType::None => return Ok(()),
                     PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
@@ -101,6 +101,44 @@ pub(crate) struct Menu {
     children: Vec<Rc<RefCell<MenuChild>>>,
 }
 
+impl Drop for Menu {
+    fn drop(&mut self) {
+        for hwnd in self.hwnds.clone() {
+            let _ = self.remove_for_hwnd(hwnd);
+        }
+
+        fn remove_from_children_stores(id: &MenuId, children: &Vec<Rc<RefCell<MenuChild>>>) {
+            for child in children {
+                let mut child_ = child.borrow_mut();
+                child_.root_menu_haccel_stores.remove(id);
+                if child_.item_type == MenuItemType::Submenu {
+                    remove_from_children_stores(id, child_.children.as_ref().unwrap());
+                }
+            }
+        }
+
+        remove_from_children_stores(&self.id, &self.children);
+
+        for child in &self.children {
+            let child_ = child.borrow();
+            let id = if child_.item_type == MenuItemType::Submenu {
+                child_.hmenu as _
+            } else {
+                child_.internal_id
+            };
+            unsafe {
+                RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
+                RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
+            }
+        }
+
+        unsafe {
+            DestroyMenu(self.hmenu);
+            DestroyMenu(self.hpopupmenu);
+        }
+    }
+}
+
 impl Menu {
     pub fn new(id: Option<MenuId>) -> Self {
         Self {
@@ -124,9 +162,7 @@ impl Menu {
             child
                 .borrow_mut()
                 .root_menu_haccel_stores
-                .as_mut()
-                .unwrap()
-                .push(self.haccel_store.clone());
+                .insert(self.id.clone(), self.haccel_store.clone());
         }
 
         {
@@ -371,7 +407,7 @@ pub(crate) struct MenuChild {
     text: String,
     enabled: bool,
     parents_hemnu: Vec<HMENU>,
-    root_menu_haccel_stores: Option<Vec<Rc<RefCell<AccelWrapper>>>>,
+    root_menu_haccel_stores: HashMap<MenuId, Rc<RefCell<AccelWrapper>>>,
 
     // menu item fields
     internal_id: u32,
@@ -379,7 +415,7 @@ pub(crate) struct MenuChild {
     accelerator: Option<Accelerator>,
 
     // predefined menu item fields
-    predefined_item_type: PredefinedMenuItemType,
+    predefined_item_type: Option<PredefinedMenuItemType>,
 
     // check menu item fields
     checked: bool,
@@ -391,6 +427,23 @@ pub(crate) struct MenuChild {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
+}
+
+impl Drop for MenuChild {
+    fn drop(&mut self) {
+        if self.item_type == MenuItemType::Submenu {
+            unsafe {
+                DestroyMenu(self.hmenu);
+                DestroyMenu(self.hpopupmenu);
+            }
+        }
+
+        if self.accelerator.is_some() {
+            for store in self.root_menu_haccel_stores.values() {
+                AccelAction::remove(&mut store.borrow_mut(), self.internal_id)
+            }
+        }
+    }
 }
 
 /// Constructors
@@ -410,8 +463,13 @@ impl MenuChild {
             internal_id,
             id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            root_menu_haccel_stores: HashMap::new(),
+            predefined_item_type: None,
+            icon: None,
+            checked: false,
+            children: None,
+            hmenu: 0,
+            hpopupmenu: 0,
         }
     }
 
@@ -427,8 +485,11 @@ impl MenuChild {
             internal_id,
             id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             hpopupmenu: unsafe { CreatePopupMenu() },
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            root_menu_haccel_stores: HashMap::new(),
+            predefined_item_type: None,
+            icon: None,
+            checked: false,
+            accelerator: None,
         }
     }
 
@@ -442,9 +503,13 @@ impl MenuChild {
             internal_id,
             id: MenuId(internal_id.to_string()),
             accelerator: item_type.accelerator(),
-            predefined_item_type: item_type,
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            predefined_item_type: Some(item_type),
+            root_menu_haccel_stores: HashMap::new(),
+            icon: None,
+            checked: false,
+            children: None,
+            hmenu: 0,
+            hpopupmenu: 0,
         }
     }
 
@@ -465,8 +530,12 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             checked,
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            root_menu_haccel_stores: HashMap::new(),
+            predefined_item_type: None,
+            icon: None,
+            children: None,
+            hmenu: 0,
+            hpopupmenu: 0,
         }
     }
 
@@ -487,8 +556,12 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
             icon,
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            root_menu_haccel_stores: HashMap::new(),
+            predefined_item_type: None,
+            checked: false,
+            children: None,
+            hmenu: 0,
+            hpopupmenu: 0,
         }
     }
 
@@ -508,8 +581,13 @@ impl MenuChild {
             internal_id,
             id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
             accelerator,
-            root_menu_haccel_stores: Some(Vec::new()),
-            ..Default::default()
+            root_menu_haccel_stores: HashMap::new(),
+            predefined_item_type: None,
+            icon: None,
+            checked: false,
+            children: None,
+            hmenu: 0,
+            hpopupmenu: 0,
         }
     }
 }
@@ -556,16 +634,17 @@ impl MenuChild {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.text = if let Some(accelerator) = self.accelerator {
-            format!("{text}\t{}", accelerator)
+        self.text = text.to_string();
+        let mut text = if let Some(accelerator) = self.accelerator {
+            encode_wide(format!("{text}\t{}", accelerator))
         } else {
-            text.to_string()
+            encode_wide(text)
         };
         for parent in &self.parents_hemnu {
             let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
             info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
             info.fMask = MIIM_STRING;
-            info.dwTypeData = encode_wide(&self.text).as_mut_ptr();
+            info.dwTypeData = text.as_mut_ptr();
 
             unsafe { SetMenuItemInfoW(*parent, self.internal_id(), false.into(), &info) };
         }
@@ -603,8 +682,7 @@ impl MenuChild {
         self.accelerator = accelerator;
         self.set_text(&self.text.clone());
 
-        let haccel_stores = self.root_menu_haccel_stores.as_mut().unwrap();
-        for store in haccel_stores {
+        for store in self.root_menu_haccel_stores.values() {
             let mut store = store.borrow_mut();
             if let Some(accelerator) = self.accelerator {
                 AccelAction::add(&mut store, self.internal_id, &accelerator)?
@@ -676,9 +754,7 @@ impl MenuChild {
             child
                 .borrow_mut()
                 .root_menu_haccel_stores
-                .as_mut()
-                .unwrap()
-                .extend_from_slice(self.root_menu_haccel_stores.as_ref().unwrap());
+                .extend(self.root_menu_haccel_stores.clone());
         }
 
         {
@@ -695,7 +771,7 @@ impl MenuChild {
                 text.push('\t');
                 text.push_str(&accel_str);
 
-                for root_menu in self.root_menu_haccel_stores.as_mut().unwrap() {
+                for root_menu in self.root_menu_haccel_stores.values() {
                     let mut haccel = root_menu.borrow_mut();
                     AccelAction::add(&mut haccel, child_.internal_id(), accelerator)?;
                 }
@@ -885,30 +961,21 @@ impl AccelAction {
     ) -> crate::Result<()> {
         let accel = accelerator.to_accel(id as _)?;
         haccel_store.1.insert(id, Accel(accel));
-
         Self::update_store(haccel_store);
-
         Ok(())
     }
 
     fn remove(haccel_store: &mut RefMut<AccelWrapper>, id: u32) {
         haccel_store.1.remove(&id);
-
         Self::update_store(haccel_store)
     }
 
     fn update_store(haccel_store: &mut RefMut<AccelWrapper>) {
         unsafe {
             DestroyAcceleratorTable(haccel_store.0);
-            haccel_store.0 = CreateAcceleratorTableW(
-                haccel_store
-                    .1
-                    .values()
-                    .map(|i| i.0)
-                    .collect::<Vec<_>>()
-                    .as_ptr(),
-                haccel_store.1.len() as _,
-            );
+            let len = haccel_store.1.len();
+            let accels = haccel_store.1.values().map(|i| i.0).collect::<Vec<_>>();
+            haccel_store.0 = CreateAcceleratorTableW(accels.as_ptr(), len as _);
         }
     }
 }
@@ -962,35 +1029,45 @@ unsafe extern "system" fn menu_subclass_proc(
                         let checked = !item.checked;
                         item.set_checked(checked);
                     }
-                    MenuItemType::Predefined => match &item.predefined_item_type {
-                        PredefinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
-                        PredefinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
-                        PredefinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
-                        PredefinedMenuItemType::SelectAll => {
-                            execute_edit_command(EditCommand::SelectAll)
-                        }
-                        PredefinedMenuItemType::Separator => {}
-                        PredefinedMenuItemType::Minimize => {
-                            ShowWindow(hwnd, SW_MINIMIZE);
-                        }
-                        PredefinedMenuItemType::Maximize => {
-                            ShowWindow(hwnd, SW_MAXIMIZE);
-                        }
-                        PredefinedMenuItemType::Hide => {
-                            ShowWindow(hwnd, SW_HIDE);
-                        }
-                        PredefinedMenuItemType::CloseWindow => {
-                            SendMessageW(hwnd, WM_CLOSE, 0, 0);
-                        }
-                        PredefinedMenuItemType::Quit => {
-                            PostQuitMessage(0);
-                        }
-                        PredefinedMenuItemType::About(Some(ref metadata)) => {
-                            show_about_dialog(hwnd, metadata)
-                        }
+                    MenuItemType::Predefined => {
+                        if let Some(predefined_item_type) = &item.predefined_item_type {
+                            match predefined_item_type {
+                                PredefinedMenuItemType::Copy => {
+                                    execute_edit_command(EditCommand::Copy)
+                                }
+                                PredefinedMenuItemType::Cut => {
+                                    execute_edit_command(EditCommand::Cut)
+                                }
+                                PredefinedMenuItemType::Paste => {
+                                    execute_edit_command(EditCommand::Paste)
+                                }
+                                PredefinedMenuItemType::SelectAll => {
+                                    execute_edit_command(EditCommand::SelectAll)
+                                }
+                                PredefinedMenuItemType::Separator => {}
+                                PredefinedMenuItemType::Minimize => {
+                                    ShowWindow(hwnd, SW_MINIMIZE);
+                                }
+                                PredefinedMenuItemType::Maximize => {
+                                    ShowWindow(hwnd, SW_MAXIMIZE);
+                                }
+                                PredefinedMenuItemType::Hide => {
+                                    ShowWindow(hwnd, SW_HIDE);
+                                }
+                                PredefinedMenuItemType::CloseWindow => {
+                                    SendMessageW(hwnd, WM_CLOSE, 0, 0);
+                                }
+                                PredefinedMenuItemType::Quit => {
+                                    PostQuitMessage(0);
+                                }
+                                PredefinedMenuItemType::About(Some(ref metadata)) => {
+                                    show_about_dialog(hwnd, metadata)
+                                }
 
-                        _ => {}
-                    },
+                                _ => {}
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }

@@ -144,6 +144,8 @@ impl Menu {
         self.inner.borrow_mut().remove(item)
     }
 
+    // TODO: add remove_at position
+
     /// Returns a list of menu items that has been added to this menu.
     pub fn items(&self) -> Vec<MenuItemKind> {
         self.inner.borrow().items()
