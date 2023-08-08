@@ -43,23 +43,21 @@ use windows_sys::Win32::{
 
 static COUNTER: Counter = Counter::new_with_start(1000);
 
-type AccelWrapper = (HACCEL, HashMap<u32, Accel>);
-
 macro_rules! inner_menu_child_and_flags {
     ($item:ident) => {{
         let mut flags = 0;
         let child = match $item.kind() {
             MenuItemKind::Submenu(i) => {
                 flags |= MF_POPUP;
-                i.inner.clone()
+                i.inner
             }
             MenuItemKind::MenuItem(i) => {
                 flags |= MF_STRING;
-                i.inner.clone()
+                i.inner
             }
 
             MenuItemKind::Predefined(i) => {
-                let child = i.inner.clone();
+                let child = i.inner;
                 let child_ = child.borrow();
                 match child_.predefined_item_type.as_ref().unwrap() {
                     PredefinedMenuItemType::None => return Ok(()),
@@ -74,7 +72,7 @@ macro_rules! inner_menu_child_and_flags {
                 child
             }
             MenuItemKind::Check(i) => {
-                let child = i.inner.clone();
+                let child = i.inner;
                 flags |= MF_STRING;
                 if child.borrow().checked {
                     flags |= MF_CHECKED;
@@ -83,7 +81,7 @@ macro_rules! inner_menu_child_and_flags {
             }
             MenuItemKind::Icon(i) => {
                 flags |= MF_STRING;
-                i.inner.clone()
+                i.inner
             }
         };
 
@@ -91,9 +89,12 @@ macro_rules! inner_menu_child_and_flags {
     }};
 }
 
+type AccelWrapper = (HACCEL, HashMap<u32, Accel>);
+
 #[derive(Debug)]
 pub(crate) struct Menu {
     id: MenuId,
+    internal_id: u32,
     hmenu: HMENU,
     hpopupmenu: HMENU,
     hwnds: Vec<HWND>,
@@ -107,17 +108,17 @@ impl Drop for Menu {
             let _ = self.remove_for_hwnd(hwnd);
         }
 
-        fn remove_from_children_stores(id: &MenuId, children: &Vec<Rc<RefCell<MenuChild>>>) {
+        fn remove_from_children_stores(internal_id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
             for child in children {
                 let mut child_ = child.borrow_mut();
-                child_.root_menu_haccel_stores.remove(id);
+                child_.root_menu_haccel_stores.remove(&internal_id);
                 if child_.item_type == MenuItemType::Submenu {
-                    remove_from_children_stores(id, child_.children.as_ref().unwrap());
+                    remove_from_children_stores(internal_id, child_.children.as_ref().unwrap());
                 }
             }
         }
 
-        remove_from_children_stores(&self.id, &self.children);
+        remove_from_children_stores(self.internal_id, &self.children);
 
         for child in &self.children {
             let child_ = child.borrow();
@@ -141,8 +142,10 @@ impl Drop for Menu {
 
 impl Menu {
     pub fn new(id: Option<MenuId>) -> Self {
+        let internal_id = COUNTER.next();
         Self {
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
+            internal_id,
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
             haccel_store: Rc::new(RefCell::new((0, HashMap::new()))),
@@ -162,7 +165,7 @@ impl Menu {
             child
                 .borrow_mut()
                 .root_menu_haccel_stores
-                .insert(self.id.clone(), self.haccel_store.clone());
+                .insert(self.internal_id, self.haccel_store.clone());
         }
 
         {
@@ -407,7 +410,7 @@ pub(crate) struct MenuChild {
     text: String,
     enabled: bool,
     parents_hemnu: Vec<HMENU>,
-    root_menu_haccel_stores: HashMap<MenuId, Rc<RefCell<AccelWrapper>>>,
+    root_menu_haccel_stores: HashMap<u32, Rc<RefCell<AccelWrapper>>>,
 
     // menu item fields
     internal_id: u32,
@@ -461,7 +464,7 @@ impl MenuChild {
             enabled,
             parents_hemnu: Vec::new(),
             internal_id,
-            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -483,7 +486,7 @@ impl MenuChild {
             children: Some(Vec::new()),
             hmenu: unsafe { CreateMenu() },
             internal_id,
-            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             hpopupmenu: unsafe { CreatePopupMenu() },
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -501,7 +504,7 @@ impl MenuChild {
             enabled: true,
             parents_hemnu: Vec::new(),
             internal_id,
-            id: MenuId(internal_id.to_string()),
+            id: MenuId::new(internal_id.to_string()),
             accelerator: item_type.accelerator(),
             predefined_item_type: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
@@ -527,7 +530,7 @@ impl MenuChild {
             enabled,
             parents_hemnu: Vec::new(),
             internal_id,
-            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             checked,
             root_menu_haccel_stores: HashMap::new(),
@@ -553,7 +556,7 @@ impl MenuChild {
             enabled,
             parents_hemnu: Vec::new(),
             internal_id,
-            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             icon,
             root_menu_haccel_stores: HashMap::new(),
@@ -579,7 +582,7 @@ impl MenuChild {
             enabled,
             parents_hemnu: Vec::new(),
             internal_id,
-            id: id.unwrap_or_else(|| MenuId(internal_id.to_string())),
+            id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
