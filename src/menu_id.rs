@@ -1,6 +1,6 @@
 use std::{convert::Infallible, str::FromStr};
 
-/// An unique id that is associated with a menu item.
+/// An unique id that is associated with a menu or a menu item.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct MenuId(pub String);
 
@@ -39,24 +39,40 @@ impl FromStr for MenuId {
 
 impl PartialEq<&str> for MenuId {
     fn eq(&self, other: &&str) -> bool {
-        other == &self.0
+        self.0 == *other
     }
 }
 
 impl PartialEq<String> for MenuId {
     fn eq(&self, other: &String) -> bool {
-        other == &self.0
+        self.0 == *other
     }
 }
 
 impl PartialEq<&String> for MenuId {
     fn eq(&self, other: &&String) -> bool {
-        other == &&self.0
+        self.0 == **other
     }
 }
 
 impl PartialEq<&MenuId> for MenuId {
     fn eq(&self, other: &&MenuId) -> bool {
         other.0 == self.0
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::MenuId;
+
+    #[test]
+    fn is_eq() {
+        assert_eq!(MenuId::new("t"), "t",);
+        assert_eq!(MenuId::new("t"), String::from("t"));
+        assert_eq!(MenuId::new("t"), &String::from("t"));
+        assert_eq!(MenuId::new("t"), MenuId::new("t"));
+        assert_eq!(MenuId::new("t"), &MenuId::new("t"));
+        assert_eq!(&MenuId::new("t"), &MenuId::new("t"));
+        assert_eq!(MenuId::new("t").as_ref(), "t");
     }
 }
