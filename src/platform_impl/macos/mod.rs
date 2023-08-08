@@ -47,7 +47,7 @@ extern "C" {
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NsMenuRef(u32, id);
 
 impl Drop for NsMenuRef {
@@ -117,18 +117,30 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        // get a list of instances of the specified `NSMenuItem` in this menu
-        let child = match item.kind() {
-            MenuItemKind::Submenu(i) => i.inner,
-            MenuItemKind::MenuItem(i) => i.inner,
-            MenuItemKind::Predefined(i) => i.inner,
-            MenuItemKind::Check(i) => i.inner,
-            MenuItemKind::Icon(i) => i.inner,
+        // get child
+        let child = {
+            let index = self
+                .children
+                .iter()
+                .position(|e| e.borrow().id == item.id())
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
+            self.children.remove(index)
         };
 
         let mut child_ = child.borrow_mut();
 
-        // TODO remove submenu items
+        if child_.item_type == MenuItemType::Submenu {
+            let menu_id = &self.ns_menu.0;
+            let menus = child_.ns_menus.as_ref().unwrap().get(menu_id).cloned();
+            if let Some(menus) = menus {
+                for menu in menus {
+                    for item in child_.items() {
+                        child_.remove_inner(item.as_ref(), false, Some(menu.0))?;
+                    }
+                }
+            }
+            child_.ns_menus.as_mut().unwrap().remove(menu_id);
+        }
 
         // remove each NSMenuItem from the NSMenu
         if let Some(ns_menu_items) = child_.ns_menu_items.remove(&self.ns_menu.0) {
@@ -136,14 +148,6 @@ impl Menu {
                 let () = unsafe { msg_send![self.ns_menu.1, removeItem: item] };
             }
         }
-
-        // remove the item from our internal list of children
-        let index = self
-            .children
-            .iter()
-            .position(|e| e.borrow().id() == item.id())
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        self.children.remove(index);
 
         Ok(())
     }
@@ -557,7 +561,63 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        let child = item.child();
+        self.remove_inner(item, true, None)
+    }
+    pub fn remove_inner(
+        &mut self,
+        item: &dyn crate::IsMenuItem,
+        remove_from_cache: bool,
+        id: Option<u32>,
+    ) -> crate::Result<()> {
+        // get child
+        let child = {
+            let index = self
+                .children
+                .as_ref()
+                .unwrap()
+                .iter()
+                .position(|e| e.borrow().id == item.id())
+                .ok_or(crate::Error::NotAChildOfThisMenu)?;
+            if remove_from_cache {
+                self.children.as_mut().unwrap().remove(index)
+            } else {
+                self.children.as_ref().unwrap().get(index).cloned().unwrap()
+            }
+        };
+
+        for menus in self.ns_menus.as_ref().unwrap().values() {
+            for menu in menus {
+                // check if we are removing this item from all ns_menus
+                //      which is usually when this is the item the user is actaully removing
+                // or if we are removing from a specific menu (id)
+                //      which is when the actual item being removed is a submenu
+                //      and we are iterating through its children and removing
+                //      each child ns menu item that are related to this submenu.
+                if id.map(|i| i == menu.0).unwrap_or(true) {
+                    let mut child_ = child.borrow_mut();
+
+                    if child_.item_type == MenuItemType::Submenu {
+                        let menus = child_.ns_menus.as_ref().unwrap().get(&menu.0).cloned();
+                        if let Some(menus) = menus {
+                            for menu in menus {
+                                // iterate through children and only remove the ns menu items
+                                // related to this submenu
+                                for item in child_.items() {
+                                    child_.remove_inner(item.as_ref(), false, Some(menu.0))?;
+                                }
+                            }
+                        }
+                        child_.ns_menus.as_mut().unwrap().remove(&menu.0);
+                    }
+
+                    if let Some(items) = child_.ns_menu_items.remove(&menu.0) {
+                        for item in items {
+                            let () = unsafe { msg_send![menu.1, removeItem: item] };
+                        }
+                    }
+                }
+            }
+        }
 
         // get a list of instances of the specified NSMenuItem in this menu
         for menus in self.ns_menus.as_ref().unwrap().values() {
@@ -572,23 +632,18 @@ impl MenuChild {
             }
         }
 
-        if let Some(ns_menu_items) = child
-            .borrow_mut()
-            .ns_menu_items
-            .remove(&self.ns_menu.as_ref().unwrap().0)
-        {
-            for item in ns_menu_items {
-                let () = unsafe { msg_send![self.ns_menu.as_ref().unwrap().1, removeItem: item] };
+        if remove_from_cache {
+            if let Some(ns_menu_items) = child
+                .borrow_mut()
+                .ns_menu_items
+                .remove(&self.ns_menu.as_ref().unwrap().0)
+            {
+                for item in ns_menu_items {
+                    let () =
+                        unsafe { msg_send![self.ns_menu.as_ref().unwrap().1, removeItem: item] };
+                }
             }
         }
-
-        // remove the item from our internal list of children
-        let children = self.children.as_mut().unwrap();
-        let index = children
-            .iter()
-            .position(|e| e.borrow().id == item.id())
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        children.remove(index);
 
         Ok(())
     }
