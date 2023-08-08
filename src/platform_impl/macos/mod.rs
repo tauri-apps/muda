@@ -723,7 +723,7 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id.clone())
+            .entry(menu_id)
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
@@ -762,7 +762,7 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id.clone())
+            .entry(menu_id)
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
@@ -792,7 +792,7 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id.clone())
+            .entry(menu_id)
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 
@@ -825,7 +825,7 @@ impl MenuChild {
         }
 
         self.ns_menu_items
-            .entry(menu_id.clone())
+            .entry(menu_id)
             .or_insert_with(Vec::new)
             .push(ns_menu_item);
 

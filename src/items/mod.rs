@@ -20,7 +20,7 @@ mod test {
 
     #[test]
     fn it_returns_same_id() {
-        let id = MenuId("1".into());
+        let id = MenuId::new("1");
         assert_eq!(id, MenuItem::with_id(id.clone(), "", true, None).id());
         assert_eq!(id, Submenu::with_id(id.clone(), "", true).id());
         assert_eq!(
