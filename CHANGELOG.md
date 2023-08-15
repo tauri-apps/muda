@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.8.3]
+
+- [`33168fa`](https://www.github.com/tauri-apps/muda/commit/33168fa0a01e2773d9da4628afd4b147bc603f4d)([#98](https://www.github.com/tauri-apps/muda/pull/98)) On Windows, draw a dark menu bar if the Window supports and has dark-mode enabled.
+- [`1a527e8`](https://www.github.com/tauri-apps/muda/commit/1a527e87086cf8d93e02405b87ca97992c08ad04)([#100](https://www.github.com/tauri-apps/muda/pull/100)) Add `PartialEq<&str> for &MenuId` and `PartialEq<String> for &MenuId` implementations. Also add a blanket `From<T> for MenuId` where `T: ToString` implementation.
+
 ## \[0.8.2]
 
 - [`829051a`](https://www.github.com/tauri-apps/muda/commit/829051a30a1fef1e83b9bc0d4c10ff9874589f65) Dereference `&String` and `&&str` in `PartialEq` for `MenuId` type
