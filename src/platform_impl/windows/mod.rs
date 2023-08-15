@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 mod accelerator;
+mod dark_menu_bar;
 mod icon;
 mod util;
 
+use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
@@ -1002,91 +1004,101 @@ unsafe extern "system" fn menu_subclass_proc(
     uidsubclass: usize,
     dwrefdata: usize,
 ) -> LRESULT {
-    let mut ret = -1;
-    if msg == WM_COMMAND {
-        let id = util::LOWORD(wparam as _) as u32;
-        let item = if uidsubclass == MENU_SUBCLASS_ID {
-            let menu = dwrefdata as *mut Box<Menu>;
-            (*menu).find_by_id(id)
-        } else {
-            let menu = dwrefdata as *mut Box<MenuChild>;
-            (*menu).find_by_id(id)
-        };
+    let mut ret = None;
+    match msg {
+        WM_COMMAND => {
+            let id = util::LOWORD(wparam as _) as u32;
+            let item = if uidsubclass == MENU_SUBCLASS_ID {
+                let menu = dwrefdata as *mut Box<Menu>;
+                (*menu).find_by_id(id)
+            } else {
+                let menu = dwrefdata as *mut Box<MenuChild>;
+                (*menu).find_by_id(id)
+            };
 
-        if let Some(item) = item {
-            ret = 0;
+            if let Some(item) = item {
+                ret = Some(0);
 
-            let (mut dispatch, mut menu_id) = (true, None);
+                let (mut dispatch, mut menu_id) = (true, None);
 
-            {
-                let mut item = item.borrow_mut();
+                {
+                    let mut item = item.borrow_mut();
 
-                if item.item_type() == MenuItemType::Predefined {
-                    dispatch = false;
-                } else {
-                    menu_id.replace(item.id.clone());
-                }
-
-                match item.item_type() {
-                    MenuItemType::Check => {
-                        let checked = !item.checked;
-                        item.set_checked(checked);
+                    if item.item_type() == MenuItemType::Predefined {
+                        dispatch = false;
+                    } else {
+                        menu_id.replace(item.id.clone());
                     }
-                    MenuItemType::Predefined => {
-                        if let Some(predefined_item_type) = &item.predefined_item_type {
-                            match predefined_item_type {
-                                PredefinedMenuItemType::Copy => {
-                                    execute_edit_command(EditCommand::Copy)
-                                }
-                                PredefinedMenuItemType::Cut => {
-                                    execute_edit_command(EditCommand::Cut)
-                                }
-                                PredefinedMenuItemType::Paste => {
-                                    execute_edit_command(EditCommand::Paste)
-                                }
-                                PredefinedMenuItemType::SelectAll => {
-                                    execute_edit_command(EditCommand::SelectAll)
-                                }
-                                PredefinedMenuItemType::Separator => {}
-                                PredefinedMenuItemType::Minimize => {
-                                    ShowWindow(hwnd, SW_MINIMIZE);
-                                }
-                                PredefinedMenuItemType::Maximize => {
-                                    ShowWindow(hwnd, SW_MAXIMIZE);
-                                }
-                                PredefinedMenuItemType::Hide => {
-                                    ShowWindow(hwnd, SW_HIDE);
-                                }
-                                PredefinedMenuItemType::CloseWindow => {
-                                    SendMessageW(hwnd, WM_CLOSE, 0, 0);
-                                }
-                                PredefinedMenuItemType::Quit => {
-                                    PostQuitMessage(0);
-                                }
-                                PredefinedMenuItemType::About(Some(ref metadata)) => {
-                                    show_about_dialog(hwnd, metadata)
-                                }
 
-                                _ => {}
+                    match item.item_type() {
+                        MenuItemType::Check => {
+                            let checked = !item.checked;
+                            item.set_checked(checked);
+                        }
+                        MenuItemType::Predefined => {
+                            if let Some(predefined_item_type) = &item.predefined_item_type {
+                                match predefined_item_type {
+                                    PredefinedMenuItemType::Copy => {
+                                        execute_edit_command(EditCommand::Copy)
+                                    }
+                                    PredefinedMenuItemType::Cut => {
+                                        execute_edit_command(EditCommand::Cut)
+                                    }
+                                    PredefinedMenuItemType::Paste => {
+                                        execute_edit_command(EditCommand::Paste)
+                                    }
+                                    PredefinedMenuItemType::SelectAll => {
+                                        execute_edit_command(EditCommand::SelectAll)
+                                    }
+                                    PredefinedMenuItemType::Separator => {}
+                                    PredefinedMenuItemType::Minimize => {
+                                        ShowWindow(hwnd, SW_MINIMIZE);
+                                    }
+                                    PredefinedMenuItemType::Maximize => {
+                                        ShowWindow(hwnd, SW_MAXIMIZE);
+                                    }
+                                    PredefinedMenuItemType::Hide => {
+                                        ShowWindow(hwnd, SW_HIDE);
+                                    }
+                                    PredefinedMenuItemType::CloseWindow => {
+                                        SendMessageW(hwnd, WM_CLOSE, 0, 0);
+                                    }
+                                    PredefinedMenuItemType::Quit => {
+                                        PostQuitMessage(0);
+                                    }
+                                    PredefinedMenuItemType::About(Some(ref metadata)) => {
+                                        show_about_dialog(hwnd, metadata)
+                                    }
+
+                                    _ => {}
+                                }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
+                }
+
+                if dispatch {
+                    MenuEvent::send(MenuEvent {
+                        id: menu_id.unwrap(),
+                    });
                 }
             }
+        }
 
-            if dispatch {
-                MenuEvent::send(MenuEvent {
-                    id: menu_id.unwrap(),
-                });
+        WM_UAHDRAWMENUITEM | WM_UAHDRAWMENU => {
+            if dark_menu_bar::draw(hwnd, msg, wparam, lparam) {
+                ret = Some(0);
             }
         }
-    }
 
-    if ret == -1 {
-        DefSubclassProc(hwnd, msg, wparam, lparam)
-    } else {
+        _ => {}
+    };
+
+    if let Some(ret) = ret {
         ret
+    } else {
+        DefSubclassProc(hwnd, msg, wparam, lparam)
     }
 }
 
