@@ -17,15 +17,9 @@ impl AsRef<str> for MenuId {
     }
 }
 
-impl From<String> for MenuId {
-    fn from(value: String) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<&str> for MenuId {
-    fn from(value: &str) -> Self {
-        Self::new(value)
+impl<T: ToString> From<T> for MenuId {
+    fn from(value: T) -> Self {
+        Self::new(value.to_string())
     }
 }
 
@@ -43,7 +37,19 @@ impl PartialEq<&str> for MenuId {
     }
 }
 
+impl PartialEq<&str> for &MenuId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 impl PartialEq<String> for MenuId {
+    fn eq(&self, other: &String) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<String> for &MenuId {
     fn eq(&self, other: &String) -> bool {
         self.0 == *other
     }
