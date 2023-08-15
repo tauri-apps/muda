@@ -9,12 +9,12 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use tao::platform::macos::WindowExtMacOS;
+use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
-use tao::platform::unix::WindowExtUnix;
+use wry::application::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
-use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-use tao::{
+use wry::application::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+use wry::application::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},

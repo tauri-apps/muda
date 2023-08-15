@@ -13,7 +13,7 @@ categories = [ "gui" ]
 [features]
 default = [ "libxdo" ]
 libxdo = [ "dep:libxdo" ]
-common-controls-v6 = [ "windows-sys/Win32_UI_Controls" ]
+common-controls-v6 = [ ]
 serde = [ "dep:serde" ]
 
 [dependencies]
@@ -33,8 +33,10 @@ features = [
   "Win32_Globalization",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_System_SystemServices",
+  "Win32_UI_Accessibility",
   "Win32_UI_HiDpi",
-  "Win32_System_LibraryLoader"
+  "Win32_System_LibraryLoader",
+  "Win32_UI_Controls"
 ]
 
 [target."cfg(target_os = \"linux\")".dependencies]
@@ -50,6 +52,6 @@ png = "0.17"
 
 [dev-dependencies]
 winit = "0.28"
-tao = "0.22"
+tao = { path = "../tao" }
 wry = "0.31"
 image = "0.24"
