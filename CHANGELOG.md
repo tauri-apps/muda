@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.4]
+
+- [`47d1808`](https://www.github.com/tauri-apps/muda/commit/47d1808090dc8b064417d5aae192b924fdafaf58) Derive `serde` for more types.
+
 ## \[0.8.3]
 
 - [`33168fa`](https://www.github.com/tauri-apps/muda/commit/33168fa0a01e2773d9da4628afd4b147bc603f4d)([#98](https://www.github.com/tauri-apps/muda/pull/98)) On Windows, draw a dark menu bar if the Window supports and has dark-mode enabled.
