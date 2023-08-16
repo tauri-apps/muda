@@ -259,6 +259,7 @@ pub unsafe trait IsMenuItem {
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum MenuItemType {
     MenuItem,
     Submenu,
@@ -324,6 +325,7 @@ pub trait ContextMenu {
 
 /// Describes a menu event emitted when a menu item is activated
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MenuEvent {
     /// Id of the menu item which triggered this event
     pub id: MenuId,

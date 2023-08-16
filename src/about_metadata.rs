@@ -2,6 +2,7 @@ use crate::icon::Icon;
 
 /// Application metadata for the [`PredefinedMenuItem::about`](crate::PredefinedMenuItem::about).
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AboutMetadata {
     /// Sets the application name.
     pub name: Option<String>,

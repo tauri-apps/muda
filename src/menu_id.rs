@@ -2,6 +2,7 @@ use std::{convert::Infallible, str::FromStr};
 
 /// An unique id that is associated with a menu or a menu item.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MenuId(pub String);
 
 impl MenuId {

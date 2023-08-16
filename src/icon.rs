@@ -171,6 +171,7 @@ impl Icon {
 ///
 /// - **Windows / Linux**: Unsupported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NativeIcon {
     /// An add item template image.
     Add,

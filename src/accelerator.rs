@@ -39,6 +39,7 @@ pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
 /// of modifier keys (provided by [`Modifiers`](crate::accelerator::Modifiers)) and
 /// one key ([`Code`](crate::accelerator::Code)).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accelerator {
     pub(crate) mods: Modifiers,
     pub(crate) key: Code,
