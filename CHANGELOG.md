@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.5]
+
+- [`e046132`](https://www.github.com/tauri-apps/muda/commit/e046132dfba47ab75905ff28c354f83b5b27703d) Changed `IconMenuItem::set_native_icon` to take `&self` instead of `&mut self`.
+
 ## \[0.8.4]
 
 - [`47d1808`](https://www.github.com/tauri-apps/muda/commit/47d1808090dc8b064417d5aae192b924fdafaf58) Derive `serde` for more types.
