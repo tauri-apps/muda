@@ -176,7 +176,7 @@ impl IconMenuItem {
     /// ## Platform-specific:
     ///
     /// - **Windows / Linux**: Unsupported.
-    pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) {
+    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)
     }

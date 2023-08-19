@@ -132,7 +132,7 @@ impl Submenu {
         self.inner.borrow_mut().remove(item)
     }
 
-    /// Remove the menu item at the specified position from this submenu.
+    /// Remove the menu item at the specified position from this submenu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
         let mut items = self.items();
         if items.len() > position {
