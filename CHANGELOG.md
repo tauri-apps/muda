@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.6]
+
+- [`4701bb8`](https://www.github.com/tauri-apps/muda/commit/4701bb836e9d5f5c020c7807616d68bd049679a9)([#105](https://www.github.com/tauri-apps/muda/pull/105)) On Windows, fix menu items inside a context menu not firing events if the context menu was used on a Window that doesn't have a menu bar.
+
 ## \[0.8.5]
 
 - [`e046132`](https://www.github.com/tauri-apps/muda/commit/e046132dfba47ab75905ff28c354f83b5b27703d) Changed `IconMenuItem::set_native_icon` to take `&self` instead of `&mut self`.
