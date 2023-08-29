@@ -207,12 +207,12 @@ impl ContextMenu for Submenu {
 
     #[cfg(target_os = "windows")]
     fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.inner.borrow_mut().attach_menu_subclass_for_hwnd(hwnd)
+        self.inner.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
     #[cfg(target_os = "windows")]
     fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.inner.borrow_mut().detach_menu_subclass_from_hwnd(hwnd)
+        self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
     #[cfg(target_os = "linux")]

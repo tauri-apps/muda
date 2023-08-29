@@ -324,7 +324,7 @@ impl ContextMenu for Menu {
     #[cfg(target_os = "windows")]
     fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) {
         self.inner
-            .borrow()
+            .borrow_mut()
             .show_context_menu_for_hwnd(hwnd, position)
     }
 
