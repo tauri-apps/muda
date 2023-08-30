@@ -15,7 +15,7 @@ use wry::application::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use wry::application::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use wry::application::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
@@ -50,30 +50,33 @@ fn main() -> wry::Result<()> {
         .with_title("Window 2")
         .build(&event_loop)
         .unwrap();
-    let window2_id = window2.id();
 
     #[cfg(target_os = "macos")]
     {
         let app_m = Submenu::new("App", true);
-        menu_bar.append(&app_m);
-        app_m.append_items(&[
-            &PredefinedMenuItem::about(None, None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::services(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::hide(None),
-            &PredefinedMenuItem::hide_others(None),
-            &PredefinedMenuItem::show_all(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::quit(None),
-        ]);
+        menu_bar.append(&app_m).unwrap();
+        app_m
+            .append_items(&[
+                &PredefinedMenuItem::about(None, None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::services(None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::hide(None),
+                &PredefinedMenuItem::hide_others(None),
+                &PredefinedMenuItem::show_all(None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::quit(None),
+            ])
+            .unwrap();
     }
 
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    menu_bar
+        .append_items(&[&file_m, &edit_m, &window_m])
+        .unwrap();
 
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
@@ -103,45 +106,61 @@ fn main() -> wry::Result<()> {
     let cut_i = PredefinedMenuItem::cut(None);
     let paste_i = PredefinedMenuItem::paste(None);
 
-    file_m.append_items(&[
-        &custom_i_1,
-        &image_item,
-        &window_m,
-        &PredefinedMenuItem::separator(),
-        &check_custom_i_1,
-        &check_custom_i_2,
-    ]);
+    file_m
+        .append_items(&[
+            &custom_i_1,
+            &image_item,
+            &window_m,
+            &PredefinedMenuItem::separator(),
+            &check_custom_i_1,
+            &check_custom_i_2,
+        ])
+        .unwrap();
 
-    window_m.append_items(&[
-        &PredefinedMenuItem::minimize(None),
-        &PredefinedMenuItem::maximize(None),
-        &PredefinedMenuItem::close_window(Some("Close")),
-        &PredefinedMenuItem::fullscreen(None),
-        &PredefinedMenuItem::about(
-            None,
-            Some(AboutMetadata {
-                name: Some("tao".to_string()),
-                version: Some("1.2.3".to_string()),
-                copyright: Some("Copyright tao".to_string()),
-                ..Default::default()
-            }),
-        ),
-        &check_custom_i_3,
-        &image_item,
-        &custom_i_1,
-    ]);
+    window_m
+        .append_items(&[
+            &PredefinedMenuItem::minimize(None),
+            &PredefinedMenuItem::maximize(None),
+            &PredefinedMenuItem::close_window(Some("Close")),
+            &PredefinedMenuItem::fullscreen(None),
+            &PredefinedMenuItem::about(
+                None,
+                Some(AboutMetadata {
+                    name: Some("tao".to_string()),
+                    version: Some("1.2.3".to_string()),
+                    copyright: Some("Copyright tao".to_string()),
+                    ..Default::default()
+                }),
+            ),
+            &check_custom_i_3,
+            &image_item,
+            &custom_i_1,
+        ])
+        .unwrap();
 
-    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
+    edit_m
+        .append_items(&[
+            &copy_i,
+            &PredefinedMenuItem::separator(),
+            &cut_i,
+            &PredefinedMenuItem::separator(),
+            &paste_i,
+        ])
+        .unwrap();
 
     #[cfg(target_os = "windows")]
     {
-        menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(window2.hwnd() as _);
+        menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
+        menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
     #[cfg(target_os = "linux")]
     {
-        menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
-        menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
+        menu_bar
+            .init_for_gtk_window(window.gtk_window(), window.default_vbox())
+            .unwrap();
+        menu_bar
+            .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
+            .unwrap();
     }
     #[cfg(target_os = "macos")]
     {
@@ -205,14 +224,12 @@ fn main() -> wry::Result<()> {
                 .unwrap();
 
             #[cfg(target_os = "linux")]
+            if let Some(menu_bar) = menu_bar
+                .clone()
+                .gtk_menubar_for_gtk_window(window.gtk_window())
             {
-                if let Some(menu_bar) = menu_bar
-                    .clone()
-                    .gtk_menubar_for_gtk_window(window.gtk_window())
-                {
-                    use gtk::prelude::*;
-                    y += menu_bar.allocated_height();
-                }
+                use gtk::prelude::*;
+                y += menu_bar.allocated_height();
             }
 
             show_context_menu(
@@ -248,8 +265,11 @@ fn main() -> wry::Result<()> {
         if let Ok(event) = menu_channel.try_recv() {
             if event.id == custom_i_1.id() {
                 custom_i_1
-                    .set_accelerator(Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyF)));
-                file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
+                    .set_accelerator(Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyF)))
+                    .unwrap();
+                file_m
+                    .insert(&MenuItem::new("New Menu Item", true, None), 2)
+                    .unwrap();
             }
             println!("{event:?}");
         }
