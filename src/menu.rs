@@ -10,7 +10,7 @@ use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position
 /// and used as the app global menu on macOS.
 #[derive(Clone)]
 pub struct Menu {
-    id: MenuId,
+    id: Rc<MenuId>,
     inner: Rc<RefCell<crate::platform_impl::Menu>>,
 }
 
@@ -25,7 +25,7 @@ impl Menu {
     pub fn new() -> Self {
         let menu = crate::platform_impl::Menu::new(None);
         Self {
-            id: menu.id().clone(),
+            id: Rc::new(menu.id().clone()),
             inner: Rc::new(RefCell::new(menu)),
         }
     }
@@ -34,7 +34,7 @@ impl Menu {
     pub fn with_id<I: Into<MenuId>>(id: I) -> Self {
         let id = id.into();
         Self {
-            id: id.clone(),
+            id: Rc::new(id.clone()),
             inner: Rc::new(RefCell::new(crate::platform_impl::Menu::new(Some(id)))),
         }
     }
