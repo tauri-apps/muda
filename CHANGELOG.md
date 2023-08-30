@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.8.7]
+
+- [`8d832c0`](https://www.github.com/tauri-apps/muda/commit/8d832c06f4e810278c0da129063231f880c3f918) Wrapped the `id` field of the `Menu` struct in an `Rc` to be consistent with other menu structs and make it cheaper to clone.
+
 ## \[0.8.6]
 
 - [`4701bb8`](https://www.github.com/tauri-apps/muda/commit/4701bb836e9d5f5c020c7807616d68bd049679a9)([#105](https://www.github.com/tauri-apps/muda/pull/105)) On Windows, fix menu items inside a context menu not firing events if the context menu was used on a Window that doesn't have a menu bar.
