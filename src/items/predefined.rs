@@ -13,7 +13,7 @@ use keyboard_types::{Code, Modifiers};
 /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
-    pub(crate) id: Rc<MenuId>,
+    pub(crate) id: MenuId,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
@@ -162,7 +162,7 @@ impl PredefinedMenuItem {
             text.map(|t| t.as_ref().to_string()),
         );
         Self {
-            id: Rc::new(item.id().clone()),
+            id: item.id().clone(),
             inner: Rc::new(RefCell::new(item)),
         }
     }

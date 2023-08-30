@@ -17,7 +17,7 @@ use crate::{
 /// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct IconMenuItem {
-    pub(crate) id: Rc<MenuId>,
+    pub(crate) id: MenuId,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
@@ -50,7 +50,7 @@ impl IconMenuItem {
             None,
         );
         Self {
-            id: Rc::new(item.id().clone()),
+            id: item.id().clone(),
             inner: Rc::new(RefCell::new(item)),
         }
     }
@@ -68,7 +68,7 @@ impl IconMenuItem {
     ) -> Self {
         let id = id.into();
         Self {
-            id: Rc::new(id.clone()),
+            id: id.clone(),
             inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_icon(
                 text.as_ref(),
                 enabled,
@@ -100,7 +100,7 @@ impl IconMenuItem {
             None,
         );
         Self {
-            id: Rc::new(item.id().clone()),
+            id: item.id().clone(),
             inner: Rc::new(RefCell::new(item)),
         }
     }
@@ -121,7 +121,7 @@ impl IconMenuItem {
     ) -> Self {
         let id = id.into();
         Self {
-            id: Rc::new(id.clone()),
+            id: id.clone(),
             inner: Rc::new(RefCell::new(
                 crate::platform_impl::MenuChild::new_native_icon(
                     text.as_ref(),

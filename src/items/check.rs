@@ -14,7 +14,7 @@ use crate::{accelerator::Accelerator, IsMenuItem, MenuId, MenuItemKind};
 /// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct CheckMenuItem {
-    pub(crate) id: Rc<MenuId>,
+    pub(crate) id: MenuId,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
@@ -47,7 +47,7 @@ impl CheckMenuItem {
             None,
         );
         Self {
-            id: Rc::new(item.id().clone()),
+            id: item.id().clone(),
             inner: Rc::new(RefCell::new(item)),
         }
     }
@@ -65,7 +65,7 @@ impl CheckMenuItem {
     ) -> Self {
         let id = id.into();
         Self {
-            id: Rc::new(id.clone()),
+            id: id.clone(),
             inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_check(
                 text.as_ref(),
                 enabled,
