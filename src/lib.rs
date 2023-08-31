@@ -256,6 +256,8 @@ pub unsafe trait IsMenuItem {
     fn kind(&self) -> MenuItemKind;
 
     fn id(&self) -> &MenuId;
+
+    fn into_id(self) -> MenuId;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]

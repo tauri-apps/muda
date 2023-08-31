@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
@@ -24,6 +24,15 @@ unsafe impl IsMenuItem for PredefinedMenuItem {
 
     fn id(&self) -> &MenuId {
         self.id()
+    }
+
+    fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
     }
 }
 
@@ -211,6 +220,13 @@ fn test_about_metadata() {
         .full_version(),
         Some("Version: 1.inner (Universal)".into())
     );
+}
+
+#[test]
+fn test_id_and_into_id() {
+    let item = PredefinedMenuItem::separator();
+    let id = item.id().clone();
+    assert_eq!(id, item.into_id());
 }
 
 #[derive(Debug, Clone)]
