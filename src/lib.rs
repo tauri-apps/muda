@@ -166,6 +166,17 @@ pub enum MenuItemKind {
 }
 
 impl MenuItemKind {
+    /// Returns the id associated with this menu item.
+    pub fn id(&self) -> &MenuId {
+        match self {
+            MenuItemKind::MenuItem(i) => i.id(),
+            MenuItemKind::Submenu(i) => i.id(),
+            MenuItemKind::Predefined(i) => i.id(),
+            MenuItemKind::Check(i) => i.id(),
+            MenuItemKind::Icon(i) => i.id(),
+        }
+    }
+
     /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
     pub fn as_menuitem(&self) -> Option<&MenuItem> {
         match self {
@@ -267,6 +278,7 @@ pub(crate) enum MenuItemType {
     Check,
     Icon,
 }
+
 impl Default for MenuItemType {
     fn default() -> Self {
         Self::MenuItem
