@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{accelerator::Accelerator, IsMenuItem, MenuId, MenuItemKind};
 
@@ -87,5 +87,15 @@ impl MenuItem {
     /// Set this menu item accelerator.
     pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) -> crate::Result<()> {
         self.inner.borrow_mut().set_accelerator(acccelerator)
+    }
+
+    /// Convert this menu item into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
     }
 }

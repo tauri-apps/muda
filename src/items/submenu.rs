@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position};
 
@@ -189,6 +189,16 @@ impl Submenu {
     #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_help_menu_for_nsapp()
+    }
+
+    /// Convert this submenu into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::Accelerator,
@@ -179,5 +179,15 @@ impl IconMenuItem {
     pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)
+    }
+
+    /// Convert this menu item into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
     }
 }

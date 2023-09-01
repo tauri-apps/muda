@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.inner
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
@@ -180,6 +180,16 @@ impl PredefinedMenuItem {
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.inner.borrow_mut().set_text(text.as_ref())
+    }
+
+    /// Convert this menu item into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
     }
 }
 
