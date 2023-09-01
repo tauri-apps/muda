@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{accelerator::Accelerator, IsMenuItem, MenuId, MenuItemKind};
+use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -18,13 +18,18 @@ pub struct CheckMenuItem {
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
-unsafe impl IsMenuItem for CheckMenuItem {
+impl IsMenuItemBase for CheckMenuItem {}
+impl IsMenuItem for CheckMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Check(self.clone())
     }
 
     fn id(&self) -> &MenuId {
         self.id()
+    }
+
+    fn into_id(self) -> MenuId {
+        self.into_id()
     }
 }
 

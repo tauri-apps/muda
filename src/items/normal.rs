@@ -1,6 +1,6 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{accelerator::Accelerator, IsMenuItem, MenuId, MenuItemKind};
+use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
@@ -12,13 +12,18 @@ pub struct MenuItem {
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
-unsafe impl IsMenuItem for MenuItem {
+impl IsMenuItemBase for MenuItem {}
+impl IsMenuItem for MenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::MenuItem(self.clone())
     }
 
     fn id(&self) -> &MenuId {
         self.id()
+    }
+
+    fn into_id(self) -> MenuId {
+        self.into_id()
     }
 }
 

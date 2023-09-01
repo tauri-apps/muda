@@ -166,7 +166,7 @@ pub enum MenuItemKind {
 }
 
 impl MenuItemKind {
-    /// Returns the id associated with this menu item.
+    /// Returns a unique identifier associated with this menu item.
     pub fn id(&self) -> &MenuId {
         match self {
             MenuItemKind::MenuItem(i) => i.id(),
@@ -270,14 +270,17 @@ impl MenuItemKind {
 }
 
 /// A trait that defines a generic item in a menu, which may be one of [`MenuItemKind`]
-///
-/// # Safety
-///
-/// This trait is ONLY meant to be implemented internally by the crate.
-pub unsafe trait IsMenuItem {
+pub trait IsMenuItem: sealed::IsMenuItemBase {
+    /// Returns a [`MenuItemKind`] associated with this item.
     fn kind(&self) -> MenuItemKind;
-
+    /// Returns a unique identifier associated with this menu item.
     fn id(&self) -> &MenuId;
+    /// Convert this menu item into its menu ID.
+    fn into_id(self) -> MenuId;
+}
+
+mod sealed {
+    pub trait IsMenuItemBase {}
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]

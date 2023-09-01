@@ -4,7 +4,9 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position};
+use crate::{
+    sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position,
+};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -15,13 +17,18 @@ pub struct Submenu {
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
-unsafe impl IsMenuItem for Submenu {
+impl IsMenuItemBase for Submenu {}
+impl IsMenuItem for Submenu {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Submenu(self.clone())
     }
 
     fn id(&self) -> &MenuId {
         self.id()
+    }
+
+    fn into_id(self) -> MenuId {
+        self.into_id()
     }
 }
 

@@ -6,6 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
+    sealed::IsMenuItemBase,
     AboutMetadata, IsMenuItem, MenuId, MenuItemKind,
 };
 use keyboard_types::{Code, Modifiers};
@@ -17,13 +18,18 @@ pub struct PredefinedMenuItem {
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
 }
 
-unsafe impl IsMenuItem for PredefinedMenuItem {
+impl IsMenuItemBase for PredefinedMenuItem {}
+impl IsMenuItem for PredefinedMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Predefined(self.clone())
     }
 
     fn id(&self) -> &MenuId {
         self.id()
+    }
+
+    fn into_id(self) -> MenuId {
+        self.into_id()
     }
 }
 
