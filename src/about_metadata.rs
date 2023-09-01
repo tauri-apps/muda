@@ -70,6 +70,58 @@ impl AboutMetadata {
                 .unwrap_or_default()
         ))
     }
+
+    /// Creates [`AboutMetadata`] from [Cargo metadata][cargo]. The following fields are set by this function.
+    ///
+    /// - [`AboutMetadata::name`] (from `CARGO_PKG_NAME`)
+    /// - [`AboutMetadata::version`] (from `CARGO_PKG_VERSION`)
+    /// - [`AboutMetadata::short_version`] (from `CARGO_PKG_VERSION_MAJOR` and `CARGO_PKG_VERSION_MINOR`)
+    /// - [`AboutMetadata::authors`] (from `CARGO_PKG_AUTHORS`)
+    /// - [`AboutMetadata::comments`] (from `CARGO_PKG_DESCRIPTION`)
+    /// - [`AboutMetadata::license`] (from `CARGO_PKG_LICENSE`)
+    /// - [`AboutMetadata::homepage`] (from `CARGO_PKG_HOMEPAGE`)
+    ///
+    /// [cargo]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
+    pub fn from_cargo_metadata() -> Self {
+        #[allow(unused_mut)]
+        let mut m = Self {
+            name: Some(env!("CARGO_PKG_NAME").into()),
+            version: Some(env!("CARGO_PKG_VERSION").into()),
+            short_version: Some(format!(
+                "{}.{}",
+                env!("CARGO_PKG_VERSION_MAJOR"),
+                env!("CARGO_PKG_VERSION_MINOR"),
+            )),
+            ..Default::default()
+        };
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            let authors = env!("CARGO_PKG_AUTHORS")
+                .split(';')
+                .map(|a| a.trim().to_string())
+                .collect::<Vec<_>>();
+            m.authors = if !authors.is_empty() {
+                Some(authors)
+            } else {
+                None
+            };
+
+            fn non_empty(s: &str) -> Option<String> {
+                if !s.is_empty() {
+                    Some(s.to_string())
+                } else {
+                    None
+                }
+            }
+
+            m.comments = non_empty(env!("CARGO_PKG_DESCRIPTION"));
+            m.license = non_empty(env!("CARGO_PKG_LICENSE"));
+            m.website = non_empty(env!("CARGO_PKG_HOMEPAGE"));
+        }
+
+        m
+    }
 }
 
 /// A builder type for [`AboutMetadata`].
@@ -79,6 +131,12 @@ pub struct AboutMetadataBuilder(AboutMetadata);
 impl AboutMetadataBuilder {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Creates [`AboutMetadataBuilder`] with Cargo metadata.
+    /// See [`AboutMetadata::from_cargo_metadata`] for more details.
+    pub fn with_cargo_metadata() -> Self {
+        Self(AboutMetadata::from_cargo_metadata())
     }
 
     /// Sets the application name.
@@ -172,5 +230,26 @@ impl AboutMetadataBuilder {
     /// Construct the final [`AboutMetadata`]
     pub fn build(self) -> AboutMetadata {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_from_metadata() {
+        let m = AboutMetadata::from_cargo_metadata();
+        assert_eq!(m.name, Some("muda".to_string()));
+        assert!(m.version.is_some());
+        assert!(m.short_version.is_some());
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert!(matches!(m.authors, Some(a) if !a.is_empty()));
+            assert!(m.comments.is_some());
+            assert!(m.license.is_some());
+            // Note: `m.website` is not tested because this package doesn't have the "website" field
+        }
     }
 }
