@@ -23,15 +23,6 @@ unsafe impl IsMenuItem for Submenu {
     fn id(&self) -> &MenuId {
         self.id()
     }
-
-    fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
-            mem::take(id)
-        } else {
-            self.id().clone()
-        }
-    }
 }
 
 impl Submenu {
@@ -199,6 +190,16 @@ impl Submenu {
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_help_menu_for_nsapp()
     }
+
+    /// Convert this submenu into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
+    }
 }
 
 impl ContextMenu for Submenu {
@@ -251,13 +252,4 @@ impl ContextMenu for Submenu {
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
     }
-}
-
-#[test]
-fn test_from_id_and_into_id() {
-    let id = "TEST ID".to_string();
-    let item = Submenu::with_id(&id, "test", true);
-    let expected = MenuId(id);
-    assert_eq!(item.id(), &expected);
-    assert_eq!(item.into_id(), expected);
 }

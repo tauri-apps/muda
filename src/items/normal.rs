@@ -20,15 +20,6 @@ unsafe impl IsMenuItem for MenuItem {
     fn id(&self) -> &MenuId {
         self.id()
     }
-
-    fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
-            mem::take(id)
-        } else {
-            self.id().clone()
-        }
-    }
 }
 
 impl MenuItem {
@@ -97,13 +88,14 @@ impl MenuItem {
     pub fn set_accelerator(&self, acccelerator: Option<Accelerator>) -> crate::Result<()> {
         self.inner.borrow_mut().set_accelerator(acccelerator)
     }
-}
 
-#[test]
-fn test_from_id_and_into_id() {
-    let id = "TEST ID".to_string();
-    let item = MenuItem::with_id(&id, "test", true, None);
-    let expected = MenuId(id);
-    assert_eq!(item.id(), &expected);
-    assert_eq!(item.into_id(), expected);
+    /// Convert this menu item into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
+    }
 }

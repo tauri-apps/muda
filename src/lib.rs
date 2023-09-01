@@ -245,6 +245,17 @@ impl MenuItemKind {
             _ => panic!("Not an IconMenuItem"),
         }
     }
+
+    /// Convert this item into its menu ID.
+    pub fn into_id(self) -> MenuId {
+        match self {
+            MenuItemKind::MenuItem(i) => i.into_id(),
+            MenuItemKind::Submenu(i) => i.into_id(),
+            MenuItemKind::Predefined(i) => i.into_id(),
+            MenuItemKind::Check(i) => i.into_id(),
+            MenuItemKind::Icon(i) => i.into_id(),
+        }
+    }
 }
 
 /// A trait that defines a generic item in a menu, which may be one of [`MenuItemKind`]
@@ -256,8 +267,6 @@ pub unsafe trait IsMenuItem {
     fn kind(&self) -> MenuItemKind;
 
     fn id(&self) -> &MenuId;
-
-    fn into_id(self) -> MenuId;
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]

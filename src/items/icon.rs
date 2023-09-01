@@ -29,15 +29,6 @@ unsafe impl IsMenuItem for IconMenuItem {
     fn id(&self) -> &MenuId {
         self.id()
     }
-
-    fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
-            mem::take(id)
-        } else {
-            self.id().clone()
-        }
-    }
 }
 
 impl IconMenuItem {
@@ -189,13 +180,14 @@ impl IconMenuItem {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)
     }
-}
 
-#[test]
-fn test_from_id_and_into_id() {
-    let id = "test".to_string();
-    let item = IconMenuItem::with_id(&id, "test", true, None, None);
-    let expected = MenuId(id);
-    assert_eq!(item.id(), &expected);
-    assert_eq!(item.into_id(), expected);
+    /// Convert this menu item into its menu ID.
+    pub fn into_id(mut self) -> MenuId {
+        // Note: `Rc::into_inner` is available from Rust 1.70
+        if let Some(id) = Rc::get_mut(&mut self.id) {
+            mem::take(id)
+        } else {
+            self.id().clone()
+        }
+    }
 }

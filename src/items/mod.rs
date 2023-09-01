@@ -16,7 +16,7 @@ pub use submenu::*;
 
 #[cfg(test)]
 mod test {
-    use crate::{CheckMenuItem, IconMenuItem, MenuId, MenuItem, Submenu};
+    use crate::{CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu};
 
     #[test]
     fn it_returns_same_id() {
@@ -31,5 +31,30 @@ mod test {
             id,
             IconMenuItem::with_id(id.clone(), "", true, None, None).id()
         );
+    }
+
+    #[test]
+    fn test_convert_from_id_and_into_id() {
+        let id = "TEST ID";
+        let expected = MenuId(id.to_string());
+
+        let item = CheckMenuItem::with_id(id, "test", true, true, None);
+        assert_eq!(item.id(), &expected);
+        assert_eq!(item.into_id(), expected);
+
+        let item = IconMenuItem::with_id(id, "test", true, None, None);
+        assert_eq!(item.id(), &expected);
+        assert_eq!(item.into_id(), expected);
+
+        let item = MenuItem::with_id(id, "test", true, None);
+        assert_eq!(item.id(), &expected);
+        assert_eq!(item.into_id(), expected);
+
+        let item = Submenu::with_id(id, "test", true);
+        assert_eq!(item.id(), &expected);
+        assert_eq!(item.into_id(), expected);
+
+        let item = PredefinedMenuItem::separator();
+        assert_eq!(item.id().clone(), item.into_id());
     }
 }
