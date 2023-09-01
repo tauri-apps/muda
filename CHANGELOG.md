@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.9.0]
+
+- [`02e537e`](https://www.github.com/tauri-apps/muda/commit/02e537ea06e74dd08c3bdeaf350d8c71e8e04f19)([#112](https://www.github.com/tauri-apps/muda/pull/112)) Added `into_id` method to `MenuItem`, `CheckMenuItem`, `PredefinedMenuItem`, `Submenu`, `MenuItemKind` and `IsMenuItem` trait. It moves the menu item into its id.
+- [`622f30b`](https://www.github.com/tauri-apps/muda/commit/622f30b838a5dee879715ca5da3ff84bcaa48685) Update `keyboard-types` to `0.7`
+- [`bce7540`](https://www.github.com/tauri-apps/muda/commit/bce7540bba0d26ae4e55b3e2d164f1579b58743a)([#113](https://www.github.com/tauri-apps/muda/pull/113)) Add `MenuItemKind::id` convenient method to get access to the inner kind id.
+
 ## \[0.8.7]
 
 - [`8d832c0`](https://www.github.com/tauri-apps/muda/commit/8d832c06f4e810278c0da129063231f880c3f918) Wrapped the `id` field of the `Menu` struct in an `Rc` to be consistent with other menu structs and make it cheaper to clone.
