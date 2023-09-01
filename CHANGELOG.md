@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.9.1]
+
+- [`c1fbde7`](https://www.github.com/tauri-apps/muda/commit/c1fbde72a83fdef579436f2fc7a55de77fa907c2)([#116](https://www.github.com/tauri-apps/muda/pull/116)) Added `AboutMetadata::from_cargo_metadata` and `AboutMetadataBuilder::with_cargo_metadata` to build the application metadata from Cargo package metadata.
+
 ## \[0.9.0]
 
 - [`02e537e`](https://www.github.com/tauri-apps/muda/commit/02e537ea06e74dd08c3bdeaf350d8c71e8e04f19)([#112](https://www.github.com/tauri-apps/muda/pull/112)) Added `into_id` method to `MenuItem`, `CheckMenuItem`, `PredefinedMenuItem`, `Submenu`, `MenuItemKind` and `IsMenuItem` trait. It moves the menu item into its id.
