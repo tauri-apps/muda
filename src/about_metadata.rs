@@ -79,7 +79,7 @@ impl AboutMetadata {
     /// - [`AboutMetadata::authors`] (from `CARGO_PKG_AUTHORS`)
     /// - [`AboutMetadata::comments`] (from `CARGO_PKG_DESCRIPTION`)
     /// - [`AboutMetadata::license`] (from `CARGO_PKG_LICENSE`)
-    /// - [`AboutMetadata::homepage`] (from `CARGO_PKG_HOMEPAGE`)
+    /// - [`AboutMetadata::website`] (from `CARGO_PKG_HOMEPAGE`)
     ///
     /// [cargo]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
     pub fn from_cargo_metadata() -> Self {
