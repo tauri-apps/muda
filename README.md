@@ -1,6 +1,8 @@
-[![Document](https://img.shields.io/docsrs/muda)](https://docs.rs/muda/latest/muda/)
+### muda
 
-muda is a Menu Utilities library for Desktop Applications.
+Menu Utilities library for Desktop Applications.
+
+[![Documentation](https://img.shields.io/docsrs/muda)](https://docs.rs/muda/latest/muda/)
 
 ## Platforms supported:
 
