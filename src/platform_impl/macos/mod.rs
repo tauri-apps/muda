@@ -733,9 +733,7 @@ impl MenuChild {
     pub fn create_ns_item_for_predefined_menu_item(&mut self, menu_id: u32) -> crate::Result<id> {
         let item_type = self.predefined_item_type.as_ref().unwrap();
         let ns_menu_item = match item_type {
-            PredefinedMenuItemType::Separator => unsafe {
-                NSMenuItem::separatorItem(nil)
-            },
+            PredefinedMenuItemType::Separator => unsafe { NSMenuItem::separatorItem(nil) },
             _ => create_ns_menu_item(&self.text, item_type.selector(), &self.accelerator)?,
         };
 
