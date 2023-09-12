@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.9.2]
+
+- [`45345ad`](https://www.github.com/tauri-apps/muda/commit/45345ad631187190799bdaea6f9f0d0d7e245d5e) On macOS, fixed autorelease from separator twice.
+
 ## \[0.9.1]
 
 - [`c1fbde7`](https://www.github.com/tauri-apps/muda/commit/c1fbde72a83fdef579436f2fc7a55de77fa907c2)([#116](https://www.github.com/tauri-apps/muda/pull/116)) Added `AboutMetadata::from_cargo_metadata` and `AboutMetadataBuilder::with_cargo_metadata` to build the application metadata from Cargo package metadata.
