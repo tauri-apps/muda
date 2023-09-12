@@ -734,7 +734,7 @@ impl MenuChild {
         let item_type = self.predefined_item_type.as_ref().unwrap();
         let ns_menu_item = match item_type {
             PredefinedMenuItemType::Separator => unsafe {
-                NSMenuItem::separatorItem(nil).autorelease()
+                NSMenuItem::separatorItem(nil)
             },
             _ => create_ns_menu_item(&self.text, item_type.selector(), &self.accelerator)?,
         };
