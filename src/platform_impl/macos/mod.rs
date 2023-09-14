@@ -669,7 +669,9 @@ impl MenuChild {
 
         unsafe {
             ns_menu_item = NSMenuItem::alloc(nil).autorelease();
-            ns_submenu = NSMenu::alloc(nil).autorelease();
+
+            // ns_submenu will be manually released when NsMenuRef dropped
+            ns_submenu = NSMenu::alloc(nil);
 
             let title = NSString::alloc(nil).init_str(&self.text).autorelease();
             let () = msg_send![ns_submenu, setTitle: title];
