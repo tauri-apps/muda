@@ -59,6 +59,17 @@ impl Drop for NsMenuRef {
     }
 }
 
+#[derive(Debug, Clone)]
+struct NsMenuItemRef(id);
+
+impl Drop for NsMenuItemRef {
+    fn drop(&mut self) {
+        unsafe {
+            let _: () = msg_send![self.0, releasse];
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Menu {
     id: MenuId,
@@ -185,7 +196,7 @@ pub struct MenuChild {
     text: String,
     enabled: bool,
 
-    ns_menu_items: HashMap<u32, Vec<id>>,
+    ns_menu_items: HashMap<u32, Vec<NsMenuItemRef>>,
 
     // menu item fields
     accelerator: Option<Accelerator>,
@@ -416,9 +427,9 @@ impl MenuChild {
         unsafe {
             let title = NSString::alloc(nil).init_str(&self.text).autorelease();
             for ns_items in self.ns_menu_items.values() {
-                for &ns_item in ns_items {
-                    let () = msg_send![ns_item, setTitle: title];
-                    let ns_submenu: id = msg_send![ns_item, submenu];
+                for ns_item in ns_items {
+                    let () = msg_send![ns_item.0, setTitle: title];
+                    let ns_submenu: id = msg_send![ns_item.0, submenu];
                     if ns_submenu != nil {
                         let () = msg_send![ns_submenu, setTitle: title];
                     }
@@ -434,9 +445,9 @@ impl MenuChild {
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
         for ns_items in self.ns_menu_items.values() {
-            for &ns_item in ns_items {
+            for ns_item in ns_items {
                 unsafe {
-                    let () = msg_send![ns_item, setEnabled: if enabled { YES } else { NO }];
+                    let () = msg_send![ns_item.0, setEnabled: if enabled { YES } else { NO }];
                 }
             }
         }
@@ -461,10 +472,10 @@ impl MenuChild {
                 .unwrap_or_else(NSEventModifierFlags::empty);
 
             for ns_items in self.ns_menu_items.values() {
-                for &ns_item in ns_items {
+                for ns_item in ns_items {
                     unsafe {
-                        let _: () = msg_send![ns_item, setKeyEquivalent: key_equivalent];
-                        ns_item.setKeyEquivalentModifierMask_(modifier_mask);
+                        let _: () = msg_send![ns_item.0, setKeyEquivalent: key_equivalent];
+                        ns_item.0.setKeyEquivalentModifierMask_(modifier_mask);
                     }
                 }
             }
@@ -485,9 +496,9 @@ impl MenuChild {
     pub fn set_checked(&mut self, checked: bool) {
         self.checked = checked;
         for ns_items in self.ns_menu_items.values() {
-            for &ns_item in ns_items {
+            for ns_item in ns_items {
                 unsafe {
-                    let () = msg_send![ns_item, setState: checked as u32];
+                    let () = msg_send![ns_item.0, setState: checked as u32];
                 }
             }
         }
@@ -500,8 +511,8 @@ impl MenuChild {
         self.icon = icon.clone();
         self.native_icon = None;
         for ns_items in self.ns_menu_items.values() {
-            for &ns_item in ns_items {
-                menuitem_set_icon(ns_item, icon.as_ref());
+            for ns_item in ns_items {
+                menuitem_set_icon(ns_item.0, icon.as_ref());
             }
         }
     }
@@ -510,8 +521,8 @@ impl MenuChild {
         self.native_icon = icon;
         self.icon = None;
         for ns_items in self.ns_menu_items.values() {
-            for &ns_item in ns_items {
-                menuitem_set_native_icon(ns_item, icon);
+            for ns_item in ns_items {
+                menuitem_set_native_icon(ns_item.0, icon);
             }
         }
     }
@@ -668,9 +679,7 @@ impl MenuChild {
         let ns_submenu: id;
 
         unsafe {
-            ns_menu_item = NSMenuItem::alloc(nil).autorelease();
-
-            // ns_submenu will be manually released when NsMenuRef dropped
+            ns_menu_item = NSMenuItem::alloc(nil);
             ns_submenu = NSMenu::alloc(nil);
 
             let title = NSString::alloc(nil).init_str(&self.text).autorelease();
@@ -700,7 +709,7 @@ impl MenuChild {
         self.ns_menu_items
             .entry(menu_id)
             .or_insert_with(Vec::new)
-            .push(ns_menu_item);
+            .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
     }
@@ -727,7 +736,7 @@ impl MenuChild {
         self.ns_menu_items
             .entry(menu_id)
             .or_insert_with(Vec::new)
-            .push(ns_menu_item);
+            .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
     }
@@ -764,7 +773,7 @@ impl MenuChild {
         self.ns_menu_items
             .entry(menu_id)
             .or_insert_with(Vec::new)
-            .push(ns_menu_item);
+            .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
     }
@@ -794,7 +803,7 @@ impl MenuChild {
         self.ns_menu_items
             .entry(menu_id)
             .or_insert_with(Vec::new)
-            .push(ns_menu_item);
+            .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
     }
@@ -827,7 +836,7 @@ impl MenuChild {
         self.ns_menu_items
             .entry(menu_id)
             .or_insert_with(Vec::new)
-            .push(ns_menu_item);
+            .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
     }
@@ -1027,7 +1036,7 @@ fn create_ns_menu_item(
         ns_menu_item.initWithTitle_action_keyEquivalent_(title, selector, key_equivalent);
         ns_menu_item.setKeyEquivalentModifierMask_(modifier_mask);
 
-        Ok(ns_menu_item.autorelease())
+        Ok(ns_menu_item)
     }
 }
 
