@@ -65,7 +65,7 @@ struct NsMenuItemRef(id);
 impl Drop for NsMenuItemRef {
     fn drop(&mut self) {
         unsafe {
-            let _: () = msg_send![self.0, releasse];
+            let _: () = msg_send![self.0, release];
         }
     }
 }
