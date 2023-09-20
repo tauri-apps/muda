@@ -4,14 +4,17 @@
 
 // this is a port of combination of https://github.com/hrydgard/ppsspp/blob/master/Windows/W32Util/UAHMenuBar.cpp and https://github.com/ysc3839/win32-darkmode/blob/master/win32-darkmode/DarkMode.h
 
-#![allow(non_snake_case)]
+#![allow(non_snake_case, clippy::upper_case_acronyms)]
 
 use once_cell::sync::Lazy;
 use windows_sys::{
     s, w,
     Win32::{
         Foundation::{HMODULE, HWND, LPARAM, RECT, WPARAM},
-        Graphics::Gdi::{OffsetRect, DT_CENTER, DT_HIDEPREFIX, DT_SINGLELINE, DT_VCENTER, HDC},
+        Graphics::Gdi::{
+            GetWindowDC, MapWindowPoints, OffsetRect, ReleaseDC, DT_CENTER, DT_HIDEPREFIX,
+            DT_SINGLELINE, DT_VCENTER, HDC,
+        },
         System::LibraryLoader::{GetProcAddress, LoadLibraryA},
         UI::{
             Accessibility::HIGHCONTRASTA,
@@ -21,8 +24,9 @@ use windows_sys::{
                 ODS_GRAYED, ODS_HOTLIGHT, ODS_INACTIVE, ODS_NOACCEL, ODS_SELECTED,
             },
             WindowsAndMessaging::{
-                GetMenuBarInfo, GetMenuItemInfoW, GetWindowRect, SystemParametersInfoA, HMENU,
-                MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU, SPI_GETHIGHCONTRAST,
+                GetClientRect, GetMenuBarInfo, GetMenuItemInfoW, GetWindowRect,
+                SystemParametersInfoA, HMENU, MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU,
+                SPI_GETHIGHCONTRAST, WM_NCACTIVATE, WM_NCPAINT,
             },
         },
     },
@@ -69,12 +73,49 @@ struct UAHDRAWMENUITEM {
 }
 
 /// Draws a dark menu bar if needed and returns whether it draws it or not
-pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) -> bool {
-    if !should_use_dark_mode(hwnd) {
-        return false;
-    }
-
+pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
     match msg {
+        // draw over the annoying white line blow menubar
+        // ref: https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9985
+        WM_NCACTIVATE | WM_NCPAINT => {
+            let mut mbi = MENUBARINFO {
+                cbSize: std::mem::size_of::<MENUBARINFO>() as _,
+                ..unsafe { std::mem::zeroed() }
+            };
+            unsafe { GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi) };
+
+            let mut client_rc: RECT = unsafe { std::mem::zeroed() };
+            unsafe {
+                GetClientRect(hwnd, &mut client_rc);
+                MapWindowPoints(hwnd, 0, &mut client_rc as *mut _ as *mut _, 2);
+            };
+
+            let mut window_rc: RECT = unsafe { std::mem::zeroed() };
+            unsafe { GetWindowRect(hwnd, &mut window_rc) };
+
+            unsafe { OffsetRect(&mut client_rc, -window_rc.left, -window_rc.top) };
+
+            let mut annoying_rc = client_rc;
+            annoying_rc.bottom = annoying_rc.top;
+            annoying_rc.top -= 1;
+
+            unsafe {
+                let theme = OpenThemeData(hwnd, w!("Menu"));
+                let hdc = GetWindowDC(hwnd);
+                DrawThemeBackground(
+                    theme,
+                    hdc,
+                    MENU_POPUPITEM,
+                    MPI_NORMAL,
+                    &annoying_rc,
+                    std::ptr::null(),
+                );
+                ReleaseDC(hwnd, hdc);
+                CloseThemeData(theme);
+            }
+        }
+
+        // draw menu bar background
         WM_UAHDRAWMENU => {
             let pudm = lparam as *const UAHMENU;
 
@@ -86,9 +127,7 @@ pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) -> bool {
                 };
                 unsafe { GetMenuBarInfo(hwnd, OBJID_MENU, 0, &mut mbi) };
 
-                let mut window_rc = RECT {
-                    ..unsafe { std::mem::zeroed() }
-                };
+                let mut window_rc: RECT = unsafe { std::mem::zeroed() };
                 unsafe { GetWindowRect(hwnd, &mut window_rc) };
 
                 let mut rc = mbi.rcBar;
@@ -100,7 +139,6 @@ pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) -> bool {
 
             unsafe {
                 let theme = OpenThemeData(hwnd, w!("Menu"));
-
                 DrawThemeBackground(
                     theme,
                     (*pudm).hdc,
@@ -113,6 +151,7 @@ pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) -> bool {
             }
         }
 
+        // draw menu bar items
         WM_UAHDRAWMENUITEM => {
             let pudmi = lparam as *const UAHDRAWMENUITEM;
 
@@ -194,13 +233,11 @@ pub fn draw(hwnd: HWND, msg: u32, _wparam: WPARAM, lparam: LPARAM) -> bool {
             }
         }
 
-        _ => return false,
+        _ => {}
     };
-
-    true
 }
 
-fn should_use_dark_mode(hwnd: HWND) -> bool {
+pub fn should_use_dark_mode(hwnd: HWND) -> bool {
     should_apps_use_dark_mode() && !is_high_contrast() && is_dark_mode_allowed_for_window(hwnd)
 }
 
