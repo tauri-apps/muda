@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.9.3]
+
+- [`bdd0c9a`](https://www.github.com/tauri-apps/muda/commit/bdd0c9aa0d7d4158535796a20a1c1597799840a4)([#122](https://www.github.com/tauri-apps/muda/pull/122)) On macOS, fix menu crash due to a double freeing the underlying NsMenu.
+- [`f7e3030`](https://www.github.com/tauri-apps/muda/commit/f7e3030f3438f92e92dfa724c5f8a6864387de0f)([#125](https://www.github.com/tauri-apps/muda/pull/125)) On Windwos, redraw the menubar when adding a new menu item or a submenu.
+
 ## \[0.9.2]
 
 - [`45345ad`](https://www.github.com/tauri-apps/muda/commit/45345ad631187190799bdaea6f9f0d0d7e245d5e) On macOS, fixed autorelease from separator twice.
