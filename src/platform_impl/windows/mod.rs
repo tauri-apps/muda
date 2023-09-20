@@ -248,6 +248,11 @@ impl Menu {
             }
         }
 
+        // redraw the menu bar
+        for hwnd in &self.hwnds {
+            unsafe { DrawMenuBar(*hwnd) };
+        }
+
         {
             let mut child_ = child.borrow_mut();
             child_.parents_hemnu.push(self.hmenu);
@@ -270,6 +275,7 @@ impl Menu {
             RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
 
+            // redraw the menu bar
             for hwnd in &self.hwnds {
                 DrawMenuBar(*hwnd);
             }
