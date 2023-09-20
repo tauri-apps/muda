@@ -177,15 +177,25 @@ fn main() -> wry::Result<()> {
     <html>
     <body>
         <style>
+            * {{
+                padding: 0;
+                margin: 0;
+                box-sizing: border-box;
+                font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+            }}
             main {{
-                width: 100vw;
-                height: 100vh;
+                    width: 100vw;
+                    height: 100vh;
+            }}
+            @media (prefers-color-scheme: dark) {{
+                main {{
+                    color: #fff;
+                    background: #2f2f2f;
+                }}
             }}
         </style>
         <main>
             <h4> WRYYYYYYYYYYYYYYYYYYYYYY! </h4>
-            <input />
-            <button> Hi </button>
         </main>
         <script>
             window.addEventListener('contextmenu', (e) => {{

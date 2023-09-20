@@ -38,7 +38,7 @@ use windows_sys::Win32::{
             HMENU, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION,
             MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING,
             MF_UNCHECKED, MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
-            TPM_LEFTALIGN, WM_CLOSE, WM_COMMAND,
+            TPM_LEFTALIGN, WM_CLOSE, WM_COMMAND, WM_NCACTIVATE, WM_NCPAINT,
         },
     },
 };
@@ -1070,7 +1070,6 @@ unsafe extern "system" fn menu_subclass_proc(
     uidsubclass: usize,
     dwrefdata: usize,
 ) -> LRESULT {
-    let mut ret = None;
     match msg {
         WM_COMMAND => {
             let id = util::LOWORD(wparam as _) as u32;
@@ -1083,8 +1082,6 @@ unsafe extern "system" fn menu_subclass_proc(
             };
 
             if let Some(item) = item {
-                ret = Some(0);
-
                 let (mut dispatch, mut menu_id) = (true, None);
 
                 {
@@ -1149,22 +1146,32 @@ unsafe extern "system" fn menu_subclass_proc(
                         id: menu_id.unwrap(),
                     });
                 }
+
+                0
+            } else {
+                DefSubclassProc(hwnd, msg, wparam, lparam)
             }
         }
 
         WM_UAHDRAWMENUITEM | WM_UAHDRAWMENU => {
-            if dark_menu_bar::draw(hwnd, msg, wparam, lparam) {
-                ret = Some(0);
+            if dark_menu_bar::should_use_dark_mode(hwnd) {
+                dark_menu_bar::draw(hwnd, msg, wparam, lparam);
+                0
+            } else {
+                DefSubclassProc(hwnd, msg, wparam, lparam)
             }
         }
+        WM_NCACTIVATE | WM_NCPAINT => {
+            // DefSubclassProc needs to be called before calling the
+            // custom dark menu redraw
+            let res = DefSubclassProc(hwnd, msg, wparam, lparam);
+            if dark_menu_bar::should_use_dark_mode(hwnd) {
+                dark_menu_bar::draw(hwnd, msg, wparam, lparam);
+            }
+            res
+        }
 
-        _ => {}
-    };
-
-    if let Some(ret) = ret {
-        ret
-    } else {
-        DefSubclassProc(hwnd, msg, wparam, lparam)
+        _ => DefSubclassProc(hwnd, msg, wparam, lparam),
     }
 }
 
