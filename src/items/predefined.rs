@@ -162,6 +162,15 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Services, text)
     }
 
+    /// 'Bring all windows in front' menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported.
+    pub fn front(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::Front, text)
+    }
+
     fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
         let item = crate::platform_impl::MenuChild::new_predefined(
             item,
@@ -250,6 +259,7 @@ pub(crate) enum PredefinedMenuItemType {
     Quit,
     About(Option<AboutMetadata>),
     Services,
+    Front,
     None,
 }
 
@@ -288,6 +298,7 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Quit => "&Quit",
             PredefinedMenuItemType::About(_) => "&About",
             PredefinedMenuItemType::Services => "Services",
+            PredefinedMenuItemType::Front => "Bring All to Front",
             PredefinedMenuItemType::None => "",
         }
     }

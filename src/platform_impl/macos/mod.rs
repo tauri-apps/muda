@@ -873,6 +873,7 @@ impl PredefinedMenuItemType {
             // manual implementation in `fire_menu_item_click`
             PredefinedMenuItemType::About(_) => Some(selector("fireMenuItemAction:")),
             PredefinedMenuItemType::Services => None,
+            PredefinedMenuItemType::Front => Some(selector("arrangeInFront:")),
             PredefinedMenuItemType::None => None,
         }
     }
