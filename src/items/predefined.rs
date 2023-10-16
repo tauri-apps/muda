@@ -162,13 +162,13 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Services, text)
     }
 
-    /// 'Bring all windows in front' menu item
+    /// 'Bring all to front' menu item
     ///
     /// ## Platform-specific:
     ///
     /// - **Windows / Linux:** Unsupported.
-    pub fn front(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemType::Front, text)
+    pub fn bring_all_to_front(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::BringAllToFront, text)
     }
 
     fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
@@ -259,7 +259,7 @@ pub(crate) enum PredefinedMenuItemType {
     Quit,
     About(Option<AboutMetadata>),
     Services,
-    Front,
+    BringAllToFront,
     None,
 }
 
@@ -298,7 +298,7 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Quit => "&Quit",
             PredefinedMenuItemType::About(_) => "&About",
             PredefinedMenuItemType::Services => "Services",
-            PredefinedMenuItemType::Front => "Bring All to Front",
+            PredefinedMenuItemType::BringAllToFront => "Bring All to Front",
             PredefinedMenuItemType::None => "",
         }
     }
