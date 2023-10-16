@@ -123,6 +123,7 @@ fn main() -> wry::Result<()> {
             &PredefinedMenuItem::maximize(None),
             &PredefinedMenuItem::close_window(Some("Close")),
             &PredefinedMenuItem::fullscreen(None),
+            &PredefinedMenuItem::bring_all_to_front(None),
             &PredefinedMenuItem::about(
                 None,
                 Some(AboutMetadata {
