@@ -1019,13 +1019,13 @@ impl MenuChild {
             self.gtk_menu_items
                 .borrow_mut()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(item.clone());
             self.gtk_menus
                 .as_mut()
                 .unwrap()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((id, submenu.clone()));
         }
 
@@ -1066,7 +1066,7 @@ impl MenuChild {
             self.gtk_menu_items
                 .borrow_mut()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(item.clone());
         }
 
@@ -1186,7 +1186,7 @@ impl MenuChild {
             self.gtk_menu_items
                 .borrow_mut()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(item.clone());
         }
         Ok(item)
@@ -1242,7 +1242,7 @@ impl MenuChild {
             self.gtk_menu_items
                 .borrow_mut()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(item.clone());
         }
 
@@ -1259,7 +1259,7 @@ impl MenuChild {
             .icon
             .as_ref()
             .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf_scale(16, 16))))
-            .unwrap_or_else(gtk::Image::default);
+            .unwrap_or_default();
 
         self.accel_group = accel_group.cloned();
 
@@ -1299,7 +1299,7 @@ impl MenuChild {
             self.gtk_menu_items
                 .borrow_mut()
                 .entry(menu_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(item.clone());
         }
 
