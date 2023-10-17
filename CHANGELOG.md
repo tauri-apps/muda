@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.9.4]
+
+- [`3672a0c`](https://www.github.com/tauri-apps/muda/commit/3672a0c663bb711528d18d1f4abee949f1ca26f2)([#130](https://www.github.com/tauri-apps/muda/pull/130)) Add `PredefinedMenuItem::bring_all_to_front` for 'Bring All to Front' menu item on macOS.
+- [`e34040e`](https://www.github.com/tauri-apps/muda/commit/e34040e75a97e5b17d31c6d0f6df007cce5ddfc6)([#126](https://www.github.com/tauri-apps/muda/pull/126)) On Windows, draw over the white line under the menubar in dark mode.
+
 ## \[0.9.3]
 
 - [`bdd0c9a`](https://www.github.com/tauri-apps/muda/commit/bdd0c9aa0d7d4158535796a20a1c1597799840a4)([#122](https://www.github.com/tauri-apps/muda/pull/122)) On macOS, fix menu crash due to a double freeing the underlying NsMenu.
