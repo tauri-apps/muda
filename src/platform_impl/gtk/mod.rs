@@ -15,7 +15,7 @@ use crate::{
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
-use gtk::{prelude::*, Container, Orientation};
+use gtk::{prelude::*, AboutDialog, Container, Orientation};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -1138,9 +1138,7 @@ impl MenuChild {
                 register_accel(&item);
                 item.connect_activate(move |_| {
                     if let Some(metadata) = &metadata {
-                        let mut builder = gtk::builders::AboutDialogBuilder::new()
-                            .modal(true)
-                            .resizable(false);
+                        let mut builder = AboutDialog::builder().modal(true).resizable(false);
 
                         if let Some(name) = &metadata.name {
                             builder = builder.program_name(name);
