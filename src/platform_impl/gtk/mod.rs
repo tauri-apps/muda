@@ -15,7 +15,7 @@ use crate::{
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
-use gtk::{prelude::*, gdk, AboutDialog, Container, Orientation};
+use gtk::{gdk, prelude::*, AboutDialog, Container, Orientation};
 use std::{
     cell::RefCell,
     collections::HashMap,
