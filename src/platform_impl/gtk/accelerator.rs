@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use keyboard_types::{Code, Modifiers};
+use gtk::gdk;
 
 use crate::accelerator::Accelerator;
 
