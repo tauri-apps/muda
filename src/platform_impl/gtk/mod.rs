@@ -1048,7 +1048,7 @@ impl MenuChild {
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let item = gtk::MenuItem::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .sensitive(self.enabled)
             .build();
@@ -1089,7 +1089,7 @@ impl MenuChild {
 
         let make_item = || {
             gtk::MenuItem::builder()
-                .label(&to_gtk_mnemonic(&text))
+                .label(to_gtk_mnemonic(&text))
                 .use_underline(true)
                 .sensitive(true)
                 .build()
@@ -1197,7 +1197,7 @@ impl MenuChild {
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let item = gtk::CheckMenuItem::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .sensitive(self.enabled)
             .active(self.checked.as_ref().unwrap().load(Ordering::Relaxed))
@@ -1262,7 +1262,7 @@ impl MenuChild {
         self.accel_group = accel_group.cloned();
 
         let label = gtk::AccelLabel::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .xalign(0.0)
             .build();
