@@ -209,7 +209,12 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         }
     }
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(window.ns_view() as _, position);
+    {
+        use winit::raw_window_handle::*;
+        if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
+            menu.show_context_menu_for_nsview(handle.ns_view.as_ptr(), position);
+        }
+    }
 }
 
 fn load_icon(path: &std::path::Path) -> muda::Icon {
