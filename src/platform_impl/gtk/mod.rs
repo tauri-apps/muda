@@ -15,7 +15,7 @@ use crate::{
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
-use gtk::{prelude::*, Container, Orientation};
+use gtk::{gdk, prelude::*, AboutDialog, Container, Orientation};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -1048,7 +1048,7 @@ impl MenuChild {
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let item = gtk::MenuItem::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .sensitive(self.enabled)
             .build();
@@ -1089,7 +1089,7 @@ impl MenuChild {
 
         let make_item = || {
             gtk::MenuItem::builder()
-                .label(&to_gtk_mnemonic(&text))
+                .label(to_gtk_mnemonic(&text))
                 .use_underline(true)
                 .sensitive(true)
                 .build()
@@ -1138,9 +1138,7 @@ impl MenuChild {
                 register_accel(&item);
                 item.connect_activate(move |_| {
                     if let Some(metadata) = &metadata {
-                        let mut builder = gtk::builders::AboutDialogBuilder::new()
-                            .modal(true)
-                            .resizable(false);
+                        let mut builder = AboutDialog::builder().modal(true).resizable(false);
 
                         if let Some(name) = &metadata.name {
                             builder = builder.program_name(name);
@@ -1199,7 +1197,7 @@ impl MenuChild {
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let item = gtk::CheckMenuItem::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .sensitive(self.enabled)
             .active(self.checked.as_ref().unwrap().load(Ordering::Relaxed))
@@ -1264,7 +1262,7 @@ impl MenuChild {
         self.accel_group = accel_group.cloned();
 
         let label = gtk::AccelLabel::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .xalign(0.0)
             .build();

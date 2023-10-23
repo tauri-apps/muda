@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use gtk::gdk;
 use keyboard_types::{Code, Modifiers};
 
 use crate::accelerator::Accelerator;

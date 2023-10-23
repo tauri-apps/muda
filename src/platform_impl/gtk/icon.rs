@@ -2,7 +2,7 @@
 // Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use gdk_pixbuf::{Colorspace, Pixbuf};
+use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 
 use crate::icon::BadIcon;
 
@@ -19,7 +19,7 @@ impl From<PlatformIcon> for Pixbuf {
     fn from(icon: PlatformIcon) -> Self {
         Pixbuf::from_mut_slice(
             icon.raw,
-            gdk_pixbuf::Colorspace::Rgb,
+            gtk::gdk_pixbuf::Colorspace::Rgb,
             true,
             8,
             icon.width,
@@ -48,7 +48,7 @@ impl PlatformIcon {
     pub fn to_pixbuf(&self) -> Pixbuf {
         Pixbuf::from_mut_slice(
             self.raw.clone(),
-            gdk_pixbuf::Colorspace::Rgb,
+            gtk::gdk_pixbuf::Colorspace::Rgb,
             true,
             8,
             self.width,
@@ -59,7 +59,7 @@ impl PlatformIcon {
 
     pub fn to_pixbuf_scale(&self, w: i32, h: i32) -> Pixbuf {
         self.to_pixbuf()
-            .scale_simple(w, h, gdk_pixbuf::InterpType::Bilinear)
+            .scale_simple(w, h, gtk::gdk_pixbuf::InterpType::Bilinear)
             .unwrap()
     }
 }
