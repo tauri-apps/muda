@@ -23,10 +23,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
-
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN  }}
       - name: git config
