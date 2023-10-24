@@ -49,7 +49,7 @@ objc = "0.2"
 png = "0.17"
 
 [dev-dependencies]
-winit = "0.28"
+winit = "0.29"
 tao = "0.23"
 wry = "0.34"
 image = "0.24"

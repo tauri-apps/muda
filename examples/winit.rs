@@ -38,7 +38,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     event_loop_builder.with_default_menu(false);
 
-    let event_loop = event_loop_builder.build();
+    let event_loop = event_loop_builder.build().unwrap();
 
     let window = WindowBuilder::new()
         .with_title("Window 1")
@@ -128,8 +128,13 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     {
-        menu_bar.init_for_hwnd(window.hwnd() as _);
-        menu_bar.init_for_hwnd(window2.hwnd() as _);
+        use winit::raw_window_handle::*;
+        if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
+            menu_bar.init_for_hwnd(handle.hwnd.get());
+        }
+        if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
+            menu_bar.init_for_hwnd(handle.hwnd.get());
+        }
     }
     #[cfg(target_os = "macos")]
     {
@@ -141,14 +146,14 @@ fn main() {
     let mut window_cursor_position = PhysicalPosition { x: 0., y: 0. };
     let mut use_window_pos = false;
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+    event_loop.run(move |event, event_loop| {
+        event_loop.set_control_flow(ControlFlow::Wait);
 
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => event_loop.exit(),
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 window_id,
@@ -182,9 +187,6 @@ fn main() {
                 );
                 use_window_pos = !use_window_pos;
             }
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
             _ => (),
         }
 
@@ -194,15 +196,25 @@ fn main() {
             }
             println!("{event:?}");
         }
-    })
+    });
 }
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
-    menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
+    {
+        use winit::raw_window_handle::*;
+        if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
+            menu.show_context_menu_for_hwnd(handle.hwnd.get(), position);
+        }
+    }
     #[cfg(target_os = "macos")]
-    menu.show_context_menu_for_nsview(window.ns_view() as _, position);
+    {
+        use winit::raw_window_handle::*;
+        if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
+            menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position);
+        }
+    }
 }
 
 fn load_icon(path: &std::path::Path) -> muda::Icon {
