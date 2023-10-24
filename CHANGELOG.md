@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.10.0]
+
+- [`8d95612`](https://www.github.com/tauri-apps/muda/commit/8d95612c27374637895ac5d28f553143501adeff)([#133](https://www.github.com/tauri-apps/muda/pull/133)) Upgrade `gtk` to 0.18 and bump MSRV to 1.70.0.
+
 ## \[0.9.4]
 
 - [`3672a0c`](https://www.github.com/tauri-apps/muda/commit/3672a0c663bb711528d18d1f4abee949f1ca26f2)([#130](https://www.github.com/tauri-apps/muda/pull/130)) Add `PredefinedMenuItem::bring_all_to_front` for 'Bring All to Front' menu item on macOS.
