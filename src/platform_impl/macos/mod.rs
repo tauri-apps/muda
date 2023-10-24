@@ -703,12 +703,12 @@ impl MenuChild {
             .as_mut()
             .unwrap()
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuRef(id, ns_submenu));
 
         self.ns_menu_items
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
@@ -735,7 +735,7 @@ impl MenuChild {
 
         self.ns_menu_items
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
@@ -772,7 +772,7 @@ impl MenuChild {
 
         self.ns_menu_items
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
@@ -802,7 +802,7 @@ impl MenuChild {
 
         self.ns_menu_items
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
@@ -835,7 +835,7 @@ impl MenuChild {
 
         self.ns_menu_items
             .entry(menu_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(NsMenuItemRef(ns_menu_item));
 
         Ok(ns_menu_item)
