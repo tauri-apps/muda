@@ -37,3 +37,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo +nightly miri test
