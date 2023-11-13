@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.11.0]
+
+- [`ae316bf`](https://www.github.com/tauri-apps/muda/commit/ae316bf2dd3dbefce5f866b98165b0336bb3010e)([#139](https://www.github.com/tauri-apps/muda/pull/139)) Changed `ContextMenu::show_context_menu_for_gtk_window` to take `gtk::Window` instead of `gtk::ApplicationWindow` and relaxed generic gtk constraints on the following methods:
+
+  - `MenuBar::init_for_gtk_window`
+  - `MenuBar::remove_for_gtk_window`
+  - `MenuBar::hide_for_gtk_window`
+  - `MenuBar::show_for_gtk_window`
+  - `MenuBar::is_visible_on_gtk_window`
+  - `MenuBar::gtk_menubar_for_gtk_window`
+
 ## \[0.10.0]
 
 - [`8d95612`](https://www.github.com/tauri-apps/muda/commit/8d95612c27374637895ac5d28f553143501adeff)([#133](https://www.github.com/tauri-apps/muda/pull/133)) Upgrade `gtk` to 0.18 and bump MSRV to 1.70.0.
