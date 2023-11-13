@@ -161,7 +161,7 @@ impl Menu {
         self.inner.borrow().items()
     }
 
-    /// Adds this menu to a [`gtk::ApplicationWindow`]
+    /// Adds this menu to a [`gtk::Window`]
     ///
     /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
     /// it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
@@ -169,7 +169,7 @@ impl Menu {
     ///
     /// ## Example:
     /// ```no_run
-    /// let window = gtk::ApplicationWindow::builder().build();
+    /// let window = gtk::Window::builder().build();
     /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     /// let menu = muda::Menu::new();
     /// // -- snip, add your menu items --
@@ -183,11 +183,9 @@ impl Menu {
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
         W: gtk::prelude::IsA<gtk::Container>,
         C: gtk::prelude::IsA<gtk::Container>,
-        C: gtk::prelude::IsA<gtk::Box>,
     {
         self.inner
             .borrow_mut()
@@ -231,11 +229,10 @@ impl Menu {
         self.inner.borrow_mut().haccel()
     }
 
-    /// Removes this menu from a [`gtk::ApplicationWindow`]
+    /// Removes this menu from a [`gtk::Window`]
     #[cfg(target_os = "linux")]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow_mut().remove_for_gtk_window(window)
@@ -247,11 +244,11 @@ impl Menu {
         self.inner.borrow_mut().remove_for_hwnd(hwnd)
     }
 
-    /// Hides this menu from a [`gtk::ApplicationWindow`]
+    /// Hides this menu from a [`gtk::Window`]
     #[cfg(target_os = "linux")]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow_mut().hide_for_gtk_window(window)
     }
@@ -262,11 +259,11 @@ impl Menu {
         self.inner.borrow().hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu on a [`gtk::ApplicationWindow`]
+    /// Shows this menu on a [`gtk::Window`]
     #[cfg(target_os = "linux")]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow_mut().show_for_gtk_window(window)
     }
@@ -277,11 +274,11 @@ impl Menu {
         self.inner.borrow().show_for_hwnd(hwnd)
     }
 
-    /// Returns whether this menu visible on a [`gtk::ApplicationWindow`]
+    /// Returns whether this menu visible on a [`gtk::Window`]
     #[cfg(target_os = "linux")]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow().is_visible_on_gtk_window(window)
     }
@@ -291,7 +288,7 @@ impl Menu {
     /// This is useful to get information about the menubar for example its height.
     pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow().gtk_menubar_for_gtk_window(window)
     }
@@ -339,11 +336,7 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(
-        &self,
-        window: &gtk::ApplicationWindow,
-        position: Option<Position>,
-    ) {
+    fn show_context_menu_for_gtk_window(&self, window: &gtk::Window, position: Option<Position>) {
         self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(window, position)

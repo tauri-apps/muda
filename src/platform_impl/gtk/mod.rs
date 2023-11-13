@@ -251,11 +251,9 @@ impl Menu {
         container: Option<&C>,
     ) -> crate::Result<()>
     where
-        W: IsA<gtk::ApplicationWindow>,
         W: IsA<gtk::Window>,
         W: IsA<gtk::Container>,
         C: IsA<gtk::Container>,
-        C: IsA<gtk::Box>,
     {
         let id = window.as_ptr() as u32;
 
@@ -283,8 +281,14 @@ impl Menu {
 
         // add the menubar to the specified widget, otherwise to the window
         if let Some(container) = container {
-            container.add(menu_bar);
-            container.reorder_child(menu_bar, 0);
+            if container.type_().name() == "GtkBox" {
+                container
+                    .dynamic_cast_ref::<gtk::Box>()
+                    .unwrap()
+                    .pack_start(menu_bar, false, false, 0);
+            } else {
+                container.add(menu_bar);
+            }
         } else {
             window.add(menu_bar);
         }
@@ -297,7 +301,6 @@ impl Menu {
 
     pub fn remove_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
     where
-        W: IsA<gtk::ApplicationWindow>,
         W: IsA<gtk::Window>,
     {
         let id = window.as_ptr() as u32;
@@ -321,7 +324,7 @@ impl Menu {
 
     pub fn hide_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
     where
-        W: IsA<gtk::ApplicationWindow>,
+        W: IsA<gtk::Window>,
     {
         self.gtk_menubars
             .get(&(window.as_ptr() as u32))
@@ -332,7 +335,7 @@ impl Menu {
 
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: IsA<gtk::ApplicationWindow>,
+        W: IsA<gtk::Window>,
     {
         self.gtk_menubars
             .get(&(window.as_ptr() as u32))
@@ -343,7 +346,7 @@ impl Menu {
 
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
-        W: IsA<gtk::ApplicationWindow>,
+        W: IsA<gtk::Window>,
     {
         self.gtk_menubars
             .get(&(window.as_ptr() as u32))
@@ -353,7 +356,7 @@ impl Menu {
 
     pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk::MenuBar>
     where
-        W: gtk::prelude::IsA<gtk::ApplicationWindow>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.gtk_menubars.get(&(window.as_ptr() as u32)).cloned()
     }

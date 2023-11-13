@@ -324,15 +324,11 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk::ApplicationWindow`]
+    /// Shows this menu as a context menu inside a [`gtk::Window`]
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(
-        &self,
-        w: &gtk::ApplicationWindow,
-        position: Option<Position>,
-    );
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::Window, position: Option<Position>);
 
     /// Get the underlying gtk menu reserved for context menus.
     #[cfg(target_os = "linux")]
