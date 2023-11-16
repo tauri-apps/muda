@@ -1004,7 +1004,7 @@ impl MenuChild {
     ) -> crate::Result<gtk::MenuItem> {
         let submenu = gtk::Menu::new();
         let item = gtk::MenuItem::builder()
-            .label(&to_gtk_mnemonic(&self.text))
+            .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
             .submenu(&submenu)
             .sensitive(self.enabled)
