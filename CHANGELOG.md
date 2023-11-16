@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.1]
+
+- [`07b188f`](https://www.github.com/tauri-apps/muda/commit/07b188f386522f42f47670d6de30afa4da1a24a8)([#141](https://www.github.com/tauri-apps/muda/pull/141)) Update `windows-sys` crate to `0.52`
+
 ## \[0.11.0]
 
 - [`ae316bf`](https://www.github.com/tauri-apps/muda/commit/ae316bf2dd3dbefce5f866b98165b0336bb3010e)([#139](https://www.github.com/tauri-apps/muda/pull/139)) Changed `ContextMenu::show_context_menu_for_gtk_window` to take `gtk::Window` instead of `gtk::ApplicationWindow` and relaxed generic gtk constraints on the following methods:
