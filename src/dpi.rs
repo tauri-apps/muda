@@ -1,3 +1,7 @@
+// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 pub trait Pixel: Copy + Into<f64> {
     fn from_f64(f: f64) -> Self;
     fn cast<P: Pixel>(self) -> P {

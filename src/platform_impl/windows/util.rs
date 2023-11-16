@@ -157,7 +157,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
         if IsProcessDPIAware() == 1 {
             // If the process is DPI aware, then scaling must be handled by the application using
             // this DPI value.
-            GetDeviceCaps(hdc, LOGPIXELSX) as u32
+            GetDeviceCaps(hdc, LOGPIXELSX as _) as u32
         } else {
             // If the process is DPI unaware, then scaling is performed by the OS; we thus return
             // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the
