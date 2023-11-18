@@ -282,6 +282,7 @@ impl MenuChild {
             children: Some(Vec::new()),
             ns_menu: Some(NsMenuRef(COUNTER.next(), unsafe {
                 let menu = NSMenu::new(nil);
+                menu.setAutoenablesItems(NO);
                 let _: () = msg_send![menu, retain];
                 menu
             })),
@@ -686,10 +687,9 @@ impl MenuChild {
             let () = msg_send![ns_submenu, setTitle: title];
             let () = msg_send![ns_menu_item, setTitle: title];
             let () = msg_send![ns_menu_item, setSubmenu: ns_submenu];
+            let () = msg_send![ns_submenu, setAutoenablesItems: NO];
 
-            if !self.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
+            let () = msg_send![ns_menu_item, setEnabled: if self.enabled { YES } else { NO }];
         }
 
         let id = COUNTER.next();
@@ -728,9 +728,7 @@ impl MenuChild {
             let ptr = Box::into_raw(Box::new(&*self));
             (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
 
-            if !self.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
+            let () = msg_send![ns_menu_item, setEnabled: if self.enabled { YES } else { NO }];
         }
 
         self.ns_menu_items
@@ -759,9 +757,8 @@ impl MenuChild {
         }
 
         unsafe {
-            if !self.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
+            let () = msg_send![ns_menu_item, setEnabled: if self.enabled { YES } else { NO }];
+
             if let PredefinedMenuItemType::Services = item_type {
                 // we have to assign an empty menu as the app's services menu, and macOS will populate it
                 let services_menu = NSMenu::new(nil).autorelease();
@@ -792,9 +789,7 @@ impl MenuChild {
             let ptr = Box::into_raw(Box::new(&*self));
             (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
 
-            if !self.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
+            let () = msg_send![ns_menu_item, setEnabled: if self.enabled { YES } else { NO }];
             if self.checked {
                 let () = msg_send![ns_menu_item, setState: 1_isize];
             }
@@ -822,9 +817,7 @@ impl MenuChild {
             let ptr = Box::into_raw(Box::new(&*self));
             (*ns_menu_item).set_ivar(BLOCK_PTR, ptr as usize);
 
-            if !self.enabled {
-                let () = msg_send![ns_menu_item, setEnabled: NO];
-            }
+            let () = msg_send![ns_menu_item, setEnabled: if self.enabled { YES } else { NO }];
 
             if self.icon.is_some() {
                 menuitem_set_icon(ns_menu_item, self.icon.as_ref());
