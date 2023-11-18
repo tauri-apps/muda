@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.2]
+
+- [`afd3e2e`](https://www.github.com/tauri-apps/muda/commit/afd3e2ecd4b40def7c0f458cd1465723392c1be1)([#143](https://www.github.com/tauri-apps/muda/pull/143)) Fixes menu item's `enabled` state not applied for submenus on macOS.
+
 ## \[0.11.1]
 
 - [`07b188f`](https://www.github.com/tauri-apps/muda/commit/07b188f386522f42f47670d6de30afa4da1a24a8)([#141](https://www.github.com/tauri-apps/muda/pull/141)) Update `windows-sys` crate to `0.52`
