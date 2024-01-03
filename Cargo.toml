@@ -1,6 +1,6 @@
 [package]
 name = "muda"
-version = "0.11.2"
+version = "0.11.3"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = [ "windowing", "menu" ]

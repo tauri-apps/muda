@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.3]
+
+- [`20c45a4`](https://www.github.com/tauri-apps/muda/commit/20c45a4ccc24914f5ad7533300e0d1e6d7d91384)([#147](https://www.github.com/tauri-apps/muda/pull/147)) On macOS, fixed a panic when releasing separator menu item.
+
 ## \[0.11.2]
 
 - [`afd3e2e`](https://www.github.com/tauri-apps/muda/commit/afd3e2ecd4b40def7c0f458cd1465723392c1be1)([#143](https://www.github.com/tauri-apps/muda/pull/143)) Fixes menu item's `enabled` state not applied for submenus on macOS.
