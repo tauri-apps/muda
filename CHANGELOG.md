@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.4]
+
+- [`a7e61fb`](https://www.github.com/tauri-apps/muda/commit/a7e61fb939866897d0ed3d32b78a3a7cba8689ca)([#149](https://www.github.com/tauri-apps/muda/pull/149)) On macOS, fix a crash when appending separators.
+
 ## \[0.11.3]
 
 - [`20c45a4`](https://www.github.com/tauri-apps/muda/commit/20c45a4ccc24914f5ad7533300e0d1e6d7d91384)([#147](https://www.github.com/tauri-apps/muda/pull/147)) On macOS, fixed a panic when releasing separator menu item.
