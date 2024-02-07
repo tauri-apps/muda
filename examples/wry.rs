@@ -243,7 +243,8 @@ fn main() -> wry::Result<()> {
                     .unwrap();
 
                 #[cfg(target_os = "linux")]
-                if let Some(menu_bar) = &menu_bar
+                if let Some(menu_bar) = menu_bar
+                    .clone()
                     .gtk_menubar_for_gtk_window(window.gtk_window())
                 {
                     use gtk::prelude::*;
