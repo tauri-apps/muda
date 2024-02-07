@@ -3,23 +3,25 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
+use std::rc::Rc;
+
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowExtMacOS;
+use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "linux")]
-use wry::application::platform::unix::WindowExtUnix;
+use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
-use wry::application::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-use wry::application::{
+use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-use wry::webview::WebViewBuilder;
+use wry::WebViewBuilder;
 
 fn main() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::new();
@@ -224,40 +226,46 @@ fn main() -> wry::Result<()> {
   "#,
     );
 
-    let file_m_c = file_m.clone();
-    let handler = move |window: &Window, req: String| {
-        if &req == "showContextMenu" {
-            show_context_menu(window, &file_m_c, None)
-        } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
-            let (x, mut y) = rest
-                .split_once(',')
-                .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
-                .unwrap();
+    let window = Rc::new(window);
+    let window2 = Rc::new(window2);
 
-            #[cfg(target_os = "linux")]
-            if let Some(menu_bar) = menu_bar
-                .clone()
-                .gtk_menubar_for_gtk_window(window.gtk_window())
-            {
-                use gtk::prelude::*;
-                y += menu_bar.allocated_height();
+    let create_ipc_handler = |window: &Rc<Window>| {
+        let window = window.clone();
+        let file_m_c = file_m.clone();
+        move |req: String| {
+            if &req == "showContextMenu" {
+                show_context_menu(&window, &file_m_c, None)
+            } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
+                let (x, mut y) = rest
+                    .split_once(',')
+                    .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
+                    .unwrap();
+
+                #[cfg(target_os = "linux")]
+                if let Some(menu_bar) = menu_bar
+                    .clone()
+                    .gtk_menubar_for_gtk_window(window.gtk_window())
+                {
+                    use gtk::prelude::*;
+                    y += menu_bar.allocated_height();
+                }
+
+                show_context_menu(
+                    &window,
+                    &file_m_c,
+                    Some(muda::Position::Logical((x, y).into())),
+                )
             }
-
-            show_context_menu(
-                window,
-                &file_m_c,
-                Some(muda::Position::Logical((x, y).into())),
-            )
         }
     };
 
-    let webview = WebViewBuilder::new(window)?
+    let webview = WebViewBuilder::new(&window)
         .with_html(&html)?
-        .with_ipc_handler(handler.clone())
+        .with_ipc_handler(create_ipc_handler(&window))
         .build()?;
-    let webview2 = WebViewBuilder::new(window2)?
+    let webview2 = WebViewBuilder::new(&window2)
         .with_html(html)?
-        .with_ipc_handler(handler)
+        .with_ipc_handler(create_ipc_handler(&window2))
         .build()?;
 
     let menu_channel = MenuEvent::receiver();
