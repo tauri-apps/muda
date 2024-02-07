@@ -232,6 +232,7 @@ fn main() -> wry::Result<()> {
     let create_ipc_handler = |window: &Rc<Window>| {
         let window = window.clone();
         let file_m_c = file_m.clone();
+        let menu_bar = menu_bar.clone();
         move |req: String| {
             if &req == "showContextMenu" {
                 show_context_menu(&window, &file_m_c, None)
@@ -242,8 +243,7 @@ fn main() -> wry::Result<()> {
                     .unwrap();
 
                 #[cfg(target_os = "linux")]
-                if let Some(menu_bar) = menu_bar
-                    .clone()
+                if let Some(menu_bar) = &menu_bar
                     .gtk_menubar_for_gtk_window(window.gtk_window())
                 {
                     use gtk::prelude::*;
