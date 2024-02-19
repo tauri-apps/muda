@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.11.5]
+
+- [`f64a62f`](https://www.github.com/tauri-apps/muda/commit/f64a62fc89d39e9fe6f3951250addf620ba8ba29)([#153](https://www.github.com/tauri-apps/muda/pull/153)) On Linux, fix a regression where menubar is not added as the first child when using a `gtk::Box` as the container.
+
 ## \[0.11.4]
 
 - [`a7e61fb`](https://www.github.com/tauri-apps/muda/commit/a7e61fb939866897d0ed3d32b78a3a7cba8689ca)([#149](https://www.github.com/tauri-apps/muda/pull/149)) On macOS, fix a crash when appending separators.
