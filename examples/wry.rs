@@ -22,6 +22,8 @@ use tao::{
     window::{Window, WindowBuilder},
 };
 use wry::WebViewBuilder;
+#[cfg(target_os = "linux")]
+use wry::WebViewBuilderExtUnix;
 
 fn main() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::new();
@@ -260,11 +262,18 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    let webview = WebViewBuilder::new(&window)
+    fn create_webview<'a>(window: &'a Rc<Window>) -> WebViewBuilder<'a> {
+        #[cfg(not(target_os = "linux"))]
+        return WebViewBuilder::new(window);
+        #[cfg(target_os = "linux")]
+        WebViewBuilder::new_gtk(window.default_vbox().unwrap())
+    };
+
+    let webview = create_webview(&window)
         .with_html(&html)?
         .with_ipc_handler(create_ipc_handler(&window))
         .build()?;
-    let webview2 = WebViewBuilder::new(&window2)
+    let webview2 = create_webview(&window2)
         .with_html(html)?
         .with_ipc_handler(create_ipc_handler(&window2))
         .build()?;
