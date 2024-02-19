@@ -282,10 +282,9 @@ impl Menu {
         // add the menubar to the specified widget, otherwise to the window
         if let Some(container) = container {
             if container.type_().name() == "GtkBox" {
-                container
-                    .dynamic_cast_ref::<gtk::Box>()
-                    .unwrap()
-                    .pack_start(menu_bar, false, false, 0);
+                let gtk_box = container.dynamic_cast_ref::<gtk::Box>().unwrap();
+                gtk_box.pack_start(menu_bar, false, false, 0);
+                gtk_box.reorder_child(menu_bar, 0);
             } else {
                 container.add(menu_bar);
             }
