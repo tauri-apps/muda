@@ -166,6 +166,8 @@ impl Menu {
     /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
     /// it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
     /// which is usually not the desired behavior.
+    /// If using a [`gtk::Box`] as a container, it is added using [`Box::pack_start(menubar, false, false, 0)`](gtk::prelude::BoxExt::pack_start) then
+    /// reordered to be the first child of [`gtk::Box`] using [`Box::reorder_child(menubar, 0)`](gtk::prelude::BoxExt::reorder_child).
     ///
     /// ## Example:
     /// ```no_run
