@@ -262,7 +262,7 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    fn create_webview<'a>(window: &'a Rc<Window>) -> WebViewBuilder<'a> {
+    fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
         #[cfg(not(target_os = "linux"))]
         return WebViewBuilder::new(window);
         #[cfg(target_os = "linux")]
