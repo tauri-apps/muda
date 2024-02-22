@@ -270,11 +270,11 @@ fn main() -> wry::Result<()> {
     };
 
     let webview = create_webview(&window)
-        .with_html(&html)?
+        .with_html(&html)
         .with_ipc_handler(create_ipc_handler(&window))
         .build()?;
     let webview2 = create_webview(&window2)
-        .with_html(html)?
+        .with_html(html)
         .with_ipc_handler(create_ipc_handler(&window2))
         .build()?;
 
