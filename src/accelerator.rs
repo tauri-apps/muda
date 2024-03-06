@@ -35,10 +35,20 @@ pub const CMD_OR_CTRL: Modifiers = Modifiers::SUPER;
 #[cfg(not(target_os = "macos"))]
 pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
 
+#[derive(thiserror::Error, Debug)]
+pub enum AcceleratorParseError {
+    #[error("Couldn't recognize \"{0}\" as a valid key for accelerator, if you feel like it should be, please report this to https://github.com/tauri-apps/muda")]
+    UnsupportedKey(String),
+    #[error("Found empty token while parsing accelerator: {0}")]
+    EmptyToken(String),
+    #[error("Invalid accelerator format: \"{0}\", an accelerator should have the modifiers first and only one main key, for example: \"Shift + Alt + K\"")]
+    InvalidFormat(String),
+}
+
 /// A keyboard shortcut that consists of an optional combination
 /// of modifier keys (provided by [`Modifiers`](crate::accelerator::Modifiers)) and
 /// one key ([`Code`](crate::accelerator::Code)).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accelerator {
     pub(crate) mods: Modifiers,
@@ -55,34 +65,35 @@ impl Accelerator {
             mods.remove(Modifiers::META);
             mods.insert(Modifiers::SUPER);
         }
-        let mut accelerator = Self { mods, key, id: 0 };
-        accelerator.generate_hash();
-        accelerator
+
+        let id = Self::generate_hash(mods, key);
+
+        Self { mods, key, id }
     }
 
-    fn generate_hash(&mut self) {
-        let mut str = String::new();
-        if self.mods.contains(Modifiers::SHIFT) {
-            str.push_str("shift+")
+    fn generate_hash(mods: Modifiers, key: Code) -> u32 {
+        let mut accelerator_str = String::new();
+        if mods.contains(Modifiers::SHIFT) {
+            accelerator_str.push_str("shift+")
         }
-        if self.mods.contains(Modifiers::CONTROL) {
-            str.push_str("control+")
+        if mods.contains(Modifiers::CONTROL) {
+            accelerator_str.push_str("control+")
         }
-        if self.mods.contains(Modifiers::ALT) {
-            str.push_str("alt+")
+        if mods.contains(Modifiers::ALT) {
+            accelerator_str.push_str("alt+")
         }
-        if self.mods.contains(Modifiers::SUPER) {
-            str.push_str("super+")
+        if mods.contains(Modifiers::SUPER) {
+            accelerator_str.push_str("super+")
         }
-        str.push_str(&self.key.to_string());
+        accelerator_str.push_str(&key.to_string());
 
-        let mut s = std::collections::hash_map::DefaultHasher::new();
-        str.hash(&mut s);
-        self.id = std::hash::Hasher::finish(&s) as u32;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        accelerator_str.hash(&mut hasher);
+        std::hash::Hasher::finish(&hasher) as u32
     }
 
     /// Returns the id associated with this accelerator
-    /// which is a hash of a string representing modifiers and key within this accelerator
+    /// which is a hash of the string representation of modifiers and key within this accelerator.
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -97,18 +108,15 @@ impl Accelerator {
     }
 }
 
-// Accelerator::from_str is available to be backward
-// compatible with tauri and it also open the option
-// to generate accelerator from string
 impl FromStr for Accelerator {
-    type Err = crate::Error;
+    type Err = AcceleratorParseError;
     fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
         parse_accelerator(accelerator_string)
     }
 }
 
 impl TryFrom<&str> for Accelerator {
-    type Error = crate::Error;
+    type Error = AcceleratorParseError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         parse_accelerator(value)
@@ -116,14 +124,14 @@ impl TryFrom<&str> for Accelerator {
 }
 
 impl TryFrom<String> for Accelerator {
-    type Error = crate::Error;
+    type Error = AcceleratorParseError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         parse_accelerator(&value)
     }
 }
 
-fn parse_accelerator(accelerator: &str) -> crate::Result<Accelerator> {
+fn parse_accelerator(accelerator: &str) -> Result<Accelerator, AcceleratorParseError> {
     let tokens = accelerator.split('+').collect::<Vec<&str>>();
 
     let mut mods = Modifiers::empty();
@@ -134,13 +142,14 @@ fn parse_accelerator(accelerator: &str) -> crate::Result<Accelerator> {
         1 => {
             key = Some(parse_key(tokens[0])?);
         }
+
         // modifiers and key comobo accelerator
         _ => {
             for raw in tokens {
                 let token = raw.trim();
 
                 if token.is_empty() {
-                    return Err(crate::Error::EmptyAcceleratorToken(accelerator.to_string()));
+                    return Err(AcceleratorParseError::EmptyToken(accelerator.to_string()));
                 }
 
                 if key.is_some() {
@@ -150,29 +159,31 @@ fn parse_accelerator(accelerator: &str) -> crate::Result<Accelerator> {
                     // examples:
                     // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
                     // 2. "Ctrl+C+Shift" => wrong order
-                    return Err(crate::Error::UnexpectedAcceleratorFormat(
+                    return Err(AcceleratorParseError::InvalidFormat(
                         accelerator.to_string(),
                     ));
                 }
 
                 match token.to_uppercase().as_str() {
                     "OPTION" | "ALT" => {
-                        mods.set(Modifiers::ALT, true);
+                        mods |= Modifiers::ALT;
                     }
                     "CONTROL" | "CTRL" => {
-                        mods.set(Modifiers::CONTROL, true);
+                        mods |= Modifiers::CONTROL;
                     }
                     "COMMAND" | "CMD" | "SUPER" => {
-                        mods.set(Modifiers::META, true);
+                        mods |= Modifiers::META;
                     }
                     "SHIFT" => {
-                        mods.set(Modifiers::SHIFT, true);
+                        mods |= Modifiers::SHIFT;
                     }
+                    #[cfg(target_os = "macos")]
                     "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
-                        #[cfg(target_os = "macos")]
-                        mods.set(Modifiers::SUPER, true);
-                        #[cfg(not(target_os = "macos"))]
-                        mods.set(Modifiers::CONTROL, true);
+                        mods |= Modifiers::SUPER;
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
+                        mods |= Modifiers::CONTROL;
                     }
                     _ => {
                         key = Some(parse_key(token)?);
@@ -182,10 +193,11 @@ fn parse_accelerator(accelerator: &str) -> crate::Result<Accelerator> {
         }
     }
 
-    Ok(Accelerator::new(Some(mods), key.unwrap()))
+    let key = key.ok_or_else(|| AcceleratorParseError::InvalidFormat(accelerator.to_string()))?;
+    Ok(Accelerator::new(Some(mods), key))
 }
 
-fn parse_key(key: &str) -> crate::Result<Code> {
+fn parse_key(key: &str) -> Result<Code, AcceleratorParseError> {
     use Code::*;
     match key.to_uppercase().as_str() {
         "BACKQUOTE" | "`" => Ok(Backquote),
@@ -299,7 +311,7 @@ fn parse_key(key: &str) -> crate::Result<Code> {
         "F23" => Ok(F23),
         "F24" => Ok(F24),
 
-        _ => Err(crate::Error::UnrecognizedAcceleratorCode(key.to_string())),
+        _ => Err(AcceleratorParseError::UnsupportedKey(key.to_string())),
     }
 }
 

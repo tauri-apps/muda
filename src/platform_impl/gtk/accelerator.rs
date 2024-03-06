@@ -5,7 +5,7 @@
 use gtk::gdk;
 use keyboard_types::{Code, Modifiers};
 
-use crate::accelerator::Accelerator;
+use crate::accelerator::{Accelerator, AcceleratorParseError};
 
 pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
@@ -78,7 +78,7 @@ pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::Modif
             if let Some(gdk_key) = key_to_raw_key(k) {
                 *gdk_key
             } else {
-                return Err(crate::Error::UnrecognizedAcceleratorCode(k.to_string()));
+                return Err(AcceleratorParseError::UnsupportedKey(key.to_string()));
             }
         }
     };
