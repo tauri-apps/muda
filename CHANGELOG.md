@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.12.0]
+
+- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Refactored the errors when parsing accelerator from string:
+
+  - Added `AcceleratorParseError` error enum.
+  - Removed `Error::UnrecognizedAcceleratorCode` enum variant
+  - Removed `Error::EmptyAcceleratorToken` enum variant
+  - Removed `Error::UnexpectedAcceleratorFormat` enum variant
+  - Changed `Error::AcceleratorParseError` inner value from `String` to the newly added `AcceleratorParseError` enum.
+- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Avoid panicing when parsing an invalid `Accelerator` from a string such as `SHIFT+SHIFT` and return an error instead.
+
 ## \[0.11.5]
 
 - [`f64a62f`](https://www.github.com/tauri-apps/muda/commit/f64a62fc89d39e9fe6f3951250addf620ba8ba29)([#153](https://www.github.com/tauri-apps/muda/pull/153)) On Linux, fix a regression where menubar is not added as the first child when using a `gtk::Box` as the container.
