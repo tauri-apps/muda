@@ -24,7 +24,9 @@ pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
         .replace("[~~]", "__")
 }
 
-pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::ModifierType, u32)> {
+pub fn parse_accelerator(
+    accelerator: &Accelerator,
+) -> Result<(gdk::ModifierType, u32), AcceleratorParseError> {
     let key = match &accelerator.key {
         Code::KeyA => 'A' as u32,
         Code::KeyB => 'B' as u32,
@@ -74,8 +76,8 @@ pub fn parse_accelerator(accelerator: &Accelerator) -> crate::Result<(gdk::Modif
         Code::Backquote => '`' as u32,
         Code::BracketLeft => '[' as u32,
         Code::BracketRight => ']' as u32,
-        k => {
-            if let Some(gdk_key) = key_to_raw_key(k) {
+        key => {
+            if let Some(gdk_key) = key_to_raw_key(key) {
                 *gdk_key
             } else {
                 return Err(AcceleratorParseError::UnsupportedKey(key.to_string()));

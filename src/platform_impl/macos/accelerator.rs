@@ -11,7 +11,7 @@ impl Accelerator {
     /// Return the string value of this hotkey, without modifiers.
     ///
     /// Returns the empty string if no key equivalent is known.
-    pub fn key_equivalent(self) -> crate::Result<String> {
+    pub fn key_equivalent(self) -> Result<String, AcceleratorParseError> {
         Ok(match self.key {
             Code::KeyA => "a".into(),
             Code::KeyB => "b".into(),
