@@ -5,13 +5,13 @@
 use cocoa::appkit::NSEventModifierFlags;
 use keyboard_types::{Code, Modifiers};
 
-use crate::accelerator::Accelerator;
+use crate::accelerator::{Accelerator, AcceleratorParseError};
 
 impl Accelerator {
     /// Return the string value of this hotkey, without modifiers.
     ///
     /// Returns the empty string if no key equivalent is known.
-    pub fn key_equivalent(self) -> crate::Result<String> {
+    pub fn key_equivalent(self) -> Result<String, AcceleratorParseError> {
         Ok(match self.key {
             Code::KeyA => "a".into(),
             Code::KeyB => "b".into(),
@@ -103,7 +103,7 @@ impl Accelerator {
             Code::F22 => "\u{F719}".into(),
             Code::F23 => "\u{F71A}".into(),
             Code::F24 => "\u{F71B}".into(),
-            key => return Err(crate::Error::UnrecognizedAcceleratorCode(key.to_string())),
+            key => return Err(AcceleratorParseError::UnsupportedKey(key.to_string())),
         })
     }
 

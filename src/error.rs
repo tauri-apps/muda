@@ -4,6 +4,8 @@
 
 use thiserror::Error;
 
+pub use crate::accelerator::AcceleratorParseError;
+
 /// Errors returned by muda.
 #[non_exhaustive]
 #[derive(Error, Debug)]
@@ -22,14 +24,8 @@ pub enum Error {
     #[cfg(target_os = "linux")]
     #[error("This menu has already been initialized for this gtk window`")]
     AlreadyInitialized,
-    #[error("{0}")]
-    AcceleratorParseError(String),
-    #[error("Couldn't recognize \"{0}\" as a valid Accelerator Code, if you feel like it should be, please report this to https://github.com/tauri-apps/muda")]
-    UnrecognizedAcceleratorCode(String),
-    #[error("Unexpected empty token while parsing accelerator: \"{0}\"")]
-    EmptyAcceleratorToken(String),
-    #[error("Unexpected accelerator string format: \"{0}\", a accelerator should have the modifiers first and only contain one main key")]
-    UnexpectedAcceleratorFormat(String),
+    #[error(transparent)]
+    AcceleratorParseError(#[from] AcceleratorParseError),
 }
 
 /// Convenient type alias of Result type for muda.

@@ -10,7 +10,7 @@ use windows_sys::Win32::UI::{
     WindowsAndMessaging::{ACCEL, FALT, FCONTROL, FSHIFT, FVIRTKEY},
 };
 
-use crate::accelerator::Accelerator;
+use crate::accelerator::{Accelerator, AcceleratorParseError};
 
 impl Accelerator {
     // Convert a hotkey to an accelerator.
@@ -49,7 +49,7 @@ impl Accelerator {
 }
 
 // used to build accelerators table from Key
-fn key_to_vk(key: &Code) -> crate::Result<VIRTUAL_KEY> {
+fn key_to_vk(key: &Code) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
     Ok(match key {
         Code::KeyA => VK_A,
         Code::KeyB => VK_B,
@@ -162,7 +162,7 @@ fn key_to_vk(key: &Code) -> crate::Result<VIRTUAL_KEY> {
         Code::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
         Code::LaunchMail => VK_LAUNCH_MAIL,
         Code::Convert => VK_CONVERT,
-        key => return Err(crate::Error::UnrecognizedAcceleratorCode(key.to_string())),
+        key => return Err(AcceleratorParseError::UnsupportedKey(key.to_string())),
     })
 }
 
