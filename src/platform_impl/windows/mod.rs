@@ -21,7 +21,9 @@ use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
     fmt::Debug,
+    ops::Deref,
     rc::Rc,
+    sync::{Mutex, OnceLock},
 };
 use util::{decode_wide, encode_wide, Accel};
 use windows_sys::Win32::{
@@ -44,6 +46,36 @@ use windows_sys::Win32::{
 };
 
 static COUNTER: Counter = Counter::new_with_start(1000);
+
+// safety: this might be ok? previously, these pointers were being set as dwRefData for a windows callback, which is just as unsafe...
+struct MainThreadBox<T: 'static>(*mut &'static mut T);
+
+unsafe impl<T> Send for MainThreadBox<T> {}
+
+unsafe impl<T> Sync for MainThreadBox<T> {}
+
+impl<T> Deref for MainThreadBox<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { *self.0 }
+    }
+}
+
+impl<T> MainThreadBox<T> {
+    pub unsafe fn new(value: &T) -> MainThreadBox<T> {
+        MainThreadBox(Box::into_raw(Box::new(value)) as usize as *mut &mut T)
+    }
+}
+
+fn all_menus() -> &'static Mutex<Vec<MainThreadBox<Menu>>> {
+    static ALL_MENUS: OnceLock<Mutex<Vec<MainThreadBox<Menu>>>> = OnceLock::new();
+    ALL_MENUS.get_or_init(|| Mutex::new(vec![]))
+}
+
+fn all_menuchilds() -> &'static Mutex<Vec<MainThreadBox<MenuChild>>> {
+    static ALL_MENUCHILDS: OnceLock<Mutex<Vec<MainThreadBox<MenuChild>>>> = OnceLock::new();
+    ALL_MENUCHILDS.get_or_init(|| Mutex::new(vec![]))
+}
 
 macro_rules! inner_menu_child_and_flags {
     ($item:ident) => {{
@@ -337,11 +369,12 @@ impl Menu {
         unsafe {
             SetMenu(hwnd, self.hmenu);
             if !self.context_hwnds.iter().any(|h| *h == hwnd) {
+                all_menus().lock().unwrap().push(MainThreadBox::new(self));
                 SetWindowSubclass(
                     hwnd,
                     Some(menu_subclass_proc),
                     MENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
+                    Box::into_raw(Box::new(all_menus())) as _,
                 );
             }
             DrawMenuBar(hwnd);
@@ -370,11 +403,12 @@ impl Menu {
 
     pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         unsafe {
+            all_menus().lock().unwrap().push(MainThreadBox::new(self));
             SetWindowSubclass(
                 hwnd,
                 Some(menu_subclass_proc),
                 MENU_SUBCLASS_ID,
-                Box::into_raw(Box::new(self)) as _,
+                Box::into_raw(Box::new(all_menus())) as _,
             );
         }
     }
@@ -425,11 +459,12 @@ impl Menu {
         {
             self.context_hwnds.push(hwnd);
             unsafe {
+                all_menus().lock().unwrap().push(MainThreadBox::new(self));
                 SetWindowSubclass(
                     hwnd,
                     Some(menu_subclass_proc),
                     MENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
+                    Box::into_raw(Box::new(all_menus())) as _,
                 );
             }
         }
@@ -947,11 +982,15 @@ impl MenuChild {
                 .any(|h| *h == hwnd)
             {
                 self.context_hwnds.as_mut().unwrap().push(hwnd);
+                all_menuchilds()
+                    .lock()
+                    .unwrap()
+                    .push(MainThreadBox::new(self));
                 SetWindowSubclass(
                     hwnd,
                     Some(menu_subclass_proc),
                     SUBMENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
+                    Box::into_raw(Box::new(all_menuchilds())) as _,
                 );
             }
         }
@@ -960,11 +999,15 @@ impl MenuChild {
 
     pub fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         unsafe {
+            all_menuchilds()
+                .lock()
+                .unwrap()
+                .push(MainThreadBox::new(self));
             SetWindowSubclass(
                 hwnd,
                 Some(menu_subclass_proc),
                 SUBMENU_SUBCLASS_ID,
-                Box::into_raw(Box::new(self)) as _,
+                Box::into_raw(Box::new(all_menuchilds())) as _,
             );
         }
     }
@@ -1074,11 +1117,25 @@ unsafe extern "system" fn menu_subclass_proc(
         WM_COMMAND => {
             let id = util::LOWORD(wparam as _) as u32;
             let item = if uidsubclass == MENU_SUBCLASS_ID {
-                let menu = dwrefdata as *mut Box<Menu>;
-                (*menu).find_by_id(id)
+                let menus = dwrefdata as *mut Box<Mutex<Vec<MainThreadBox<Menu>>>>;
+                let mut item = None;
+                for menu in (*menus).lock().unwrap().iter() {
+                    item = menu.find_by_id(id);
+                    if item.is_some() {
+                        break;
+                    }
+                }
+                item
             } else {
-                let menu = dwrefdata as *mut Box<MenuChild>;
-                (*menu).find_by_id(id)
+                let menuchilds = dwrefdata as *mut Box<Mutex<Vec<MainThreadBox<MenuChild>>>>;
+                let mut item = None;
+                for menuchild in (*menuchilds).lock().unwrap().iter() {
+                    item = menuchild.find_by_id(id);
+                    if item.is_some() {
+                        break;
+                    }
+                }
+                item
             };
 
             if let Some(item) = item {
