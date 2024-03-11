@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.12.1]
+
+- [`cbb9fc0`](https://www.github.com/tauri-apps/muda/commit/cbb9fc0d7b98c362dfbdc09122fb9d0b3b7edabb)([#166](https://www.github.com/tauri-apps/muda/pull/166)) On Windows, fix events not emitted for other menus after using a menu as a context menu.
+- [`a9937ef`](https://www.github.com/tauri-apps/muda/commit/a9937ef98144b3feaf8a16ae95e0e8c55583bd79)([#164](https://www.github.com/tauri-apps/muda/pull/164)) On Windows, fix menubar removed from window when another menu that was used as a conetxt menu is dropped.
+
 ## \[0.12.0]
 
 - [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Refactored the errors when parsing accelerator from string:
