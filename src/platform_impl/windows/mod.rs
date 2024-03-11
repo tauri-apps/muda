@@ -142,7 +142,6 @@ impl Drop for Menu {
                 RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             }
             for hwnd in &self.context_hwnds {
-                SetMenu(*hwnd, 0);
                 RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             }
             DestroyMenu(self.hmenu);
