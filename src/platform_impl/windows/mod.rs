@@ -142,7 +142,7 @@ impl Drop for Menu {
                 RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             }
             for hwnd in &self.context_hwnds {
-                RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+                RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), CONTEXT_MENU_SUBCLASS_ID);
             }
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
@@ -333,17 +333,16 @@ impl Menu {
         }
 
         self.hwnds.push(hwnd);
+
         unsafe {
             SetMenu(hwnd, self.hmenu);
-            if !self.context_hwnds.iter().any(|h| *h == hwnd) {
-                SetWindowSubclass(
-                    hwnd,
-                    Some(menu_subclass_proc),
-                    MENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
-                );
-            }
             DrawMenuBar(hwnd);
+            SetWindowSubclass(
+                hwnd,
+                Some(menu_subclass_proc),
+                MENU_SUBCLASS_ID,
+                Box::into_raw(Box::new(self)) as _,
+            );
         };
 
         Ok(())
@@ -355,11 +354,10 @@ impl Menu {
             .iter()
             .position(|h| *h == hwnd)
             .ok_or(crate::Error::NotInitialized)?;
+
         self.hwnds.remove(index);
+
         unsafe {
-            if !self.context_hwnds.iter().any(|h| *h == hwnd) {
-                RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
-            }
             SetMenu(hwnd, 0);
             DrawMenuBar(hwnd);
         }
@@ -420,14 +418,13 @@ impl Menu {
 
     pub fn show_context_menu_for_hwnd(&mut self, hwnd: isize, position: Option<Position>) {
         let hpopupmenu = self.hpopupmenu;
-        if !self.context_hwnds.iter().any(|h| *h == hwnd) && !self.hwnds.iter().any(|h| *h == hwnd)
-        {
+        if !self.context_hwnds.iter().any(|h| *h == hwnd) {
             self.context_hwnds.push(hwnd);
             unsafe {
                 SetWindowSubclass(
                     hwnd,
                     Some(menu_subclass_proc),
-                    MENU_SUBCLASS_ID,
+                    CONTEXT_MENU_SUBCLASS_ID,
                     Box::into_raw(Box::new(self)) as _,
                 );
             }
@@ -472,8 +469,11 @@ impl Drop for MenuChild {
         if self.item_type == MenuItemType::Submenu {
             for hwnd in self.context_hwnds.as_ref().unwrap() {
                 unsafe {
-                    SetMenu(*hwnd, 0);
-                    RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), SUBMENU_SUBCLASS_ID);
+                    RemoveWindowSubclass(
+                        *hwnd,
+                        Some(menu_subclass_proc),
+                        CONTEXT_SUBMENU_SUBCLASS_ID,
+                    );
                 }
             }
 
@@ -949,7 +949,7 @@ impl MenuChild {
                 SetWindowSubclass(
                     hwnd,
                     Some(menu_subclass_proc),
-                    SUBMENU_SUBCLASS_ID,
+                    CONTEXT_SUBMENU_SUBCLASS_ID,
                     Box::into_raw(Box::new(self)) as _,
                 );
             }
@@ -1060,6 +1060,8 @@ fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
 
 const MENU_SUBCLASS_ID: usize = 200;
 const SUBMENU_SUBCLASS_ID: usize = 201;
+const CONTEXT_MENU_SUBCLASS_ID: usize = 203;
+const CONTEXT_SUBMENU_SUBCLASS_ID: usize = 204;
 
 unsafe extern "system" fn menu_subclass_proc(
     hwnd: HWND,
@@ -1072,12 +1074,17 @@ unsafe extern "system" fn menu_subclass_proc(
     match msg {
         WM_COMMAND => {
             let id = util::LOWORD(wparam as _) as u32;
-            let item = if uidsubclass == MENU_SUBCLASS_ID {
-                let menu = dwrefdata as *mut Box<Menu>;
-                (*menu).find_by_id(id)
-            } else {
-                let menu = dwrefdata as *mut Box<MenuChild>;
-                (*menu).find_by_id(id)
+
+            let item = match uidsubclass {
+                MENU_SUBCLASS_ID | CONTEXT_MENU_SUBCLASS_ID => {
+                    let menu = dwrefdata as *mut Box<Menu>;
+                    (*menu).find_by_id(id)
+                }
+                SUBMENU_SUBCLASS_ID | CONTEXT_SUBMENU_SUBCLASS_ID => {
+                    let menu = dwrefdata as *mut Box<MenuChild>;
+                    (*menu).find_by_id(id)
+                }
+                _ => unreachable!(),
             };
 
             if let Some(item) = item {
