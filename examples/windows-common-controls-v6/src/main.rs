@@ -9,10 +9,10 @@ use muda::{
     PhysicalPosition, Position, PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
+use tao::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
 #[cfg(target_os = "windows")]
-use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-use winit::{
+use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
@@ -38,7 +38,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     event_loop_builder.with_default_menu(false);
 
-    let event_loop = event_loop_builder.build().unwrap();
+    let event_loop = event_loop_builder.build();
 
     let window = WindowBuilder::new()
         .with_title("Window 1")
@@ -113,9 +113,9 @@ fn main() {
         &PredefinedMenuItem::about(
             None,
             Some(AboutMetadata {
-                name: Some("winit".to_string()),
+                name: Some("tao".to_string()),
                 version: Some("1.2.3".to_string()),
-                copyright: Some("Copyright winit".to_string()),
+                copyright: Some("Copyright tao".to_string()),
                 ..Default::default()
             }),
         ),
@@ -128,7 +128,7 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     {
-        use winit::raw_window_handle::*;
+        use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
             menu_bar.init_for_hwnd(handle.hwnd.get());
         }
@@ -146,14 +146,14 @@ fn main() {
     let mut window_cursor_position = PhysicalPosition { x: 0., y: 0. };
     let mut use_window_pos = false;
 
-    event_loop.run(move |event, event_loop| {
-        event_loop.set_control_flow(ControlFlow::Wait);
+    event_loop.run(move |event, event_loop, control_flow| {
+        *control_flow = ControlFlow::Wait;
 
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => event_loop.exit(),
+            } => *control_flow = ControlFlow::Exit,
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, .. },
                 window_id,
@@ -203,14 +203,14 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
     {
-        use winit::raw_window_handle::*;
+        use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
             menu.show_context_menu_for_hwnd(handle.hwnd.get(), position);
         }
     }
     #[cfg(target_os = "macos")]
     {
-        use winit::raw_window_handle::*;
+        use tao::rwh_06::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position);
         }
