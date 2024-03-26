@@ -100,7 +100,6 @@ pub(crate) struct Menu {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     hwnds: Vec<HWND>,
-    context_hwnds: Vec<HWND>,
     haccel_store: Rc<RefCell<AccelWrapper>>,
     children: Vec<Rc<RefCell<MenuChild>>>,
 }
@@ -141,9 +140,6 @@ impl Drop for Menu {
                 SetMenu(*hwnd, 0);
                 RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             }
-            for hwnd in &self.context_hwnds {
-                RemoveWindowSubclass(*hwnd, Some(menu_subclass_proc), CONTEXT_MENU_SUBCLASS_ID);
-            }
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
         }
@@ -161,7 +157,6 @@ impl Menu {
             haccel_store: Rc::new(RefCell::new((0, HashMap::new()))),
             children: Vec::new(),
             hwnds: Vec::new(),
-            context_hwnds: Vec::new(),
         }
     }
 
@@ -418,16 +413,13 @@ impl Menu {
 
     pub fn show_context_menu_for_hwnd(&mut self, hwnd: isize, position: Option<Position>) {
         let hpopupmenu = self.hpopupmenu;
-        if !self.context_hwnds.iter().any(|h| *h == hwnd) {
-            self.context_hwnds.push(hwnd);
-            unsafe {
-                SetWindowSubclass(
-                    hwnd,
-                    Some(menu_subclass_proc),
-                    CONTEXT_MENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
-                );
-            }
+        unsafe {
+            SetWindowSubclass(
+                hwnd,
+                Some(menu_subclass_proc),
+                CONTEXT_MENU_SUBCLASS_ID,
+                Box::into_raw(Box::new(self)) as _,
+            );
         }
         show_context_menu(hwnd, hpopupmenu, position)
     }
@@ -461,22 +453,11 @@ pub(crate) struct MenuChild {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
-    context_hwnds: Option<Vec<HWND>>,
 }
 
 impl Drop for MenuChild {
     fn drop(&mut self) {
         if self.item_type == MenuItemType::Submenu {
-            for hwnd in self.context_hwnds.as_ref().unwrap() {
-                unsafe {
-                    RemoveWindowSubclass(
-                        *hwnd,
-                        Some(menu_subclass_proc),
-                        CONTEXT_SUBMENU_SUBCLASS_ID,
-                    );
-                }
-            }
-
             unsafe {
                 DestroyMenu(self.hmenu);
                 DestroyMenu(self.hpopupmenu);
@@ -515,7 +496,6 @@ impl MenuChild {
             children: None,
             hmenu: 0,
             hpopupmenu: 0,
-            context_hwnds: None,
         }
     }
 
@@ -536,7 +516,6 @@ impl MenuChild {
             icon: None,
             checked: false,
             accelerator: None,
-            context_hwnds: Some(Vec::new()),
         }
     }
 
@@ -557,7 +536,6 @@ impl MenuChild {
             children: None,
             hmenu: 0,
             hpopupmenu: 0,
-            context_hwnds: None,
         }
     }
 
@@ -584,7 +562,6 @@ impl MenuChild {
             children: None,
             hmenu: 0,
             hpopupmenu: 0,
-            context_hwnds: None,
         }
     }
 
@@ -611,7 +588,6 @@ impl MenuChild {
             children: None,
             hmenu: 0,
             hpopupmenu: 0,
-            context_hwnds: None,
         }
     }
 
@@ -638,7 +614,6 @@ impl MenuChild {
             children: None,
             hmenu: 0,
             hpopupmenu: 0,
-            context_hwnds: None,
         }
     }
 }
@@ -938,21 +913,12 @@ impl MenuChild {
     pub fn show_context_menu_for_hwnd(&mut self, hwnd: isize, position: Option<Position>) {
         let hpopupmenu = self.hpopupmenu;
         unsafe {
-            if !self
-                .context_hwnds
-                .as_ref()
-                .unwrap()
-                .iter()
-                .any(|h| *h == hwnd)
-            {
-                self.context_hwnds.as_mut().unwrap().push(hwnd);
-                SetWindowSubclass(
-                    hwnd,
-                    Some(menu_subclass_proc),
-                    CONTEXT_SUBMENU_SUBCLASS_ID,
-                    Box::into_raw(Box::new(self)) as _,
-                );
-            }
+            SetWindowSubclass(
+                hwnd,
+                Some(menu_subclass_proc),
+                CONTEXT_SUBMENU_SUBCLASS_ID,
+                Box::into_raw(Box::new(self)) as _,
+            );
         }
         show_context_menu(hwnd, hpopupmenu, position)
     }
