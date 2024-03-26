@@ -9,10 +9,11 @@ pub(crate) use icon::PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
+    dpi::Position,
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
+    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
 };
 use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
 use gtk::{gdk, prelude::*, AboutDialog, Container, Orientation};

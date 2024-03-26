@@ -12,10 +12,11 @@ pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,
+    dpi::Position,
     icon::{Icon, NativeIcon},
     items::PredefinedMenuItemType,
     util::{AddOp, Counter},
-    AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
+    AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
 };
 use std::{
     cell::{RefCell, RefMut},

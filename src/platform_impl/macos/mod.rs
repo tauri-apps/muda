@@ -25,10 +25,11 @@ use objc::{
 use self::util::{app_name_string, strip_mnemonic};
 use crate::{
     accelerator::Accelerator,
+    dpi::{LogicalPosition, Position},
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, LogicalPosition, MenuEvent, MenuId, MenuItemKind, MenuItemType, Position,
+    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -1076,11 +1077,10 @@ fn show_context_menu(ns_menu: id, view: id, position: Option<Position>) {
             (location, view)
         } else {
             let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
-            let pos = Position::Logical(LogicalPosition {
+            let pos = LogicalPosition {
                 x: mouse_location.x,
                 y: mouse_location.y,
-            });
-            let pos = pos.to_logical(scale_factor);
+            };
             let location = NSPoint::new(pos.x, pos.y);
             (location, nil)
         };

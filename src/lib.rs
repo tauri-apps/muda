@@ -100,7 +100,7 @@
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = 0 as *mut objc::runtime::Object;
 //! // --snip--
-//! let position = muda::PhysicalPosition { x: 100., y: 120. };
+//! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into()));
 //! #[cfg(target_os = "linux")]
@@ -132,7 +132,6 @@ use once_cell::sync::{Lazy, OnceCell};
 mod about_metadata;
 pub mod accelerator;
 mod builders;
-mod dpi;
 mod error;
 mod icon;
 mod items;
@@ -147,7 +146,7 @@ extern crate objc;
 
 pub use about_metadata::AboutMetadata;
 pub use builders::*;
-pub use dpi::*;
+pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
@@ -311,7 +310,7 @@ pub trait ContextMenu {
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>);
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<dpi::Position>);
 
     /// Attach the menu subclass handler to the given hwnd
     /// so you can recieve events from that window using [MenuEvent::receiver]
@@ -328,7 +327,7 @@ pub trait ContextMenu {
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "linux")]
-    fn show_context_menu_for_gtk_window(&self, w: &gtk::Window, position: Option<Position>);
+    fn show_context_menu_for_gtk_window(&self, w: &gtk::Window, position: Option<dpi::Position>);
 
     /// Get the underlying gtk menu reserved for context menus.
     #[cfg(target_os = "linux")]
@@ -338,7 +337,7 @@ pub trait ContextMenu {
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "macos")]
-    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<Position>);
+    fn show_context_menu_for_nsview(&self, view: cocoa::base::id, position: Option<dpi::Position>);
 
     /// Get the underlying NSMenu reserved for context menus.
     #[cfg(target_os = "macos")]
