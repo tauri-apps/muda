@@ -21,9 +21,9 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-use wry::WebViewBuilder;
 #[cfg(target_os = "linux")]
 use wry::WebViewBuilderExtUnix;
+use wry::{http::Request, WebViewBuilder};
 
 fn main() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::new();
@@ -235,8 +235,9 @@ fn main() -> wry::Result<()> {
         let window = window.clone();
         let file_m_c = file_m.clone();
         let menu_bar = menu_bar.clone();
-        move |req: String| {
-            if &req == "showContextMenu" {
+        move |req: Request<String>| {
+            let req = req.body();
+            if req == "showContextMenu" {
                 show_context_menu(&window, &file_m_c, None)
             } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
                 let (x, mut y) = rest
