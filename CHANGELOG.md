@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.13.0]
+
+- [`90926d4`](https://www.github.com/tauri-apps/muda/commit/90926d43f7817ef7061aa8baa8072983a91d6a81)([#174](https://www.github.com/tauri-apps/muda/pull/174)) Moved the following items into `dpi` module which is just an export of `dpi` crate:
+
+  - `Pixel`
+  - `validate_scale_factor`
+  - `LogicalPosition`
+  - `PhysicalPosition`
+  - `Position`
+
 ## \[0.12.2]
 
 - [`8960f0d`](https://www.github.com/tauri-apps/muda/commit/8960f0ddb52b74f4bd9d5fed5e91b62c5db09c77)([#171](https://www.github.com/tauri-apps/muda/pull/171)) On Windows, fix using multiple context menus resulted in receiving events only for the last used one.
