@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.12.2]
+
+- [`8960f0d`](https://www.github.com/tauri-apps/muda/commit/8960f0ddb52b74f4bd9d5fed5e91b62c5db09c77)([#171](https://www.github.com/tauri-apps/muda/pull/171)) On Windows, fix using multiple context menus resulted in receiving events only for the last used one.
+
 ## \[0.12.1]
 
 - [`cbb9fc0`](https://www.github.com/tauri-apps/muda/commit/cbb9fc0d7b98c362dfbdc09122fb9d0b3b7edabb)([#166](https://www.github.com/tauri-apps/muda/pull/166)) On Windows, fix events not emitted for other menus after using a menu as a context menu.
