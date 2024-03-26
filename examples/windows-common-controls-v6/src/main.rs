@@ -5,8 +5,9 @@
 #![allow(unused)]
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
+    dpi::{PhysicalPosition, Position},
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
-    PhysicalPosition, Position, PredefinedMenuItem, Submenu,
+    PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};

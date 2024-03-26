@@ -5,7 +5,8 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position,
+    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
+    MenuItemKind,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].

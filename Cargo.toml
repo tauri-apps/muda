@@ -14,7 +14,7 @@ categories = [ "gui" ]
 default = [ "libxdo" ]
 libxdo = [ "dep:libxdo" ]
 common-controls-v6 = [ ]
-serde = [ "dep:serde" ]
+serde = [ "dep:serde", "dpi/serde" ]
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -22,6 +22,7 @@ keyboard-types = "0.7"
 once_cell = "1"
 thiserror = "1"
 serde = { version = "1", optional = true }
+dpi = "0.1"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
 version = "0.52"

@@ -4,7 +4,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind, Position};
+use crate::{dpi::Position, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.

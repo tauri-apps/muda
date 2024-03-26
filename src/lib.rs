@@ -132,7 +132,6 @@ use once_cell::sync::{Lazy, OnceCell};
 mod about_metadata;
 pub mod accelerator;
 mod builders;
-mod dpi;
 mod error;
 mod icon;
 mod items;
@@ -147,7 +146,7 @@ extern crate objc;
 
 pub use about_metadata::AboutMetadata;
 pub use builders::*;
-pub use dpi::*;
+pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
@@ -311,7 +310,7 @@ pub trait ContextMenu {
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     #[cfg(target_os = "windows")]
-    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>);
+    fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<dpi::Position>);
 
     /// Attach the menu subclass handler to the given hwnd
     /// so you can recieve events from that window using [MenuEvent::receiver]

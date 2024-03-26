@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
+    dpi::Position,
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
@@ -254,11 +255,7 @@ fn main() -> wry::Result<()> {
                     y += menu_bar.allocated_height();
                 }
 
-                show_context_menu(
-                    &window,
-                    &file_m_c,
-                    Some(muda::Position::Logical((x, y).into())),
-                )
+                show_context_menu(&window, &file_m_c, Some(Position::Logical((x, y).into())))
             }
         }
     };
@@ -306,7 +303,7 @@ fn main() -> wry::Result<()> {
     })
 }
 
-fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<muda::Position>) {
+fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
     menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
