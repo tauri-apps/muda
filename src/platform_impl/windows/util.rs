@@ -126,10 +126,6 @@ pub fn dpi_to_scale_factor(dpi: u32) -> f64 {
 
 #[allow(non_snake_case)]
 pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
-    let hdc = GetDC(hwnd);
-    if hdc == 0 {
-        panic!("[tao] `GetDC` returned null!");
-    }
     if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
         // We are on Windows 10 Anniversary Update (1607) or later.
         match GetDpiForWindow(hwnd) {
@@ -153,6 +149,11 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
             BASE_DPI
         }
     } else {
+        let hdc = GetDC(hwnd);
+        if hdc == 0 {
+            return BASE_DPI;
+        }
+
         // We are on Vista or later.
         if IsProcessDPIAware() == 1 {
             // If the process is DPI aware, then scaling must be handled by the application using
