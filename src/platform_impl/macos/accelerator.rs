@@ -112,16 +112,16 @@ impl Accelerator {
         let mods: Modifiers = self.mods;
         let mut flags = NSEventModifierFlags::empty();
         if mods.contains(Modifiers::SHIFT) {
-            flags.insert(NSEventModifierFlags::NSEventModifierFlagShift);
+            flags.insert(NSEventModifierFlags::Shift);
         }
         if mods.contains(Modifiers::SUPER) {
-            flags.insert(NSEventModifierFlags::NSEventModifierFlagCommand);
+            flags.insert(NSEventModifierFlags::Command);
         }
         if mods.contains(Modifiers::ALT) {
-            flags.insert(NSEventModifierFlags::NSEventModifierFlagOption);
+            flags.insert(NSEventModifierFlags::Option);
         }
         if mods.contains(Modifiers::CONTROL) {
-            flags.insert(NSEventModifierFlags::NSEventModifierFlagControl);
+            flags.insert(NSEventModifierFlags::Control);
         }
         flags
     }
