@@ -4,7 +4,10 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId, MenuItemKind, NativeIcon};
+use crate::{
+    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
+    MenuItemKind, NativeIcon,
+};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
