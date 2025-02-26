@@ -710,6 +710,8 @@ impl MenuChild {
             ns_menu_item.setEnabled(self.enabled);
 
             menuitem_set_icon(&ns_menu_item, self.icon.as_ref());
+
+            menuitem_set_native_icon(&ns_menu_item, self.native_icon);
         }
 
         let id = COUNTER.next();
