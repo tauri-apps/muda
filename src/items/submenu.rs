@@ -4,10 +4,7 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{
-    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
-    MenuItemKind,
-};
+use crate::{dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId, MenuItemKind};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -207,6 +204,11 @@ impl Submenu {
         } else {
             self.id().clone()
         }
+    }
+
+    /// Change this menu item icon or remove it.
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.inner.borrow_mut().set_icon(icon)
     }
 }
 
