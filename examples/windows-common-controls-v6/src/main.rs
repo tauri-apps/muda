@@ -10,7 +10,7 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use tao::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
+use tao::platform::macos::{WindowExtMacOS};
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
@@ -36,8 +36,8 @@ fn main() {
             }
         });
     }
-    #[cfg(target_os = "macos")]
-    event_loop_builder.with_default_menu(false);
+    // #[cfg(target_os = "macos")]
+    // event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build();
 
@@ -67,9 +67,14 @@ fn main() {
         ]);
     }
 
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+
+    window_m.set_icon(Some(icon.clone()));
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
@@ -79,9 +84,8 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "../../icon.png");
-    let icon = load_icon(std::path::Path::new(path));
-    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+
+    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon.clone()), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -127,14 +131,34 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
+    // Создаём ещё одно подменю внутри "Window" (подподменю).
+    let sub_submenu = Submenu::new("Sub Submenu", true);
+
+    // Если хотите, чтобы у заголовка самого суб-субменю тоже была иконка (на Windows, Linux),
+    // можете установить иконку так:
+    sub_submenu.set_icon(Some(icon.clone()));
+
+    // Добавляем в подподменю пару пунктов с иконками (IconMenuItem)
+    let icon_item_1 = IconMenuItem::new("Icon Item 1", true, Some(icon.clone()), None);
+    let icon_item_2 = IconMenuItem::new("Icon Item 2", true, Some(icon.clone()), None);
+
+    // Добавляем эти пункты в sub_submenu
+    sub_submenu.append_items(&[&icon_item_1, &icon_item_2]);
+
+    // Теперь в "Window" (window_m) добавляем это подменю
+    window_m.append(&sub_submenu);
+
+
     #[cfg(target_os = "windows")]
     {
         use tao::rwh_06::*;
-        if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
-        }
-        if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
+        unsafe {
+            if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
+                menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
+            }
+            if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
+                menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
+            }
         }
     }
     #[cfg(target_os = "macos")]
@@ -206,7 +230,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu.show_context_menu_for_hwnd(handle.hwnd.get(), position);
+            unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
     #[cfg(target_os = "macos")]
