@@ -3,12 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
-use muda::{
-    accelerator::{Accelerator, Code, Modifiers},
-    dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
-    PredefinedMenuItem, Submenu,
-};
+use muda::{accelerator::{Accelerator, Code, Modifiers}, dpi::{PhysicalPosition, Position}, AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon, PredefinedMenuItem, Submenu};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{WindowExtMacOS};
 #[cfg(target_os = "windows")]
@@ -136,7 +131,7 @@ fn main() {
 
     // Если хотите, чтобы у заголовка самого суб-субменю тоже была иконка (на Windows, Linux),
     // можете установить иконку так:
-    sub_submenu.set_icon(Some(icon.clone()));
+    sub_submenu.set_native_icon(Some(NativeIcon::Add));
 
     // Добавляем в подподменю пару пунктов с иконками (IconMenuItem)
     let icon_item_1 = IconMenuItem::new("Icon Item 1", true, Some(icon.clone()), None);
