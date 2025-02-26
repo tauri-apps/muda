@@ -708,6 +708,8 @@ impl MenuChild {
             ns_submenu.setAutoenablesItems(false);
 
             ns_menu_item.setEnabled(self.enabled);
+
+            menuitem_set_icon(&ns_menu_item, self.icon.as_ref());
         }
 
         let id = COUNTER.next();
