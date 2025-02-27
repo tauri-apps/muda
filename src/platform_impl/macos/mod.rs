@@ -709,9 +709,13 @@ impl MenuChild {
 
             ns_menu_item.setEnabled(self.enabled);
 
-            menuitem_set_icon(&ns_menu_item, self.icon.as_ref());
+            if let Some(native_icon) = self.native_icon {
+                menuitem_set_native_icon(&ns_menu_item, Some(native_icon));
+            }
 
-            menuitem_set_native_icon(&ns_menu_item, self.native_icon);
+            if let Some(icon) = self.icon.as_ref() {
+                menuitem_set_icon(&ns_menu_item, Some(icon));
+            }
         }
 
         let id = COUNTER.next();
