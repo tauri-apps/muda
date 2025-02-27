@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
+#[cfg(target_os = "linux")]
+use gtk::prelude::*;
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
@@ -13,10 +15,6 @@ use muda::{
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-#[cfg(target_os = "linux")]
-use {
-    gtk::prelude::*,
-};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
