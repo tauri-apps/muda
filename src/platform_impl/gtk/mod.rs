@@ -1005,17 +1005,45 @@ impl MenuChild {
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
+        for_menu_bar: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let submenu = gtk::Menu::new();
-        let item = gtk::MenuItem::builder()
+
+        let image = self
+            .icon
+            .as_ref()
+            .map(|icon| gtk::Image::from_pixbuf(Some(&icon.inner.to_pixbuf_scale(16, 16))))
+            .unwrap_or_default();
+
+        let label = gtk::AccelLabel::builder()
             .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
-            .submenu(&submenu)
+            .xalign(0.0)
+            .build();
+
+        let box_container = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        if !for_menu_bar {
+            let style_context = box_container.style_context();
+            let css_provider = gtk::CssProvider::new();
+            let theme = r#"
+            box {
+                margin-left: -22px;
+                }
+                "#;
+            let _ = css_provider.load_from_data(theme.as_bytes());
+            style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        }
+        box_container.pack_start(&image, false, false, 0);
+        box_container.pack_start(&label, true, true, 0);
+        box_container.show_all();
+
+        let item = gtk::MenuItem::builder()
+            .child(&box_container)
             .sensitive(self.enabled)
             .build();
 
-        item.show();
         item.set_submenu(Some(&submenu));
+        item.show();
 
         self.accel_group = accel_group.cloned();
 
@@ -1036,12 +1064,12 @@ impl MenuChild {
                 .push((id, submenu.clone()));
         }
 
-        for item in self.items() {
+        for child_item in self.items() {
             if add_to_cache {
-                self.add_menu_item_with_id(item.as_ref(), id)?;
+                self.add_menu_item_with_id(child_item.as_ref(), id)?;
             } else {
-                let gtk_item = item.make_gtk_menu_item(0, None, false, false)?;
-                submenu.append(&gtk_item);
+                let gtk_child_item = child_item.make_gtk_menu_item(0, None, false, false)?;
+                submenu.append(&gtk_child_item);
             }
         }
 
@@ -1326,7 +1354,7 @@ impl MenuItemKind {
         let mut child = self.child_mut();
         match child.item_type() {
             MenuItemType::Submenu => {
-                child.create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache)
+                child.create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache, for_menu_bar)
             }
             MenuItemType::MenuItem => {
                 child.create_gtk_item_for_menu_item(menu_id, accel_group, add_to_cache)
