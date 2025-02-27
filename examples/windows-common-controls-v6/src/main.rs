@@ -3,9 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
-use muda::{accelerator::{Accelerator, Code, Modifiers}, dpi::{PhysicalPosition, Position}, AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon, PredefinedMenuItem, Submenu};
+use muda::{
+    accelerator::{Accelerator, Code, Modifiers},
+    dpi::{PhysicalPosition, Position},
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
+    PredefinedMenuItem, Submenu,
+};
 #[cfg(target_os = "macos")]
-use tao::platform::macos::{WindowExtMacOS};
+use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
@@ -79,7 +84,6 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-
     let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon.clone()), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -126,23 +130,17 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
-    // Создаём ещё одно подменю внутри "Window" (подподменю).
     let sub_submenu = Submenu::new("Sub Submenu", true);
 
-    // Если хотите, чтобы у заголовка самого суб-субменю тоже была иконка (на Windows, Linux),
-    // можете установить иконку так:
-    sub_submenu.set_native_icon(Some(NativeIcon::Add));
+    // sub_submenu.set_native_icon(Some(NativeIcon::Add));
+    sub_submenu.set_icon(Some(icon.clone()));
 
-    // Добавляем в подподменю пару пунктов с иконками (IconMenuItem)
     let icon_item_1 = IconMenuItem::new("Icon Item 1", true, Some(icon.clone()), None);
     let icon_item_2 = IconMenuItem::new("Icon Item 2", true, Some(icon.clone()), None);
 
-    // Добавляем эти пункты в sub_submenu
     sub_submenu.append_items(&[&icon_item_1, &icon_item_2]);
 
-    // Теперь в "Window" (window_m) добавляем это подменю
     window_m.append(&sub_submenu);
-
 
     #[cfg(target_os = "windows")]
     {
