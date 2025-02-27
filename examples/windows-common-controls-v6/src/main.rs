@@ -13,6 +13,10 @@ use muda::{
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+#[cfg(target_os = "linux")]
+use {
+    gtk::prelude::*,
+};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
@@ -232,6 +236,15 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        gtk::init().ok();
+        let w = gtk::Window::new(gtk::WindowType::Popup);
+        w.hide();
+
+        menu.show_context_menu_for_gtk_window(&w, position);
     }
 }
 
