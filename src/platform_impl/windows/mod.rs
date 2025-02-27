@@ -36,13 +36,13 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos,
-            GetMenu, GetMenuItemInfoW, InsertMenuW, PostMessageW, PostQuitMessage, RemoveMenu,
-            SendMessageW, SetForegroundWindow, SetMenu, SetMenuItemInfoW, ShowWindow,
-            TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW, MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND,
-            MF_BYPOSITION, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR,
-            MF_STRING, MF_UNCHECKED, MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE,
-            SW_MINIMIZE, TPM_LEFTALIGN, TPM_RETURNCMD, WM_CLOSE, WM_COMMAND, WM_NCACTIVATE,
-            WM_NCPAINT,
+            GetMenu, GetMenuItemCount, GetMenuItemInfoW, InsertMenuW, PostMessageW,
+            PostQuitMessage, RemoveMenu, SendMessageW, SetForegroundWindow, SetMenu,
+            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
+            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
+            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
+            MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN,
+            TPM_RETURNCMD, WM_CLOSE, WM_COMMAND, WM_NCACTIVATE, WM_NCPAINT,
         },
     },
 };
@@ -884,11 +884,22 @@ impl MenuChild {
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
                 let info = create_icon_item_info(hbitmap);
-
                 unsafe {
                     SetMenuItemInfoW(self.hmenu, child_.internal_id, false.into(), &info);
                     SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, false.into(), &info);
                 };
+            } else if child_.item_type() == MenuItemType::Submenu {
+                if let Some(icon) = &child_.icon {
+                    let hbitmap = unsafe { icon.inner.to_hbitmap() };
+                    let info = create_icon_item_info(hbitmap);
+
+                    unsafe {
+                        let pos_main = GetMenuItemCount(self.hmenu).saturating_sub(1);
+                        let pos_popup = GetMenuItemCount(self.hpopupmenu).saturating_sub(1);
+                        SetMenuItemInfoW(self.hmenu, pos_main as u32, true.into(), &info);
+                        SetMenuItemInfoW(self.hpopupmenu, pos_popup as u32, true.into(), &info);
+                    }
+                }
             }
         }
 
