@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.1]
+
+- [`6b3e2e5`](https://www.github.com/tauri-apps/muda/commit/6b3e2e51bb501ffbdf4526e59e4dedcb37c7b29b) ([#278](https://www.github.com/tauri-apps/muda/pull/278) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Fix the buffer overflow when calling `text` on Windows
+
 ## \[0.16.0]
 
 - [`cf9dcfa`](https://www.github.com/tauri-apps/muda/commit/cf9dcfafd000336db4e9f239ed5581539d9168f6) ([#236](https://www.github.com/tauri-apps/muda/pull/236)) Return `bool` in `ContextMenu::show_context_menu_for_hwnd`, `ContextMenu::show_context_menu_for_nsview` and `ContextMenu::show_context_menu_for_gtk_window` to indicate why the context menu was closed.
