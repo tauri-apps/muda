@@ -26,7 +26,7 @@ use std::{
 };
 use util::{decode_wide, encode_wide, Accel};
 use windows_sys::Win32::{
-    Foundation::{LPARAM, LRESULT, POINT, WPARAM},
+    Foundation::{FALSE, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::Gdi::{ClientToScreen, HBITMAP},
     UI::{
         Input::KeyboardAndMouse::{
@@ -243,8 +243,8 @@ impl Menu {
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, false.into(), &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, false.into(), &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
                 };
             }
         }
@@ -663,21 +663,18 @@ impl MenuChild {
         self.parents_hemnu
             .first()
             .map(|(hmenu, _)| {
-                let mut label = Vec::<u16>::new();
-
+                let id = self.internal_id();
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STRING;
-                info.dwTypeData = label.as_mut_ptr();
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
-
-                let mut dw_type_data = Vec::with_capacity(info.cch as usize);
+                unsafe { GetMenuItemInfoW(*hmenu, id, FALSE, &mut info) };
 
                 info.cch += 1;
+                let mut dw_type_data = Vec::with_capacity(info.cch as usize);
                 info.dwTypeData = dw_type_data.as_mut_ptr();
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, id, FALSE, &mut info) };
 
                 let text = decode_wide(info.dwTypeData);
                 text.split('\t').next().unwrap().to_string()
@@ -699,7 +696,7 @@ impl MenuChild {
             info.fMask = MIIM_STRING;
             info.dwTypeData = text.as_mut_ptr();
 
-            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), false.into(), &info) };
+            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
 
             if let Some(menu_bars) = menu_bars {
                 for hwnd in menu_bars.borrow().keys() {
@@ -717,7 +714,7 @@ impl MenuChild {
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STATE;
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), FALSE, &mut info) };
 
                 (info.fState & MFS_DISABLED) == 0
             })
@@ -765,7 +762,7 @@ impl MenuChild {
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STATE;
 
-                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), false.into(), &mut info) };
+                unsafe { GetMenuItemInfoW(*hmenu, self.internal_id(), FALSE, &mut info) };
 
                 (info.fState & MFS_CHECKED) != 0
             })
@@ -799,7 +796,7 @@ impl MenuChild {
             .unwrap_or(std::ptr::null_mut());
         let info = create_icon_item_info(hbitmap);
         for (parent, menu_bars) in &self.parents_hemnu {
-            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), false.into(), &info) };
+            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
 
             if let Some(menu_bars) = menu_bars {
                 for hwnd in menu_bars.borrow().keys() {
@@ -885,8 +882,8 @@ impl MenuChild {
                     .unwrap_or(std::ptr::null_mut());
                 let info = create_icon_item_info(hbitmap);
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, false.into(), &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, false.into(), &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
                 };
             } else if child_.item_type() == MenuItemType::Submenu {
                 if let Some(icon) = &child_.icon {
