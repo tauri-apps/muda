@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "crossbeam-channel",
  "dpi",
