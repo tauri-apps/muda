@@ -481,10 +481,6 @@ impl MenuChild {
                 app,
             };
 
-            menu.context_menu().connect_closed(|m| {
-                m.unparent();
-            });
-
             self.instances.insert(self.ctx_menu_id, vec![menu]);
 
             for item in self.items() {
@@ -509,7 +505,12 @@ impl MenuChild {
         };
 
         let context_menu = menu.context_menu();
+
+        if context_menu.parent().is_some() {
+            context_menu.unparent();
+        }
         context_menu.set_parent(window);
+
         context_menu.popup();
         context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
 
