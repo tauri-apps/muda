@@ -250,10 +250,6 @@ impl Menu {
 
             let menu = GtkMenuBar::new_context(app);
 
-            menu.context_menu().connect_closed(|m| {
-                m.unparent();
-            });
-
             self.instances.insert(self.ctx_menu_id, menu);
 
             for item in self.items() {
@@ -263,22 +259,19 @@ impl Menu {
 
         let (x, y) = match position {
             Some(p) => p.to_logical::<i32>(window.scale_factor() as _).into(),
-            None => WidgetExt::display(window)
-                .default_seat()
-                .and_then(|s| s.pointer())
-                .map(|p| {
-                    let (_, x, y) = p.surface_at_position();
-                    (x as _, y as _)
-                })
-                .unwrap_or_default(),
+            None => get_cursor_pos(window),
         };
 
         // SAFETY: it is guaranteed to exist due to the check above
         let menu = self.instances.get(&self.ctx_menu_id).unwrap();
         let context_menu = menu.context_menu();
-        context_menu.set_parent(window);
-        context_menu.popup();
 
+        if context_menu.parent().is_some() {
+            context_menu.unparent();
+        }
+        context_menu.set_parent(window);
+
+        context_menu.popup();
         context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
 
         true
@@ -494,14 +487,7 @@ impl MenuChild {
 
         let (x, y) = match position {
             Some(p) => p.to_logical::<i32>(window.scale_factor() as _).into(),
-            None => WidgetExt::display(window)
-                .default_seat()
-                .and_then(|s| s.pointer())
-                .map(|p| {
-                    let (_, x, y) = p.surface_at_position();
-                    (x as _, y as _)
-                })
-                .unwrap_or_default(),
+            None => get_cursor_pos(window),
         };
 
         let context_menu = menu.context_menu();
@@ -519,7 +505,7 @@ impl MenuChild {
 }
 
 impl MenuChild {
-    pub fn new(
+    pub fn new_menu_item(
         text: &str,
         enabled: bool,
         accelerator: Option<Accelerator>,
@@ -769,4 +755,15 @@ fn action_group_from_app(app: &gtk4::Application) -> gio::SimpleActionGroup {
     };
 
     action_group
+}
+
+fn get_cursor_pos(window: &gtk4::Window) -> (i32, i32) {
+    WidgetExt::display(window)
+        .default_seat()
+        .and_then(|s| s.pointer())
+        .map(|p| {
+            let (_, x, y) = p.surface_at_position();
+            (x as _, y as _)
+        })
+        .unwrap_or_default()
 }
