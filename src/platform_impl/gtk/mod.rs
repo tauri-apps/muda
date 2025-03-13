@@ -363,6 +363,8 @@ pub struct MenuChild {
     instances: HashMap<u32, Vec<GtkMenuChild>>,
     ctx_menu_id: u32,
     children: Vec<Rc<RefCell<MenuChild>>>,
+
+    action: Option<gio::SimpleAction>,
 }
 
 impl MenuChild {
@@ -378,6 +380,7 @@ impl MenuChild {
             ctx_menu_id: COUNTER.next(),
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 
@@ -522,6 +525,7 @@ impl MenuChild {
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 
@@ -530,11 +534,23 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: u32,
     ) -> crate::Result<gio::MenuItem> {
-        let detailed_action = format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref());
+        let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
         if let Some(accelerator) = &self.accelerator {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        }
+
+        if self.action.is_none() {
+            let action_group = action_group_from_app(&app);
+
+            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            let id = self.id.clone();
+            action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
+            action.set_enabled(self.enabled);
+            action_group.add_action(&action);
+
+            self.action = Some(action);
         }
 
         let child = GtkMenuChild::Item(item.clone());
@@ -545,6 +561,10 @@ impl MenuChild {
 
     pub fn id(&self) -> &MenuId {
         &self.id
+    }
+
+    fn detailed_action(&self) -> String {
+        format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref())
     }
 
     pub fn item_type(&self) -> &MenuItemType {
@@ -563,8 +583,12 @@ impl MenuChild {
         self.enabled
     }
 
-    pub fn set_enabled(&self, enabled: bool) {
-        todo!()
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+
+        if let Some(action) = self.action.as_ref() {
+            action.set_enabled(enabled);
+        }
     }
 
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
@@ -585,6 +609,7 @@ impl MenuChild {
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 }
@@ -608,6 +633,7 @@ impl MenuChild {
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 
@@ -616,7 +642,7 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: u32,
     ) -> crate::Result<gio::MenuItem> {
-        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref());
+        let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
         if let Some(accelerator) = &self.accelerator {
@@ -628,9 +654,8 @@ impl MenuChild {
         let state = &self.checked.to_variant();
         let action = gio::SimpleAction::new_stateful(self.id.as_ref(), None, state);
         let id = self.id.clone();
-        action.connect_state_notify(move |_| {
-            MenuEvent::send(MenuEvent { id: id.clone() });
-        });
+        action.connect_state_notify(move |_| MenuEvent::send(MenuEvent { id: id.clone() }));
+        action.set_enabled(self.enabled);
         action_group.add_action(&action);
 
         let child = GtkMenuChild::CheckItem {
@@ -675,6 +700,7 @@ impl MenuChild {
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 
@@ -696,6 +722,7 @@ impl MenuChild {
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
+            action: None,
         }
     }
 
@@ -704,7 +731,7 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: u32,
     ) -> crate::Result<gio::MenuItem> {
-        let detailed_action = format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref());
+        let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
         if let Some(accelerator) = &self.accelerator {
@@ -713,6 +740,18 @@ impl MenuChild {
 
         if let Some(icon) = &self.icon {
             item.set_icon(icon.inner.bytes_icon());
+        }
+
+        if self.action.is_none() {
+            let action_group = action_group_from_app(&app);
+
+            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            let id = self.id.clone();
+            action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
+            action.set_enabled(self.enabled);
+            action_group.add_action(&action);
+
+            self.action = Some(action);
         }
 
         let child = GtkMenuChild::Item(item.clone());
@@ -753,17 +792,6 @@ fn action_group_from_app(app: &gtk4::Application) -> gio::SimpleActionGroup {
         unsafe { action_group.as_ref() }.clone()
     } else {
         let action_group = gio::SimpleActionGroup::new();
-
-        let action = gtk4::gio::SimpleAction::new(DEFAULT_ACTION, Some(&VariantTy::STRING));
-        action.connect_activate(|_, v| {
-            if let Some(v) = v {
-                MenuEvent::send(MenuEvent {
-                    id: MenuId(v.as_ref().to_string()),
-                });
-            }
-        });
-        action_group.add_action(&action);
-
         unsafe { app.set_data(ACTION_GROUP_DATA_KEY, action_group.clone()) };
         action_group
     };
