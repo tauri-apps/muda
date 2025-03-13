@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod accelerator;
 mod icon;
+mod mnemonic;
 
 use std::{
     cell::RefCell,
@@ -11,10 +11,10 @@ use std::{
     rc::Rc,
 };
 
-use accelerator::to_gtk_mnemonic;
 use dpi::Position;
 use gtk4::{gdk::Rectangle, gio, glib::VariantTy, prelude::*};
 pub(crate) use icon::PlatformIcon;
+use mnemonic::to_gtk_mnemonic;
 
 use crate::{
     accelerator::Accelerator,

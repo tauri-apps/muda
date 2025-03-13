@@ -40,7 +40,7 @@ pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::platform_impl::platform::accelerator::{from_gtk_mnemonic, to_gtk_mnemonic};
+    use crate::platform_impl::platform::mnemonic::{from_gtk_mnemonic, to_gtk_mnemonic};
 
     #[test]
     fn it_converts() {
