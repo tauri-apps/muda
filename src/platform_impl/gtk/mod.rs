@@ -281,10 +281,6 @@ impl Menu {
 #[derive(Clone)]
 enum GtkMenuChild {
     Item(gio::MenuItem),
-    CheckItem {
-        item: gio::MenuItem,
-        action: gio::SimpleAction,
-    },
     Submenu {
         id: u32,
         item: gio::MenuItem,
@@ -320,14 +316,6 @@ impl GtkMenuChild {
         match self {
             GtkMenuChild::Submenu { item, .. } => item,
             GtkMenuChild::Item(item) => item,
-            GtkMenuChild::CheckItem { item, .. } => item,
-            _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
-        }
-    }
-
-    fn action(&self) -> &gio::SimpleAction {
-        match self {
-            GtkMenuChild::CheckItem { action, .. } => action,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
         }
     }
@@ -649,35 +637,39 @@ impl MenuChild {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
         }
 
-        let action_group = action_group_from_app(&app);
+        if self.action.is_none() {
+            let action_group = action_group_from_app(&app);
 
-        let state = &self.checked.to_variant();
-        let action = gio::SimpleAction::new_stateful(self.id.as_ref(), None, state);
-        let id = self.id.clone();
-        action.connect_state_notify(move |_| MenuEvent::send(MenuEvent { id: id.clone() }));
-        action.set_enabled(self.enabled);
-        action_group.add_action(&action);
+            let state = &self.checked.to_variant();
+            let action = gio::SimpleAction::new_stateful(self.id.as_ref(), None, state);
+            let id = self.id.clone();
+            action.connect_state_notify(move |_| MenuEvent::send(MenuEvent { id: id.clone() }));
+            action.set_enabled(self.enabled);
+            action_group.add_action(&action);
 
-        let child = GtkMenuChild::CheckItem {
-            item: item.clone(),
-            action,
-        };
+            self.action = Some(action);
+        }
+
+        let child = GtkMenuChild::Item(item.clone());
         self.instances.entry(menu_id).or_default().push(child);
 
         Ok(item)
     }
 
     pub fn is_checked(&self) -> bool {
-        self.instances
-            .values()
-            .find_map(|i| i.first())
-            .and_then(|i| i.action().state())
+        self.action
+            .as_ref()
+            .and_then(|action| action.state())
             .and_then(|s| s.get())
             .unwrap_or(self.checked)
     }
 
-    pub fn set_checked(&self, checked: bool) {
-        todo!()
+    pub fn set_checked(&mut self, checked: bool) {
+        self.checked = checked;
+
+        if let Some(action) = self.action.as_ref() {
+            action.set_state(&checked.to_variant());
+        }
     }
 }
 
