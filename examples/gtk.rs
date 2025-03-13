@@ -45,7 +45,7 @@ fn on_activate(application: &gtk4::Application) {
                 "Check",
                 true,
                 true,
-                Some(Accelerator::new(Modifiers::CONTROL, Code::KeyQ)),
+                Some(Accelerator::new(Modifiers::empty(), Code::KeyQ)),
             );
 
             let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");

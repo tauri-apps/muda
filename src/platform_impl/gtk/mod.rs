@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+mod accelerator;
 mod icon;
 mod mnemonic;
 
@@ -525,11 +526,17 @@ impl MenuChild {
         }
     }
 
-    fn create_gtk_item_for_menu_item(&mut self, menu_id: u32) -> crate::Result<gio::MenuItem> {
-        let item = gio::MenuItem::new(
-            Some(&to_gtk_mnemonic(&self.text)),
-            Some(&format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref())),
-        );
+    fn create_gtk_item_for_menu_item(
+        &mut self,
+        app: &gtk4::Application,
+        menu_id: u32,
+    ) -> crate::Result<gio::MenuItem> {
+        let detailed_action = format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref());
+        let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
+
+        if let Some(accelerator) = &self.accelerator {
+            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        }
 
         let child = GtkMenuChild::Item(item.clone());
         self.instances.entry(menu_id).or_default().push(child);
@@ -610,10 +617,12 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: u32,
     ) -> crate::Result<gio::MenuItem> {
-        let item = gio::MenuItem::new(
-            Some(&to_gtk_mnemonic(&self.text)),
-            Some(&format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref())),
-        );
+        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref());
+        let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
+
+        if let Some(accelerator) = &self.accelerator {
+            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        }
 
         let action_group = action_group_from_app(&app);
 
@@ -691,11 +700,17 @@ impl MenuChild {
         }
     }
 
-    fn create_gtk_item_for_icon_menu_item(&mut self, menu_id: u32) -> crate::Result<gio::MenuItem> {
-        let item = gio::MenuItem::new(
-            Some(&to_gtk_mnemonic(&self.text)),
-            Some(&format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref())),
-        );
+    fn create_gtk_item_for_icon_menu_item(
+        &mut self,
+        app: &gtk4::Application,
+        menu_id: u32,
+    ) -> crate::Result<gio::MenuItem> {
+        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref());
+        let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
+
+        if let Some(accelerator) = &self.accelerator {
+            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        }
 
         if let Some(icon) = &self.icon {
             item.set_icon(icon.inner.bytes_icon());
@@ -720,9 +735,9 @@ impl dyn IsMenuItem + '_ {
         let mut child = kind.child_mut();
         match child.item_type() {
             MenuItemType::Submenu => child.create_gtk_item_for_submenu(app, menu_id),
-            MenuItemType::MenuItem => child.create_gtk_item_for_menu_item(menu_id),
+            MenuItemType::MenuItem => child.create_gtk_item_for_menu_item(app, menu_id),
             MenuItemType::Check => child.create_gtk_item_for_check_menu_item(app, menu_id),
-            MenuItemType::Icon => child.create_gtk_item_for_icon_menu_item(menu_id),
+            MenuItemType::Icon => child.create_gtk_item_for_icon_menu_item(app, menu_id),
             _ => todo!(),
             // MenuItemType::Predefined => {
             //     child.create_gtk_item_for_predefined_menu_item(menu_id, action_group)
