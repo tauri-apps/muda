@@ -61,7 +61,6 @@ impl GtkMenuBar {
         match self {
             GtkMenuBar::MenuBar { app, .. } => app,
             GtkMenuBar::ContextMenu { app, .. } => app,
-            _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
         }
     }
 
@@ -705,7 +704,7 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: u32,
     ) -> crate::Result<gio::MenuItem> {
-        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref());
+        let detailed_action = format!("{DEFAULT_DETAILED_ACTION}::{}", self.id.as_ref());
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
         if let Some(accelerator) = &self.accelerator {
