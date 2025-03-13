@@ -37,47 +37,41 @@ fn on_activate(application: &gtk4::Application) {
 
     window.present();
 
-    let (menubar, file_menu) = {
-        let file_menu = {
-            let about_menu_item = muda::MenuItem::new("About", true, None);
+    let about_menu_item = muda::MenuItem::new("About", true, None);
 
-            let check = muda::CheckMenuItem::new(
-                "Check",
-                true,
-                true,
-                Some(Accelerator::new(Modifiers::empty(), Code::KeyQ)),
-            );
+    let check = muda::CheckMenuItem::new(
+        "Check",
+        true,
+        true,
+        Some(Accelerator::new(Modifiers::empty(), Code::KeyQ)),
+    );
 
-            let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-            let icon = load_icon(std::path::Path::new(path));
-            let icon_menu_item = muda::IconMenuItem::new("Icon", true, Some(icon), None);
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+    let icon_menu_item = muda::IconMenuItem::new("Icon", true, Some(icon), None);
 
-            let quit_menu_item = muda::MenuItem::with_id(
-                "quit",
-                "&Quit",
-                true,
-                Some(Accelerator::new(Modifiers::CONTROL, Code::KeyQ)),
-            );
+    let quit_menu_item = muda::MenuItem::with_id(
+        "quit",
+        "&Quit",
+        true,
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyQ)),
+    );
 
-            let file_menu = muda::Submenu::new("&File", true);
-            file_menu.append(&about_menu_item).unwrap();
-            file_menu.append(&check).unwrap();
-            file_menu.append(&icon_menu_item).unwrap();
-            file_menu.append(&quit_menu_item).unwrap();
-            file_menu
-        };
+    let file_menu = muda::Submenu::new("&File", true);
+    file_menu.append(&about_menu_item).unwrap();
+    file_menu.append(&check).unwrap();
+    file_menu.append(&icon_menu_item).unwrap();
+    file_menu.append(&quit_menu_item).unwrap();
 
-        let menubar = muda::Menu::new();
-        menubar.append(&file_menu).unwrap();
-
-        (menubar, file_menu)
-    };
+    let menubar = muda::Menu::new();
+    menubar.append(&file_menu).unwrap();
 
     let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     menubar.init_for_gtk_window(&window, Some(&vbox)).unwrap();
 
     let btn = gtk4::Button::with_label("ASdasd");
     let w = window.clone();
+
     btn.connect_clicked(move |_| {
         file_menu.show_context_menu_for_gtk_window(w.dynamic_cast_ref().unwrap(), None);
     });
