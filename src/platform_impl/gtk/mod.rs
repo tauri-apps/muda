@@ -197,25 +197,46 @@ impl Menu {
         Ok(())
     }
 
-    pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    pub fn remove_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
     {
-        todo!()
+        let id = window.as_ptr() as u32;
+
+        let Some(_menu_bar) = self.instances.remove(&id) else {
+            return Err(crate::Error::NotInitialized);
+        };
+
+        window.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+
+        // TODO: destroy the menu bar
+
+        Ok(())
     }
 
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        todo!()
+        let id = window.as_ptr() as u32;
+        let Some(menu_bar) = self.instances.get(&id) else {
+            return Err(crate::Error::NotInitialized);
+        };
+        menu_bar.menu_bar().set_visible(false);
+        Ok(())
     }
 
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        todo!()
+        let id = window.as_ptr() as u32;
+        let Some(menu_bar) = self.instances.get(&id) else {
+            return Err(crate::Error::NotInitialized);
+        };
+        menu_bar.menu_bar().set_visible(true);
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
@@ -223,14 +244,19 @@ impl Menu {
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        todo!()
+        let id = window.as_ptr() as u32;
+        self.instances
+            .get(&id)
+            .map(|m| m.menu_bar().is_visible())
+            .unwrap_or(false)
     }
 
     pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        todo!()
+        let id = window.as_ptr() as u32;
+        self.instances.get(&id).map(|m| m.menu_bar().clone())
     }
 
     pub fn show_context_menu_for_gtk_window(

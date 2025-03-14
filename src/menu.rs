@@ -276,6 +276,7 @@ impl Menu {
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
     {
         self.inner.borrow_mut().remove_for_gtk_window(window)
     }
