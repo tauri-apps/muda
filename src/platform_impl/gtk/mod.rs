@@ -304,7 +304,10 @@ impl Menu {
 
 #[derive(Clone)]
 enum GtkMenuChild {
-    Item(gio::MenuItem),
+    Item {
+        item: gio::MenuItem,
+        app: gtk4::Application,
+    },
     Submenu {
         id: u32,
         item: gio::MenuItem,
@@ -332,14 +335,14 @@ impl GtkMenuChild {
         match self {
             GtkMenuChild::Submenu { app, .. } => app,
             GtkMenuChild::ContextMenu { app, .. } => app,
-            _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
+            GtkMenuChild::Item { app, .. } => app,
         }
     }
 
     fn item(&self) -> &gio::MenuItem {
         match self {
             GtkMenuChild::Submenu { item, .. } => item,
-            GtkMenuChild::Item(item) => item,
+            GtkMenuChild::Item { item, .. } => item,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
         }
     }
@@ -576,7 +579,10 @@ impl MenuChild {
             self.action = Some(action);
         }
 
-        let child = GtkMenuChild::Item(item.clone());
+        let child = GtkMenuChild::Item {
+            item: item.clone(),
+            app: app.clone(),
+        };
         self.instances.entry(menu_id).or_default().push(child);
 
         Ok(item)
@@ -614,8 +620,18 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        todo!()
+    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
+        self.accelerator = accelerator;
+
+        let detailed_action = self.detailed_action();
+        let accelerator = accelerator.map(|a| a.to_gtk());
+        let accelerator = accelerator.as_deref().map(|a| [a]).unwrap_or_default();
+        for item in self.instances.values().flat_map(|v| v.iter()) {
+            let app = item.application();
+            app.set_accels_for_action(&detailed_action, accelerator.as_slice());
+        }
+
+        Ok(())
     }
 }
 
@@ -685,7 +701,10 @@ impl MenuChild {
             self.action = Some(action);
         }
 
-        let child = GtkMenuChild::Item(item.clone());
+        let child = GtkMenuChild::Item {
+            item: item.clone(),
+            app: app.clone(),
+        };
         self.instances.entry(menu_id).or_default().push(child);
 
         Ok(item)
@@ -781,7 +800,10 @@ impl MenuChild {
             self.action = Some(action);
         }
 
-        let child = GtkMenuChild::Item(item.clone());
+        let child = GtkMenuChild::Item {
+            item: item.clone(),
+            app: app.clone(),
+        };
         self.instances.entry(menu_id).or_default().push(child);
 
         Ok(item)
