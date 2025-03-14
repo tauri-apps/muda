@@ -13,7 +13,7 @@ use std::{
 };
 
 use dpi::Position;
-use gtk4::{gdk::Rectangle, gio, glib::VariantTy, prelude::*};
+use gtk4::{gdk::Rectangle, gio, prelude::*};
 pub(crate) use icon::PlatformIcon;
 use mnemonic::to_gtk_mnemonic;
 
@@ -26,9 +26,7 @@ use crate::{
 
 static COUNTER: Counter = Counter::new();
 
-const DEFAULT_ACTION: &str = "_internal_sendEvent";
 const DEFAULT_ACTION_GROUP: &str = "muda";
-const DEFAULT_DETAILED_ACTION: &str = "muda._internal_sendEvent";
 const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
 
 enum GtkMenuBar {
@@ -379,9 +377,20 @@ impl MenuChild {
     ) -> crate::Result<gio::MenuItem> {
         let menu = gio::Menu::new();
         let item = gio::MenuItem::new_submenu(Some(&to_gtk_mnemonic(&self.text)), &menu);
+        item.set_detailed_action(&self.detailed_action());
+
+        if self.action.is_none() {
+            let action_group = action_group_from_app(&app);
+
+            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            action.connect_activate(|_, _| ());
+            action.set_enabled(self.enabled);
+            action_group.add_action(&action);
+
+            self.action = Some(action);
+        }
 
         let id = COUNTER.next();
-
         let child = GtkMenuChild::Submenu {
             item: item.clone(),
             menu,
