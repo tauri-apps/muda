@@ -375,7 +375,7 @@ pub trait ContextMenu {
     /// Returns `true` if menu tracking ended because an item was selected or clicked outside the menu to dismiss it.
     ///
     /// Returns `false` if menu tracking was cancelled for any reason.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -385,7 +385,7 @@ pub trait ContextMenu {
     /// Get the underlying gtk menu reserved for context menus.
     ///
     /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
