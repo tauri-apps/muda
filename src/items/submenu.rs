@@ -264,4 +264,8 @@ impl ContextMenu for Submenu {
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
     }
+
+    fn as_submenu(&self) -> Option<&Submenu> {
+        Some(self)
+    }
 }

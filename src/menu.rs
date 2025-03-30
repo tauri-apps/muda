@@ -422,6 +422,10 @@ impl ContextMenu for Menu {
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
     }
+
+    fn as_menu(&self) -> Option<&Menu> {
+        Some(self)
+    }
 }
 
 /// The window menu bar theme
