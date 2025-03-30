@@ -410,6 +410,26 @@ pub trait ContextMenu {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
+    fn as_menu(&self) -> Option<&Menu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Menu`], and panics if it wasn't.
+    fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Cast this context menu to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Submenu")
+    }
 }
 
 /// Describes a menu event emitted when a menu item is activated
