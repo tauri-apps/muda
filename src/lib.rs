@@ -199,7 +199,7 @@ impl MenuItemKind {
         }
     }
 
-    /// Casts this item to a [`MenuItem`], and returns `None` if it wasn't.
+    /// Casts this context menu to a [`MenuItem`], and returns `None` if it wasn't.
     pub fn as_menuitem(&self) -> Option<&MenuItem> {
         match self {
             MenuItemKind::MenuItem(i) => Some(i),
@@ -207,7 +207,7 @@ impl MenuItemKind {
         }
     }
 
-    /// Casts this item to a [`MenuItem`], and panics if it wasn't.
+    /// Casts this context menu to a [`MenuItem`], and panics if it wasn't.
     pub fn as_menuitem_unchecked(&self) -> &MenuItem {
         match self {
             MenuItemKind::MenuItem(i) => i,
@@ -215,7 +215,7 @@ impl MenuItemKind {
         }
     }
 
-    /// Casts this item to a [`Submenu`], and returns `None` if it wasn't.
+    /// Casts this context menu to a [`Submenu`], and returns `None` if it wasn't.
     pub fn as_submenu(&self) -> Option<&Submenu> {
         match self {
             MenuItemKind::Submenu(i) => Some(i),
@@ -223,7 +223,7 @@ impl MenuItemKind {
         }
     }
 
-    /// Casts this item to a [`Submenu`], and panics if it wasn't.
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
     pub fn as_submenu_unchecked(&self) -> &Submenu {
         match self {
             MenuItemKind::Submenu(i) => i,
