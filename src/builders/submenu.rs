@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{IsMenuItem, MenuId, Submenu};
+use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu};
 
 /// A builder type for [`Submenu`]
 #[derive(Clone, Default)]
@@ -11,6 +11,8 @@ pub struct SubmenuBuilder<'a> {
     enabled: bool,
     id: Option<MenuId>,
     items: Vec<&'a dyn IsMenuItem>,
+    icon: Option<Icon>,
+    native_icon: Option<NativeIcon>,
 }
 
 impl std::fmt::Debug for SubmenuBuilder<'_> {
@@ -59,12 +61,34 @@ impl<'a> SubmenuBuilder<'a> {
         self
     }
 
+    /// Set an icon for this submenu.
+    pub fn icon(mut self, icon: Icon) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
+    /// Set a native icon for this submenu.
+    pub fn native_icon(mut self, icon: NativeIcon) -> Self {
+        self.native_icon = Some(icon);
+        self
+    }
+
     /// Build this menu item.
     pub fn build(self) -> crate::Result<Submenu> {
-        if let Some(id) = self.id {
-            Submenu::with_id_and_items(id, self.text, self.enabled, &self.items)
+        let submenu = if let Some(id) = self.id {
+            Submenu::with_id_and_items(id, self.text, self.enabled, &self.items)?
         } else {
-            Submenu::with_items(self.text, self.enabled, &self.items)
+            Submenu::with_items(self.text, self.enabled, &self.items)?
+        };
+
+        if let Some(icon) = self.icon {
+            submenu.set_icon(Some(icon));
         }
+
+        if let Some(native_icon) = self.native_icon {
+            submenu.set_native_icon(Some(native_icon));
+        }
+
+        Ok(submenu)
     }
 }
