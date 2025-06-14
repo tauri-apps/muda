@@ -1282,11 +1282,11 @@ fn execute_edit_command(command: EditCommand) {
         let mut inputs: [INPUT; 4] = std::mem::zeroed();
         inputs[0].r#type = INPUT_KEYBOARD;
         inputs[0].Anonymous.ki.wVk = VK_CONTROL;
-        inputs[2].Anonymous.ki.dwFlags = 0;
+        inputs[0].Anonymous.ki.dwFlags = 0;
 
         inputs[1].r#type = INPUT_KEYBOARD;
         inputs[1].Anonymous.ki.wVk = key;
-        inputs[2].Anonymous.ki.dwFlags = 0;
+        inputs[1].Anonymous.ki.dwFlags = 0;
 
         inputs[2].r#type = INPUT_KEYBOARD;
         inputs[2].Anonymous.ki.wVk = key;
