@@ -235,14 +235,35 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }
     }
-
     #[cfg(target_os = "linux")]
     {
-        gtk::init().ok();
-        let w = gtk::Window::new(gtk::WindowType::Popup);
-        w.hide();
+        use tao::rwh_06::*;
+        use tao::platform::unix::WindowExtUnix;
+        use gtk::prelude::ObjectExt;
+        
+        let window_handle = window.window_handle();
+        
+        if let Ok(handle) = window_handle {
+            
+            if !gtk::is_initialized() {
+                gtk::init().unwrap();
+            }
 
-        menu.show_context_menu_for_gtk_window(&w, position);
+            let gtk_window = window.gtk_window();
+            
+            let popup = gtk::Window::new(gtk::WindowType::Popup);
+            popup.set_decorated(false);
+            popup.set_skip_taskbar_hint(true);
+            popup.set_skip_pager_hint(true);
+            popup.set_accept_focus(false);
+            popup.set_visible(true);
+            popup.realize();
+            
+            let window_ref: &gtk::Window = gtk_window.upcast_ref();
+            
+            // Используем временное окно для меню
+            menu.show_context_menu_for_gtk_window(&popup, position);
+        }
     }
 }
 
