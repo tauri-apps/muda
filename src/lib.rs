@@ -136,12 +136,12 @@
 //! so that the event loop is awakened on each menu event.
 //!
 //! ```no_run
-//! # use winit::event_loop::EventLoopBuilder;
+//! # use tao::event_loop::EventLoopBuilder;
 //! enum UserEvent {
 //!   MenuEvent(muda::MenuEvent)
 //! }
 //!
-//! let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build().unwrap();
+//! let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
 //!
 //! let proxy = event_loop.create_proxy();
 //! muda::MenuEvent::set_event_handler(Some(move |event| {
@@ -375,7 +375,7 @@ pub trait ContextMenu {
     /// Returns `true` if menu tracking ended because an item was selected or clicked outside the menu to dismiss it.
     ///
     /// Returns `false` if menu tracking was cancelled for any reason.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -385,7 +385,7 @@ pub trait ContextMenu {
     /// Get the underlying gtk menu reserved for context menus.
     ///
     /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
@@ -410,6 +410,26 @@ pub trait ContextMenu {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
+    fn as_menu(&self) -> Option<&Menu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Menu`], and panics if it wasn't.
+    fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Cast this context menu to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Submenu")
+    }
 }
 
 /// Describes a menu event emitted when a menu item is activated

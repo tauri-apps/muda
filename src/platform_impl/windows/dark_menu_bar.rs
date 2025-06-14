@@ -6,6 +6,8 @@
 
 #![allow(non_snake_case, clippy::upper_case_acronyms)]
 
+use std::cell::Cell;
+
 use once_cell::sync::Lazy;
 use windows_sys::{
     s,
@@ -66,34 +68,41 @@ struct UAHDRAWMENUITEM {
 }
 
 #[derive(Debug)]
-struct HBrush(HBRUSH);
+struct Win32Brush(Cell<HBRUSH>);
 
-impl Drop for HBrush {
+impl Win32Brush {
+    const fn null() -> Win32Brush {
+        Self(Cell::new(0 as _))
+    }
+
+    fn get_or_set(&self, color: u32) -> HBRUSH {
+        if self.0.get().is_null() {
+            self.0.set(unsafe { CreateSolidBrush(color) });
+        }
+        self.0.get()
+    }
+}
+
+impl Drop for Win32Brush {
     fn drop(&mut self) {
-        unsafe { DeleteObject(self.0) };
+        unsafe { DeleteObject(self.0.get()) };
     }
 }
 
 fn background_brush() -> HBRUSH {
-    const BACKGROUND_COLOR: u32 = 2829099;
-    static mut BACKGROUND_BRUSH: Option<HBrush> = None;
-    unsafe {
-        if BACKGROUND_BRUSH.is_none() {
-            BACKGROUND_BRUSH = Some(HBrush(CreateSolidBrush(BACKGROUND_COLOR)));
-        }
-        BACKGROUND_BRUSH.as_ref().unwrap().0
+    thread_local! {
+        static BACKGROUND_BRUSH: Win32Brush = const { Win32Brush::null() };
     }
+    const BACKGROUND_COLOR: u32 = 2829099;
+    BACKGROUND_BRUSH.with(|brush| brush.get_or_set(BACKGROUND_COLOR))
 }
 
 fn selected_background_brush() -> HBRUSH {
-    const SELECTED_BACKGROUND_COLOR: u32 = 4276545;
-    static mut SELECTED_BACKGROUND_BRUSH: Option<HBrush> = None;
-    unsafe {
-        if SELECTED_BACKGROUND_BRUSH.is_none() {
-            SELECTED_BACKGROUND_BRUSH = Some(HBrush(CreateSolidBrush(SELECTED_BACKGROUND_COLOR)));
-        }
-        SELECTED_BACKGROUND_BRUSH.as_ref().unwrap().0
+    thread_local! {
+        static SELECTED_BACKGROUND_BRUSH: Win32Brush = const { Win32Brush::null() };
     }
+    const SELECTED_BACKGROUND_COLOR: u32 = 4276545;
+    SELECTED_BACKGROUND_BRUSH.with(|brush| brush.get_or_set(SELECTED_BACKGROUND_COLOR))
 }
 
 /// Draws a dark menu bar if needed and returns whether it draws it or not

@@ -1,6 +1,6 @@
 [package]
 name = "muda"
-version = "0.15.3"
+version = "0.16.1"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
@@ -9,10 +9,12 @@ readme = "README.md"
 repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
+rust-version = "1.71"
 
 [features]
-default = ["libxdo"]
+default = ["libxdo", "gtk"]
 libxdo = ["dep:libxdo"]
+gtk = ["dep:gtk"]
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde"]
 
@@ -20,7 +22,7 @@ serde = ["dep:serde", "dpi/serde"]
 crossbeam-channel = "0.5"
 keyboard-types = "0.7"
 once_cell = "1"
-thiserror = "1"
+thiserror = "2"
 serde = { version = "1", optional = true }
 dpi = "0.1"
 
@@ -41,12 +43,17 @@ features = [
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gtk = "0.18"
+gtk = { version = "0.18", optional = true }
 libxdo = { version = "0.6.0", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.5.2"
-objc2-foundation = { version = "0.2.2", features = [
+objc2 = "0.6.0"
+objc2-core-foundation = { version = "0.3.0", default-features = false, features = [
+  "std",
+  "CFCGTypes",
+] }
+objc2-foundation = { version = "0.3.0", default-features = false, features = [
+  "std",
   "NSAttributedString",
   "NSData",
   "NSDictionary",
@@ -54,7 +61,9 @@ objc2-foundation = { version = "0.2.2", features = [
   "NSString",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.2.2", features = [
+objc2-app-kit = { version = "0.3.0", default-features = false, features = [
+  "std",
+  "objc2-core-foundation",
   "NSApplication",
   "NSCell",
   "NSEvent",
@@ -69,7 +78,7 @@ objc2-app-kit = { version = "0.2.2", features = [
 png = "0.17"
 
 [dev-dependencies]
-winit = "0.29"
-tao = "0.30"
+winit = "0.30"
+tao = "0.33"
 wry = "0.45"
 image = "0.25"

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
+use std::collections::HashMap;
+
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
@@ -13,18 +15,21 @@ use muda::{
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+#[cfg(any(windows, target_os = "macos"))]
+use winit::raw_window_handle::*;
 use winit::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::{ControlFlow, EventLoopBuilder},
-    window::{Window, WindowBuilder},
+    application::ApplicationHandler,
+    event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder},
+    window::{Window, WindowAttributes, WindowId},
 };
 
-enum UserEvent {
+enum AppEvent {
     MenuEvent(muda::MenuEvent),
 }
 
 fn main() {
-    let mut event_loop_builder = EventLoopBuilder::<UserEvent>::with_user_event();
+    let mut event_loop_builder = EventLoop::<AppEvent>::with_user_event();
 
     let menu_bar = Menu::new();
 
@@ -49,180 +54,218 @@ fn main() {
     // set a menu event handler that wakes up the event loop
     let proxy = event_loop.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |event| {
-        proxy.send_event(UserEvent::MenuEvent(event));
+        proxy.send_event(AppEvent::MenuEvent(event));
     }));
 
-    let window = WindowBuilder::new()
-        .with_title("Window 1")
-        .build(&event_loop)
-        .unwrap();
-    let window2 = WindowBuilder::new()
-        .with_title("Window 2")
-        .build(&event_loop)
-        .unwrap();
+    let mut app = App {
+        app_menu: AppMenu::new(menu_bar),
+        windows: HashMap::default(),
+        cursor_position: PhysicalPosition::new(0., 0.),
+        use_window_pos: false,
+    };
 
-    #[cfg(target_os = "macos")]
-    {
-        let app_m = Submenu::new("App", true);
-        menu_bar.append(&app_m);
-        app_m.append_items(&[
-            &PredefinedMenuItem::about(None, None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::services(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::hide(None),
-            &PredefinedMenuItem::hide_others(None),
-            &PredefinedMenuItem::show_all(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::quit(None),
-        ]);
-    }
+    event_loop.run_app(&mut app).unwrap()
+}
 
-    let file_m = Submenu::new("&File", true);
-    let edit_m = Submenu::new("&Edit", true);
-    let window_m = Submenu::new("&Window", true);
+struct App {
+    app_menu: AppMenu,
+    windows: HashMap<WindowId, Window>,
+    cursor_position: PhysicalPosition<f64>,
+    use_window_pos: bool,
+}
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+impl ApplicationHandler<AppEvent> for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {}
 
-    let custom_i_1 = MenuItem::new(
-        "C&ustom 1",
-        true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
-    );
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        if cause == StartCause::Init {
+            let window_attrs = WindowAttributes::default().with_title("Window 1");
+            let window = event_loop.create_window(window_attrs).unwrap();
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-    let icon = load_icon(std::path::Path::new(path));
-    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+            let window_attrs2 = WindowAttributes::default().with_title("Window 2");
+            let window2 = event_loop.create_window(window_attrs2).unwrap();
 
-    let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
-    let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
-    let check_custom_i_3 = CheckMenuItem::new(
-        "Check Custom 3",
-        true,
-        true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
-    );
-
-    let copy_i = PredefinedMenuItem::copy(None);
-    let cut_i = PredefinedMenuItem::cut(None);
-    let paste_i = PredefinedMenuItem::paste(None);
-
-    file_m.append_items(&[
-        &custom_i_1,
-        &image_item,
-        &window_m,
-        &PredefinedMenuItem::separator(),
-        &check_custom_i_1,
-        &check_custom_i_2,
-    ]);
-
-    window_m.append_items(&[
-        &PredefinedMenuItem::minimize(None),
-        &PredefinedMenuItem::maximize(None),
-        &PredefinedMenuItem::close_window(Some("Close")),
-        &PredefinedMenuItem::fullscreen(None),
-        &PredefinedMenuItem::bring_all_to_front(None),
-        &PredefinedMenuItem::about(
-            None,
-            Some(AboutMetadata {
-                name: Some("winit".to_string()),
-                version: Some("1.2.3".to_string()),
-                copyright: Some("Copyright winit".to_string()),
-                ..Default::default()
-            }),
-        ),
-        &check_custom_i_3,
-        &image_item,
-        &custom_i_1,
-    ]);
-
-    edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
-
-    #[cfg(target_os = "windows")]
-    {
-        use winit::raw_window_handle::*;
-        if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            unsafe { menu_bar.init_for_hwnd(handle.hwnd.get()) };
-        }
-        if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
-            unsafe { menu_bar.init_for_hwnd(handle.hwnd.get()) };
-        }
-    }
-    #[cfg(target_os = "macos")]
-    {
-        menu_bar.init_for_nsapp();
-        window_m.set_as_windows_menu_for_nsapp();
-    }
-
-    let menu_channel = MenuEvent::receiver();
-    let mut window_cursor_position = PhysicalPosition { x: 0., y: 0. };
-    let mut use_window_pos = false;
-
-    event_loop.run(move |event, event_loop| {
-        event_loop.set_control_flow(ControlFlow::Wait);
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => event_loop.exit(),
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                window_id,
-                ..
-            } => {
-                window_cursor_position.x = position.x;
-                window_cursor_position.y = position.y;
+            #[cfg(target_os = "windows")]
+            {
+                use winit::raw_window_handle::*;
+                if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
+                    unsafe { self.app_menu.menu_bar.init_for_hwnd(handle.hwnd.get()) };
+                }
+                if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
+                    unsafe { self.app_menu.menu_bar.init_for_hwnd(handle.hwnd.get()) };
+                }
             }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::MouseInput {
-                        state: ElementState::Pressed,
-                        button: MouseButton::Right,
-                        ..
-                    },
-                window_id,
+            #[cfg(target_os = "macos")]
+            {
+                self.app_menu.menu_bar.init_for_nsapp();
+                self.app_menu.window_menu.set_as_windows_menu_for_nsapp();
+            }
+
+            self.windows.insert(window.id(), window);
+            self.windows.insert(window2.id(), window2);
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CloseRequested => {
+                self.windows.remove(&window_id);
+                if self.windows.is_empty() {
+                    event_loop.exit();
+                }
+            }
+
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor_position = position;
+            }
+
+            WindowEvent::MouseInput {
+                button: MouseButton::Right,
+                state: ElementState::Pressed,
                 ..
             } => {
                 show_context_menu(
-                    if window_id == window.id() {
-                        &window
-                    } else {
-                        &window2
-                    },
-                    &file_m,
-                    if use_window_pos {
-                        Some(window_cursor_position.into())
+                    self.windows.get(&window_id).unwrap(),
+                    &self.app_menu.file_menu,
+                    if self.use_window_pos {
+                        Some(self.cursor_position.into())
                     } else {
                         None
                     },
                 );
-                use_window_pos = !use_window_pos;
+                self.use_window_pos = !self.use_window_pos;
             }
 
-            Event::UserEvent(UserEvent::MenuEvent(event)) => {
-                if event.id == custom_i_1.id() {
-                    file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
-                }
-                println!("{event:?}");
-            }
-            _ => (),
+            _ => {}
         }
-    });
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppEvent) {
+        match event {
+            AppEvent::MenuEvent(event) => {
+                println!("{event:?}");
+
+                if event.id == self.app_menu.custom_item.id() {
+                    let new_item = MenuItem::new("New Menu Item", true, None);
+                    self.app_menu.file_menu.insert(&new_item, 2);
+                }
+            }
+        }
+    }
+}
+
+struct AppMenu {
+    menu_bar: Menu,
+    file_menu: Submenu,
+    edit_menu: Submenu,
+    window_menu: Submenu,
+    custom_item: MenuItem,
+}
+
+impl AppMenu {
+    fn new(menu_bar: Menu) -> Self {
+        #[cfg(target_os = "macos")]
+        {
+            let app_menu = Submenu::new("App", true);
+            app_menu.append_items(&[
+                &PredefinedMenuItem::about(None, None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::services(None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::hide(None),
+                &PredefinedMenuItem::hide_others(None),
+                &PredefinedMenuItem::show_all(None),
+                &PredefinedMenuItem::separator(),
+                &PredefinedMenuItem::quit(None),
+            ]);
+            menu_bar.append(&app_menu);
+        }
+
+        let file_menu = Submenu::new("&File", true);
+        let edit_menu = Submenu::new("&Edit", true);
+        let window_menu = Submenu::new("&Window", true);
+
+        menu_bar.append_items(&[&file_menu, &edit_menu, &window_menu]);
+
+        let custom_i_1 = MenuItem::new(
+            "C&ustom 1",
+            true,
+            Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+        );
+
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+        let icon = load_icon(std::path::Path::new(path));
+        let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+
+        let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
+        let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
+        let check_custom_i_3 = CheckMenuItem::new(
+            "Check Custom 3",
+            true,
+            true,
+            Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        );
+
+        let copy_i = PredefinedMenuItem::copy(None);
+        let cut_i = PredefinedMenuItem::cut(None);
+        let paste_i = PredefinedMenuItem::paste(None);
+
+        file_menu.append_items(&[
+            &custom_i_1,
+            &image_item,
+            &window_menu,
+            &PredefinedMenuItem::separator(),
+            &check_custom_i_1,
+            &check_custom_i_2,
+        ]);
+
+        window_menu.append_items(&[
+            &PredefinedMenuItem::minimize(None),
+            &PredefinedMenuItem::maximize(None),
+            &PredefinedMenuItem::close_window(Some("Close")),
+            &PredefinedMenuItem::fullscreen(None),
+            &PredefinedMenuItem::bring_all_to_front(None),
+            &PredefinedMenuItem::about(
+                None,
+                Some(AboutMetadata {
+                    name: Some("winit".to_string()),
+                    version: Some("1.2.3".to_string()),
+                    copyright: Some("Copyright winit".to_string()),
+                    ..Default::default()
+                }),
+            ),
+            &check_custom_i_3,
+            &image_item,
+            &custom_i_1,
+        ]);
+
+        edit_menu.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
+
+        Self {
+            menu_bar,
+            file_menu,
+            edit_menu,
+            window_menu,
+            custom_item: custom_i_1,
+        }
+    }
 }
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
     #[cfg(target_os = "windows")]
     {
-        use winit::raw_window_handle::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
     #[cfg(target_os = "macos")]
     {
-        use winit::raw_window_handle::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }

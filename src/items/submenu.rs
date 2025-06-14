@@ -233,7 +233,7 @@ impl ContextMenu for Submenu {
         self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -244,7 +244,7 @@ impl ContextMenu for Submenu {
             .show_context_menu_for_gtk_window(w, position)
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gtk"))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.inner.borrow_mut().gtk_context_menu()
     }
@@ -263,5 +263,9 @@ impl ContextMenu for Submenu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
+    }
+
+    fn as_submenu(&self) -> Option<&Submenu> {
+        Some(self)
     }
 }

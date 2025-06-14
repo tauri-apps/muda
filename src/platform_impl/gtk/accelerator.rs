@@ -10,18 +10,19 @@ use crate::accelerator::{Accelerator, AcceleratorParseError};
 pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
+        .replace("_", "__")
         .replace("&&", "[~~]")
         .replace('&', "_")
-        .replace("[~~]", "&&")
         .replace("[~~]", "&")
 }
 
 pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()
+        .replace("&", "&&")
         .replace("__", "[~~]")
         .replace('_', "&")
-        .replace("[~~]", "__")
+        .replace("[~~]", "_")
 }
 
 pub fn parse_accelerator(

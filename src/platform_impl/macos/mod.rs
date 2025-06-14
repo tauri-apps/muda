@@ -17,10 +17,10 @@ use std::{
 };
 
 use objc2::{
-    declare_class, msg_send_id, mutability,
+    define_class, msg_send,
     rc::Retained,
     runtime::{AnyObject, Sel},
-    sel, ClassType, DeclaredClass,
+    sel, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
@@ -931,22 +931,16 @@ impl dyn IsMenuItem + '_ {
     }
 }
 
-declare_class!(
+define_class!(
+    #[unsafe(super(NSMenuItem))]
+    #[name = "MudaMenuItem"]
+    #[thread_kind = MainThreadOnly]
+    // FIXME: Use `Rc` or something else to access the MenuChild.
+    #[ivars = Cell<*const MenuChild>]
     struct MenuItem;
 
-    unsafe impl ClassType for MenuItem {
-        type Super = NSMenuItem;
-        type Mutability = mutability::MainThreadOnly;
-        const NAME: &'static str = "MudaMenuItem";
-    }
-
-    impl DeclaredClass for MenuItem {
-        // FIXME: Use `Rc` or something else to access the MenuChild.
-        type Ivars = Cell<*const MenuChild>;
-    }
-
-    unsafe impl MenuItem {
-        #[method(fireMenuItemAction:)]
+    impl MenuItem {
+        #[unsafe(method(fireMenuItemAction:))]
         fn fire_menu_item_action(&self, _sender: Option<&AnyObject>) {
             self.fire_menu_item_click();
         }
@@ -962,7 +956,7 @@ impl MenuItem {
     ) -> Retained<Self> {
         let this = mtm.alloc().set_ivars(Cell::new(ptr::null()));
         unsafe {
-            msg_send_id![super(this), initWithTitle: title, action: action, keyEquivalent: key_equivalent]
+            msg_send![super(this), initWithTitle: title, action: action, keyEquivalent: key_equivalent]
         }
     }
 
@@ -1021,7 +1015,7 @@ impl MenuItem {
                         )));
                     }
 
-                    let dict = NSDictionary::from_vec(&keys, objects);
+                    let dict = NSDictionary::from_retained_objects(&keys, &objects);
 
                     unsafe {
                         NSApplication::sharedApplication(mtm)

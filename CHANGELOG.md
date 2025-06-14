@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.16.1]
+
+- [`6b3e2e5`](https://www.github.com/tauri-apps/muda/commit/6b3e2e51bb501ffbdf4526e59e4dedcb37c7b29b) ([#278](https://www.github.com/tauri-apps/muda/pull/278) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Fix the buffer overflow when calling `text` on Windows
+
+## \[0.16.0]
+
+- [`cf9dcfa`](https://www.github.com/tauri-apps/muda/commit/cf9dcfafd000336db4e9f239ed5581539d9168f6) ([#236](https://www.github.com/tauri-apps/muda/pull/236)) Return `bool` in `ContextMenu::show_context_menu_for_hwnd`, `ContextMenu::show_context_menu_for_nsview` and `ContextMenu::show_context_menu_for_gtk_window` to indicate why the context menu was closed.
+- [`99ec648`](https://www.github.com/tauri-apps/muda/commit/99ec648de4dfd3b864540b1e30279c2c7afc1abd) ([#244](https://www.github.com/tauri-apps/muda/pull/244)) Add `Accelerator::modifiers` and `Accelerator::key` getter methods.
+- [`372f8a1`](https://www.github.com/tauri-apps/muda/commit/372f8a1d095edf0c88f3708777484371202ee91c) ([#269](https://www.github.com/tauri-apps/muda/pull/269)) Updated objc2 to 0.6
+- [`e6b68f9`](https://www.github.com/tauri-apps/muda/commit/e6b68f9c4da1d47e612569a60a9da9199b324d81) Change internal `mut static` to use `thread_local!` and `Cell` instead.
+
 ## \[0.15.3]
 
 - [`11a1ef8`](https://www.github.com/tauri-apps/muda/commit/11a1ef84fa85cbe2f0bfb0c3a986d7a36d84288f) ([#241](https://www.github.com/tauri-apps/muda/pull/241) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On Windows, fix changing state of menu items inside a `muda::Menu` not immedietly reflected on the window menu bar.
