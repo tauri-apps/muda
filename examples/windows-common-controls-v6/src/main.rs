@@ -260,8 +260,6 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
             popup.realize();
             
             let window_ref: &gtk::Window = gtk_window.upcast_ref();
-            
-            // Используем временное окно для меню
             menu.show_context_menu_for_gtk_window(&popup, position);
         }
     }
