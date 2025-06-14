@@ -892,8 +892,8 @@ impl MenuChild {
                     .unwrap_or(std::ptr::null_mut());
                 let info = create_icon_item_info(hbitmap);
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             } else if child_.item_type() == MenuItemType::Submenu {
                 if let Some(icon) = &child_.icon {
