@@ -246,6 +246,16 @@ impl Menu {
                     SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
                     SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
                 };
+            } else if matches!(child_.item_type(), MenuItemType::Icon | MenuItemType::Submenu) {
+                if let Some(icon) = &child_.icon {
+                    let hbitmap = unsafe { icon.inner.to_hbitmap() };
+                    let info = create_icon_item_info(hbitmap);
+
+                    unsafe {
+                        SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
+                        SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    }
+                }
             }
         }
 
