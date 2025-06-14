@@ -2,10 +2,4 @@
 "muda": patch
 ---
 
-`&` and `_` in menu item labels are now handled on Linux the same way as
-on Windows:
-
-1. `&&` can be used for escaping and leads to a single displayed `&`.
-2. `_` is displayed as is and no longer causes a mnemonic. Escaping is not
-   needed.
-3. The back conversion of `_` works correctly.
+On Linux, fix `&&` resulting in `&&` when it should be just `&`. Also fix `_` not visible and actually adding a mnemonic. This makes the behavior on Linux match the behavior on Windows. 
