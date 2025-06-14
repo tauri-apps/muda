@@ -36,7 +36,7 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos,
-            GetMenu, GetMenuItemCount, GetMenuItemInfoW, InsertMenuW, PostMessageW,
+            GetMenu, GetMenuItemInfoW, InsertMenuW, PostMessageW,
             PostQuitMessage, RemoveMenu, SendMessageW, SetForegroundWindow, SetMenu,
             SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
             MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
@@ -901,10 +901,8 @@ impl MenuChild {
                     let info = create_icon_item_info(hbitmap);
 
                     unsafe {
-                        let pos_main = GetMenuItemCount(self.hmenu).saturating_sub(1);
-                        let pos_popup = GetMenuItemCount(self.hpopupmenu).saturating_sub(1);
-                        SetMenuItemInfoW(self.hmenu, pos_main as u32, true.into(), &info);
-                        SetMenuItemInfoW(self.hpopupmenu, pos_popup as u32, true.into(), &info);
+                        SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                        SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                     }
                 }
             }
