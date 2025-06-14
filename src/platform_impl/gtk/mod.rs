@@ -836,12 +836,13 @@ impl MenuChild {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        let (menu_id, menu) = self.gtk_menu.as_ref().unwrap();
-        if let Some(menu) = menu {
-            let gtk_item =
-                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-            menu.append(&gtk_item);
-            gtk_item.show();
+        if let Some((menu_id, menu)) = self.gtk_menu.as_ref() {
+            if let Some(menu) = menu {
+                let gtk_item =
+                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+                menu.append(&gtk_item);
+                gtk_item.show();
+            }
         }
 
         Ok(())
@@ -1441,9 +1442,12 @@ fn show_context_menu(
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let tx_clone = tx.clone();
-        let id = gtk_menu.connect_cancel(move |_| tx_clone.send(false).unwrap_or(()));
-        let id2 = gtk_menu.connect_selection_done(move |_| tx.send(true).unwrap_or(()));
-
+        let id = gtk_menu.connect_cancel(move |_| {
+            tx_clone.send(false).unwrap_or(())
+        });
+        let id2 = gtk_menu.connect_selection_done(move |_| {
+            tx.send(true).unwrap_or(())
+        });
         gtk_menu.popup_at_rect(
             &window,
             &gdk::Rectangle::new(pos.0, pos.1, 0, 0),
