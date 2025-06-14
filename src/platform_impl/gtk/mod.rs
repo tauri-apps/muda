@@ -107,16 +107,14 @@ impl Menu {
                 gtk_item.show();
             }
 
-            {
-                if let (menu_id, Some(menu)) = &self.gtk_menu {
-                    let gtk_item =
-                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                    match op {
-                        AddOp::Append => menu.append(&gtk_item),
-                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                    }
-                    gtk_item.show();
+            if let (menu_id, Some(menu)) = &self.gtk_menu {
+                let gtk_item =
+                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+                match op {
+                    AddOp::Append => menu.append(&gtk_item),
+                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
                 }
+                gtk_item.show();
             }
         }
 
@@ -144,8 +142,7 @@ impl Menu {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        let (menu_id, menu) = &self.gtk_menu;
-        if let Some(menu) = menu {
+        if let Some((menu_id, menu)) = &self.gtk_menu {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
             menu.append(&gtk_item);
@@ -793,16 +790,14 @@ impl MenuChild {
                 }
             }
 
-            {
-                if let (menu_id, Some(menu)) = self.gtk_menu.as_ref().unwrap() {
-                    let gtk_item =
-                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                    match op {
-                        AddOp::Append => menu.append(&gtk_item),
-                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                    }
-                    gtk_item.show();
+            if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
+                let gtk_item =
+                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+                match op {
+                    AddOp::Append => menu.append(&gtk_item),
+                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
                 }
+                gtk_item.show();
             }
         }
 
