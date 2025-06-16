@@ -142,9 +142,8 @@ impl Menu {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        if let Some((menu_id, menu)) = &self.gtk_menu {
-            let gtk_item =
-                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+        if let (menu_id, Some(menu)) = &self.gtk_menu {
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
             menu.append(&gtk_item);
             gtk_item.show();
         }
@@ -831,13 +830,10 @@ impl MenuChild {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        if let Some((menu_id, menu)) = self.gtk_menu.as_ref() {
-            if let Some(menu) = menu {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                menu.append(&gtk_item);
-                gtk_item.show();
-            }
+        if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
+            let gtk_item = item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+            menu.append(&gtk_item);
+            gtk_item.show();
         }
 
         Ok(())
