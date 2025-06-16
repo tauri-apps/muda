@@ -25,26 +25,15 @@ use std::{
     rc::Rc,
 };
 use util::{decode_wide, encode_wide, Accel};
-use windows_sys::Win32::{
-    Foundation::{FALSE, LPARAM, LRESULT, POINT, WPARAM},
-    Graphics::Gdi::{ClientToScreen, HBITMAP},
-    UI::{
-        Input::KeyboardAndMouse::{
-            GetActiveWindow, SendInput, INPUT, INPUT_KEYBOARD, KEYEVENTF_KEYUP, VK_CONTROL,
-        },
-        Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
-        WindowsAndMessaging::{
-            AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
-            DestroyAcceleratorTable, DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos,
-            GetMenu, GetMenuItemInfoW, InsertMenuW, PostMessageW,
-            PostQuitMessage, RemoveMenu, SendMessageW, SetForegroundWindow, SetMenu,
-            SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW,
-            MFS_CHECKED, MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED,
-            MF_ENABLED, MF_GRAYED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP,
-            MIIM_STATE, MIIM_STRING, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN,
-            TPM_RETURNCMD, WM_CLOSE, WM_COMMAND, WM_NCACTIVATE, WM_NCPAINT,
-        },
-    },
+use windows::Win32::UI::WindowsAndMessaging::{
+    AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu, DestroyAcceleratorTable,
+    DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos, GetMenu, GetMenuItemInfoW, InsertMenuW,
+    PostMessageW, PostQuitMessage, RemoveMenu, SendMessageW, SetForegroundWindow, SetMenu,
+    SetMenuItemInfoW, ShowWindow, TrackPopupMenu, HACCEL, HMENU, MENUITEMINFOW, MFS_CHECKED,
+    MFS_DISABLED, MF_BYCOMMAND, MF_BYPOSITION, MF_CHECKED, MF_DISABLED, MF_ENABLED, MF_GRAYED,
+    MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, MIIM_BITMAP, MIIM_STATE, MIIM_STRING, SW_HIDE,
+    SW_MAXIMIZE, SW_MINIMIZE, TPM_LEFTALIGN, TPM_RETURNCMD, WM_CLOSE, WM_COMMAND, WM_NCACTIVATE,
+    WM_NCPAINT,
 };
 
 type Hwnd = isize;
@@ -246,7 +235,10 @@ impl Menu {
                     SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
                     SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
                 };
-            } else if matches!(child_.item_type(), MenuItemType::Icon | MenuItemType::Submenu) {
+            } else if matches!(
+                child_.item_type(),
+                MenuItemType::Icon | MenuItemType::Submenu
+            ) {
                 if let Some(icon) = &child_.icon {
                     let hbitmap = unsafe { icon.inner.to_hbitmap() };
                     let info = create_icon_item_info(hbitmap);

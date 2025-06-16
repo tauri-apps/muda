@@ -238,7 +238,12 @@ impl Submenu {
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
-    pub fn with_id_and_icon<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S, enabled: bool, icon: Icon) -> Self {
+    pub fn with_id_and_icon<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
+        text: S,
+        enabled: bool,
+        icon: Icon,
+    ) -> Self {
         let submenu = Self::with_id(id, text, enabled);
         submenu.set_icon(Some(icon));
         submenu
@@ -258,7 +263,12 @@ impl Submenu {
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
-    pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S, enabled: bool, icon: NativeIcon) -> Self {
+    pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
+        id: I,
+        text: S,
+        enabled: bool,
+        icon: NativeIcon,
+    ) -> Self {
         let submenu = Self::with_id(id, text, enabled);
         submenu.set_native_icon(Some(icon));
         submenu

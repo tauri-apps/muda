@@ -1437,12 +1437,8 @@ fn show_context_menu(
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let tx_clone = tx.clone();
-        let id = gtk_menu.connect_cancel(move |_| {
-            tx_clone.send(false).unwrap_or(())
-        });
-        let id2 = gtk_menu.connect_selection_done(move |_| {
-            tx.send(true).unwrap_or(())
-        });
+        let id = gtk_menu.connect_cancel(move |_| tx_clone.send(false).unwrap_or(()));
+        let id2 = gtk_menu.connect_selection_done(move |_| tx.send(true).unwrap_or(()));
         gtk_menu.popup_at_rect(
             &window,
             &gdk::Rectangle::new(pos.0, pos.1, 0, 0),
