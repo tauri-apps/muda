@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused)]
-#[cfg(target_os = "linux")]
-use gtk::prelude::*;
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -38,8 +36,6 @@ fn main() {
             }
         });
     }
-    // #[cfg(target_os = "macos")]
-    // event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build();
 
@@ -69,14 +65,9 @@ fn main() {
         ]);
     }
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../icon.png");
-    let icon = load_icon(std::path::Path::new(path));
-
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
-
-    window_m.set_icon(Some(icon.clone()));
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
@@ -86,7 +77,7 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon.clone()), None);
+    let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -132,28 +123,14 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
-    let sub_submenu = Submenu::new("Sub Submenu", true);
-
-    // sub_submenu.set_native_icon(Some(NativeIcon::Add));
-    sub_submenu.set_icon(Some(icon.clone()));
-
-    let icon_item_1 = IconMenuItem::new("Icon Item 1", true, Some(icon.clone()), None);
-    let icon_item_2 = IconMenuItem::new("Icon Item 2", true, Some(icon.clone()), None);
-
-    sub_submenu.append_items(&[&icon_item_1, &icon_item_2]);
-
-    window_m.append(&sub_submenu);
-
     #[cfg(target_os = "windows")]
-    {
+    unsafe {
         use tao::rwh_06::*;
-        unsafe {
-            if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-                menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
-            }
-            if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
-                menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
-            }
+        if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
+        }
+        if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
     }
     #[cfg(target_os = "macos")]
@@ -228,6 +205,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
             unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
+
     #[cfg(target_os = "macos")]
     {
         use tao::rwh_06::*;
@@ -235,33 +213,10 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }
     }
+
     #[cfg(target_os = "linux")]
     {
-        use gtk::prelude::ObjectExt;
-
-        use tao::platform::unix::WindowExtUnix;
-        use tao::rwh_06::*;
-
-        let window_handle = window.window_handle();
-
-        if let Ok(handle) = window_handle {
-            if !gtk::is_initialized() {
-                gtk::init().unwrap();
-            }
-
-            let gtk_window = window.gtk_window();
-
-            let popup = gtk::Window::new(gtk::WindowType::Popup);
-            popup.set_decorated(false);
-            popup.set_skip_taskbar_hint(true);
-            popup.set_skip_pager_hint(true);
-            popup.set_accept_focus(false);
-            popup.set_visible(true);
-            popup.realize();
-
-            let window_ref: &gtk::Window = gtk_window.upcast_ref();
-            menu.show_context_menu_for_gtk_window(&popup, position);
-        }
+        menu.show_context_menu_for_gtk(window.gtk_window().as_ref(), position);
     }
 }
 
