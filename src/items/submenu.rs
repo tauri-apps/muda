@@ -5,8 +5,8 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
-    MenuItemKind,
+    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
+    MenuItemKind, NativeIcon,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -207,6 +207,21 @@ impl Submenu {
         } else {
             self.id().clone()
         }
+    }
+
+    /// Change this menu item icon or remove it.
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.inner.borrow_mut().set_icon(icon)
+    }
+
+    /// Change this menu item icon to a native image or remove it.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
+        #[cfg(target_os = "macos")]
+        self.inner.borrow_mut().set_native_icon(_icon)
     }
 }
 

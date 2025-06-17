@@ -233,8 +233,9 @@ impl Menu {
 
         {
             let child_ = child.borrow();
+            let item_type = child_.item_type();
 
-            if child_.item_type() == MenuItemType::Icon {
+            if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
@@ -873,18 +874,18 @@ impl MenuChild {
 
         {
             let child_ = child.borrow();
+            let item_type = child_.item_type();
 
-            if child_.item_type() == MenuItemType::Icon {
+            if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
                 let info = create_icon_item_info(hbitmap);
-
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             }
         }
@@ -1170,7 +1171,6 @@ unsafe extern "system" fn menu_subclass_proc(
 
             res
         }
-
         _ => DefSubclassProc(hwnd as _, msg, wparam, lparam),
     }
 }

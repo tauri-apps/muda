@@ -107,16 +107,14 @@ impl Menu {
                 gtk_item.show();
             }
 
-            {
-                if let (menu_id, Some(menu)) = &self.gtk_menu {
-                    let gtk_item =
-                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                    match op {
-                        AddOp::Append => menu.append(&gtk_item),
-                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                    }
-                    gtk_item.show();
+            if let (menu_id, Some(menu)) = &self.gtk_menu {
+                let gtk_item =
+                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+                match op {
+                    AddOp::Append => menu.append(&gtk_item),
+                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
                 }
+                gtk_item.show();
             }
         }
 
@@ -144,8 +142,7 @@ impl Menu {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        let (menu_id, menu) = &self.gtk_menu;
-        if let Some(menu) = menu {
+        if let (menu_id, Some(menu)) = &self.gtk_menu {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
             menu.append(&gtk_item);
@@ -793,16 +790,14 @@ impl MenuChild {
                 }
             }
 
-            {
-                if let (menu_id, Some(menu)) = self.gtk_menu.as_ref().unwrap() {
-                    let gtk_item =
-                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                    match op {
-                        AddOp::Append => menu.append(&gtk_item),
-                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                    }
-                    gtk_item.show();
+            if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
+                let gtk_item =
+                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+                match op {
+                    AddOp::Append => menu.append(&gtk_item),
+                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
                 }
+                gtk_item.show();
             }
         }
 
@@ -836,8 +831,7 @@ impl MenuChild {
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
-        let (menu_id, menu) = self.gtk_menu.as_ref().unwrap();
-        if let Some(menu) = menu {
+        if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
             menu.append(&gtk_item);
@@ -1005,17 +999,45 @@ impl MenuChild {
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
+        for_menu_bar: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let submenu = gtk::Menu::new();
-        let item = gtk::MenuItem::builder()
+
+        let image = self
+            .icon
+            .as_ref()
+            .map(|icon| gtk::Image::from_pixbuf(Some(&icon.inner.to_pixbuf_scale(16, 16))))
+            .unwrap_or_default();
+
+        let label = gtk::AccelLabel::builder()
             .label(to_gtk_mnemonic(&self.text))
             .use_underline(true)
-            .submenu(&submenu)
+            .xalign(0.0)
+            .build();
+
+        let box_container = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        if !for_menu_bar {
+            let style_context = box_container.style_context();
+            let css_provider = gtk::CssProvider::new();
+            let theme = r#"
+            box {
+                margin-left: -22px;
+                }
+                "#;
+            let _ = css_provider.load_from_data(theme.as_bytes());
+            style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        }
+        box_container.pack_start(&image, false, false, 0);
+        box_container.pack_start(&label, true, true, 0);
+        box_container.show_all();
+
+        let item = gtk::MenuItem::builder()
+            .child(&box_container)
             .sensitive(self.enabled)
             .build();
 
-        item.show();
         item.set_submenu(Some(&submenu));
+        item.show();
 
         self.accel_group = accel_group.cloned();
 
@@ -1036,12 +1058,12 @@ impl MenuChild {
                 .push((id, submenu.clone()));
         }
 
-        for item in self.items() {
+        for child_item in self.items() {
             if add_to_cache {
-                self.add_menu_item_with_id(item.as_ref(), id)?;
+                self.add_menu_item_with_id(child_item.as_ref(), id)?;
             } else {
-                let gtk_item = item.make_gtk_menu_item(0, None, false, false)?;
-                submenu.append(&gtk_item);
+                let gtk_child_item = child_item.make_gtk_menu_item(0, None, false, false)?;
+                submenu.append(&gtk_child_item);
             }
         }
 
@@ -1326,7 +1348,7 @@ impl MenuItemKind {
         let mut child = self.child_mut();
         match child.item_type() {
             MenuItemType::Submenu => {
-                child.create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache)
+                child.create_gtk_item_for_submenu(menu_id, accel_group, add_to_cache, for_menu_bar)
             }
             MenuItemType::MenuItem => {
                 child.create_gtk_item_for_menu_item(menu_id, accel_group, add_to_cache)
@@ -1415,7 +1437,6 @@ fn show_context_menu(
         let tx_clone = tx.clone();
         let id = gtk_menu.connect_cancel(move |_| tx_clone.send(false).unwrap_or(()));
         let id2 = gtk_menu.connect_selection_done(move |_| tx.send(true).unwrap_or(()));
-
         gtk_menu.popup_at_rect(
             &window,
             &gdk::Rectangle::new(pos.0, pos.1, 0, 0),

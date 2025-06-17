@@ -10,7 +10,7 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use tao::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
+use tao::platform::macos::WindowExtMacOS;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
@@ -36,8 +36,6 @@ fn main() {
             }
         });
     }
-    #[cfg(target_os = "macos")]
-    event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build();
 
@@ -79,8 +77,6 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "../../icon.png");
-    let icon = load_icon(std::path::Path::new(path));
     let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -128,13 +124,13 @@ fn main() {
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
-    {
+    unsafe {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
         if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
     }
     #[cfg(target_os = "macos")]
@@ -206,15 +202,21 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu.show_context_menu_for_hwnd(handle.hwnd.get(), position);
+            unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
+
     #[cfg(target_os = "macos")]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        menu.show_context_menu_for_gtk(window.gtk_window().as_ref(), position);
     }
 }
 
