@@ -1,5 +1,22 @@
 # Changelog
 
+## \[0.17.0]
+
+- [`8e986af`](https://www.github.com/tauri-apps/muda/commit/8e986af3cea96a729413abc75c3702dec3990bd2) ([#289](https://www.github.com/tauri-apps/muda/pull/289) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add helper methods on `ContextMenu` trait to convert it back to a concrete type:
+
+  - `ContextMenu::as_menu`
+  - `ContextMenu::as_menu_unchecked`
+  - `ContextMenu::as_submenu`
+  - `ContextMenu::as_submenu_unchecked`
+- [`8efa5a2`](https://www.github.com/tauri-apps/muda/commit/8efa5a201b6acad72dee4c0c097a4bbda172b353) ([#300](https://www.github.com/tauri-apps/muda/pull/300) by [@dgerhardt](https://www.github.com/tauri-apps/muda/../../dgerhardt)) On Linux, fix `&&` resulting in `&&` when it should be just `&`. Also fix `_` not visible and actually adding a mnemonic. This makes the behavior on Linux match the behavior on Windows.
+- [`e19a6eb`](https://www.github.com/tauri-apps/muda/commit/e19a6eb7417e722ee73fbae8bd97becbf5600142) ([#283](https://www.github.com/tauri-apps/muda/pull/283) by [@ogoffart](https://www.github.com/tauri-apps/muda/../../ogoffart)) Make gtk an optional feature (enabled by default)
+- [`e37d99b`](https://www.github.com/tauri-apps/muda/commit/e37d99b6de01dde0e3206a0f358cdc10a2aa3ddb) ([#277](https://www.github.com/tauri-apps/muda/pull/277) by [@s00d](https://www.github.com/tauri-apps/muda/../../s00d)) Add support for icons on `Submenu` so we added:
+
+  - `Submenu::set_icon`
+  - `Submenu::set_native_icon`
+  - `SubmenuBuilder::icon`
+  - `SubmenuBuilder::native_icon`
+
 ## \[0.16.1]
 
 - [`6b3e2e5`](https://www.github.com/tauri-apps/muda/commit/6b3e2e51bb501ffbdf4526e59e4dedcb37c7b29b) ([#278](https://www.github.com/tauri-apps/muda/pull/278) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Fix the buffer overflow when calling `text` on Windows
