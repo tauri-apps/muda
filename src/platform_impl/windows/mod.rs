@@ -243,11 +243,7 @@ impl Menu {
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
 
-                let info = if matches!(item_type, MenuItemType::Submenu) {
-                    create_submenu_icon_item_info(hbitmap)
-                } else {
-                    create_icon_item_info(hbitmap)
-                };
+                let info = create_icon_item_info(hbitmap);
 
                 unsafe {
                     // For submenus, use hmenu as ID, for regular items use internal_id
@@ -809,11 +805,7 @@ impl MenuChild {
             .map(|i| unsafe { i.inner.to_hbitmap() })
             .unwrap_or(std::ptr::null_mut());
 
-        let info = if matches!(self.item_type(), MenuItemType::Submenu) {
-            create_submenu_icon_item_info(hbitmap)
-        } else {
-            create_icon_item_info(hbitmap)
-        };
+        let info = create_icon_item_info(hbitmap);
 
         for (parent, menu_bars) in &self.parents_hemnu {
             // For submenus, use hmenu as ID, for regular items use internal_id
@@ -1099,14 +1091,6 @@ impl AccelAction {
 }
 
 fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
-    let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
-    info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
-    info.fMask = MIIM_BITMAP;
-    info.hbmpItem = hbitmap;
-    info
-}
-
-fn create_submenu_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
     let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
     info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
     info.fMask = MIIM_BITMAP;
