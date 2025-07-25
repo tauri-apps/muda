@@ -78,9 +78,14 @@ fn main() {
         ]);
     }
 
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+
+    window_m.set_icon(Some(icon.clone()));
 
     menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
 
@@ -91,8 +96,6 @@ fn main() {
         Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-    let icon = load_icon(std::path::Path::new(path));
     let image_item = IconMenuItem::with_id(
         "image-custom-1",
         "Image custom 1",
