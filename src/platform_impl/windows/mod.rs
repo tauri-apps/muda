@@ -235,17 +235,30 @@ impl Menu {
             let child_ = child.borrow();
             let item_type = child_.item_type();
 
+            // Set icons for both regular menu items and submenus
             if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
-                let info = create_icon_item_info(hbitmap);
+
+                let info = if matches!(item_type, MenuItemType::Submenu) {
+                    create_submenu_icon_item_info(hbitmap)
+                } else {
+                    create_icon_item_info(hbitmap)
+                };
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    // For submenus, use hmenu as ID, for regular items use internal_id
+                    let id = if matches!(item_type, MenuItemType::Submenu) {
+                        child_.hmenu as _
+                    } else {
+                        child_.internal_id()
+                    };
+
+                    SetMenuItemInfoW(self.hmenu, id, FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, id, FALSE, &info);
                 };
             }
         }
@@ -795,9 +808,22 @@ impl MenuChild {
         let hbitmap = icon
             .map(|i| unsafe { i.inner.to_hbitmap() })
             .unwrap_or(std::ptr::null_mut());
-        let info = create_icon_item_info(hbitmap);
+
+        let info = if matches!(self.item_type(), MenuItemType::Submenu) {
+            create_submenu_icon_item_info(hbitmap)
+        } else {
+            create_icon_item_info(hbitmap)
+        };
+
         for (parent, menu_bars) in &self.parents_hemnu {
-            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
+            // For submenus, use hmenu as ID, for regular items use internal_id
+            let id = if matches!(self.item_type(), MenuItemType::Submenu) {
+                self.hmenu as _
+            } else {
+                self.internal_id()
+            };
+
+            unsafe { SetMenuItemInfoW(*parent, id, FALSE, &info) };
 
             if let Some(menu_bars) = menu_bars {
                 for hwnd in menu_bars.borrow().keys() {
@@ -1073,6 +1099,14 @@ impl AccelAction {
 }
 
 fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
+    let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
+    info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
+    info.fMask = MIIM_BITMAP;
+    info.hbmpItem = hbitmap;
+    info
+}
+
+fn create_submenu_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
     let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
     info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
     info.fMask = MIIM_BITMAP;
