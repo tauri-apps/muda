@@ -246,15 +246,8 @@ impl Menu {
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    // For submenus, use hmenu as ID, for regular items use internal_id
-                    let id = if matches!(item_type, MenuItemType::Submenu) {
-                        child_.hmenu as _
-                    } else {
-                        child_.internal_id()
-                    };
-
-                    SetMenuItemInfoW(self.hmenu, id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             }
         }
@@ -808,14 +801,7 @@ impl MenuChild {
         let info = create_icon_item_info(hbitmap);
 
         for (parent, menu_bars) in &self.parents_hemnu {
-            // For submenus, use hmenu as ID, for regular items use internal_id
-            let id = if matches!(self.item_type(), MenuItemType::Submenu) {
-                self.hmenu as _
-            } else {
-                self.internal_id()
-            };
-
-            unsafe { SetMenuItemInfoW(*parent, id, FALSE, &info) };
+            unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
 
             if let Some(menu_bars) = menu_bars {
                 for hwnd in menu_bars.borrow().keys() {
