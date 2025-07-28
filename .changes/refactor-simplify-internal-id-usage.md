@@ -2,4 +2,4 @@
 "muda": patch
 ---
 
-refactor(platform_impl): simplify internal_id() usage in Windows menu implementation
+On Windows, fix icon of `Submenu` not visible when added to a root `Menu`
