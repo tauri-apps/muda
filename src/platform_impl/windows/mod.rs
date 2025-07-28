@@ -235,17 +235,19 @@ impl Menu {
             let child_ = child.borrow();
             let item_type = child_.item_type();
 
+            // Set icons for both regular menu items and submenus
             if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
+
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             }
         }
@@ -795,7 +797,9 @@ impl MenuChild {
         let hbitmap = icon
             .map(|i| unsafe { i.inner.to_hbitmap() })
             .unwrap_or(std::ptr::null_mut());
+
         let info = create_icon_item_info(hbitmap);
+
         for (parent, menu_bars) in &self.parents_hemnu {
             unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
 

@@ -186,9 +186,14 @@ impl AppMenu {
             menu_bar.append(&app_menu);
         }
 
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+        let icon = load_icon(std::path::Path::new(path));
+
         let file_menu = Submenu::new("&File", true);
         let edit_menu = Submenu::new("&Edit", true);
         let window_menu = Submenu::new("&Window", true);
+
+        window_menu.set_icon(Some(icon.clone()));
 
         menu_bar.append_items(&[&file_menu, &edit_menu, &window_menu]);
 
@@ -198,8 +203,6 @@ impl AppMenu {
             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
         );
 
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-        let icon = load_icon(std::path::Path::new(path));
         let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
 
         let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
