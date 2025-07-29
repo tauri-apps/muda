@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.17.1]
+
+- [`0ae81ad`](https://www.github.com/tauri-apps/muda/commit/0ae81ad8b22dd2622e302254ce434d14880087a3) ([#308](https://www.github.com/tauri-apps/muda/pull/308) by [@s00d](https://www.github.com/tauri-apps/muda/../../s00d)) On Windows, fix icon of `Submenu` not visible when added to a root `Menu`
+
 ## \[0.17.0]
 
 - [`8e986af`](https://www.github.com/tauri-apps/muda/commit/8e986af3cea96a729413abc75c3702dec3990bd2) ([#289](https://www.github.com/tauri-apps/muda/pull/289) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add helper methods on `ContextMenu` trait to convert it back to a concrete type:
