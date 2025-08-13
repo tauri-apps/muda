@@ -10,6 +10,7 @@ repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
 rust-version = "1.71"
+include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
 
 [features]
 default = ["libxdo", "gtk"]
