@@ -270,6 +270,7 @@ fn parse_key(key: &str) -> Result<Code, AcceleratorParseError> {
         "PAGEUP" => Ok(PageUp),
         "PRINTSCREEN" => Ok(PrintScreen),
         "SCROLLLOCK" => Ok(ScrollLock),
+        "PAUSE" => Ok(Pause),
         "ARROWDOWN" | "DOWN" => Ok(ArrowDown),
         "ARROWLEFT" | "LEFT" => Ok(ArrowLeft),
         "ARROWRIGHT" | "RIGHT" => Ok(ArrowRight),
