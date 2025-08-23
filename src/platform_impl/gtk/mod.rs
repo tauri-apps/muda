@@ -130,8 +130,12 @@ impl Menu {
         return_if_item_not_supported!(item);
 
         for (menu_id, menu_bar) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
+            let has_icon = matches!(
+                item.kind(),
+                MenuItemKind::Submenu(submenu) if submenu.inner.borrow().icon.is_some()
+            );
             let gtk_item =
-                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, true)?;
+                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, has_icon)?;
             menu_bar.append(&gtk_item);
             gtk_item.show();
         }
