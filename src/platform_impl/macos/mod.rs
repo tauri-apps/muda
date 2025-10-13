@@ -664,18 +664,43 @@ impl MenuChild {
         show_context_menu(&self.ns_menu.as_ref().unwrap().1, view, position)
     }
 
-    pub fn set_as_windows_menu_for_nsapp(&self) {
-        let menu = &self.ns_menu.as_ref().unwrap().1;
-        let mtm = MainThreadMarker::from(&**menu);
+    fn find_menu_in_hierarchy(&self) -> Option<&NsMenuRef> {
+        let ns_menus = self.ns_menus.as_ref()?;
+
+        let mtm = MainThreadMarker::from(&*self.ns_menu.as_ref().unwrap().1);
         let app = NSApplication::sharedApplication(mtm);
-        unsafe { app.setWindowsMenu(Some(menu)) }
+        let main_menu = unsafe { app.mainMenu() };
+
+        // Find menu whose supermenu is the main menu, or use first available
+        ns_menus
+            .values()
+            .flatten()
+            .find(|ns_menu| {
+                main_menu.as_ref().is_some_and(|main| {
+                    unsafe { ns_menu.1.supermenu() }
+                        .as_ref()
+                        .is_some_and(|super_| {
+                            Retained::as_ptr(super_) == Retained::as_ptr(main)
+                        })
+                })
+            })
+            .or_else(|| ns_menus.values().flatten().next())
+    }
+
+    pub fn set_as_windows_menu_for_nsapp(&self) {
+        if let Some(ns_menu) = self.find_menu_in_hierarchy() {
+            let mtm = MainThreadMarker::from(&*ns_menu.1);
+            let app = NSApplication::sharedApplication(mtm);
+            unsafe { app.setWindowsMenu(Some(&ns_menu.1)) }
+        }
     }
 
     pub fn set_as_help_menu_for_nsapp(&self) {
-        let menu = &self.ns_menu.as_ref().unwrap().1;
-        let mtm = MainThreadMarker::from(&**menu);
-        let app = NSApplication::sharedApplication(mtm);
-        unsafe { app.setHelpMenu(Some(menu)) }
+        if let Some(ns_menu) = self.find_menu_in_hierarchy() {
+            let mtm = MainThreadMarker::from(&*ns_menu.1);
+            let app = NSApplication::sharedApplication(mtm);
+            unsafe { app.setHelpMenu(Some(&ns_menu.1)) }
+        }
     }
 
     pub fn ns_menu(&self) -> *mut std::ffi::c_void {
