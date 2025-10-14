@@ -679,9 +679,7 @@ impl MenuChild {
                 main_menu.as_ref().is_some_and(|main| {
                     unsafe { ns_menu.1.supermenu() }
                         .as_ref()
-                        .is_some_and(|super_| {
-                            Retained::as_ptr(super_) == Retained::as_ptr(main)
-                        })
+                        .is_some_and(|super_| Retained::as_ptr(super_) == Retained::as_ptr(main))
                 })
             })
             .or_else(|| ns_menus.values().flatten().next())
