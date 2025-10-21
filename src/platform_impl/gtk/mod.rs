@@ -130,12 +130,8 @@ impl Menu {
         return_if_item_not_supported!(item);
 
         for (menu_id, menu_bar) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
-            let has_icon = matches!(
-                item.kind(),
-                MenuItemKind::Submenu(submenu) if submenu.inner.borrow().icon.is_some()
-            );
             let gtk_item =
-                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, has_icon)?;
+                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, true)?;
             menu_bar.append(&gtk_item);
             gtk_item.show();
         }
@@ -1031,7 +1027,9 @@ impl MenuChild {
             let _ = css_provider.load_from_data(theme.as_bytes());
             style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
-        box_container.pack_start(&image, false, false, 0);
+        if !for_menu_bar || self.icon.is_some() {
+            box_container.pack_start(&image, false, false, 0);
+        }
         box_container.pack_start(&label, true, true, 0);
         box_container.show_all();
 
@@ -1313,7 +1311,9 @@ impl MenuChild {
             let _ = css_provider.load_from_data(theme.as_bytes());
             style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
-        box_container.pack_start(&image, false, false, 0);
+        if !for_menu_bar || self.icon.is_some() {
+            box_container.pack_start(&image, false, false, 0);
+        }
         box_container.pack_start(&label, true, true, 0);
         box_container.show_all();
 
