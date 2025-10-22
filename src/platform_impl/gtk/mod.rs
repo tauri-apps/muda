@@ -761,14 +761,32 @@ impl MenuChild {
     pub fn set_icon(&mut self, icon: Option<Icon>) {
         self.icon.clone_from(&icon);
 
-        let pixbuf = icon.map(|i| i.inner.to_pixbuf_scale(16, 16));
+        let pixbuf = icon.as_ref().map(|i| i.inner.to_pixbuf_scale(16, 16));
         for items in self.gtk_menu_items.borrow().values() {
             for i in items {
                 let box_container = i.child().unwrap().downcast::<gtk::Box>().unwrap();
-                box_container.children()[0]
-                    .downcast_ref::<gtk::Image>()
-                    .unwrap()
-                    .set_pixbuf(pixbuf.as_ref())
+                let children = box_container.children();
+
+                // Check if the first child is an image (it might not be if the item
+                // was created for menu bar without an icon)
+                if let Some(image) = children
+                    .first()
+                    .and_then(|c| c.downcast_ref::<gtk::Image>())
+                {
+                    if icon.is_some() {
+                        // Image exists and we're setting an icon, update it
+                        image.set_pixbuf(pixbuf.as_ref());
+                    } else {
+                        // Image exists but we're removing the icon, remove the widget to avoid padding
+                        box_container.remove(image);
+                    }
+                } else if icon.is_some() {
+                    // No image widget exists yet, but we're setting an icon, so create one
+                    let image = gtk::Image::from_pixbuf(pixbuf.as_ref());
+                    box_container.pack_start(&image, false, false, 0);
+                    box_container.reorder_child(&image, 0);
+                    image.show();
+                }
             }
         }
     }
