@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use objc2::{rc::Retained, ClassType};
+use objc2::{rc::Retained, AllocAnyThread};
 use objc2_app_kit::NSImage;
-use objc2_foundation::{CGFloat, NSData, NSSize};
+use objc2_core_foundation::CGFloat;
+use objc2_foundation::{NSData, NSSize};
 
 use crate::icon::{BadIcon, RgbaIcon};
 use std::io::Cursor;
