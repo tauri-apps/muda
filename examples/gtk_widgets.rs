@@ -35,74 +35,67 @@ fn main() {
         ))));
 
         let menu = {
-            let file_menu = {
-                let icon_section = gio::Menu::new();
-                let icon_with_label_menu_item =
-                    gio::MenuItem::new(Some("Icon With Label"), Some("muda.icon"));
+            let icon_section = gio::Menu::new();
+            let icon_with_label_menu_item =
+                gio::MenuItem::new(Some("Icon With Label"), Some("muda.icon"));
 
-                icon_with_label_menu_item.set_icon(&icon);
+            icon_with_label_menu_item.set_icon(&icon);
 
-                icon_section.append_item(&icon_with_label_menu_item); 
+            icon_section.append_item(&icon_with_label_menu_item);
 
-                let submenu_item = gio::MenuItem::new(Some("Icon Submenu"), None);
+            let submenu_item = gio::MenuItem::new(Some("Icon Submenu"), None);
 
-                let icon_submenu = gio::Menu::new();
-                let icon_menu_item = gio::MenuItem::new(Some("Icon Accelerator"), Some("muda.icon-accel"));
-                    
-                icon_submenu.append_item(&icon_menu_item);
+            let icon_submenu = gio::Menu::new();
+            let icon_menu_item =
+                gio::MenuItem::new(Some("Icon Accelerator"), Some("muda.icon-accel"));
 
-                submenu_item.set_submenu(Some(&icon_submenu));
+            icon_submenu.append_item(&icon_menu_item);
 
-                icon_section.append_item(&submenu_item); 
+            submenu_item.set_submenu(Some(&icon_submenu));
 
-                let cool_section = gtk4::gio::Menu::new();
-                let cool_menu_item = gtk4::gio::MenuItem::new(Some("Be Cool"), Some("muda.cool"));
-                let cool_menu_shortcut_item =
-                    gtk4::gio::MenuItem::new(Some("Shortcut"), Some("muda.cool-shortcut"));
+            icon_section.append_item(&submenu_item);
 
-                cool_section.append_item(&cool_menu_item);
-                cool_section.append_item(&cool_menu_shortcut_item);
+            let cool_section = gtk4::gio::Menu::new();
+            let cool_menu_item = gtk4::gio::MenuItem::new(Some("Be Cool"), Some("muda.cool"));
+            let cool_menu_shortcut_item =
+                gtk4::gio::MenuItem::new(Some("Shortcut"), Some("muda.cool-shortcut"));
 
-                let program_section = gio::Menu::new();
-                let about_menu_item = gio::MenuItem::new(Some("About"), Some("muda.about"));
-                let quit_menu_item = gio::MenuItem::new(Some("Quit"), Some("muda.quit"));
+            cool_section.append_item(&cool_menu_item);
+            cool_section.append_item(&cool_menu_shortcut_item);
 
-                program_section.append_item(&about_menu_item);
-                program_section.append_item(&quit_menu_item);
+            let program_section = gio::Menu::new();
+            let about_menu_item = gio::MenuItem::new(Some("About"), Some("muda.about"));
+            let quit_menu_item = gio::MenuItem::new(Some("Quit"), Some("muda.quit"));
 
-                let group = gio::SimpleActionGroup::new();
+            program_section.append_item(&about_menu_item);
+            program_section.append_item(&quit_menu_item);
 
-                group.add_action(&gio::SimpleAction::new_stateful(
-                    "cool",
-                    None,
-                    &true.to_variant(),
-                ));
+            let group = gio::SimpleActionGroup::new();
 
-                group.add_action(&gio::SimpleAction::new_stateful(
-                    "cool-shortcut",
-                    None,
-                    &true.to_variant(),
-                ));
+            group.add_action(&gio::SimpleAction::new_stateful(
+                "cool",
+                None,
+                &true.to_variant(),
+            ));
 
-                group.add_action(&gio::SimpleAction::new("quit", None));
-                group.add_action(&gio::SimpleAction::new("about", None));
-                group.add_action(&gio::SimpleAction::new("icon", None));
-                group.add_action(&gio::SimpleAction::new("icon-accel", None));
+            group.add_action(&gio::SimpleAction::new_stateful(
+                "cool-shortcut",
+                None,
+                &true.to_variant(),
+            ));
 
-                window.insert_action_group("muda", Some(&group));
+            group.add_action(&gio::SimpleAction::new("quit", None));
+            group.add_action(&gio::SimpleAction::new("about", None));
+            group.add_action(&gio::SimpleAction::new("icon", None));
+            group.add_action(&gio::SimpleAction::new("icon-accel", None));
 
-                let file_menu = gtk4::gio::Menu::new();
+            window.insert_action_group("muda", Some(&group));
 
-                file_menu.append_section(None, &icon_section);
-                file_menu.append_section(Some("Cool Header"), &cool_section);
-                file_menu.append_section(None, &program_section);
+            let menu = gtk4::gio::Menu::new();
 
-                file_menu
-            };
-
-            let menu = gio::Menu::new();
-
-            menu.append_submenu(Some("File"), &file_menu);
+            menu.append_section(None, &icon_section);
+            menu.append_section(Some("Cool Header"), &cool_section);
+            menu.append_section(None, &program_section);
 
             menu
         };
@@ -110,7 +103,6 @@ fn main() {
         application.set_accels_for_action("muda.about", &["<Control>C"]);
         application.set_accels_for_action("muda.quit", &["<Control>Q"]);
         application.set_accels_for_action("muda.cool-shortcut", &["<Control>W"]);
-
         application.set_accels_for_action("muda.icon-accel", &["<Control>I"]);
 
         setup_ui(&window, &icon, &menu);
@@ -160,17 +152,45 @@ fn setup_ui(window: &gtk4::ApplicationWindow, icon: &FileIcon, menu: &gio::Menu)
 
 #[cfg(target_os = "linux")]
 fn setup_gtk_popover_menu(container: &gtk4::Box, menu: &gio::Menu) {
-    use gtk4::PopoverMenuBar;
+    use gtk4::{PopoverMenu, PopoverMenuBar};
 
-    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, SPACING);
+    let submenu_menu = gio::Menu::new();
+    submenu_menu.append_submenu(Some("File"), menu);
+
+    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     let frame = gtk4::Frame::builder().hexpand(true).vexpand(true).build();
     let menu_bar = PopoverMenuBar::builder()
-        .menu_model(menu)
+        .menu_model(&submenu_menu)
         .valign(gtk4::Align::Start)
         .build();
 
-    vbox.append(&menu_bar);
-    vbox.append(
+    let inner_vbox = gtk4::Box::new(gtk4::Orientation::Vertical, SPACING);
+
+    let gesture = gtk4::GestureClick::new();
+    gesture.set_button(3);
+
+    let popover = PopoverMenu::from_model(Some(menu));
+
+    // TODO: Fix position offset of mouse
+    popover.set_position(gtk4::PositionType::Right);
+    popover.set_parent(&frame);
+    popover.present();
+
+    gesture.connect_pressed(move |gesture, _, x, y| {
+        use gtk4::gdk::Rectangle;
+
+        println!(
+            "Pressed, x: {x}, y: {y}, button: {}",
+            gesture.current_button()
+        );
+
+        popover.set_pointing_to(Some(&Rectangle::new(x as i32, y as i32, 0, 0)));
+        popover.popup();
+    });
+
+    inner_vbox.add_controller(gesture);
+
+    inner_vbox.append(
         &gtk4::Label::builder()
             .label("GTK Widgets\nRight Click to See Context Menu")
             .justify(gtk4::Justification::Center)
@@ -183,6 +203,9 @@ fn setup_gtk_popover_menu(container: &gtk4::Box, menu: &gio::Menu) {
             .vexpand(true)
             .build(),
     );
+
+    vbox.append(&menu_bar);
+    vbox.append(&inner_vbox);
 
     frame.set_child(Some(&vbox));
 
