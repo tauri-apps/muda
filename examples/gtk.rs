@@ -3,40 +3,37 @@ use gtk4::prelude::*;
 #[cfg(target_os = "linux")]
 use keyboard_types::{Code, Modifiers};
 #[cfg(target_os = "linux")]
-use muda::{accelerator::Accelerator, MenuEvent};
+use muda::{accelerator::Accelerator, ContextMenu, MenuEvent};
 
 #[cfg(target_os = "linux")]
 fn main() {
-    // Create a new application
     let application = gtk4::Application::builder()
-        .application_id("com.github.gtk4-rs.examples.menubar")
+        .application_id("com.github.muda.example.gtk")
         .build();
-    application.connect_startup(on_startup);
-    application.connect_activate(on_activate);
+
+    application.connect_startup(|_| {
+        MenuEvent::set_event_handler(Some(|event| {
+            println!("{event:?}");
+        }))
+    });
+
+    application.connect_activate(move |application| {
+        let window = gtk4::ApplicationWindow::builder()
+            .application(application)
+            .title("GTK Menubar Example")
+            .default_width(350)
+            .default_height(350)
+            .show_menubar(true)
+            .build();
+
+            setup_ui(&window);
+    });
+
     application.run();
 }
 
 #[cfg(target_os = "linux")]
-fn on_startup(_: &gtk4::Application) {
-    MenuEvent::set_event_handler(Some(|event| {
-        println!("{event:?}");
-    }));
-}
-
-#[cfg(target_os = "linux")]
-fn on_activate(application: &gtk4::Application) {
-    use muda::ContextMenu;
-
-    let window = gtk4::ApplicationWindow::builder()
-        .application(application)
-        .title("Menubar Example")
-        .default_width(350)
-        .default_height(350)
-        .show_menubar(true)
-        .build();
-
-    window.present();
-
+fn setup_ui(window: &gtk4::ApplicationWindow) {
     let about_menu_item = muda::MenuItem::new("About", true, None);
 
     let check = muda::CheckMenuItem::new(
@@ -67,7 +64,7 @@ fn on_activate(application: &gtk4::Application) {
     menubar.append(&file_menu).unwrap();
 
     let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
-    menubar.init_for_gtk_window(&window, Some(&vbox)).unwrap();
+    menubar.init_for_gtk_window(window, Some(&vbox)).unwrap();
 
     let btn = gtk4::Button::with_label("ASdasd");
     let w = window.clone();
@@ -75,13 +72,17 @@ fn on_activate(application: &gtk4::Application) {
     btn.connect_clicked(move |_| {
         file_menu.show_context_menu_for_gtk_window(w.dynamic_cast_ref().unwrap(), None);
     });
+
     vbox.append(&btn);
 
     window.set_child(Some(&vbox));
+    window.present();
 }
 
 #[cfg(not(target_os = "linux"))]
-fn main() {}
+fn main() {
+    eprintln!("This example is only available on Linux");
+}
 
 fn load_icon(path: &std::path::Path) -> muda::Icon {
     let (icon_rgba, icon_width, icon_height) = {
