@@ -1,7 +1,6 @@
 #[cfg(target_os = "linux")]
 use gtk4::{
     gio::{self, prelude::*, File, FileIcon},
-    glib,
     prelude::*,
 };
 
@@ -210,16 +209,4 @@ fn setup_gtk_popover_menu(container: &gtk4::Box, menu: &gio::Menu) {
     frame.set_child(Some(&vbox));
 
     container.append(&frame);
-}
-
-fn load_icon(path: &std::path::Path) -> muda::Icon {
-    let (icon_rgba, icon_width, icon_height) = {
-        let image = image::open(path)
-            .expect("Failed to open icon path")
-            .into_rgba8();
-        let (width, height) = image.dimensions();
-        let rgba = image.into_raw();
-        (rgba, width, height)
-    };
-    muda::Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
 }
