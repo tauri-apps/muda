@@ -6,6 +6,9 @@ mod accelerator;
 mod icon;
 mod mnemonic;
 
+#[cfg(target_os = "linux")]
+pub mod widgets;
+
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -14,8 +17,9 @@ use std::{
 
 use dpi::Position;
 use gtk4::{gdk::Rectangle, gio, prelude::*};
-pub(crate) use icon::PlatformIcon;
 use mnemonic::to_gtk_mnemonic;
+
+pub(crate) use icon::PlatformIcon;
 
 use crate::{
     accelerator::Accelerator,

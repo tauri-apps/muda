@@ -21,6 +21,9 @@ use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType};
 
 pub(crate) use self::platform::*;
 
+#[cfg(target_os = "linux")]
+pub use self::platform::{widgets};
+
 impl dyn IsMenuItem + '_ {
     fn child(&self) -> Rc<RefCell<MenuChild>> {
         match self.kind() {

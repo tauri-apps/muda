@@ -167,6 +167,9 @@ mod menu_id;
 mod platform_impl;
 mod util;
 
+#[cfg(target_os = "linux")]
+pub use platform_impl::widgets as gtk_widgets;
+
 pub use about_metadata::AboutMetadata;
 pub use builders::*;
 pub use dpi;
