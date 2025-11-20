@@ -248,7 +248,7 @@ impl ContextMenu for Submenu {
         self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -259,7 +259,7 @@ impl ContextMenu for Submenu {
             .show_context_menu_for_gtk_window(w, position)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.inner.borrow_mut().gtk_context_menu()
     }
