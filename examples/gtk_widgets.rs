@@ -1,8 +1,10 @@
 #![cfg(target_os = "linux")]
+
 use gtk4::{
     gio::{self, prelude::*, File, FileIcon, ThemedIcon},
     prelude::*,
 };
+use muda::gtk_widgets::{self, MenuBar};
 
 const SPACING: i32 = 8;
 const SPACING_LARGE: i32 = SPACING * 2;
@@ -187,47 +189,27 @@ fn setup_ui(window: &gtk4::ApplicationWindow, icon: &FileIcon, menu: &gio::Menu)
 
 // TODO: Replace with muda components
 fn setup_muda_menu(container: &gtk4::Box, menu: &gio::Menu) {
-    use gtk4::{PopoverMenu, PopoverMenuBar};
-
-    let submenu_menu = gio::Menu::new();
-    submenu_menu.append_submenu(Some("File"), menu);
-
     let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     let frame = gtk4::Frame::builder().hexpand(true).vexpand(true).build();
-    let menu_bar = PopoverMenuBar::builder()
-        .menu_model(&submenu_menu)
-        .valign(gtk4::Align::Start)
-        .build();
+    let menu_bar = MenuBar::new(menu.clone());
 
     let inner_vbox = gtk4::Box::new(gtk4::Orientation::Vertical, SPACING);
 
     let gesture = gtk4::GestureClick::new();
     gesture.set_button(3);
 
-    let popover = PopoverMenu::from_model(Some(menu));
-
-    // TODO: Fix position offset of mouse
-    popover.set_position(gtk4::PositionType::Right);
-    popover.set_parent(&frame);
-    popover.present();
-
     gesture.connect_pressed(move |gesture, _, x, y| {
-        use gtk4::gdk::Rectangle;
-
         println!(
             "Pressed, x: {x}, y: {y}, button: {}",
             gesture.current_button()
         );
-
-        popover.set_pointing_to(Some(&Rectangle::new(x as i32, y as i32, 0, 0)));
-        popover.popup();
     });
 
     inner_vbox.add_controller(gesture);
 
     inner_vbox.append(
         &gtk4::Label::builder()
-            .label("GTK Widgets\nRight Click to See Context Menu")
+            .label("Muda Widgets\nRight Click to See Context Menu")
             .justify(gtk4::Justification::Center)
             .margin_top(SPACING_LARGE)
             .margin_bottom(SPACING_LARGE)
