@@ -1,8 +1,7 @@
 #![cfg(target_os = "linux")]
 
 use gtk4::{
-    gio::{self, prelude::*, File, FileIcon, ThemedIcon},
-    prelude::*,
+    PopoverMenuFlags, gio::{self, File, FileIcon, ThemedIcon, prelude::*}, prelude::*
 };
 use muda::gtk_widgets::{self, MenuBar};
 
@@ -244,7 +243,7 @@ fn setup_gtk_popover_menu(container: &gtk4::Box, menu: &gio::Menu) {
     let gesture = gtk4::GestureClick::new();
     gesture.set_button(3);
 
-    let popover = PopoverMenu::from_model(Some(&menu.item_link(0, "submenu").unwrap()));
+    let popover = PopoverMenu::from_model_full(&menu.item_link(0, "submenu").unwrap(), PopoverMenuFlags::NESTED);
 
     // TODO: Fix position offset of mouse
     popover.set_position(gtk4::PositionType::Right);
