@@ -10,7 +10,14 @@ repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
 rust-version = "1.71"
-include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
+include = [
+  "README.md",
+  "src/**/*.rs",
+  "Cargo.toml",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "LICENSE.spdx",
+]
 
 [features]
 default = ["libxdo", "gtk"]
@@ -45,15 +52,15 @@ features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18", optional = true }
-libxdo = { version = "0.6.0", optional = true }
+libxdo = { version = "0.6", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6.0"
-objc2-core-foundation = { version = "0.3.0", default-features = false, features = [
+objc2 = "0.6"
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "CFCGTypes",
 ] }
-objc2-foundation = { version = "0.3.0", default-features = false, features = [
+objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSAttributedString",
   "NSData",
@@ -62,7 +69,7 @@ objc2-foundation = { version = "0.3.0", default-features = false, features = [
   "NSString",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.3.0", default-features = false, features = [
+objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "objc2-core-foundation",
   "NSApplication",
