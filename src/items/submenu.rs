@@ -10,8 +10,8 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 
 use crate::{
-    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
-    MenuItemKind,
+    dpi::Position, icon::Icon, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
+    MenuItemKind, NativeIcon,
 };
 
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
@@ -223,6 +223,27 @@ impl Submenu {
     #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_help_menu_for_nsapp()
+    }
+
+    /// Set the icon for this submenu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux (GTK4):** Icons on submenu headers may not render due to GTK4's
+    ///   PopoverMenuBar limitations. The icon data is stored and will be available
+    ///   when custom widget support is added.
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.inner.borrow_mut().set_icon(icon)
+    }
+
+    /// Set the native icon for this submenu.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux:** Unsupported, the icon is not rendered.
+    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
+        #[cfg(target_os = "macos")]
+        self.inner.borrow_mut().set_native_icon(_icon)
     }
 
     /// Convert this submenu into its menu ID.

@@ -687,6 +687,10 @@ impl MenuChild {
         self.text.clone()
     }
 
+    pub fn icon(&self) -> Option<&Icon> {
+        self.icon.as_ref()
+    }
+
     pub fn set_text(&mut self, text: &str) {
         self.text = text.to_string();
 
@@ -722,7 +726,7 @@ impl MenuChild {
 
                     // Copy icon if present
                     if let Some(icon) = &self.icon {
-                        new_item.set_icon(icon.inner.bytes_icon());
+                        new_item.set_icon(&icon.inner.to_bytes_icon());
                     }
 
                     // Insert at same position
@@ -923,7 +927,7 @@ impl MenuChild {
         }
 
         if let Some(icon) = &self.icon {
-            item.set_icon(icon.inner.bytes_icon());
+            item.set_icon(&icon.inner.to_bytes_icon());
         }
 
         if self.action.is_none() {
@@ -1146,7 +1150,7 @@ impl MenuChild {
 
                     // Set icon if present
                     if let Some(icon) = &self.icon {
-                        new_item.set_icon(icon.inner.bytes_icon());
+                        new_item.set_icon(&icon.inner.to_bytes_icon());
                     }
 
                     // Insert at same position

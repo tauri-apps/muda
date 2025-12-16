@@ -58,6 +58,8 @@ impl IconMenuItem {
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
     ) -> Self {
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let icon_bytes = icon.as_ref().map(|i| i.inner.png_data().to_vec());
         let item = crate::platform_impl::MenuChild::new_icon(
             text.as_ref(),
             enabled,
@@ -75,7 +77,7 @@ impl IconMenuItem {
                     id: id.0.clone(),
                     label: strip_mnemonic(text.as_ref()),
                     enabled,
-                    icon: None, // TODO: populate icon bytes
+                    icon: icon_bytes,
                     predefined_item_id: None,
                     about_metadata: None,
                 },
@@ -95,6 +97,8 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let icon_bytes = icon.as_ref().map(|i| i.inner.png_data().to_vec());
         Self {
             id: Rc::new(id.clone()),
             inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_icon(
@@ -110,7 +114,7 @@ impl IconMenuItem {
                     id: id.0.clone(),
                     label: strip_mnemonic(text.as_ref()),
                     enabled,
-                    icon: None, // TODO: populate icon bytes
+                    icon: icon_bytes,
                     predefined_item_id: None,
                     about_metadata: None,
                 },

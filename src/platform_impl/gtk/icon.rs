@@ -5,8 +5,18 @@
 use crate::icon::BadIcon;
 
 /// An icon used for the window titlebar, taskbar, etc.
+///
+/// Stores raw PNG bytes to be `Send + Sync` safe. The GTK `BytesIcon`
+/// is created lazily when needed on the GTK main thread.
 #[derive(Debug, Clone)]
-pub struct PlatformIcon(gtk4::gio::BytesIcon);
+pub struct PlatformIcon {
+    png_data: Vec<u8>,
+}
+
+// PlatformIcon is Send + Sync because it only contains Vec<u8>
+// The BytesIcon is created lazily on the GTK main thread when needed
+unsafe impl Send for PlatformIcon {}
+unsafe impl Sync for PlatformIcon {}
 
 impl PlatformIcon {
     /// Creates an `Icon` from 32bpp RGBA data.
@@ -14,9 +24,9 @@ impl PlatformIcon {
     /// The length of `rgba` must be divisible by 4, and `width * height` must equal
     /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-        let mut w = Vec::with_capacity(rgba.len());
+        let mut png_data = Vec::with_capacity(rgba.len());
 
-        let mut encoder = png::Encoder::new(&mut w, width, height);
+        let mut encoder = png::Encoder::new(&mut png_data, width, height);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header().map_err(BadIcon::PngEncodingError)?;
@@ -25,12 +35,19 @@ impl PlatformIcon {
             .map_err(BadIcon::PngEncodingError)?;
         writer.finish().map_err(BadIcon::PngEncodingError)?;
 
-        let bytes = gtk4::glib::Bytes::from_owned(w);
-
-        Ok(Self(gtk4::gio::BytesIcon::new(&bytes)))
+        Ok(Self { png_data })
     }
 
-    pub fn bytes_icon(&self) -> &gtk4::gio::BytesIcon {
-        &self.0
+    /// Creates a GTK `BytesIcon` from the stored PNG data.
+    ///
+    /// This should only be called on the GTK main thread.
+    pub fn to_bytes_icon(&self) -> gtk4::gio::BytesIcon {
+        let bytes = gtk4::glib::Bytes::from(&self.png_data);
+        gtk4::gio::BytesIcon::new(&bytes)
+    }
+
+    /// Returns the raw PNG data.
+    pub fn png_data(&self) -> &[u8] {
+        &self.png_data
     }
 }

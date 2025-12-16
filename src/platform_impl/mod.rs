@@ -148,6 +148,8 @@ impl MenuChild {
                 let text = borrowed.text();
                 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
                 let enabled = borrowed.is_enabled();
+                #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+                let icon_bytes = borrowed.icon().map(|i| i.inner.png_data().to_vec());
                 drop(borrowed);
                 MenuItemKind::Icon(IconMenuItem {
                     id: Rc::new(id.clone()),
@@ -158,7 +160,7 @@ impl MenuChild {
                             id: id.0.clone(),
                             label: strip_mnemonic(&text),
                             enabled,
-                            icon: None, // TODO: populate icon bytes
+                            icon: icon_bytes,
                             predefined_item_id: None,
                             about_metadata: None,
                         },
