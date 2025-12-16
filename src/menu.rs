@@ -420,6 +420,22 @@ impl ContextMenu for Menu {
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
     }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<crate::items::CompatMenuItem>>> {
+        use crate::MenuItemKind;
+
+        self.items()
+            .into_iter()
+            .map(|item| match item {
+                MenuItemKind::MenuItem(i) => i.compat.clone(),
+                MenuItemKind::Submenu(i) => i.compat.clone(),
+                MenuItemKind::Predefined(i) => i.compat.clone(),
+                MenuItemKind::Check(i) => i.compat.clone(),
+                MenuItemKind::Icon(i) => i.compat.clone(),
+            })
+            .collect()
+    }
 }
 
 /// The window menu bar theme

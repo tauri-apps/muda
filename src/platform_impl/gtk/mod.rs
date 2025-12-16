@@ -6,6 +6,12 @@ mod accelerator;
 mod icon;
 mod mnemonic;
 
+#[cfg(feature = "linux-ksni")]
+mod about_dialog;
+
+#[cfg(feature = "linux-ksni")]
+pub use about_dialog::AboutDialog;
+
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -21,7 +27,7 @@ use crate::{
     accelerator::Accelerator,
     util::{AddOp, Counter},
     Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
-    PredefinedMenuItemType,
+    PredefinedMenuItemKind,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -406,7 +412,7 @@ pub struct MenuChild {
 
     icon: Option<Icon>,
 
-    predefined_item_type: Option<PredefinedMenuItemType>,
+    predefined_item_type: Option<PredefinedMenuItemKind>,
 
     type_: MenuItemType,
 
@@ -761,7 +767,7 @@ impl MenuChild {
 }
 
 impl MenuChild {
-    pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+    pub fn new_predefined(item_type: PredefinedMenuItemKind, text: Option<String>) -> Self {
         Self {
             id: MenuId(COUNTER.next().to_string()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
@@ -952,7 +958,7 @@ impl MenuChild {
 
         let (label, action_name) = match &predefined_item_type {
             // Separator - create an empty section label (GIO way of doing separators)
-            PredefinedMenuItemType::Separator => {
+            PredefinedMenuItemKind::Separator => {
                 // For separators, we return an item with no action that acts as a visual break
                 // In GIO menus, true separators are done via sections, but this provides a fallback
                 let item = gio::MenuItem::new(None, None);
@@ -966,22 +972,22 @@ impl MenuChild {
             }
 
             // Clipboard actions (widget-scoped, work on focused text widgets)
-            PredefinedMenuItemType::Copy => (self.text.clone(), "clipboard.copy"),
-            PredefinedMenuItemType::Cut => (self.text.clone(), "clipboard.cut"),
-            PredefinedMenuItemType::Paste => (self.text.clone(), "clipboard.paste"),
-            PredefinedMenuItemType::SelectAll => (self.text.clone(), "selection.select-all"),
+            PredefinedMenuItemKind::Copy => (self.text.clone(), "clipboard.copy"),
+            PredefinedMenuItemKind::Cut => (self.text.clone(), "clipboard.cut"),
+            PredefinedMenuItemKind::Paste => (self.text.clone(), "clipboard.paste"),
+            PredefinedMenuItemKind::SelectAll => (self.text.clone(), "selection.select-all"),
 
             // Text actions (widget-scoped, work on focused text widgets)
-            PredefinedMenuItemType::Undo => (self.text.clone(), "text.undo"),
-            PredefinedMenuItemType::Redo => (self.text.clone(), "text.redo"),
+            PredefinedMenuItemKind::Undo => (self.text.clone(), "text.undo"),
+            PredefinedMenuItemKind::Redo => (self.text.clone(), "text.redo"),
 
             // Window actions (built-in on GtkWindow)
-            PredefinedMenuItemType::Minimize => (self.text.clone(), "window.minimize"),
-            PredefinedMenuItemType::Maximize => (self.text.clone(), "window.toggle-maximized"),
-            PredefinedMenuItemType::CloseWindow => (self.text.clone(), "window.close"),
+            PredefinedMenuItemKind::Minimize => (self.text.clone(), "window.minimize"),
+            PredefinedMenuItemKind::Maximize => (self.text.clone(), "window.toggle-maximized"),
+            PredefinedMenuItemKind::CloseWindow => (self.text.clone(), "window.close"),
 
             // Fullscreen - no built-in GAction, need custom action
-            PredefinedMenuItemType::Fullscreen => {
+            PredefinedMenuItemKind::Fullscreen => {
                 let action_name = format!("{DEFAULT_ACTION_GROUP}.{}_fullscreen", self.id.as_ref());
 
                 if self.action.is_none() {
@@ -1016,7 +1022,7 @@ impl MenuChild {
             }
 
             // About - custom action showing AboutDialog
-            PredefinedMenuItemType::About(metadata) => {
+            PredefinedMenuItemKind::About(metadata) => {
                 let action_name = format!("{DEFAULT_ACTION_GROUP}.{}_about", self.id.as_ref());
 
                 if self.action.is_none() {
@@ -1081,13 +1087,13 @@ impl MenuChild {
             }
 
             // Unsupported on Linux (matches GTK3 behavior)
-            PredefinedMenuItemType::Quit
-            | PredefinedMenuItemType::Hide
-            | PredefinedMenuItemType::HideOthers
-            | PredefinedMenuItemType::ShowAll
-            | PredefinedMenuItemType::Services
-            | PredefinedMenuItemType::BringAllToFront
-            | PredefinedMenuItemType::None => {
+            PredefinedMenuItemKind::Quit
+            | PredefinedMenuItemKind::Hide
+            | PredefinedMenuItemKind::HideOthers
+            | PredefinedMenuItemKind::ShowAll
+            | PredefinedMenuItemKind::Services
+            | PredefinedMenuItemKind::BringAllToFront
+            | PredefinedMenuItemKind::None => {
                 unreachable!("Predefined menu item type not supported on Linux")
             }
         };

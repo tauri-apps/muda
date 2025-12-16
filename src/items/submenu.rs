@@ -4,10 +4,18 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{
     dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
     MenuItemKind,
 };
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use super::compat::{CompatMenuItem, CompatSubMenuItem, strip_mnemonic};
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
@@ -16,6 +24,8 @@ use crate::{
 pub struct Submenu {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) compat: Arc<ArcSwap<CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for Submenu {}
@@ -43,6 +53,14 @@ impl Submenu {
         Self {
             id: Rc::new(submenu.id().clone()),
             inner: Rc::new(RefCell::new(submenu)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::SubMenu(
+                CompatSubMenuItem {
+                    label: strip_mnemonic(text.as_ref()),
+                    enabled,
+                    submenu: Vec::new(),
+                },
+            ))),
         }
     }
 
@@ -59,6 +77,14 @@ impl Submenu {
                 text.as_ref(),
                 enabled,
                 Some(id),
+            ))),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::SubMenu(
+                CompatSubMenuItem {
+                    label: strip_mnemonic(text.as_ref()),
+                    enabled,
+                    submenu: Vec::new(),
+                },
             ))),
         }
     }
@@ -258,5 +284,21 @@ impl ContextMenu for Submenu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<crate::items::CompatMenuItem>>> {
+        use crate::MenuItemKind;
+
+        self.items()
+            .into_iter()
+            .map(|item| match item {
+                MenuItemKind::MenuItem(i) => i.compat.clone(),
+                MenuItemKind::Submenu(i) => i.compat.clone(),
+                MenuItemKind::Predefined(i) => i.compat.clone(),
+                MenuItemKind::Check(i) => i.compat.clone(),
+                MenuItemKind::Icon(i) => i.compat.clone(),
+            })
+            .collect()
     }
 }

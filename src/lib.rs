@@ -176,6 +176,9 @@ pub use items::*;
 pub use menu::*;
 pub use menu_id::MenuId;
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub use platform_impl::AboutDialog;
+
 /// An enumeration of all available menu types, useful to match against
 /// the items returned from [`Menu::items`] or [`Submenu::items`]
 #[derive(Clone)]
@@ -404,6 +407,13 @@ pub trait ContextMenu {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Returns a GTK-agnostic representation of all menu items for ksni tray support.
+    ///
+    /// This returns `Arc<ArcSwap<CompatMenuItem>>` references that can be atomically
+    /// updated to reflect menu state changes.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<items::CompatMenuItem>>>;
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -420,6 +430,51 @@ type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(unbounded);
 static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
+
+/// Describes a menu update event emitted when a menu item's state changes.
+///
+/// This is used by ksni tray implementations to know when to refresh the menu.
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+#[derive(Debug, Clone)]
+pub struct MenuUpdateEvent;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+static MENU_UPDATE_CHANNEL: Lazy<(Sender<MenuUpdateEvent>, Receiver<MenuUpdateEvent>)> = Lazy::new(unbounded);
+
+/// Receives a menu update event from the update channel.
+///
+/// This function blocks until an update event is available.
+/// Used by ksni tray implementations to know when to refresh the menu.
+///
+/// Returns `Ok(MenuUpdateEvent)` when an update is received, or `Err` if the channel is closed.
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn recv_menu_update() -> std::result::Result<MenuUpdateEvent, crossbeam_channel::RecvError> {
+    MENU_UPDATE_CHANNEL.1.recv()
+}
+
+/// Try to receive a menu update event without blocking.
+///
+/// Returns `Ok(MenuUpdateEvent)` if an update is available, or `Err` otherwise.
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn try_recv_menu_update() -> std::result::Result<MenuUpdateEvent, crossbeam_channel::TryRecvError> {
+    MENU_UPDATE_CHANNEL.1.try_recv()
+}
+
+/// Sends a menu update event to notify listeners that the menu has changed.
+///
+/// This should be called when menu items are added, removed, or modified.
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn send_menu_update() {
+    let _ = MENU_UPDATE_CHANNEL.0.send(MenuUpdateEvent);
+}
+
+/// Gets a reference to the menu update event receiver.
+///
+/// This can be used to integrate with custom event loops.
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn menu_update_receiver() -> &'static Receiver<MenuUpdateEvent> {
+    &MENU_UPDATE_CHANNEL.1
+}
 
 impl MenuEvent {
     /// Returns the id of the menu item which triggered this event
@@ -451,7 +506,21 @@ impl MenuEvent {
         }
     }
 
+    /// Sends a menu event.
+    ///
+    /// This is public when the `linux-ksni` feature is enabled to allow ksni
+    /// tray implementations to dispatch menu activation events.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn send(event: MenuEvent) {
+        Self::send_internal(event);
+    }
+
+    #[cfg(not(all(feature = "linux-ksni", target_os = "linux")))]
     pub(crate) fn send(event: MenuEvent) {
+        Self::send_internal(event);
+    }
+
+    fn send_internal(event: MenuEvent) {
         if let Some(handler) = MENU_EVENT_HANDLER.get_or_init(|| None) {
             handler(event);
         } else {
