@@ -25,6 +25,7 @@ pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
 /// gtk uses underline (_) for mnemonic
 /// and two underlines (__) to escape it into a single underline
 /// while we use (&) and (&&), so we have to do a few conversions
+#[cfg(test)]
 pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
     string
         .as_ref()

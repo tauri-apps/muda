@@ -47,6 +47,7 @@ impl PlatformIcon {
     }
 
     /// Returns the raw PNG data.
+    #[cfg_attr(not(feature = "linux-ksni"), allow(dead_code))]
     pub fn png_data(&self) -> &[u8] {
         &self.png_data
     }

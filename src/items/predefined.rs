@@ -331,6 +331,7 @@ impl PredefinedMenuItemKind {
         }
     }
 
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
     pub(crate) fn accelerator(&self) -> Option<Accelerator> {
         match self {
             PredefinedMenuItemKind::Copy => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyC)),

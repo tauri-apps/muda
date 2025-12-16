@@ -687,6 +687,7 @@ impl MenuChild {
         self.text.clone()
     }
 
+    #[cfg_attr(not(feature = "linux-ksni"), allow(dead_code))]
     pub fn icon(&self) -> Option<&Icon> {
         self.icon.as_ref()
     }
