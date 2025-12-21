@@ -29,10 +29,10 @@ jobs:
 
       - name: Check and merge upstream
         run: |
-          BEHIND=$(git rev-list --count HEAD..upstream/dev)
+          BEHIND=$(git rev-list --count HEAD..upstream/feat/gtk4)
           if [ "$BEHIND" -gt 0 ]; then
             echo "Found $BEHIND new commits from upstream"
-            if git merge upstream/dev --no-edit; then
+            if git merge upstream/feat/gtk4 --no-edit; then
               echo "Successfully merged upstream changes"
               git push origin feat/gtk4
             else
