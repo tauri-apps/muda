@@ -35,7 +35,7 @@ fn code_to_gtk(code: Code) -> &'static str {
         Code::BracketLeft => "bracketleft",
         Code::BracketRight => "bracketright",
         Code::Comma => "comma",
-        Code::Digit0 => "1",
+        Code::Digit0 => "0",
         Code::Digit1 => "1",
         Code::Digit2 => "2",
         Code::Digit3 => "3",
