@@ -614,7 +614,7 @@ impl MenuChild {
 }
 
 impl MenuChild {
-    pub fn new_menu_item(
+    pub fn new(
         text: &str,
         enabled: bool,
         accelerator: Option<Accelerator>,

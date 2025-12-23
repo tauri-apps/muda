@@ -43,12 +43,7 @@ impl MenuItem {
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool, accelerator: Option<Accelerator>) -> Self {
-        let item = crate::platform_impl::MenuChild::new_menu_item(
-            text.as_ref(),
-            enabled,
-            accelerator,
-            None,
-        );
+        let item = crate::platform_impl::MenuChild::new(text.as_ref(), enabled, accelerator, None);
         let id = item.id().clone();
         Self {
             id: Rc::new(id.clone()),
@@ -80,14 +75,12 @@ impl MenuItem {
         let id = id.into();
         Self {
             id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(
-                crate::platform_impl::MenuChild::new_menu_item(
-                    text.as_ref(),
-                    enabled,
-                    accelerator,
-                    Some(id.clone()),
-                ),
-            )),
+            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new(
+                text.as_ref(),
+                enabled,
+                accelerator,
+                Some(id.clone()),
+            ))),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
                 CompatStandardItem {
