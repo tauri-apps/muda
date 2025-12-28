@@ -58,6 +58,9 @@ impl GtkMenuBar {
     fn new_context(app: gtk4::Application) -> Self {
         let menu = gio::Menu::new();
         let widget = gtk4::PopoverMenu::from_model(Some(&menu));
+        // Disable arrow on context menus to match native GNOME behavior
+        // See: https://bugs.webkit.org/show_bug.cgi?id=211241
+        widget.set_has_arrow(false);
         Self::ContextMenu { widget, menu, app }
     }
 
@@ -572,6 +575,9 @@ impl MenuChild {
         if self.instances.get(&self.ctx_menu_id).is_none() {
             let menu = gio::Menu::new();
             let widget = gtk4::PopoverMenu::from_model(Some(&menu));
+            // Disable arrow on context menus to match native GNOME behavior
+            // See: https://bugs.webkit.org/show_bug.cgi?id=211241
+            widget.set_has_arrow(false);
 
             let action_group = action_group_from_app(&app);
             window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
