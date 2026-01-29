@@ -1203,6 +1203,8 @@ unsafe fn menu_selected(hwnd: windows_sys::Win32::Foundation::HWND, item: &mut M
                         PredefinedMenuItemType::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
+                        PredefinedMenuItemType::Undo => execute_edit_command(EditCommand::Undo),
+                        PredefinedMenuItemType::Redo => execute_edit_command(EditCommand::Redo),
                         PredefinedMenuItemType::Separator => {}
                         PredefinedMenuItemType::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
@@ -1253,6 +1255,8 @@ enum EditCommand {
     Cut,
     Paste,
     SelectAll,
+    Undo,
+    Redo,
 }
 
 fn execute_edit_command(command: EditCommand) {
@@ -1261,6 +1265,8 @@ fn execute_edit_command(command: EditCommand) {
         EditCommand::Cut => 0x58,       // x
         EditCommand::Paste => 0x56,     // v
         EditCommand::SelectAll => 0x41, // a
+        EditCommand::Undo => 0x5A,      // z
+        EditCommand::Redo => 0x59,      // y
     };
 
     unsafe {
