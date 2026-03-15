@@ -13,7 +13,7 @@ use muda::{
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -22,7 +22,7 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use wry::WebViewBuilderExtUnix;
 use wry::{http::Request, WebViewBuilder};
 
@@ -173,7 +173,7 @@ fn main() -> wry::Result<()> {
         menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
         menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     {
         menu_bar
             .init_for_gtk_window(window.gtk_window(), window.default_vbox())
@@ -260,7 +260,7 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                #[cfg(target_os = "linux")]
+                #[cfg(any(target_os = "linux", target_os = "freebsd"))]
                 if let Some(menu_bar) = menu_bar
                     .clone()
                     .gtk_menubar_for_gtk_window(window.gtk_window())
@@ -275,9 +275,9 @@ fn main() -> wry::Result<()> {
     };
 
     fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         return WebViewBuilder::new(window);
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         WebViewBuilder::new_gtk(window.default_vbox().unwrap())
     };
 
@@ -318,7 +318,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {

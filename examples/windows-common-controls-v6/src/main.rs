@@ -217,7 +217,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         }
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     {
         menu.show_context_menu_for_gtk(window.gtk_window().as_ref(), position);
     }
