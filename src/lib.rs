@@ -77,14 +77,32 @@
 //! ```no_run
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
@@ -98,7 +116,13 @@
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
@@ -106,7 +130,13 @@
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
@@ -375,7 +405,13 @@ pub trait ContextMenu {
     /// Returns `true` if menu tracking ended because an item was selected or clicked outside the menu to dismiss it.
     ///
     /// Returns `false` if menu tracking was cancelled for any reason.
-    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
+    #[cfg(all(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ), feature = "gtk"))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -385,7 +421,13 @@ pub trait ContextMenu {
     /// Get the underlying gtk menu reserved for context menus.
     ///
     /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
-    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
+    #[cfg(all(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ), feature = "gtk"))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
     /// Shows this menu as a context menu for the specified `NSView`.

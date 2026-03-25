@@ -15,13 +15,25 @@ pub enum Error {
     #[cfg(windows)]
     #[error("This menu has not been initialized for this hwnd`")]
     NotInitialized,
-    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
+    #[cfg(all(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ), feature = "gtk"))]
     #[error("This menu has not been initialized for this gtk window`")]
     NotInitialized,
     #[cfg(windows)]
     #[error("This menu has already been initialized for this hwnd`")]
     AlreadyInitialized,
-    #[cfg(all(any(target_os = "linux", target_os = "freebsd"), feature = "gtk"))]
+    #[cfg(all(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ), feature = "gtk"))]
     #[error("This menu has already been initialized for this gtk window`")]
     AlreadyInitialized,
     #[error(transparent)]
