@@ -249,6 +249,18 @@ impl AppMenu {
 
         edit_menu.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
+        #[cfg(target_os = "macos")]
+        {
+            let custom_help_menu = Submenu::new("Custom Help", true);
+            custom_help_menu.append_items(&[&MenuItem::new(
+                "Supposed to show a search bar",
+                true,
+                None,
+            )]);
+            custom_help_menu.set_as_help_menu_for_nsapp();
+            menu_bar.append(&custom_help_menu);
+        }
+
         Self {
             menu_bar,
             file_menu,
