@@ -265,7 +265,6 @@ pub(crate) enum PredefinedMenuItemType {
     None,
 }
 
-
 impl PredefinedMenuItemType {
     pub(crate) fn text(&self) -> &str {
         match self {

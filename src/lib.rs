@@ -347,7 +347,6 @@ pub(crate) enum MenuItemType {
     Icon,
 }
 
-
 /// A helper trait with methods to help creating a context menu.
 pub trait ContextMenu {
     /// Get the popup [`HMENU`] for this menu.
