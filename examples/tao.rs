@@ -90,10 +90,11 @@ fn main() {
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+    let help_m = Submenu::new("&Help", true);
 
     window_m.set_icon(Some(icon.clone()));
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m, &help_m]);
 
     let custom_i_1 = MenuItem::with_id(
         "custom-i-1",
@@ -155,6 +156,8 @@ fn main() {
         &custom_i_1,
     ]);
 
+    help_m.append_items(&[&MenuItem::new("Supposed to show search", true, None)]);
+
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
@@ -177,6 +180,7 @@ fn main() {
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
+        help_m.set_as_help_menu_for_nsapp();
     }
 
     let menu_channel = MenuEvent::receiver();
