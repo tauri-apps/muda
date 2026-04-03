@@ -94,7 +94,7 @@ fn main() {
 
     window_m.set_icon(Some(icon.clone()));
 
-    menu_bar.append_items(&[&file_m, &edit_m, &help_m, &window_m, &help_m]);
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m, &help_m]);
 
     let custom_i_1 = MenuItem::with_id(
         "custom-i-1",
