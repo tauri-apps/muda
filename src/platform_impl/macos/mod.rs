@@ -19,18 +19,18 @@ use std::{
 use objc2::{
     define_class, msg_send,
     rc::Retained,
-    runtime::{AnyObject, Sel},
+    runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel},
     sel, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
     NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSImage, NSImageName, NSMenu, NSMenuItem, NSRunningApplication, NSView,
+    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSPoint, NSSize,
-    NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
+    NSSize, NSString,
 };
 
 use self::util::strip_mnemonic;
@@ -49,8 +49,57 @@ static COUNTER: Counter = Counter::new();
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";
 
-#[derive(Debug, Clone)]
-struct NsMenuRef(u32, Retained<NSMenu>);
+define_class!(
+    /// A delegate for NSMenu that stores the menu id as an instance variable,
+    /// so that we can identify it later. Like when calling `set_as_windows_menu_for_nsapp`.
+    #[unsafe(super(NSObject))]
+    #[name = "MudaMenuDelegate"]
+    #[thread_kind = MainThreadOnly]
+    #[ivars = u32]
+    struct MudaMenuDelegate;
+
+    unsafe impl NSObjectProtocol for MudaMenuDelegate {}
+    unsafe impl NSMenuDelegate for MudaMenuDelegate {}
+);
+
+impl MudaMenuDelegate {
+    fn new(mtm: MainThreadMarker, menu_id: u32) -> Retained<Self> {
+        let this = mtm.alloc().set_ivars(menu_id);
+        unsafe { msg_send![super(this), init] }
+    }
+
+    fn menu_id(&self) -> u32 {
+        *self.ivars()
+    }
+}
+
+#[derive(Clone)]
+struct NsMenuRef(
+    u32,
+    Retained<NSMenu>,
+    /// Prevent deallocation — NSMenu's delegate is a weak reference.
+    #[allow(dead_code)]
+    Retained<MudaMenuDelegate>,
+);
+
+impl NsMenuRef {
+    fn new(mtm: MainThreadMarker, id: u32, ns_menu: Retained<NSMenu>) -> Self {
+        let delegate = MudaMenuDelegate::new(mtm, id);
+        unsafe {
+            ns_menu.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+        }
+        Self(id, ns_menu, delegate)
+    }
+}
+
+impl std::fmt::Debug for NsMenuRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("NsMenuRef")
+            .field(&self.0)
+            .field(&self.1)
+            .finish()
+    }
+}
 
 impl Drop for NsMenuRef {
     fn drop(&mut self) {
@@ -85,7 +134,7 @@ impl Menu {
         unsafe { ns_menu.setAutoenablesItems(false) };
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            ns_menu: NsMenuRef(COUNTER.next(), ns_menu),
+            ns_menu: NsMenuRef::new(mtm, COUNTER.next(), ns_menu),
             children: Vec::new(),
         }
     }
@@ -284,11 +333,11 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             enabled,
             children: Some(Vec::new()),
-            ns_menu: Some(NsMenuRef(COUNTER.next(), unsafe {
+            ns_menu: Some({
                 let menu = NSMenu::new(mtm);
-                menu.setAutoenablesItems(false);
-                menu
-            })),
+                unsafe { menu.setAutoenablesItems(false) };
+                NsMenuRef::new(mtm, COUNTER.next(), menu)
+            }),
             accelerator: None,
             checked: Cell::new(false),
             icon: None,
@@ -665,17 +714,49 @@ impl MenuChild {
     }
 
     pub fn set_as_windows_menu_for_nsapp(&self) {
-        let menu = &self.ns_menu.as_ref().unwrap().1;
-        let mtm = MainThreadMarker::from(&**menu);
+        let Some(menu) = self.resolve_ns_menu_for_nsapp() else {
+            return;
+        };
+
+        let mtm = MainThreadMarker::from(&*menu);
         let app = NSApplication::sharedApplication(mtm);
-        unsafe { app.setWindowsMenu(Some(menu)) }
+        unsafe { app.setWindowsMenu(Some(&menu)) }
     }
 
     pub fn set_as_help_menu_for_nsapp(&self) {
-        let menu = &self.ns_menu.as_ref().unwrap().1;
-        let mtm = MainThreadMarker::from(&**menu);
+        let Some(menu) = self.resolve_ns_menu_for_nsapp() else {
+            return;
+        };
+
+        let mtm = MainThreadMarker::from(&*menu);
         let app = NSApplication::sharedApplication(mtm);
-        unsafe { app.setHelpMenu(Some(menu)) }
+        unsafe { app.setHelpMenu(Some(&menu)) }
+    }
+
+    /// Finds the NSMenu instance for this submenu that is attached to the
+    /// current NSApp main menu, by reading the menu id stored in the
+    /// main menu's delegate.
+    fn resolve_ns_menu_for_nsapp(&self) -> Option<Retained<NSMenu>> {
+        let ns_menu = &self.ns_menu.as_ref().unwrap().1;
+        let mtm = MainThreadMarker::from(&**ns_menu);
+        let app = NSApplication::sharedApplication(mtm);
+        let main_menu = unsafe { app.mainMenu()? };
+        let delegate = unsafe { main_menu.delegate()? };
+
+        // Downcast the delegate to our MudaMenuDelegate to get the menu id
+        let delegate_obj: &AnyObject = ProtocolObject::as_ref(&*delegate);
+        let muda_delegate: &MudaMenuDelegate = delegate_obj.downcast_ref()?;
+        let parent_id = muda_delegate.menu_id();
+
+        // Look up the NSMenu in ns_menus for this parent id
+        self.ns_menus
+            .as_ref()
+            .unwrap()
+            .get(&parent_id)
+            // A submenu can be added multiple times to the same parent menu
+            // lets just take the first one we find
+            .and_then(|menus| menus.first())
+            .map(|menu_ref| menu_ref.1.clone())
     }
 
     pub fn ns_menu(&self) -> *mut std::ffi::c_void {
@@ -730,7 +811,7 @@ impl MenuChild {
             .unwrap()
             .entry(menu_id)
             .or_default()
-            .push(NsMenuRef(id, ns_submenu));
+            .push(NsMenuRef::new(mtm, id, ns_submenu));
 
         self.ns_menu_items
             .entry(menu_id)

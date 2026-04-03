@@ -90,7 +90,7 @@ fn main() {
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
-    let help_m = Submenu::new("&Help", true);
+    let help_m = Submenu::new("&Custom Help", true);
 
     window_m.set_icon(Some(icon.clone()));
 
