@@ -90,11 +90,11 @@ fn main() {
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
-    let help_m = Submenu::new("&Help", true);
+    let help_m = Submenu::new("&Custom Help", true);
 
     window_m.set_icon(Some(icon.clone()));
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m, &help_m]);
+    menu_bar.append_items(&[&file_m, &edit_m, &help_m, &window_m, &help_m]);
 
     let custom_i_1 = MenuItem::with_id(
         "custom-i-1",
