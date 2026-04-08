@@ -113,8 +113,8 @@ pub(crate) struct Menu {
 impl Drop for Menu {
     fn drop(&mut self) {
         let hwnds = self.hwnds.borrow().keys().copied().collect::<Vec<_>>();
-        for hwnd in hwnds {
-            let _ = unsafe { self.remove_for_hwnd(hwnd) };
+        for hwnd in &hwnds {
+            let _ = unsafe { self.remove_for_hwnd(*hwnd) };
         }
 
         fn remove_from_children_stores(internal_id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
@@ -143,7 +143,7 @@ impl Drop for Menu {
         }
 
         unsafe {
-            for hwnd in self.hwnds.borrow().keys() {
+            for hwnd in &hwnds {
                 SetMenu(*hwnd as _, std::ptr::null_mut());
                 RemoveWindowSubclass(*hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
             }
