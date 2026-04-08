@@ -1138,12 +1138,14 @@ impl MenuItem {
         let title = NSString::from_str(title);
 
         let key_equivalent = (*accelerator)
+            .as_ref()
             .map(|accel| accel.key_equivalent())
             .transpose()?
             .unwrap_or_default();
         let key_equivalent = NSString::from_str(&key_equivalent);
 
         let modifier_mask = (*accelerator)
+            .as_ref()
             .map(|accel| accel.key_modifier_mask())
             .unwrap_or_else(NSEventModifierFlags::empty);
 

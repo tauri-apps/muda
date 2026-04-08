@@ -687,7 +687,7 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = text.to_string();
-        let mut text = if let Some(accelerator) = self.accelerator {
+        let mut text = if let Some(accelerator) = &self.accelerator {
             encode_wide(format!("{text}\t{}", accelerator))
         } else {
             encode_wide(text)
@@ -744,7 +744,7 @@ impl MenuChild {
 
         for store in self.root_menu_haccel_stores.values() {
             let mut store = store.borrow_mut();
-            if let Some(accelerator) = self.accelerator {
+            if let Some(accelerator) = &self.accelerator {
                 AccelAction::add(&mut store, self.internal_id, &accelerator)?
             } else {
                 AccelAction::remove(&mut store, self.internal_id)
