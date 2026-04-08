@@ -6,7 +6,7 @@
 use std::rc::Rc;
 
 use muda::{
-    accelerator::{Accelerator, Code, Modifiers},
+    accelerator::{Accelerator, Code, Key, Modifiers},
     dpi::Position,
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
@@ -111,11 +111,11 @@ fn main() -> wry::Result<()> {
         .append_items(&[&file_m, &edit_m, &window_m])
         .unwrap();
 
-    let custom_i_1 = MenuItem::new(
-        "C&ustom 1",
-        true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
-    );
+    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
+    custom_i_1.set_key_accelerator(Some(muda::accelerator::KeyAccelerator::new(
+        Some(Modifiers::CONTROL),
+        Key::Character("+".into()),
+    )));
 
     let image_item = IconMenuItem::new(
         "Image custom 1",

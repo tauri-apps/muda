@@ -17,7 +17,7 @@ default = ["libxdo", "gtk"]
 libxdo = ["dep:libxdo"]
 gtk = ["dep:gtk"]
 common-controls-v6 = []
-serde = ["dep:serde", "dpi/serde"]
+serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
 crossbeam-channel = "0.5"
