@@ -4,38 +4,30 @@
 
 //! Accelerators describe keyboard shortcuts for menu items.
 //!
-//! [`Accelerator`s](crate::accelerator::Accelerator) are used to define a keyboard shortcut consisting
-//! of an optional combination of modifier keys (provided by [`Modifiers`]) and
-//! one key ([`Code`]).
-//!
-//! [`KeyAccelerator`s](crate::accelerator::KeyAccelerator) are the logical-key equivalent,
-//! using [`Key`] instead of [`Code`], which allows expressing shortcuts like `Ctrl++` or `Ctrl+€`
+//! [`KeyAccelerator`s](crate::accelerator::KeyAccelerator) are used to define a keyboard
+//! shortcut based on logical keys, which allows expressing shortcuts like `Ctrl++` or `Ctrl+€`
 //! that physical key codes cannot represent.
+//! For this reason, prefer to use [`KeyAccelerator`s](crate::accelerator::KeyAccelerator) over the older [`Accelerator`s](crate::accelerator::Accelerator).
 //!
 //! # Examples
 //! They can be created directly
 //! ```no_run
-//! # use muda::accelerator::{Accelerator, Modifiers, Code};
-//! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
-//! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
+//! # use muda::accelerator::{KeyAccelerator, Modifiers, Key};
+//! let accelerator = KeyAccelerator::new(Some(Modifiers::SHIFT), Key::Character("q".to_owned()));
+//! let accelerator_without_mods = KeyAccelerator::new(None, Key::Character("q".to_owned()));
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
 //! ```no_run
-//! # use muda::accelerator::{Accelerator};
-//! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
+//! # use muda::accelerator::{KeyAccelerator};
+//! let accelerator: KeyAccelerator = "shift+alt+KeyQ".parse().unwrap();
+//! // Or alternatively:
+//! let accelerator: KeyAccelerator = "shift+alt+q".parse().unwrap();
 //! # // This assert exists to ensure a test breaks once the
 //! # // statement above about ordering is no longer valid.
-//! # assert!("shift+KeyQ+alt".parse::<Accelerator>().is_err());
+//! # assert!("shift+KeyQ+alt".parse::<KeyAccelerator>().is_err());
 //! ```
-//!
-//! [`KeyAccelerator`] also supports parsing, including literal character keys:
-//! ```no_run
-//! # use muda::accelerator::KeyAccelerator;
-//! let accel: KeyAccelerator = "Ctrl++".parse().unwrap();
-//! ```
-//!
 
 pub use keyboard_types::{Code, Key, Modifiers};
 use std::{borrow::Borrow, hash::Hash, str::FromStr};
@@ -58,6 +50,10 @@ pub enum AcceleratorParseError {
 /// A keyboard shortcut that consists of an optional combination
 /// of modifier keys (provided by [`Modifiers`] and
 /// one key ([`Code`]).
+///
+/// ⚠️This struct cannot represent all shortcuts found on non-U.S. keyboard layouts and might
+/// be deprecated in the future.
+/// Please use [`KeyAccelerator`] instead.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accelerator {
