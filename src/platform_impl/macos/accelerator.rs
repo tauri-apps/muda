@@ -9,7 +9,7 @@ use crate::accelerator::{AcceleratorParseError, KeyAccelerator};
 
 impl KeyAccelerator {
     /// Return the string value of this hotkey, without modifiers.
-    pub fn key_equivalent(&self) -> Result<String, AcceleratorParseError> {
+    pub(crate) fn key_equivalent(&self) -> Result<String, AcceleratorParseError> {
         Ok(match &self.key {
             Key::Character(s) => s.clone(),
             Key::Tab => "⇥".into(),
@@ -57,7 +57,7 @@ impl KeyAccelerator {
     }
 
     /// Return the modifiers of this hotkey, as an NSEventModifierFlags bitflag.
-    pub fn key_modifier_mask(&self) -> NSEventModifierFlags {
+    pub(crate) fn key_modifier_mask(&self) -> NSEventModifierFlags {
         let mut flags = NSEventModifierFlags::empty();
         if mods.contains(Modifiers::SHIFT) {
             flags.insert(NSEventModifierFlags::Shift);
