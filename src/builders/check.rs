@@ -50,7 +50,7 @@ impl CheckMenuItemBuilder {
 
     /// Set this check menu item accelerator.
     ///
-    /// (Note that setting an accelerator will override any existing key_accelerator)
+    /// (Note that setting an accelerator will override any existing [.key_accelerator()](Self::key_accelerator))
     pub fn accelerator<A: TryInto<Accelerator>>(
         mut self,
         accelerator: Option<A>,
@@ -67,7 +67,7 @@ impl CheckMenuItemBuilder {
 
     /// Set this check menu item accelerator using a [`KeyAccelerator`].
     ///
-    /// (Note that setting a key_accelerator will override any existing accelerator)
+    /// (Note that setting a key_accelerator will override any existing [.accelerator()](Self::accelerator))
     pub fn key_accelerator<A: TryInto<KeyAccelerator>>(
         mut self,
         accelerator: Option<A>,

@@ -100,7 +100,7 @@ impl MenuItem {
 
     /// Set this menu item accelerator.
     ///
-    /// (Note that setting an accelerator will override any existing key_accelerator)
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
         self.inner
             .borrow_mut()
@@ -109,11 +109,8 @@ impl MenuItem {
 
     /// Set this menu item accelerator using a [`KeyAccelerator`].
     ///
-    /// (Note that setting a key_accelerator will override any existing accelerator)
-    pub fn set_key_accelerator(
-        &self,
-        accelerator: Option<KeyAccelerator>,
-    ) -> crate::Result<()> {
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
         self.inner.borrow_mut().set_key_accelerator(accelerator)
     }
 

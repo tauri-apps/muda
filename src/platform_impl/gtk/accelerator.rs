@@ -30,9 +30,10 @@ pub fn parse_key_accelerator(
 ) -> Result<(gdk::ModifierType, u32), AcceleratorParseError> {
     let key = match &accelerator.key {
         Key::Character(s) => {
-            let c = s.chars().next().ok_or_else(|| {
-                AcceleratorParseError::UnsupportedKey(s.clone())
-            })?;
+            let c = s
+                .chars()
+                .next()
+                .ok_or_else(|| AcceleratorParseError::UnsupportedKey(s.clone()))?;
             let cp = c as u32;
             if cp <= 0x7f {
                 // ASCII range: use uppercase codepoint as GDK keyval

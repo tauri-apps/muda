@@ -6,7 +6,7 @@
 use std::rc::Rc;
 
 use muda::{
-    accelerator::{Accelerator, Code, Key, Modifiers},
+    accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
     dpi::Position,
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
@@ -112,7 +112,7 @@ fn main() -> wry::Result<()> {
         .unwrap();
 
     let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
-    custom_i_1.set_key_accelerator(Some(muda::accelerator::KeyAccelerator::new(
+    custom_i_1.set_key_accelerator(Some(KeyAccelerator::new(
         Some(Modifiers::CONTROL),
         Key::Character("+".into()),
     )));

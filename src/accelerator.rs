@@ -12,21 +12,29 @@
 //! # Examples
 //! They can be created directly
 //! ```no_run
-//! # use muda::accelerator::{KeyAccelerator, Modifiers, Key};
-//! let accelerator = KeyAccelerator::new(Some(Modifiers::SHIFT), Key::Character("q".to_owned()));
-//! let accelerator_without_mods = KeyAccelerator::new(None, Key::Character("q".to_owned()));
+//! # use muda::accelerator::*;
+//! let key_accelerator = KeyAccelerator::new(Some(Modifiers::SHIFT), Key::Character("q".to_owned()));
+//! let key_accelerator_without_mods = KeyAccelerator::new(None, Key::Character("q".to_owned()));
+//!
+//! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
+//! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
 //! whereas `shift+q+alt` is not.
 //! ```no_run
-//! # use muda::accelerator::{KeyAccelerator};
-//! let accelerator: KeyAccelerator = "shift+alt+KeyQ".parse().unwrap();
+//! # use muda::accelerator::*;
+//! let key_accelerator: KeyAccelerator = "shift+alt+KeyQ".parse().unwrap();
 //! // Or alternatively:
-//! let accelerator: KeyAccelerator = "shift+alt+q".parse().unwrap();
+//! let key_accelerator: KeyAccelerator = "shift+alt+q".parse().unwrap();
+//!
+//! // Or to parse Accelerator
+//! let accelerator: Accelerator = "shift+alt+KeyQ".parse().unwrap();
+//! let accelerator: Accelerator = "shift+alt+q".parse().unwrap();
 //! # // This assert exists to ensure a test breaks once the
 //! # // statement above about ordering is no longer valid.
 //! # assert!("shift+KeyQ+alt".parse::<KeyAccelerator>().is_err());
+//! # assert!("shift+KeyQ+alt".parse::<Accelerator>().is_err());
 //! ```
 
 pub use keyboard_types::{Code, Key, Modifiers};
@@ -51,7 +59,9 @@ pub enum AcceleratorParseError {
 /// of modifier keys (provided by [`Modifiers`] and
 /// one key ([`Code`]).
 ///
-/// ⚠️This struct cannot represent all shortcuts found on non-U.S. keyboard layouts and might
+/// ## Warning
+///
+/// This struct cannot represent all shortcuts found on non-U.S. keyboard layouts and might
 /// be deprecated in the future.
 /// Please use [`KeyAccelerator`] instead.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -580,8 +590,8 @@ fn split_key_and_modifiers(accelerator: &str) -> Result<(&str, &str), Accelerato
     }
 
     // Separate modifier part from key part using rfind('+').
-    // This correctly handles '+' as the key: "Ctrl++" → rfind gives the last '+',
-    // leaving "Ctrl+" as the modifier part and "" as raw key → key is '+'.
+    // This correctly handles '+' as the key: "Ctrl++" -> rfind gives the last '+',
+    // leaving "Ctrl+" as the modifier part and "" as raw key -> key is '+'.
     let (modifiers_str, key_str) = match accelerator.rfind('+') {
         Some(pos) => {
             let raw_key = &accelerator[pos + 1..];
