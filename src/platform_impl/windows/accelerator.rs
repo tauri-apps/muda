@@ -101,9 +101,10 @@ fn key_to_vk(key: &Key) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
             " " => VK_SPACE,
             other => {
                 // Try VkKeyScanW for characters reachable on the current keyboard layout
-                let c = other.chars().next().ok_or_else(|| {
-                    AcceleratorParseError::UnsupportedKey(other.to_string())
-                })?;
+                let c = other
+                    .chars()
+                    .next()
+                    .ok_or_else(|| AcceleratorParseError::UnsupportedKey(other.to_string()))?;
                 let result = unsafe { VkKeyScanW(c as u16) };
                 if result as i16 == -1 {
                     return Err(AcceleratorParseError::UnsupportedKey(other.to_string()));
@@ -180,8 +181,7 @@ fn key_to_vk(key: &Key) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
 
 impl fmt::Display for Accelerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let key_accel: KeyAccelerator = self.clone().into();
-        write!(f, "{}", key_accel)
+        write!(f, "{}", KeyAccelerator::from(self))
     }
 }
 

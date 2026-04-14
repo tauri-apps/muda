@@ -11,7 +11,7 @@ use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
-    accelerator::{Accelerator, KeyAccelerator},
+    accelerator::KeyAccelerator,
     dpi::Position,
     icon::{Icon, NativeIcon},
     items::PredefinedMenuItemType,

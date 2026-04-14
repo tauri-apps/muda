@@ -35,7 +35,7 @@ use objc2_foundation::{
 
 use self::util::strip_mnemonic;
 use crate::{
-    accelerator::{Accelerator, KeyAccelerator},
+    accelerator::KeyAccelerator,
     dpi::{LogicalPosition, Position},
     icon::{Icon, NativeIcon},
     items::*,
@@ -371,7 +371,7 @@ impl MenuChild {
             text,
             enabled: true,
             id: MenuId(COUNTER.next().to_string()),
-            key_accelerator: item_type.key_accelerator(),
+            key_accelerator: item_type.accelerator().map(KeyAccelerator::from),
             predefined_item_type: Some(item_type),
             checked: Cell::new(false),
             children: None,
@@ -512,7 +512,7 @@ impl MenuChild {
 
             let modifier_mask = key_accelerator
                 .as_ref()
-                .map(KeyAccelerator::modifier_mask)
+                .map(KeyAccelerator::key_modifier_mask)
                 .unwrap_or_else(NSEventModifierFlags::empty);
 
             for ns_items in self.ns_menu_items.values() {
