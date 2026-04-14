@@ -512,7 +512,7 @@ impl MenuChild {
 
             let modifier_mask = key_accelerator
                 .as_ref()
-                .map(KeyAccelerator::key_modifier_mask)
+                .map(KeyAccelerator::modifier_mask)
                 .unwrap_or_else(NSEventModifierFlags::empty);
 
             for ns_items in self.ns_menu_items.values() {
@@ -1148,7 +1148,7 @@ impl MenuItem {
 
         let modifier_mask = key_accelerator
             .as_ref()
-            .map(KeyAccelerator::key_modifier_mask)
+            .map(KeyAccelerator::modifier_mask)
             .unwrap_or_else(NSEventModifierFlags::empty);
 
         let item = MenuItem::new(mtm, &title, selector, &key_equivalent);

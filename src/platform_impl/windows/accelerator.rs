@@ -181,7 +181,7 @@ fn key_to_vk(key: &Key) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
 
 impl fmt::Display for Accelerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", KeyAccelerator::from(self))
+        write!(f, "{}", KeyAccelerator::from(*self))
     }
 }
 
