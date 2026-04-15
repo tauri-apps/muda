@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.18.0]
+
+- [`b324619`](https://www.github.com/tauri-apps/muda/commit/b324619069e6ebd7b259fa15400fca87586b5dc6) ([#339](https://www.github.com/tauri-apps/muda/pull/339) by [@LeonMatthes](https://www.github.com/tauri-apps/muda/../../LeonMatthes)) Add a new `KeyAccelerator` struct based on `keyboard_types::Key` alongside the existing `Accelerator` (based on `Code`).
+  This enables expressing logical key shortcuts like "Ctrl++", "Ctrl+€" that physical key codes cannot represent (see https://github.com/tauri-apps/muda/issues/333).
+- [`adb9f55`](https://www.github.com/tauri-apps/muda/commit/adb9f5565444f6240c3df25347a25bcfcdc442b2) ([#337](https://www.github.com/tauri-apps/muda/pull/337) by [@npwoods](https://www.github.com/tauri-apps/muda/../../npwoods)) On Windows, fixed a bug that would cause window subclasses to not be cleaned up when menus were dropped
+
 ## \[0.17.2]
 
 - [`dca0836`](https://www.github.com/tauri-apps/muda/commit/dca083660d04209109ae854b9a9436a809daf409) ([#321](https://www.github.com/tauri-apps/muda/pull/321)) Fix padding unconditionally added to top-level submenus for icons even when there's no icon on Linux
