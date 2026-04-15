@@ -11,7 +11,7 @@ use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::KeyAccelerator,
     dpi::Position,
     icon::{Icon, NativeIcon},
     items::PredefinedMenuItemType,
@@ -465,7 +465,7 @@ pub(crate) struct MenuChild {
     // menu item fields
     internal_id: u32,
     id: MenuId,
-    accelerator: Option<Accelerator>,
+    accelerator: Option<KeyAccelerator>,
 
     // predefined menu item fields
     predefined_item_type: Option<PredefinedMenuItemType>,
@@ -504,7 +504,7 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -515,7 +515,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -555,7 +555,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: MenuId::new(internal_id.to_string()),
-            accelerator: item_type.accelerator(),
+            accelerator: item_type.accelerator().map(Into::into),
             predefined_item_type: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
             icon: None,
@@ -570,7 +570,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -581,7 +581,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             checked,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -596,7 +596,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -607,7 +607,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             icon,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -622,7 +622,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         _native_icon: Option<NativeIcon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -633,7 +633,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -687,7 +687,7 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = text.to_string();
-        let mut text = if let Some(accelerator) = self.accelerator {
+        let mut text = if let Some(accelerator) = &self.accelerator {
             encode_wide(format!("{text}\t{}", accelerator))
         } else {
             encode_wide(text)
@@ -738,14 +738,17 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
+    pub fn set_key_accelerator(
+        &mut self,
+        accelerator: Option<KeyAccelerator>,
+    ) -> crate::Result<()> {
         self.accelerator = accelerator;
         self.set_text(&self.text.clone());
 
         for store in self.root_menu_haccel_stores.values() {
             let mut store = store.borrow_mut();
-            if let Some(accelerator) = self.accelerator {
-                AccelAction::add(&mut store, self.internal_id, &accelerator)?
+            if let Some(accelerator) = &self.accelerator {
+                AccelAction::add(&mut store, self.internal_id, accelerator)?
             } else {
                 AccelAction::remove(&mut store, self.internal_id)
             }
@@ -1053,7 +1056,7 @@ impl AccelAction {
     fn add(
         haccel_store: &mut RefMut<AccelWrapper>,
         id: u32,
-        accelerator: &Accelerator,
+        accelerator: &KeyAccelerator,
     ) -> crate::Result<()> {
         let accel = accelerator.to_accel(id as _)?;
         haccel_store.1.insert(id, Accel(accel));

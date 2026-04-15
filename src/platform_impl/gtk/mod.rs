@@ -8,14 +8,14 @@ mod icon;
 pub(crate) use icon::PlatformIcon;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::KeyAccelerator,
     dpi::Position,
     icon::{Icon, NativeIcon},
     items::*,
     util::{AddOp, Counter},
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
 };
-use accelerator::{from_gtk_mnemonic, parse_accelerator, to_gtk_mnemonic};
+use accelerator::{from_gtk_mnemonic, parse_key_accelerator, to_gtk_mnemonic};
 use glib::translate::ToGlibPtr;
 use gtk::{gdk, glib, prelude::*, AboutDialog, Container, Orientation};
 use std::{
@@ -401,7 +401,7 @@ pub struct MenuChild {
     gtk_menu_items: Rc<RefCell<HashMap<u32, Vec<gtk::MenuItem>>>>,
 
     // menu item fields
-    accelerator: Option<Accelerator>,
+    accelerator: Option<KeyAccelerator>,
     gtk_accelerator: Option<(gdk::ModifierType, u32)>,
 
     // predefined menu item fields
@@ -489,13 +489,13 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
-            accelerator,
+            accelerator: key_accelerator,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::MenuItem,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
@@ -535,7 +535,7 @@ impl MenuChild {
         Self {
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
-            accelerator: item_type.accelerator(),
+            accelerator: item_type.accelerator().map(Into::into),
             id: MenuId(COUNTER.next().to_string()),
             item_type: MenuItemType::Predefined,
             predefined_item_type: Some(item_type),
@@ -555,7 +555,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -563,7 +563,7 @@ impl MenuChild {
             enabled,
             checked: Some(Rc::new(AtomicBool::new(checked))),
             is_syncing_checked_state: Some(Rc::new(AtomicBool::new(false))),
-            accelerator,
+            accelerator: key_accelerator,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Check,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
@@ -581,14 +581,14 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
             icon,
-            accelerator,
+            accelerator: key_accelerator,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
@@ -607,13 +607,13 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         _native_icon: Option<NativeIcon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             text: text.to_string(),
             enabled,
-            accelerator,
+            accelerator: key_accelerator,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             item_type: MenuItemType::Icon,
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
@@ -689,9 +689,15 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
+    pub fn set_key_accelerator(
+        &mut self,
+        accelerator: Option<KeyAccelerator>,
+    ) -> crate::Result<()> {
         let prev_accel = self.gtk_accelerator.as_ref();
-        let new_accel = accelerator.as_ref().map(parse_accelerator).transpose()?;
+        let new_accel = accelerator
+            .as_ref()
+            .map(parse_key_accelerator)
+            .transpose()?;
 
         for items in self.gtk_menu_items.borrow().values() {
             for i in items {
@@ -993,7 +999,7 @@ macro_rules! register_accel {
         $self.gtk_accelerator = $self
             .accelerator
             .as_ref()
-            .map(parse_accelerator)
+            .map(parse_key_accelerator)
             .transpose()?;
 
         if let Some((mods, key)) = &$self.gtk_accelerator {
@@ -1132,7 +1138,7 @@ impl MenuChild {
         self.gtk_accelerator = self
             .accelerator
             .as_ref()
-            .map(parse_accelerator)
+            .map(parse_key_accelerator)
             .transpose()?;
         let predefined_item_type = self.predefined_item_type.clone().unwrap();
 
@@ -1166,8 +1172,11 @@ impl MenuChild {
             | PredefinedMenuItemType::Paste
             | PredefinedMenuItemType::SelectAll => {
                 let item = make_item();
-                let (mods, key) =
-                    parse_accelerator(&predefined_item_type.accelerator().unwrap()).unwrap();
+                let (mods, key) = {
+                    let key_accel: crate::accelerator::KeyAccelerator =
+                        predefined_item_type.accelerator().unwrap().into();
+                    parse_key_accelerator(&key_accel).unwrap()
+                };
                 item.child()
                     .unwrap()
                     .downcast::<gtk::AccelLabel>()

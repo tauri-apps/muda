@@ -35,7 +35,7 @@ use objc2_foundation::{
 
 use self::util::strip_mnemonic;
 use crate::{
-    accelerator::Accelerator,
+    accelerator::KeyAccelerator,
     dpi::{LogicalPosition, Position},
     icon::{Icon, NativeIcon},
     items::*,
@@ -246,7 +246,7 @@ pub struct MenuChild {
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
 
     // menu item fields
-    accelerator: Option<Accelerator>,
+    key_accelerator: Option<KeyAccelerator>,
 
     // predefined menu item fields
     predefined_item_type: Option<PredefinedMenuItemType>,
@@ -300,7 +300,7 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -308,7 +308,7 @@ impl MenuChild {
             text: strip_mnemonic(text),
             enabled,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            accelerator,
+            key_accelerator,
             checked: Cell::new(false),
             children: None,
             icon: None,
@@ -338,7 +338,7 @@ impl MenuChild {
                 unsafe { menu.setAutoenablesItems(false) };
                 NsMenuRef::new(mtm, COUNTER.next(), menu)
             }),
-            accelerator: None,
+            key_accelerator: None,
             checked: Cell::new(false),
             icon: None,
             native_icon: None,
@@ -365,14 +365,13 @@ impl MenuChild {
                 _ => item_type.text().to_string(),
             }
         }));
-        let accelerator = item_type.accelerator();
 
         Self {
             item_type: MenuItemType::Predefined,
             text,
             enabled: true,
             id: MenuId(COUNTER.next().to_string()),
-            accelerator,
+            key_accelerator: item_type.accelerator().map(KeyAccelerator::from),
             predefined_item_type: Some(item_type),
             checked: Cell::new(false),
             children: None,
@@ -388,7 +387,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -396,7 +395,7 @@ impl MenuChild {
             text: text.to_string(),
             enabled,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            accelerator,
+            key_accelerator,
             checked: Cell::new(checked),
             children: None,
             icon: None,
@@ -412,7 +411,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -421,7 +420,7 @@ impl MenuChild {
             enabled,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             icon,
-            accelerator,
+            key_accelerator,
             checked: Cell::new(false),
             children: None,
             native_icon: None,
@@ -436,7 +435,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         native_icon: Option<NativeIcon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -445,7 +444,7 @@ impl MenuChild {
             enabled,
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             native_icon,
-            accelerator,
+            key_accelerator,
             checked: Cell::new(false),
             children: None,
             icon: None,
@@ -499,18 +498,21 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        let key_equivalent = (accelerator)
+    pub fn set_key_accelerator(
+        &mut self,
+        key_accelerator: Option<KeyAccelerator>,
+    ) -> crate::Result<()> {
+        let key_equivalent = key_accelerator
             .as_ref()
-            .map(|accel| accel.key_equivalent())
+            .map(KeyAccelerator::key_equivalent)
             .transpose()?;
 
         if let Some(key_equivalent) = key_equivalent {
             let key_equivalent = NSString::from_str(key_equivalent.as_str());
 
-            let modifier_mask = (accelerator)
+            let modifier_mask = key_accelerator
                 .as_ref()
-                .map(|accel| accel.key_modifier_mask())
+                .map(KeyAccelerator::modifier_mask)
                 .unwrap_or_else(NSEventModifierFlags::empty);
 
             for ns_items in self.ns_menu_items.values() {
@@ -523,7 +525,7 @@ impl MenuChild {
             }
         }
 
-        self.accelerator = accelerator;
+        self.key_accelerator = key_accelerator;
 
         Ok(())
     }
@@ -830,7 +832,7 @@ impl MenuChild {
             mtm,
             &self.text,
             Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &self.key_accelerator,
         )?;
 
         unsafe {
@@ -860,7 +862,7 @@ impl MenuChild {
             PredefinedMenuItemType::Separator => NSMenuItem::separatorItem(mtm),
             _ => {
                 let ns_menu_item =
-                    MenuItem::create(mtm, &self.text, item_type.selector(), &self.accelerator)?;
+                    MenuItem::create(mtm, &self.text, item_type.selector(), &self.key_accelerator)?;
 
                 if let PredefinedMenuItemType::About(_) = item_type {
                     unsafe {
@@ -903,7 +905,7 @@ impl MenuChild {
             mtm,
             &self.text,
             Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &self.key_accelerator,
         )?;
 
         unsafe {
@@ -935,7 +937,7 @@ impl MenuChild {
             mtm,
             &self.text,
             Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &self.key_accelerator,
         )?;
 
         unsafe {
@@ -1133,18 +1135,20 @@ impl MenuItem {
         mtm: MainThreadMarker,
         title: &str,
         selector: Option<Sel>,
-        accelerator: &Option<Accelerator>,
+        key_accelerator: &Option<KeyAccelerator>,
     ) -> crate::Result<Retained<MenuItem>> {
         let title = NSString::from_str(title);
 
-        let key_equivalent = (*accelerator)
+        let key_equivalent = key_accelerator
+            .as_ref()
             .map(|accel| accel.key_equivalent())
             .transpose()?
             .unwrap_or_default();
         let key_equivalent = NSString::from_str(&key_equivalent);
 
-        let modifier_mask = (*accelerator)
-            .map(|accel| accel.key_modifier_mask())
+        let modifier_mask = key_accelerator
+            .as_ref()
+            .map(KeyAccelerator::modifier_mask)
             .unwrap_or_else(NSEventModifierFlags::empty);
 
         let item = MenuItem::new(mtm, &title, selector, &key_equivalent);

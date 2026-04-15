@@ -4,7 +4,11 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
+use crate::{
+    accelerator::{Accelerator, KeyAccelerator},
+    sealed::IsMenuItemBase,
+    IsMenuItem, MenuId, MenuItemKind,
+};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -48,7 +52,7 @@ impl CheckMenuItem {
             text.as_ref(),
             enabled,
             checked,
-            accelerator,
+            accelerator.map(KeyAccelerator::from),
             None,
         );
         Self {
@@ -75,7 +79,7 @@ impl CheckMenuItem {
                 text.as_ref(),
                 enabled,
                 checked,
-                accelerator,
+                accelerator.map(KeyAccelerator::from),
                 Some(id),
             ))),
         }
@@ -109,8 +113,19 @@ impl CheckMenuItem {
     }
 
     /// Set this check menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_key_accelerator(accelerator.map(KeyAccelerator::from))
+    }
+
+    /// Set this check menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner.borrow_mut().set_key_accelerator(accelerator)
     }
 
     /// Get whether this check menu item is checked or not.
