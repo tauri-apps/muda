@@ -335,9 +335,8 @@ mod sealed {
     pub trait IsMenuItemBase {}
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Default)]
 pub(crate) enum MenuItemType {
     #[default]
     MenuItem,

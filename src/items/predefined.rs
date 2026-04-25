@@ -238,10 +238,9 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
-#[derive(Default)]
 pub(crate) enum PredefinedMenuItemType {
     Separator,
     Copy,
