@@ -180,20 +180,39 @@ impl Submenu {
     }
 
     /// Set this submenu as the Window menu for the application on macOS.
-    ///
     /// This will cause macOS to automatically add window-switching items and
     /// certain other items to the menu.
+    ///
+    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
+    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
+    ///
+    ///
+    /// # Note
+    ///
+    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
+    /// this method will set the first instance of this submenu as the Window menu for the application.
+    ///
+    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
     #[cfg(target_os = "macos")]
     pub fn set_as_windows_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_windows_menu_for_nsapp()
     }
 
     /// Set this submenu as the Help menu for the application on macOS.
-    ///
     /// This will cause macOS to automatically add a search box to the menu.
+    ///
+    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
+    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
     ///
     /// If no menu is set as the Help menu, macOS will automatically use any menu
     /// which has a title matching the localized word "Help".
+    ///
+    /// # Note
+    ///
+    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
+    /// this method will set the first instance of this submenu as the Help menu for the application.
+    ///
+    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
     #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_help_menu_for_nsapp()
@@ -248,7 +267,16 @@ impl ContextMenu for Submenu {
         self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
@@ -259,7 +287,16 @@ impl ContextMenu for Submenu {
             .show_context_menu_for_gtk_window(w, position)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.inner.borrow_mut().gtk_context_menu()
     }

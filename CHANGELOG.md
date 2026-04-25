@@ -1,5 +1,17 @@
 # Changelog
 
+## \[0.18.0]
+
+- [`b324619`](https://www.github.com/tauri-apps/muda/commit/b324619069e6ebd7b259fa15400fca87586b5dc6) ([#339](https://www.github.com/tauri-apps/muda/pull/339) by [@LeonMatthes](https://www.github.com/tauri-apps/muda/../../LeonMatthes)) Add a new `KeyAccelerator` struct based on `keyboard_types::Key` alongside the existing `Accelerator` (based on `Code`).
+  This enables expressing logical key shortcuts like "Ctrl++", "Ctrl+€" that physical key codes cannot represent (see https://github.com/tauri-apps/muda/issues/333).
+- [`adb9f55`](https://www.github.com/tauri-apps/muda/commit/adb9f5565444f6240c3df25347a25bcfcdc442b2) ([#337](https://www.github.com/tauri-apps/muda/pull/337) by [@npwoods](https://www.github.com/tauri-apps/muda/../../npwoods)) On Windows, fixed a bug that would cause window subclasses to not be cleaned up when menus were dropped
+
+## \[0.17.2]
+
+- [`dca0836`](https://www.github.com/tauri-apps/muda/commit/dca083660d04209109ae854b9a9436a809daf409) ([#321](https://www.github.com/tauri-apps/muda/pull/321)) Fix padding unconditionally added to top-level submenus for icons even when there's no icon on Linux
+- [`372d367`](https://www.github.com/tauri-apps/muda/commit/372d3675e477d698297b0e10864932261d41c66e) ([#335](https://www.github.com/tauri-apps/muda/pull/335)) Fix `Submenu::set_as_help_menu_for_nsapp` and `Submenu::set_as_windows_menu_for_nsapp` not working and macOS wouldn't recognize and add default menu items to them.
+- [`43ba984`](https://www.github.com/tauri-apps/muda/commit/43ba984a89b6b36f2aa87be6206763d96f9c259b) ([#326](https://www.github.com/tauri-apps/muda/pull/326)) Add support for `PredefinedMenuItem::undo` and `PredefinedMenuItem::redo` on Windows.
+
 ## \[0.17.1]
 
 - [`0ae81ad`](https://www.github.com/tauri-apps/muda/commit/0ae81ad8b22dd2622e302254ce434d14880087a3) ([#308](https://www.github.com/tauri-apps/muda/pull/308) by [@s00d](https://www.github.com/tauri-apps/muda/../../s00d)) On Windows, fix icon of `Submenu` not visible when added to a root `Menu`

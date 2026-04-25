@@ -6,14 +6,20 @@
 use std::rc::Rc;
 
 use muda::{
-    accelerator::{Accelerator, Code, Modifiers},
+    accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
     dpi::Position,
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -22,7 +28,13 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use wry::WebViewBuilderExtUnix;
 use wry::{http::Request, WebViewBuilder};
 
@@ -99,11 +111,11 @@ fn main() -> wry::Result<()> {
         .append_items(&[&file_m, &edit_m, &window_m])
         .unwrap();
 
-    let custom_i_1 = MenuItem::new(
-        "C&ustom 1",
-        true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
-    );
+    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
+    custom_i_1.set_key_accelerator(Some(KeyAccelerator::new(
+        Some(Modifiers::CONTROL),
+        Key::Character("+".into()),
+    )));
 
     let image_item = IconMenuItem::new(
         "Image custom 1",
@@ -173,7 +185,13 @@ fn main() -> wry::Result<()> {
         menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
         menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         menu_bar
             .init_for_gtk_window(window.gtk_window(), window.default_vbox())
@@ -260,7 +278,13 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                #[cfg(target_os = "linux")]
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
                 if let Some(menu_bar) = menu_bar
                     .clone()
                     .gtk_menubar_for_gtk_window(window.gtk_window())
@@ -275,9 +299,21 @@ fn main() -> wry::Result<()> {
     };
 
     fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )))]
         return WebViewBuilder::new(window);
-        #[cfg(target_os = "linux")]
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
         WebViewBuilder::new_gtk(window.default_vbox().unwrap())
     };
 
@@ -318,7 +354,13 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {

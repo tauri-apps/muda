@@ -63,7 +63,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
@@ -71,7 +71,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
@@ -241,6 +241,7 @@ fn test_about_metadata() {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
+#[derive(Default)]
 pub(crate) enum PredefinedMenuItemType {
     Separator,
     Copy,

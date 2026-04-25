@@ -11,7 +11,13 @@ use muda::{
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -84,10 +90,11 @@ fn main() {
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+    let help_m = Submenu::new("&Custom Help", true);
 
     window_m.set_icon(Some(icon.clone()));
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m, &help_m]);
 
     let custom_i_1 = MenuItem::with_id(
         "custom-i-1",
@@ -149,6 +156,8 @@ fn main() {
         &custom_i_1,
     ]);
 
+    help_m.append_items(&[&MenuItem::new("Supposed to show search", true, None)]);
+
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
@@ -156,7 +165,13 @@ fn main() {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
         menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
@@ -165,6 +180,7 @@ fn main() {
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
+        help_m.set_as_help_menu_for_nsapp();
     }
 
     let menu_channel = MenuEvent::receiver();
@@ -233,7 +249,13 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {

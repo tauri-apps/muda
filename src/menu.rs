@@ -182,7 +182,16 @@ impl Menu {
     /// ## Panics:
     ///
     /// Panics if the gtk event loop hasn't been initialized on the thread.
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
@@ -270,7 +279,16 @@ impl Menu {
     }
 
     /// Removes this menu from a [`gtk::Window`]
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
@@ -289,7 +307,16 @@ impl Menu {
     }
 
     /// Hides this menu from a [`gtk::Window`]
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
@@ -308,7 +335,16 @@ impl Menu {
     }
 
     /// Shows this menu on a [`gtk::Window`]
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
@@ -327,7 +363,16 @@ impl Menu {
     }
 
     /// Returns whether this menu visible on a [`gtk::Window`]
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
         W: gtk::prelude::IsA<gtk::Window>,
@@ -335,7 +380,16 @@ impl Menu {
         self.inner.borrow().is_visible_on_gtk_window(window)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
     /// This is useful to get information about the menubar for example its height.
     pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
@@ -391,7 +445,16 @@ impl ContextMenu for Menu {
         self.inner.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn show_context_menu_for_gtk_window(
         &self,
         window: &gtk::Window,
@@ -402,7 +465,16 @@ impl ContextMenu for Menu {
             .show_context_menu_for_gtk_window(window, position)
     }
 
-    #[cfg(all(target_os = "linux", feature = "gtk"))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         self.inner.borrow_mut().gtk_context_menu()
     }
