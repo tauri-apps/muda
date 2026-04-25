@@ -28,7 +28,7 @@ serde = { version = "1", optional = true }
 dpi = "0.1"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
-version = "0.60"
+version = "0.61"
 features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_Foundation",
