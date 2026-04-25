@@ -337,7 +337,6 @@ mod sealed {
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Default)]
 pub(crate) enum MenuItemType {
     #[default]
     MenuItem,
