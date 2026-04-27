@@ -76,7 +76,7 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSView",
   "NSWindow",
 ] }
-png = "0.17"
+png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
