@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.19.1]
+
+- [`b3d108e`](https://www.github.com/tauri-apps/muda/commit/b3d108ea60028acb3faf62d2ab975b4ded1d2e4e) ([#350](https://www.github.com/tauri-apps/muda/pull/350) by [@lucasfernog](https://www.github.com/tauri-apps/muda/../../lucasfernog)) Bump objc2 requirement to 0.6.1.
+
 ## \[0.19.0]
 
 - [`521b5ff`](https://www.github.com/tauri-apps/muda/commit/521b5ffdac0dae0bc865434241c401bac483daed) ([#344](https://www.github.com/tauri-apps/muda/pull/344) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Update png dependency version to 0.18.
