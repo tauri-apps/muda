@@ -1,5 +1,13 @@
 # Changelog
 
+## \[0.19.0]
+
+- [`521b5ff`](https://www.github.com/tauri-apps/muda/commit/521b5ffdac0dae0bc865434241c401bac483daed) ([#344](https://www.github.com/tauri-apps/muda/pull/344) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Update png dependency version to 0.18.
+
+  This avoids duplicated dependencies in downstream crates.
+- [`521b5ff`](https://www.github.com/tauri-apps/muda/commit/521b5ffdac0dae0bc865434241c401bac483daed) ([#344](https://www.github.com/tauri-apps/muda/pull/344) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Update rust version to 1.73.
+- [`820bd54`](https://www.github.com/tauri-apps/muda/commit/820bd54069b3dccba9b5c6e9c6aa7c00f0e6ffb6) ([#347](https://www.github.com/tauri-apps/muda/pull/347) by [@renovate](https://www.github.com/tauri-apps/muda/../../renovate)) Relaxed `windows-sys` dependency to `>=0.60, <=0.61` instead of `0.60`
+
 ## \[0.18.0]
 
 - [`b324619`](https://www.github.com/tauri-apps/muda/commit/b324619069e6ebd7b259fa15400fca87586b5dc6) ([#339](https://www.github.com/tauri-apps/muda/pull/339) by [@LeonMatthes](https://www.github.com/tauri-apps/muda/../../LeonMatthes)) Add a new `KeyAccelerator` struct based on `keyboard_types::Key` alongside the existing `Accelerator` (based on `Code`).
