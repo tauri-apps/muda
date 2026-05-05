@@ -83,4 +83,31 @@ mod test {
         let item = PredefinedMenuItem::separator();
         assert_eq!(item.id().clone(), item.into_id());
     }
+
+    #[test]
+    #[cfg_attr(
+        all(
+            miri,
+            not(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ))
+        ),
+        ignore
+    )]
+    fn set_text_with_secondary_concatenates_label() {
+        let item = MenuItem::new("Preview", true, None);
+        item.set_text_with_secondary("Preview", Some(" (default)"));
+        assert_eq!(item.text(), "Preview (default)");
+
+        item.set_text_with_secondary("Preview", None);
+        assert_eq!(item.text(), "Preview");
+
+        let icon_item = IconMenuItem::new("Preview", true, None, None);
+        icon_item.set_text_with_secondary("Speakers", Some(" (current)"));
+        assert_eq!(icon_item.text(), "Speakers (current)");
+    }
 }

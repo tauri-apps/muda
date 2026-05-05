@@ -183,6 +183,35 @@ impl IconMenuItem {
         self.inner.borrow_mut().set_text(text.as_ref())
     }
 
+    /// Set the item's label as a Finder-style two-part string: `primary` rendered in the
+    /// default menu label color, optionally followed by `secondary` rendered in
+    /// `NSColor.secondaryLabelColor`. Both parts use the standard menu font.
+    /// Pass `None` for `secondary` to clear back to plain `setTitle:` styling.
+    ///
+    /// Useful for labels like `Preview (default)`, `Speakers (current)`, or
+    /// `Folder (3 items selected)`.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: Concatenates `primary` and `secondary` and falls back to
+    ///   [`IconMenuItem::set_text`]; the secondary part is not visually distinguished.
+    pub fn set_text_with_secondary(&self, primary: &str, secondary: Option<&str>) {
+        #[cfg(target_os = "macos")]
+        {
+            self.inner
+                .borrow_mut()
+                .set_text_with_secondary(primary, secondary);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let combined = match secondary {
+                Some(sec) => format!("{primary}{sec}"),
+                None => primary.to_string(),
+            };
+            self.inner.borrow_mut().set_text(&combined);
+        }
+    }
+
     /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
         self.inner.borrow().is_enabled()

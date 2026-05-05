@@ -18,17 +18,18 @@ use objc2::{
     define_class, msg_send,
     rc::Retained,
     runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel},
-    sel, DeclaredClass, MainThreadOnly, Message,
+    sel, AnyThread, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
-    NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
+    NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
+    NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
+    NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
-    NSSize, NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
+    NSMutableAttributedString, NSObject, NSPoint, NSRange, NSSize, NSString,
 };
 
 use self::util::strip_mnemonic;
@@ -238,6 +239,9 @@ pub struct MenuChild {
 
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
 
+    /// Set by `set_text_with_secondary`; reapplied at lazy `NSMenuItem` creation.
+    attributed_title_parts: Option<(String, String)>,
+
     // menu item fields
     accelerator: Option<MenuAccelerator>,
 
@@ -308,6 +312,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -336,6 +341,7 @@ impl MenuChild {
             icon: None,
             native_icon: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: Some(HashMap::new()),
             predefined_item_type: None,
         }
@@ -373,6 +379,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: None,
         }
     }
@@ -396,6 +403,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -420,6 +428,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -444,6 +453,7 @@ impl MenuChild {
             icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
+            attributed_title_parts: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -466,14 +476,54 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = strip_mnemonic(text);
+        self.attributed_title_parts = None;
         let title = NSString::from_str(&self.text);
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
+                ns_item.setAttributedTitle(None);
                 ns_item.setTitle(&title);
                 if let Some(submenu) = ns_item.submenu() {
                     submenu.setTitle(&title);
                 }
             }
+        }
+    }
+
+    pub fn set_text_with_secondary(&mut self, primary: &str, secondary: Option<&str>) {
+        let primary = strip_mnemonic(primary);
+        let secondary = secondary.map(strip_mnemonic);
+        let combined = match &secondary {
+            Some(sec) => {
+                let mut s = String::with_capacity(primary.len() + sec.len());
+                s.push_str(&primary);
+                s.push_str(sec);
+                s
+            }
+            None => primary.clone(),
+        };
+        self.text = combined;
+
+        self.attributed_title_parts = secondary.as_ref().map(|sec| (primary.clone(), sec.clone()));
+
+        let title = NSString::from_str(&self.text);
+        let attributed = secondary
+            .as_ref()
+            .map(|sec| build_attributed_secondary_title(&primary, sec));
+        for ns_items in self.ns_menu_items.values() {
+            for ns_item in ns_items {
+                ns_item.setAttributedTitle(attributed.as_deref());
+                ns_item.setTitle(&title);
+                if let Some(submenu) = ns_item.submenu() {
+                    submenu.setTitle(&title);
+                }
+            }
+        }
+    }
+
+    fn apply_attributed_title_if_any(&self, ns_menu_item: &NSMenuItem) {
+        if let Some((primary, secondary)) = &self.attributed_title_parts {
+            let attributed = build_attributed_secondary_title(primary, secondary);
+            ns_menu_item.setAttributedTitle(Some(&attributed));
         }
     }
 
@@ -860,6 +910,8 @@ impl MenuChild {
 
         ns_menu_item.ivars().replace(Some(owner));
 
+        self.apply_attributed_title_if_any(&ns_menu_item);
+
         self.ns_menu_items
             .entry(menu_id)
             .or_default()
@@ -963,6 +1015,8 @@ impl MenuChild {
         }
 
         ns_menu_item.ivars().replace(Some(owner));
+
+        self.apply_attributed_title_if_any(&ns_menu_item);
 
         self.ns_menu_items
             .entry(menu_id)
@@ -1214,6 +1268,38 @@ impl MenuItem {
     }
 }
 
+/// Builds a two-run attributed title: primary in default color, secondary in `NSColor.secondaryLabelColor`.
+fn build_attributed_secondary_title(
+    primary: &str,
+    secondary: &str,
+) -> Retained<NSAttributedString> {
+    unsafe {
+        let combined = NSString::from_str(&format!("{primary}{secondary}"));
+        let attributed = NSMutableAttributedString::initWithString(
+            NSMutableAttributedString::alloc(),
+            &combined,
+        );
+
+        let font = NSFont::menuFontOfSize(0.0);
+        let full_range = NSRange::new(0, combined.length());
+        attributed.addAttribute_value_range(NSFontAttributeName, &font, full_range);
+
+        let primary_utf16_len = NSString::from_str(primary).length();
+        let secondary_utf16_len = combined.length().saturating_sub(primary_utf16_len);
+        if secondary_utf16_len > 0 {
+            let secondary_range = NSRange::new(primary_utf16_len, secondary_utf16_len);
+            let color = NSColor::secondaryLabelColor();
+            attributed.addAttribute_value_range(
+                NSForegroundColorAttributeName,
+                &color,
+                secondary_range,
+            );
+        }
+
+        Retained::cast_unchecked::<NSAttributedString>(attributed)
+    }
+}
+
 fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>) {
     if let Some(icon) = icon {
         let nsimage = icon.inner.to_nsimage(Some(18.));
@@ -1340,4 +1426,38 @@ unsafe fn show_context_menu(
     };
 
     ns_menu.popUpMenuPositioningItem_atLocation_inView(None, location, in_view)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attributed_title_parts_round_trip() {
+        let mut child = MenuChild::new("placeholder", true, None, None);
+        assert!(child.attributed_title_parts.is_none());
+
+        child.set_text_with_secondary("Preview", Some(" (default)"));
+        assert_eq!(
+            child
+                .attributed_title_parts
+                .as_ref()
+                .map(|(p, s)| (p.as_str(), s.as_str())),
+            Some(("Preview", " (default)"))
+        );
+        assert_eq!(child.text, "Preview (default)");
+
+        // Calling with `None` reverts to plain text and clears the remembered pair.
+        child.set_text_with_secondary("Preview", None);
+        assert!(child.attributed_title_parts.is_none());
+        assert_eq!(child.text, "Preview");
+
+        // Setting it again, then `set_text` should also clear it (so a later append doesn't
+        // re-attribute a plain title).
+        child.set_text_with_secondary("Preview", Some(" (default)"));
+        assert!(child.attributed_title_parts.is_some());
+        child.set_text("Plain again");
+        assert!(child.attributed_title_parts.is_none());
+        assert_eq!(child.text, "Plain again");
+    }
 }
