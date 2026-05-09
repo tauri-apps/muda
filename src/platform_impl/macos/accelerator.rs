@@ -14,7 +14,7 @@ impl KeyAccelerator {
             Key::Character(s) => s.clone(),
             Key::Tab => "⇥".into(),
             Key::Escape => "\u{001b}".into(),
-            Key::Enter => "\u{0003}".into(),
+            Key::Enter => "\u{000d}".into(),
             Key::Backspace => "\u{0008}".into(),
             Key::Delete => "\u{007f}".into(),
             Key::Insert => "\u{F727}".into(),
