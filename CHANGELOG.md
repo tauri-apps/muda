@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.19.2]
+
+- [`597e1bc`](https://www.github.com/tauri-apps/muda/commit/597e1bcb300fce429643725810e63a95333c7046) ([#354](https://www.github.com/tauri-apps/muda/pull/354) by [@kohii](https://www.github.com/tauri-apps/muda/../../kohii)) On macOS, render `Key::Enter` accelerators in menus as ⏎ (Return) instead of ⌤ (numeric-keypad Enter). Activation behavior is unchanged.
+- [`51fde8e`](https://www.github.com/tauri-apps/muda/commit/51fde8e47e4c181fce892b2420d22f3d4e69bead) ([#357](https://www.github.com/tauri-apps/muda/pull/357) by [@mattico](https://www.github.com/tauri-apps/muda/../../mattico)) On Windows, fixed a bug that would truncate menubar items text to ~10 characters in dark-mode.
+
 ## \[0.19.1]
 
 - [`b3d108e`](https://www.github.com/tauri-apps/muda/commit/b3d108ea60028acb3faf62d2ab975b4ded1d2e4e) ([#350](https://www.github.com/tauri-apps/muda/pull/350) by [@lucasfernog](https://www.github.com/tauri-apps/muda/../../lucasfernog)) Bump objc2 requirement to 0.6.1.
