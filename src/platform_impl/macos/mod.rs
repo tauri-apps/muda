@@ -12,7 +12,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     ffi::c_void,
-    ptr,
     rc::Rc,
 };
 
@@ -804,7 +803,7 @@ impl MenuChild {
         let id = COUNTER.next();
 
         for item in self.children.as_ref().unwrap() {
-            let ns_item = item.borrow_mut().make_ns_item_for_menu(id)?;
+            let ns_item = item.borrow_mut().make_ns_item_for_menu(item.clone(), id)?;
             ns_submenu.addItem(&ns_item);
         }
 
@@ -825,6 +824,7 @@ impl MenuChild {
 
     pub fn create_ns_item_for_menu_item(
         &mut self,
+        owner: Rc<RefCell<MenuChild>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
@@ -837,12 +837,10 @@ impl MenuChild {
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-
-            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
-            ns_menu_item.ivars().set(&*self);
-
             ns_menu_item.setEnabled(self.enabled);
         }
+
+        ns_menu_item.ivars().replace(Some(owner));
 
         self.ns_menu_items
             .entry(menu_id)
@@ -854,6 +852,7 @@ impl MenuChild {
 
     pub fn create_ns_item_for_predefined_menu_item(
         &mut self,
+        owner: Rc<RefCell<MenuChild>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
@@ -867,10 +866,8 @@ impl MenuChild {
                 if let PredefinedMenuItemType::About(_) = item_type {
                     unsafe {
                         ns_menu_item.setTarget(Some(&ns_menu_item));
-
-                        // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
-                        ns_menu_item.ivars().set(&*self);
                     }
+                    ns_menu_item.ivars().replace(Some(owner));
                 }
 
                 Retained::into_super(ns_menu_item)
@@ -898,6 +895,7 @@ impl MenuChild {
 
     pub fn create_ns_item_for_check_menu_item(
         &mut self,
+        owner: Rc<RefCell<MenuChild>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
@@ -910,15 +908,13 @@ impl MenuChild {
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-
-            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
-            ns_menu_item.ivars().set(&*self);
-
             ns_menu_item.setEnabled(self.enabled);
             if self.checked.get() {
                 ns_menu_item.setState(NSControlStateValueOn);
             }
         }
+
+        ns_menu_item.ivars().replace(Some(owner));
 
         self.ns_menu_items
             .entry(menu_id)
@@ -930,6 +926,7 @@ impl MenuChild {
 
     pub fn create_ns_item_for_icon_menu_item(
         &mut self,
+        owner: Rc<RefCell<MenuChild>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
@@ -942,10 +939,6 @@ impl MenuChild {
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-
-            // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
-            ns_menu_item.ivars().set(&*self);
-
             ns_menu_item.setEnabled(self.enabled);
 
             if self.icon.is_some() {
@@ -955,6 +948,8 @@ impl MenuChild {
             }
         }
 
+        ns_menu_item.ivars().replace(Some(owner));
+
         self.ns_menu_items
             .entry(menu_id)
             .or_default()
@@ -963,13 +958,19 @@ impl MenuChild {
         Ok(Retained::into_super(ns_menu_item))
     }
 
-    fn make_ns_item_for_menu(&mut self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
+    fn make_ns_item_for_menu(
+        &mut self,
+        owner: Rc<RefCell<MenuChild>>,
+        menu_id: u32,
+    ) -> crate::Result<Retained<NSMenuItem>> {
         match self.item_type {
             MenuItemType::Submenu => self.create_ns_item_for_submenu(menu_id),
-            MenuItemType::MenuItem => self.create_ns_item_for_menu_item(menu_id),
-            MenuItemType::Predefined => self.create_ns_item_for_predefined_menu_item(menu_id),
-            MenuItemType::Check => self.create_ns_item_for_check_menu_item(menu_id),
-            MenuItemType::Icon => self.create_ns_item_for_icon_menu_item(menu_id),
+            MenuItemType::MenuItem => self.create_ns_item_for_menu_item(owner, menu_id),
+            MenuItemType::Predefined => {
+                self.create_ns_item_for_predefined_menu_item(owner, menu_id)
+            }
+            MenuItemType::Check => self.create_ns_item_for_check_menu_item(owner, menu_id),
+            MenuItemType::Icon => self.create_ns_item_for_icon_menu_item(owner, menu_id),
         }
     }
 }
@@ -1005,19 +1006,22 @@ impl dyn IsMenuItem + '_ {
     fn make_ns_item_for_menu(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
         match self.kind() {
             MenuItemKind::Submenu(i) => i.inner.borrow_mut().create_ns_item_for_submenu(menu_id),
-            MenuItemKind::MenuItem(i) => i.inner.borrow_mut().create_ns_item_for_menu_item(menu_id),
+            MenuItemKind::MenuItem(i) => i
+                .inner
+                .borrow_mut()
+                .create_ns_item_for_menu_item(i.inner.clone(), menu_id),
             MenuItemKind::Predefined(i) => i
                 .inner
                 .borrow_mut()
-                .create_ns_item_for_predefined_menu_item(menu_id),
+                .create_ns_item_for_predefined_menu_item(i.inner.clone(), menu_id),
             MenuItemKind::Check(i) => i
                 .inner
                 .borrow_mut()
-                .create_ns_item_for_check_menu_item(menu_id),
+                .create_ns_item_for_check_menu_item(i.inner.clone(), menu_id),
             MenuItemKind::Icon(i) => i
                 .inner
                 .borrow_mut()
-                .create_ns_item_for_icon_menu_item(menu_id),
+                .create_ns_item_for_icon_menu_item(i.inner.clone(), menu_id),
         }
     }
 }
@@ -1026,8 +1030,7 @@ define_class!(
     #[unsafe(super(NSMenuItem))]
     #[name = "MudaMenuItem"]
     #[thread_kind = MainThreadOnly]
-    // FIXME: Use `Rc` or something else to access the MenuChild.
-    #[ivars = Cell<*const MenuChild>]
+    #[ivars = RefCell<Option<Rc<RefCell<MenuChild>>>>]
     struct MenuItem;
 
     impl MenuItem {
@@ -1045,7 +1048,7 @@ impl MenuItem {
         action: Option<Sel>,
         key_equivalent: &NSString,
     ) -> Retained<Self> {
-        let this = mtm.alloc().set_ivars(Cell::new(ptr::null()));
+        let this = mtm.alloc().set_ivars(RefCell::new(None));
         unsafe {
             msg_send![super(this), initWithTitle: title, action: action, keyEquivalent: key_equivalent]
         }
@@ -1053,10 +1056,11 @@ impl MenuItem {
 
     fn fire_menu_item_click(&self) {
         let mtm = MainThreadMarker::from(self);
-        // Create a reference to the `MenuChild` from the raw pointer
-        // stored as an instance variable on the native menu item
-        let item =
-            unsafe { self.ivars().get().as_ref() }.expect("MenuItem's MenuChild pointer was unset");
+        let item = self.ivars().borrow();
+        let item = item
+            .as_ref()
+            .expect("MenuItem's MenuChild pointer was unset")
+            .borrow();
 
         if let Some(PredefinedMenuItemType::About(about_meta)) = &item.predefined_item_type {
             match about_meta {
