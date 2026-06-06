@@ -1433,6 +1433,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
     fn attributed_title_parts_round_trip() {
         let mut child = MenuChild::new("placeholder", true, None, None);
         assert!(child.attributed_title_parts.is_none());
