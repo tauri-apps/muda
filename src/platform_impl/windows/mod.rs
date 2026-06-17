@@ -112,9 +112,8 @@ pub(crate) struct Menu {
 
 impl Drop for Menu {
     fn drop(&mut self) {
-        let hwnds = self.hwnds.borrow().keys().copied().collect::<Vec<_>>();
-        for hwnd in &hwnds {
-            let _ = unsafe { self.remove_for_hwnd(*hwnd) };
+        for (hwnd, _) in self.hwnds.borrow_mut().drain() {
+            unsafe { Self::remove_from_hwnd(hwnd) };
         }
 
         fn remove_from_children_stores(internal_id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
@@ -143,10 +142,6 @@ impl Drop for Menu {
         }
 
         unsafe {
-            for hwnd in &hwnds {
-                SetMenu(*hwnd as _, std::ptr::null_mut());
-                RemoveWindowSubclass(*hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
-            }
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
         }
@@ -346,13 +341,13 @@ impl Menu {
         self.hwnds.borrow_mut().insert(hwnd, theme);
 
         // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, self.hmenu);
         SetWindowSubclass(
             hwnd as _,
             Some(menu_subclass_proc),
             MENU_SUBCLASS_ID,
             dwrefdata_from_obj(self),
         );
+        SetMenu(hwnd as _, self.hmenu);
         DrawMenuBar(hwnd as _);
 
         Ok(())
@@ -367,12 +362,16 @@ impl Menu {
             .borrow_mut()
             .remove(&hwnd)
             .ok_or(crate::Error::NotInitialized)?;
-
-        // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, std::ptr::null_mut());
-        DrawMenuBar(hwnd as _);
-
+        Self::remove_from_hwnd(hwnd);
         Ok(())
+    }
+
+    unsafe fn remove_from_hwnd(hwnd: isize) {
+        let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
+        // SAFETY: HWND validity is upheld by caller
+        RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+        SetMenu(hwnd, std::ptr::null_mut());
+        DrawMenuBar(hwnd);
     }
 
     pub unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
