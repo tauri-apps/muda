@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.19.3]
+
+- [`73106f5`](https://www.github.com/tauri-apps/muda/commit/73106f5c548a08bfeea35a1627ea533726f5ba2e) ([#363](https://www.github.com/tauri-apps/muda/pull/363) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) On Windows, fixed a `dangling` pointer crash when `Menu::remove_for_hwnd` is called before dropping that `Menu` and then attached a new `Menu`
+
 ## \[0.19.2]
 
 - [`597e1bc`](https://www.github.com/tauri-apps/muda/commit/597e1bcb300fce429643725810e63a95333c7046) ([#354](https://www.github.com/tauri-apps/muda/pull/354) by [@kohii](https://www.github.com/tauri-apps/muda/../../kohii)) On macOS, render `Key::Enter` accelerators in menus as ⏎ (Return) instead of ⌤ (numeric-keypad Enter). Activation behavior is unchanged.
