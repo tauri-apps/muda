@@ -4,7 +4,15 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use super::compat::{CompatMenuItem, CompatCheckmarkItem, strip_mnemonic};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -16,6 +24,8 @@ use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId
 pub struct CheckMenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) compat: Arc<ArcSwap<CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for CheckMenuItem {}
@@ -51,9 +61,19 @@ impl CheckMenuItem {
             accelerator,
             None,
         );
+        let id = item.id().clone();
         Self {
-            id: Rc::new(item.id().clone()),
+            id: Rc::new(id.clone()),
             inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Checkmark(
+                CompatCheckmarkItem {
+                    id: id.0.clone(),
+                    label: strip_mnemonic(text.as_ref()),
+                    enabled,
+                    checked,
+                },
+            ))),
         }
     }
 
@@ -76,7 +96,16 @@ impl CheckMenuItem {
                 enabled,
                 checked,
                 accelerator,
-                Some(id),
+                Some(id.clone()),
+            ))),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Checkmark(
+                CompatCheckmarkItem {
+                    id: id.0.clone(),
+                    label: strip_mnemonic(text.as_ref()),
+                    enabled,
+                    checked,
+                },
             ))),
         }
     }

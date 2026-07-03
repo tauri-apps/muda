@@ -1,6 +1,6 @@
 [package]
 name = "muda"
-version = "0.16.1"
+version = "0.17.1"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
@@ -9,13 +9,18 @@ readme = "README.md"
 repository = "https://github.com/amrbashir/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
-rust-version = "1.71"
+rust-version = "1.83"
 
 [features]
-default = ["libxdo"]
-libxdo = ["dep:libxdo"]
+default = []
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde"]
+# ksni support for tray-icon on Linux (GTK-agnostic DBus tray)
+linux-ksni = ["dep:arc-swap"]
+# No-op for GTK4 - libxdo is X11-only, GTK4 is Wayland-focused
+libxdo = []
+# No-op - GTK4 is always used on Linux, this exists for API compatibility
+gtk = []
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -42,8 +47,9 @@ features = [
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gtk = "0.18"
-libxdo = { version = "0.6.0", optional = true }
+gtk4 = "0.10"
+png = "0.17"
+arc-swap = { version = "1.7.1", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.0"

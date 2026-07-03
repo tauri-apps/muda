@@ -97,7 +97,7 @@ fn main() -> wry::Result<()> {
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
         true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
     );
 
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
@@ -106,7 +106,7 @@ fn main() -> wry::Result<()> {
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
     );
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -115,7 +115,7 @@ fn main() -> wry::Result<()> {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);
@@ -172,12 +172,12 @@ fn main() -> wry::Result<()> {
     }
     #[cfg(target_os = "linux")]
     {
-        menu_bar
-            .init_for_gtk_window(window.gtk_window(), window.default_vbox())
-            .unwrap();
-        menu_bar
-            .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
-            .unwrap();
+        // menu_bar
+        //     .init_for_gtk_window(window.gtk_window(), window.default_vbox())
+        //     .unwrap();
+        // menu_bar
+        //     .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
+        //     .unwrap();
     }
     #[cfg(target_os = "macos")]
     {
@@ -257,14 +257,14 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                #[cfg(target_os = "linux")]
-                if let Some(menu_bar) = menu_bar
-                    .clone()
-                    .gtk_menubar_for_gtk_window(window.gtk_window())
-                {
-                    use gtk::prelude::*;
-                    y += menu_bar.allocated_height();
-                }
+                // #[cfg(target_os = "linux")]
+                // if let Some(menu_bar) = menu_bar
+                //     .clone()
+                //     .gtk_menubar_for_gtk_window(window.gtk_window())
+                // {
+                //     use gtk::prelude::*;
+                //     y += menu_bar.allocated_height();
+                // }
 
                 show_context_menu(&window, &file_m_c, Some(Position::Logical((x, y).into())))
             }
@@ -315,8 +315,8 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
-    menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+    // #[cfg(target_os = "linux")]
+    // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);

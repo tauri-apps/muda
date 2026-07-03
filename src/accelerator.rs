@@ -58,9 +58,8 @@ pub struct Accelerator {
 
 impl Accelerator {
     /// Creates a new accelerator to define keyboard shortcuts throughout your application.
-    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`]
-    pub fn new(mods: Option<Modifiers>, key: Code) -> Self {
-        let mut mods = mods.unwrap_or_else(Modifiers::empty);
+    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`] are supported.
+    pub fn new(mut mods: Modifiers, key: Code) -> Self {
         if mods.contains(Modifiers::META) {
             mods.remove(Modifiers::META);
             mods.insert(Modifiers::SUPER);
@@ -69,6 +68,11 @@ impl Accelerator {
         let id = Self::generate_hash(mods, key);
 
         Self { mods, key, id }
+    }
+
+    /// Same as [`Accelerator::new`] but consists of key without a modifier.
+    pub fn key_only(key: Code) -> Self {
+        Self::new(Modifiers::empty(), key)
     }
 
     fn generate_hash(mods: Modifiers, key: Code) -> u32 {
@@ -204,7 +208,7 @@ fn parse_accelerator(accelerator: &str) -> Result<Accelerator, AcceleratorParseE
     }
 
     let key = key.ok_or_else(|| AcceleratorParseError::InvalidFormat(accelerator.to_string()))?;
-    Ok(Accelerator::new(Some(mods), key))
+    Ok(Accelerator::new(mods, key))
 }
 
 fn parse_key(key: &str) -> Result<Code, AcceleratorParseError> {
@@ -423,7 +427,7 @@ fn test_parse_accelerator() {
 fn test_equality() {
     let h1 = parse_accelerator("Shift+KeyR").unwrap();
     let h2 = parse_accelerator("Shift+KeyR").unwrap();
-    let h3 = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyR);
+    let h3 = Accelerator::new(Modifiers::SHIFT, Code::KeyR);
     let h4 = parse_accelerator("Alt+KeyR").unwrap();
     let h5 = parse_accelerator("Alt+KeyR").unwrap();
     let h6 = parse_accelerator("KeyR").unwrap();

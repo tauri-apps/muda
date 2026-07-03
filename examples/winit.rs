@@ -195,7 +195,7 @@ impl AppMenu {
         let custom_i_1 = MenuItem::new(
             "C&ustom 1",
             true,
-            Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+            Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
         );
 
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
@@ -208,7 +208,7 @@ impl AppMenu {
             "Check Custom 3",
             true,
             true,
-            Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+            Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
         );
 
         let copy_i = PredefinedMenuItem::copy(None);

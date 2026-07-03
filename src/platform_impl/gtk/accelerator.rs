@@ -1,182 +1,207 @@
-// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
-
-use gtk::gdk;
 use keyboard_types::{Code, Modifiers};
 
-use crate::accelerator::{Accelerator, AcceleratorParseError};
+use crate::accelerator::Accelerator;
 
-pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
-    string
-        .as_ref()
-        .replace("&&", "[~~]")
-        .replace('&', "_")
-        .replace("[~~]", "&&")
-        .replace("[~~]", "&")
+impl Accelerator {
+    pub fn to_gtk(&self) -> String {
+        let mut gtk = modifiers_to_gtk(self.mods);
+        gtk.push_str(code_to_gtk(self.key));
+        gtk
+    }
 }
 
-pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
-    string
-        .as_ref()
-        .replace("__", "[~~]")
-        .replace('_', "&")
-        .replace("[~~]", "__")
+fn modifiers_to_gtk(mods: Modifiers) -> String {
+    let mut gtk = String::new();
+
+    if mods.shift() {
+        gtk.push_str("<Shift>");
+    }
+    if mods.ctrl() {
+        gtk.push_str("<Control>");
+    }
+    if mods.alt() {
+        gtk.push_str("<Alt>");
+    }
+    if mods.meta() {
+        gtk.push_str("<Meta>");
+    }
+    gtk
 }
 
-pub fn parse_accelerator(
-    accelerator: &Accelerator,
-) -> Result<(gdk::ModifierType, u32), AcceleratorParseError> {
-    let key = match &accelerator.key {
-        Code::KeyA => 'A' as u32,
-        Code::KeyB => 'B' as u32,
-        Code::KeyC => 'C' as u32,
-        Code::KeyD => 'D' as u32,
-        Code::KeyE => 'E' as u32,
-        Code::KeyF => 'F' as u32,
-        Code::KeyG => 'G' as u32,
-        Code::KeyH => 'H' as u32,
-        Code::KeyI => 'I' as u32,
-        Code::KeyJ => 'J' as u32,
-        Code::KeyK => 'K' as u32,
-        Code::KeyL => 'L' as u32,
-        Code::KeyM => 'M' as u32,
-        Code::KeyN => 'N' as u32,
-        Code::KeyO => 'O' as u32,
-        Code::KeyP => 'P' as u32,
-        Code::KeyQ => 'Q' as u32,
-        Code::KeyR => 'R' as u32,
-        Code::KeyS => 'S' as u32,
-        Code::KeyT => 'T' as u32,
-        Code::KeyU => 'U' as u32,
-        Code::KeyV => 'V' as u32,
-        Code::KeyW => 'W' as u32,
-        Code::KeyX => 'X' as u32,
-        Code::KeyY => 'Y' as u32,
-        Code::KeyZ => 'Z' as u32,
-        Code::Digit0 => '0' as u32,
-        Code::Digit1 => '1' as u32,
-        Code::Digit2 => '2' as u32,
-        Code::Digit3 => '3' as u32,
-        Code::Digit4 => '4' as u32,
-        Code::Digit5 => '5' as u32,
-        Code::Digit6 => '6' as u32,
-        Code::Digit7 => '7' as u32,
-        Code::Digit8 => '8' as u32,
-        Code::Digit9 => '9' as u32,
-        Code::Comma => ',' as u32,
-        Code::Minus => '-' as u32,
-        Code::Period => '.' as u32,
-        Code::Space => ' ' as u32,
-        Code::Equal => '=' as u32,
-        Code::Semicolon => ';' as u32,
-        Code::Slash => '/' as u32,
-        Code::Backslash => '\\' as u32,
-        Code::Quote => '\'' as u32,
-        Code::Backquote => '`' as u32,
-        Code::BracketLeft => '[' as u32,
-        Code::BracketRight => ']' as u32,
-        key => {
-            if let Some(gdk_key) = key_to_raw_key(key) {
-                *gdk_key
-            } else {
-                return Err(AcceleratorParseError::UnsupportedKey(key.to_string()));
-            }
-        }
-    };
-
-    Ok((modifiers_to_gdk_modifier_type(accelerator.mods), key))
-}
-
-fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
-    let mut result = gdk::ModifierType::empty();
-
-    result.set(
-        gdk::ModifierType::MOD1_MASK,
-        modifiers.contains(Modifiers::ALT),
-    );
-    result.set(
-        gdk::ModifierType::CONTROL_MASK,
-        modifiers.contains(Modifiers::CONTROL),
-    );
-    result.set(
-        gdk::ModifierType::SHIFT_MASK,
-        modifiers.contains(Modifiers::SHIFT),
-    );
-    result.set(
-        gdk::ModifierType::META_MASK,
-        modifiers.contains(Modifiers::SUPER),
-    );
-
-    result
-}
-
-fn key_to_raw_key(src: &Code) -> Option<gdk::keys::Key> {
-    use gdk::keys::constants::*;
-    Some(match src {
-        Code::Escape => Escape,
-        Code::Backspace => BackSpace,
-
-        Code::Tab => Tab,
-        Code::Enter => Return,
-
-        Code::ControlLeft => Control_L,
-        Code::AltLeft => Alt_L,
-        Code::ShiftLeft => Shift_L,
-        Code::MetaLeft => Super_L,
-
-        Code::ControlRight => Control_R,
-        Code::AltRight => Alt_R,
-        Code::ShiftRight => Shift_R,
-        Code::MetaRight => Super_R,
-
-        Code::CapsLock => Caps_Lock,
-        Code::F1 => F1,
-        Code::F2 => F2,
-        Code::F3 => F3,
-        Code::F4 => F4,
-        Code::F5 => F5,
-        Code::F6 => F6,
-        Code::F7 => F7,
-        Code::F8 => F8,
-        Code::F9 => F9,
-        Code::F10 => F10,
-        Code::F11 => F11,
-        Code::F12 => F12,
-        Code::F13 => F13,
-        Code::F14 => F14,
-        Code::F15 => F15,
-        Code::F16 => F16,
-        Code::F17 => F17,
-        Code::F18 => F18,
-        Code::F19 => F19,
-        Code::F20 => F20,
-        Code::F21 => F21,
-        Code::F22 => F22,
-        Code::F23 => F23,
-        Code::F24 => F24,
-
-        Code::PrintScreen => Print,
-        Code::ScrollLock => Scroll_Lock,
-        // Pause/Break not audio.
-        Code::Pause => Pause,
-
-        Code::Insert => Insert,
-        Code::Delete => Delete,
-        Code::Home => Home,
-        Code::End => End,
-        Code::PageUp => Page_Up,
-        Code::PageDown => Page_Down,
-
-        Code::NumLock => Num_Lock,
-
-        Code::ArrowUp => Up,
-        Code::ArrowDown => Down,
-        Code::ArrowLeft => Left,
-        Code::ArrowRight => Right,
-
-        Code::ContextMenu => Menu,
-        Code::WakeUp => WakeUp,
-        _ => return None,
-    })
+fn code_to_gtk(code: Code) -> &'static str {
+    match code {
+        Code::Backquote => "grave",
+        Code::Backslash => "backslash",
+        Code::BracketLeft => "bracketleft",
+        Code::BracketRight => "bracketright",
+        Code::Comma => "comma",
+        Code::Digit0 => "0",
+        Code::Digit1 => "1",
+        Code::Digit2 => "2",
+        Code::Digit3 => "3",
+        Code::Digit4 => "4",
+        Code::Digit5 => "5",
+        Code::Digit6 => "6",
+        Code::Digit7 => "7",
+        Code::Digit8 => "8",
+        Code::Digit9 => "9",
+        Code::Equal => "equal",
+        Code::KeyA => "A",
+        Code::KeyB => "B",
+        Code::KeyC => "C",
+        Code::KeyD => "D",
+        Code::KeyE => "E",
+        Code::KeyF => "F",
+        Code::KeyG => "G",
+        Code::KeyH => "H",
+        Code::KeyI => "I",
+        Code::KeyJ => "J",
+        Code::KeyK => "K",
+        Code::KeyL => "L",
+        Code::KeyM => "M",
+        Code::KeyN => "N",
+        Code::KeyO => "O",
+        Code::KeyP => "P",
+        Code::KeyQ => "Q",
+        Code::KeyR => "R",
+        Code::KeyS => "S",
+        Code::KeyT => "T",
+        Code::KeyU => "U",
+        Code::KeyV => "V",
+        Code::KeyW => "W",
+        Code::KeyX => "X",
+        Code::KeyY => "Y",
+        Code::KeyZ => "Z",
+        Code::Minus => "minus",
+        Code::Period => "period",
+        Code::Quote => "quotedbl",
+        Code::Semicolon => "semicolon",
+        Code::Slash => "slash",
+        Code::AltLeft => "Alt_L",
+        Code::AltRight => "Alt_R",
+        Code::Backspace => "BackSpace",
+        Code::CapsLock => "Caps_Lock",
+        Code::ContextMenu => "Menu",
+        Code::ControlLeft => "Control_L",
+        Code::ControlRight => "Control_R",
+        Code::Enter => "Return",
+        Code::MetaLeft => "Meta_L",
+        Code::MetaRight => "Meta_R",
+        Code::ShiftLeft => "Shift_L",
+        Code::ShiftRight => "Shift_R",
+        Code::Space => "space",
+        Code::Tab => "Tab",
+        Code::Delete => "Delete",
+        Code::End => "End",
+        Code::Help => "Help",
+        Code::Home => "Home",
+        Code::Insert => "Insert",
+        Code::PageDown => "Page_Down",
+        Code::PageUp => "Page_Up",
+        Code::ArrowDown => "downarrow",
+        Code::ArrowLeft => "leftarrow",
+        Code::ArrowRight => "rightarrow",
+        Code::ArrowUp => "uparrow",
+        Code::NumLock => "Num_Lock",
+        Code::Numpad0 => "KP_0",
+        Code::Numpad1 => "KP_1",
+        Code::Numpad2 => "KP_2",
+        Code::Numpad3 => "KP_3",
+        Code::Numpad4 => "KP_4",
+        Code::Numpad5 => "KP_5",
+        Code::Numpad6 => "KP_6",
+        Code::Numpad7 => "KP_7",
+        Code::Numpad8 => "KP_8",
+        Code::Numpad9 => "KP_9",
+        Code::NumpadAdd => "KP_Add",
+        Code::NumpadClear => "Clear",
+        Code::NumpadComma => "KP_Separator",
+        Code::NumpadDecimal => "KP_Decimal",
+        Code::NumpadDivide => "KP_Divide",
+        Code::NumpadEnter => "KP_Enter",
+        Code::NumpadEqual => "KP_Equal",
+        Code::NumpadHash => "numbersign",
+        Code::NumpadMemoryAdd => "KP_Add",
+        Code::NumpadMemoryClear => "Clear",
+        Code::NumpadMemorySubtract => "KP_Subtract",
+        Code::NumpadMultiply => "KP_Multiply",
+        Code::NumpadParenLeft => "parenleft",
+        Code::NumpadParenRight => "parenright",
+        Code::NumpadStar => "asterisk",
+        Code::NumpadSubtract => "KP_Subtract",
+        Code::Escape => "Escape",
+        Code::Fn => "F",
+        Code::FnLock => "F",
+        Code::PrintScreen => "Print",
+        Code::ScrollLock => "Scroll_Lock",
+        Code::Pause => "Pause",
+        Code::BrowserBack => "Back",
+        Code::BrowserFavorites => "Favorites",
+        Code::BrowserForward => "Forward",
+        Code::BrowserHome => "HomePage",
+        Code::BrowserRefresh => "Reload",
+        Code::BrowserSearch => "Search",
+        Code::BrowserStop => "Stop",
+        Code::Eject => "Eject",
+        Code::LaunchApp1 => "Launch0",
+        Code::LaunchApp2 => "Launch1",
+        Code::LaunchMail => "Mail",
+        Code::MediaPlayPause => "AudioPlay",
+        Code::MediaSelect => "AudioMedia",
+        Code::MediaStop => "AudioStop",
+        Code::MediaTrackNext => "AudioNext",
+        Code::MediaTrackPrevious => "AudioPrev",
+        Code::Power => "PowerOff",
+        Code::Sleep => "Sleep",
+        Code::AudioVolumeDown => "AudioLowerVolume",
+        Code::AudioVolumeMute => "AudioMute",
+        Code::AudioVolumeUp => "AudioRaiseVolume",
+        Code::WakeUp => "WakeUp",
+        Code::Hyper => "Hyper_L",
+        Code::Super => "Super_L",
+        Code::Suspend => "Suspend",
+        Code::Copy => "Copy",
+        Code::Cut => "Cut",
+        Code::Find => "Find",
+        Code::Open => "Open",
+        Code::Paste => "Paste",
+        Code::Select => "Select",
+        Code::Undo => "Undo",
+        Code::F1 => "F1",
+        Code::F2 => "F2",
+        Code::F3 => "F3",
+        Code::F4 => "F4",
+        Code::F5 => "F5",
+        Code::F6 => "F6",
+        Code::F7 => "F7",
+        Code::F8 => "F8",
+        Code::F9 => "F9",
+        Code::F10 => "F10",
+        Code::F11 => "F11",
+        Code::F12 => "F12",
+        Code::F13 => "F13",
+        Code::F14 => "F14",
+        Code::F15 => "F15",
+        Code::F16 => "F16",
+        Code::F17 => "F17",
+        Code::F18 => "F18",
+        Code::F19 => "F19",
+        Code::F20 => "F20",
+        Code::F21 => "F21",
+        Code::F22 => "F22",
+        Code::F23 => "F23",
+        Code::F24 => "F24",
+        Code::F25 => "F25",
+        Code::F26 => "F26",
+        Code::F27 => "F27",
+        Code::F28 => "F28",
+        Code::F29 => "F29",
+        Code::F30 => "F30",
+        Code::F31 => "F31",
+        Code::F32 => "F32",
+        Code::F33 => "F33",
+        Code::F34 => "F34",
+        Code::F35 => "F35",
+        _ => return "",
+    }
 }

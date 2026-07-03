@@ -161,18 +161,20 @@ impl Menu {
         self.inner.borrow().items()
     }
 
-    /// Adds this menu to a [`gtk::Window`]
+    /// Adds this menu to a [`gtk4::Window`]
     ///
-    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
+    /// - `container`: this is an optional paramter to specify a container for the [`gtk4::PopoverMenuBar`],
     ///   it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
     ///   which is usually not the desired behavior.
-    ///   If using a [`gtk::Box`] as a container, it is added using [`Box::pack_start(menubar, false, false, 0)`](gtk::prelude::BoxExt::pack_start) then
-    ///   reordered to be the first child of [`gtk::Box`] using [`Box::reorder_child(menubar, 0)`](gtk::prelude::BoxExt::reorder_child).
+    ///   Supported types of containers are [`gtk4::Box`], [`gtk4::Stack`] and [`gtk4::Fixed`]:
+    ///   - [`gtk4::Box`], menu bar is add at the beginning using [`gtk4::prelude::BoxExt::prepend`]
+    ///   - [`gtk4::Stack`], menu bar is added using [`gtk4::Stack::add_child`].
+    ///   - [`gtk4::Fixed`], menu bar is put at 0,0 using [`gtk4::prelude::FixedExt::put`].
     ///
     /// ## Example:
     /// ```no_run
-    /// let window = gtk::Window::builder().build();
-    /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    /// let window = gtk4::Window::builder().build();
+    /// let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     /// let menu = muda::Menu::new();
     /// // -- snip, add your menu items --
     /// menu.init_for_gtk_window(&window, Some(&vbox));
@@ -185,9 +187,9 @@ impl Menu {
     #[cfg(target_os = "linux")]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Container>,
-        C: gtk::prelude::IsA<gtk::Container>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
+        C: gtk4::prelude::IsA<gtk4::Widget>,
     {
         self.inner
             .borrow_mut()
@@ -269,11 +271,12 @@ impl Menu {
         self.inner.borrow_mut().haccel()
     }
 
-    /// Removes this menu from a [`gtk::Window`]
+    /// Removes this menu from a [`gtk4::Window`]
     #[cfg(target_os = "linux")]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
     {
         self.inner.borrow_mut().remove_for_gtk_window(window)
     }
@@ -288,11 +291,11 @@ impl Menu {
         self.inner.borrow_mut().remove_for_hwnd(hwnd)
     }
 
-    /// Hides this menu from a [`gtk::Window`]
+    /// Hides this menu from a [`gtk4::Window`]
     #[cfg(target_os = "linux")]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         self.inner.borrow_mut().hide_for_gtk_window(window)
     }
@@ -307,11 +310,11 @@ impl Menu {
         self.inner.borrow().hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu on a [`gtk::Window`]
+    /// Shows this menu on a [`gtk4::Window`]
     #[cfg(target_os = "linux")]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         self.inner.borrow_mut().show_for_gtk_window(window)
     }
@@ -326,21 +329,21 @@ impl Menu {
         self.inner.borrow().show_for_hwnd(hwnd)
     }
 
-    /// Returns whether this menu visible on a [`gtk::Window`]
+    /// Returns whether this menu visible on a [`gtk4::Window`]
     #[cfg(target_os = "linux")]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         self.inner.borrow().is_visible_on_gtk_window(window)
     }
 
     #[cfg(target_os = "linux")]
-    /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
+    /// Returns the [`gtk4::MenuBar`] that is associated with this window if it exists.
     /// This is useful to get information about the menubar for example its height.
-    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
+    pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         self.inner.borrow().gtk_menubar_for_gtk_window(window)
     }
@@ -394,17 +397,12 @@ impl ContextMenu for Menu {
     #[cfg(target_os = "linux")]
     fn show_context_menu_for_gtk_window(
         &self,
-        window: &gtk::Window,
+        window: &gtk4::Window,
         position: Option<Position>,
     ) -> bool {
         self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(window, position)
-    }
-
-    #[cfg(target_os = "linux")]
-    fn gtk_context_menu(&self) -> gtk::Menu {
-        self.inner.borrow_mut().gtk_context_menu()
     }
 
     #[cfg(target_os = "macos")]
@@ -421,6 +419,22 @@ impl ContextMenu for Menu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<crate::items::CompatMenuItem>>> {
+        use crate::MenuItemKind;
+
+        self.items()
+            .into_iter()
+            .map(|item| match item {
+                MenuItemKind::MenuItem(i) => i.compat.clone(),
+                MenuItemKind::Submenu(i) => i.compat.clone(),
+                MenuItemKind::Predefined(i) => i.compat.clone(),
+                MenuItemKind::Check(i) => i.compat.clone(),
+                MenuItemKind::Icon(i) => i.compat.clone(),
+            })
+            .collect()
     }
 }
 

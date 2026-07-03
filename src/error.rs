@@ -26,6 +26,8 @@ pub enum Error {
     AlreadyInitialized,
     #[error(transparent)]
     AcceleratorParseError(#[from] AcceleratorParseError),
+    #[error("Gtk Window doesn't have an application")]
+    GtkWindowWithoutApplication,
 }
 
 /// Convenient type alias of Result type for muda.
