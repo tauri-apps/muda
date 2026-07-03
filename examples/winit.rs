@@ -99,6 +99,7 @@ impl ApplicationHandler<AppEvent> for App {
             {
                 self.app_menu.menu_bar.init_for_nsapp();
                 self.app_menu.window_menu.set_as_windows_menu_for_nsapp();
+                self.app_menu.custom_help_menu.set_as_help_menu_for_nsapp();
             }
 
             self.windows.insert(window.id(), window);
@@ -164,6 +165,7 @@ struct AppMenu {
     file_menu: Submenu,
     edit_menu: Submenu,
     window_menu: Submenu,
+    custom_help_menu: Submenu,
     custom_item: MenuItem,
 }
 
@@ -186,9 +188,14 @@ impl AppMenu {
             menu_bar.append(&app_menu);
         }
 
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+        let icon = load_icon(std::path::Path::new(path));
+
         let file_menu = Submenu::new("&File", true);
         let edit_menu = Submenu::new("&Edit", true);
         let window_menu = Submenu::new("&Window", true);
+
+        window_menu.set_icon(Some(icon.clone()));
 
         menu_bar.append_items(&[&file_menu, &edit_menu, &window_menu]);
 
@@ -198,8 +205,6 @@ impl AppMenu {
             Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
         );
 
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-        let icon = load_icon(std::path::Path::new(path));
         let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
 
         let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -246,11 +251,20 @@ impl AppMenu {
 
         edit_menu.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
+        let custom_help_menu = Submenu::new("Help", true);
+        custom_help_menu.append_items(&[&MenuItem::new(
+            "Supposed to show a search bar on macOS",
+            true,
+            None,
+        )]);
+        menu_bar.append(&custom_help_menu);
+
         Self {
             menu_bar,
             file_menu,
             edit_menu,
             window_menu,
+            custom_help_menu,
             custom_item: custom_i_1,
         }
     }

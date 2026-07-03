@@ -4,12 +4,11 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use arc_swap::ArcSwap;
-
-use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
+use crate::{
+    accelerator::{Accelerator, KeyAccelerator},
+    sealed::IsMenuItemBase,
+    IsMenuItem, MenuId, MenuItemKind,
+};
 
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
 use super::compat::{CompatMenuItem, CompatCheckmarkItem, strip_mnemonic};
@@ -58,7 +57,7 @@ impl CheckMenuItem {
             text.as_ref(),
             enabled,
             checked,
-            accelerator,
+            accelerator.map(KeyAccelerator::from),
             None,
         );
         let id = item.id().clone();
@@ -95,17 +94,8 @@ impl CheckMenuItem {
                 text.as_ref(),
                 enabled,
                 checked,
-                accelerator,
-                Some(id.clone()),
-            ))),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Checkmark(
-                CompatCheckmarkItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    checked,
-                },
+                accelerator.map(KeyAccelerator::from),
+                Some(id),
             ))),
         }
     }
@@ -138,8 +128,19 @@ impl CheckMenuItem {
     }
 
     /// Set this check menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_key_accelerator(accelerator.map(KeyAccelerator::from))
+    }
+
+    /// Set this check menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner.borrow_mut().set_key_accelerator(accelerator)
     }
 
     /// Get whether this check menu item is checked or not.

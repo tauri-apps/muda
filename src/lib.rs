@@ -77,14 +77,32 @@
 //! ```no_run
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(target_os = "linux")]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
@@ -98,7 +116,13 @@
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
@@ -106,7 +130,13 @@
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(target_os = "linux")]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
@@ -308,20 +338,15 @@ mod sealed {
     pub trait IsMenuItemBase {}
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum MenuItemType {
+    #[default]
     MenuItem,
     Submenu,
     Predefined,
     Check,
     Icon,
-}
-
-impl Default for MenuItemType {
-    fn default() -> Self {
-        Self::MenuItem
-    }
 }
 
 /// A helper trait with methods to help creating a context menu.
@@ -378,7 +403,16 @@ pub trait ContextMenu {
     /// Returns `true` if menu tracking ended because an item was selected or clicked outside the menu to dismiss it.
     ///
     /// Returns `false` if menu tracking was cancelled for any reason.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk4::Window,
@@ -408,12 +442,25 @@ pub trait ContextMenu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
 
-    /// Returns a GTK-agnostic representation of all menu items for ksni tray support.
-    ///
-    /// This returns `Arc<ArcSwap<CompatMenuItem>>` references that can be atomically
-    /// updated to reflect menu state changes.
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<items::CompatMenuItem>>>;
+    /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
+    fn as_menu(&self) -> Option<&Menu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Menu`], and panics if it wasn't.
+    fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Cast this context menu to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Submenu")
+    }
 }
 
 /// Describes a menu event emitted when a menu item is activated

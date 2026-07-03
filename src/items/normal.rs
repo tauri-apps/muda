@@ -1,11 +1,10 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use arc_swap::ArcSwap;
-
-use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
+use crate::{
+    accelerator::{Accelerator, KeyAccelerator},
+    sealed::IsMenuItemBase,
+    IsMenuItem, MenuId, MenuItemKind,
+};
 
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
 use super::compat::{CompatMenuItem, CompatStandardItem, strip_mnemonic};
@@ -43,8 +42,12 @@ impl MenuItem {
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool, accelerator: Option<Accelerator>) -> Self {
-        let item = crate::platform_impl::MenuChild::new(text.as_ref(), enabled, accelerator, None);
-        let id = item.id().clone();
+        let item = crate::platform_impl::MenuChild::new(
+            text.as_ref(),
+            enabled,
+            accelerator.map(KeyAccelerator::from),
+            None,
+        );
         Self {
             id: Rc::new(id.clone()),
             inner: Rc::new(RefCell::new(item)),
@@ -78,19 +81,8 @@ impl MenuItem {
             inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new(
                 text.as_ref(),
                 enabled,
-                accelerator,
-                Some(id.clone()),
-            ))),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: None,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
+                accelerator.map(KeyAccelerator::from),
+                Some(id),
             ))),
         }
     }
@@ -123,8 +115,19 @@ impl MenuItem {
     }
 
     /// Set this menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_key_accelerator(accelerator.map(KeyAccelerator::from))
+    }
+
+    /// Set this menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner.borrow_mut().set_key_accelerator(accelerator)
     }
 
     /// Convert this menu item into its menu ID.

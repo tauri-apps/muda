@@ -11,7 +11,7 @@ use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::KeyAccelerator,
     dpi::Position,
     icon::{Icon, NativeIcon},
     items::PredefinedMenuItemKind,
@@ -112,9 +112,8 @@ pub(crate) struct Menu {
 
 impl Drop for Menu {
     fn drop(&mut self) {
-        let hwnds = self.hwnds.borrow().keys().copied().collect::<Vec<_>>();
-        for hwnd in hwnds {
-            let _ = unsafe { self.remove_for_hwnd(hwnd) };
+        for (hwnd, _) in self.hwnds.borrow_mut().drain() {
+            unsafe { Self::remove_from_hwnd(hwnd) };
         }
 
         fn remove_from_children_stores(internal_id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
@@ -143,10 +142,6 @@ impl Drop for Menu {
         }
 
         unsafe {
-            for hwnd in self.hwnds.borrow().keys() {
-                SetMenu(*hwnd as _, std::ptr::null_mut());
-                RemoveWindowSubclass(*hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
-            }
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
         }
@@ -233,18 +228,21 @@ impl Menu {
 
         {
             let child_ = child.borrow();
+            let item_type = child_.item_type();
 
-            if child_.item_type() == MenuItemType::Icon {
+            // Set icons for both regular menu items and submenus
+            if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
+
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             }
         }
@@ -343,13 +341,13 @@ impl Menu {
         self.hwnds.borrow_mut().insert(hwnd, theme);
 
         // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, self.hmenu);
         SetWindowSubclass(
             hwnd as _,
             Some(menu_subclass_proc),
             MENU_SUBCLASS_ID,
             dwrefdata_from_obj(self),
         );
+        SetMenu(hwnd as _, self.hmenu);
         DrawMenuBar(hwnd as _);
 
         Ok(())
@@ -364,12 +362,16 @@ impl Menu {
             .borrow_mut()
             .remove(&hwnd)
             .ok_or(crate::Error::NotInitialized)?;
-
-        // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, std::ptr::null_mut());
-        DrawMenuBar(hwnd as _);
-
+        Self::remove_from_hwnd(hwnd);
         Ok(())
+    }
+
+    unsafe fn remove_from_hwnd(hwnd: isize) {
+        let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
+        // SAFETY: HWND validity is upheld by caller
+        RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+        SetMenu(hwnd, std::ptr::null_mut());
+        DrawMenuBar(hwnd);
     }
 
     pub unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
@@ -462,7 +464,7 @@ pub(crate) struct MenuChild {
     // menu item fields
     internal_id: u32,
     id: MenuId,
-    accelerator: Option<Accelerator>,
+    accelerator: Option<KeyAccelerator>,
 
     // predefined menu item fields
     predefined_item_type: Option<PredefinedMenuItemKind>,
@@ -501,7 +503,7 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -512,7 +514,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -552,7 +554,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: MenuId::new(internal_id.to_string()),
-            accelerator: item_type.accelerator(),
+            accelerator: item_type.accelerator().map(Into::into),
             predefined_item_type: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
             icon: None,
@@ -567,7 +569,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -578,7 +580,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             checked,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -593,7 +595,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -604,7 +606,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             icon,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -619,7 +621,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         _native_icon: Option<NativeIcon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -630,7 +632,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator,
+            accelerator: key_accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -684,7 +686,7 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = text.to_string();
-        let mut text = if let Some(accelerator) = self.accelerator {
+        let mut text = if let Some(accelerator) = &self.accelerator {
             encode_wide(format!("{text}\t{}", accelerator))
         } else {
             encode_wide(text)
@@ -735,14 +737,17 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
+    pub fn set_key_accelerator(
+        &mut self,
+        accelerator: Option<KeyAccelerator>,
+    ) -> crate::Result<()> {
         self.accelerator = accelerator;
         self.set_text(&self.text.clone());
 
         for store in self.root_menu_haccel_stores.values() {
             let mut store = store.borrow_mut();
-            if let Some(accelerator) = self.accelerator {
-                AccelAction::add(&mut store, self.internal_id, &accelerator)?
+            if let Some(accelerator) = &self.accelerator {
+                AccelAction::add(&mut store, self.internal_id, accelerator)?
             } else {
                 AccelAction::remove(&mut store, self.internal_id)
             }
@@ -794,7 +799,9 @@ impl MenuChild {
         let hbitmap = icon
             .map(|i| unsafe { i.inner.to_hbitmap() })
             .unwrap_or(std::ptr::null_mut());
+
         let info = create_icon_item_info(hbitmap);
+
         for (parent, menu_bars) in &self.parents_hemnu {
             unsafe { SetMenuItemInfoW(*parent, self.internal_id(), FALSE, &info) };
 
@@ -873,18 +880,18 @@ impl MenuChild {
 
         {
             let child_ = child.borrow();
+            let item_type = child_.item_type();
 
-            if child_.item_type() == MenuItemType::Icon {
+            if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
                 let hbitmap = child_
                     .icon
                     .as_ref()
                     .map(|i| unsafe { i.inner.to_hbitmap() })
                     .unwrap_or(std::ptr::null_mut());
                 let info = create_icon_item_info(hbitmap);
-
                 unsafe {
-                    SetMenuItemInfoW(self.hmenu, child_.internal_id, FALSE, &info);
-                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id, FALSE, &info);
+                    SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
+                    SetMenuItemInfoW(self.hpopupmenu, child_.internal_id(), FALSE, &info);
                 };
             }
         }
@@ -1048,7 +1055,7 @@ impl AccelAction {
     fn add(
         haccel_store: &mut RefMut<AccelWrapper>,
         id: u32,
-        accelerator: &Accelerator,
+        accelerator: &KeyAccelerator,
     ) -> crate::Result<()> {
         let accel = accelerator.to_accel(id as _)?;
         haccel_store.1.insert(id, Accel(accel));
@@ -1170,7 +1177,6 @@ unsafe extern "system" fn menu_subclass_proc(
 
             res
         }
-
         _ => DefSubclassProc(hwnd as _, msg, wparam, lparam),
     }
 }
@@ -1199,8 +1205,10 @@ unsafe fn menu_selected(hwnd: windows_sys::Win32::Foundation::HWND, item: &mut M
                         PredefinedMenuItemKind::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
-                        PredefinedMenuItemKind::Separator => {}
-                        PredefinedMenuItemKind::Minimize => {
+                        PredefinedMenuItemType::Undo => execute_edit_command(EditCommand::Undo),
+                        PredefinedMenuItemType::Redo => execute_edit_command(EditCommand::Redo),
+                        PredefinedMenuItemType::Separator => {}
+                        PredefinedMenuItemType::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
                         }
                         PredefinedMenuItemKind::Maximize => {
@@ -1249,6 +1257,8 @@ enum EditCommand {
     Cut,
     Paste,
     SelectAll,
+    Undo,
+    Redo,
 }
 
 fn execute_edit_command(command: EditCommand) {
@@ -1257,6 +1267,8 @@ fn execute_edit_command(command: EditCommand) {
         EditCommand::Cut => 0x58,       // x
         EditCommand::Paste => 0x56,     // v
         EditCommand::SelectAll => 0x41, // a
+        EditCommand::Undo => 0x5A,      // z
+        EditCommand::Redo => 0x59,      // y
     };
 
     unsafe {

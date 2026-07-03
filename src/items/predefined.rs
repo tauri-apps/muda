@@ -73,7 +73,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemKind::Undo, text)
     }
@@ -81,7 +81,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemKind::Redo, text)
     }
@@ -266,7 +266,7 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
 pub enum PredefinedMenuItemKind {
@@ -288,16 +288,11 @@ pub enum PredefinedMenuItemKind {
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
+    #[default]
     None,
 }
 
-impl Default for PredefinedMenuItemKind {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
-impl PredefinedMenuItemKind {
+impl PredefinedMenuItemType {
     pub(crate) fn text(&self) -> &str {
         match self {
             PredefinedMenuItemKind::Separator => "",

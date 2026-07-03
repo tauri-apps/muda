@@ -175,13 +175,10 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
 
             // get the menu item string
             let (label, cch) = {
-                let mut label = Vec::<u16>::with_capacity(256);
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STRING;
-                info.dwTypeData = label.as_mut_ptr();
-                info.cch = (std::mem::size_of_val(&label) / 2 - 1) as _;
-                unsafe {
+                let ok = unsafe {
                     GetMenuItemInfoW(
                         (*pudmi).um.hmenu,
                         (*pudmi).umi.iPosition,
@@ -189,6 +186,26 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                         &mut info,
                     )
                 };
+                if ok == 0 {
+                    return;
+                }
+
+                info.cch += 1; // add 1 for null terminator
+                let mut label = vec![0u16; info.cch as usize];
+                info.dwTypeData = label.as_mut_ptr();
+
+                let ok = unsafe {
+                    GetMenuItemInfoW(
+                        (*pudmi).um.hmenu,
+                        (*pudmi).umi.iPosition,
+                        true.into(),
+                        &mut info,
+                    )
+                };
+                if ok == 0 {
+                    return;
+                }
+
                 (label, info.cch)
             };
 

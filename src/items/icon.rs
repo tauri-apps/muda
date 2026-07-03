@@ -10,7 +10,7 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::{Accelerator, KeyAccelerator},
     icon::{Icon, NativeIcon},
     sealed::IsMenuItemBase,
     IsMenuItem, MenuId, MenuItemKind,
@@ -64,7 +64,7 @@ impl IconMenuItem {
             text.as_ref(),
             enabled,
             icon,
-            accelerator,
+            accelerator.map(KeyAccelerator::from),
             None,
         );
         let id = item.id().clone();
@@ -105,19 +105,8 @@ impl IconMenuItem {
                 text.as_ref(),
                 enabled,
                 icon,
-                accelerator,
-                Some(id.clone()),
-            ))),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: icon_bytes,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
+                accelerator.map(KeyAccelerator::from),
+                Some(id),
             ))),
         }
     }
@@ -139,7 +128,7 @@ impl IconMenuItem {
             text.as_ref(),
             enabled,
             native_icon,
-            accelerator,
+            accelerator.map(KeyAccelerator::from),
             None,
         );
         let id = item.id().clone();
@@ -182,8 +171,8 @@ impl IconMenuItem {
                     text.as_ref(),
                     enabled,
                     native_icon,
-                    accelerator,
-                    Some(id.clone()),
+                    accelerator.map(KeyAccelerator::from),
+                    Some(id),
                 ),
             )),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
@@ -228,8 +217,19 @@ impl IconMenuItem {
     }
 
     /// Set this icon menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_key_accelerator(accelerator.map(KeyAccelerator::from))
+    }
+
+    /// Set this icon menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner.borrow_mut().set_key_accelerator(accelerator)
     }
 
     /// Change this menu item icon or remove it.
