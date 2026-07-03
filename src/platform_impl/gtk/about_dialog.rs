@@ -11,8 +11,6 @@
 use gtk4::prelude::GtkWindowExt;
 
 use crate::AboutMetadata;
-#[cfg(feature = "linux-ksni")]
-use crate::items::CompatAboutMetadata;
 
 /// A thread-safe wrapper around the GTK AboutDialog.
 ///
@@ -32,24 +30,6 @@ impl AboutDialog {
     /// Creates a new AboutDialog from compat metadata (for ksni use).
     ///
     /// This is useful when you have a `CompatAboutMetadata` from the compat layer.
-    #[cfg(feature = "linux-ksni")]
-    pub fn from_compat(compat: &CompatAboutMetadata) -> Self {
-        Self {
-            metadata: AboutMetadata {
-                name: compat.name.clone(),
-                version: compat.version.clone(),
-                short_version: compat.short_version.clone(),
-                authors: compat.authors.clone(),
-                comments: compat.comments.clone(),
-                copyright: compat.copyright.clone(),
-                license: compat.license.clone(),
-                website: compat.website.clone(),
-                website_label: compat.website_label.clone(),
-                credits: compat.credits.clone(),
-                icon: None, // Icon is intentionally not included in compat
-            },
-        }
-    }
 
     /// Shows the about dialog.
     ///

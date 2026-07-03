@@ -74,8 +74,9 @@ pub struct Accelerator {
 
 impl Accelerator {
     /// Creates a new accelerator to define keyboard shortcuts throughout your application.
-    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`] are supported.
-    pub fn new(mut mods: Modifiers, key: Code) -> Self {
+    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`]
+    pub fn new(mods: Option<Modifiers>, key: Code) -> Self {
+        let mut mods = mods.unwrap_or_else(Modifiers::empty);
         if mods.contains(Modifiers::META) {
             mods.remove(Modifiers::META);
             mods.insert(Modifiers::SUPER);
@@ -84,11 +85,6 @@ impl Accelerator {
         let id = Self::generate_hash(mods, key);
 
         Self { mods, key, id }
-    }
-
-    /// Same as [`Accelerator::new`] but consists of key without a modifier.
-    pub fn key_only(key: Code) -> Self {
-        Self::new(Modifiers::empty(), key)
     }
 
     fn generate_hash(mods: Modifiers, key: Code) -> u32 {
@@ -769,7 +765,7 @@ fn test_parse_key_accelerator_error() {
 fn test_equality() {
     let h1 = parse_accelerator("Shift+KeyR").unwrap();
     let h2 = parse_accelerator("Shift+KeyR").unwrap();
-    let h3 = Accelerator::new(Modifiers::SHIFT, Code::KeyR);
+    let h3 = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyR);
     let h4 = parse_accelerator("Alt+KeyR").unwrap();
     let h5 = parse_accelerator("Alt+KeyR").unwrap();
     let h6 = parse_accelerator("KeyR").unwrap();

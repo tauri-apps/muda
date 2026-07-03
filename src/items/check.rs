@@ -10,9 +10,6 @@ use crate::{
     IsMenuItem, MenuId, MenuItemKind,
 };
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use super::compat::{CompatMenuItem, CompatCheckmarkItem, strip_mnemonic};
-
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
 /// that corresponds to a checked and unchecked states.
@@ -23,8 +20,6 @@ use super::compat::{CompatMenuItem, CompatCheckmarkItem, strip_mnemonic};
 pub struct CheckMenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    pub(crate) compat: Arc<ArcSwap<CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for CheckMenuItem {}
@@ -60,19 +55,9 @@ impl CheckMenuItem {
             accelerator.map(KeyAccelerator::from),
             None,
         );
-        let id = item.id().clone();
         Self {
-            id: Rc::new(id.clone()),
+            id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Checkmark(
-                CompatCheckmarkItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    checked,
-                },
-            ))),
         }
     }
 

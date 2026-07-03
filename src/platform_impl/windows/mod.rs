@@ -14,7 +14,7 @@ use crate::{
     accelerator::KeyAccelerator,
     dpi::Position,
     icon::{Icon, NativeIcon},
-    items::PredefinedMenuItemKind,
+    items::PredefinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, MenuTheme,
 };
@@ -68,8 +68,8 @@ macro_rules! inner_menu_child_and_flags {
                 let child = i.inner;
                 let child_ = child.borrow();
                 match child_.predefined_item_type.as_ref().unwrap() {
-                    PredefinedMenuItemKind::None => return Ok(()),
-                    PredefinedMenuItemKind::Separator => {
+                    PredefinedMenuItemType::None => return Ok(()),
+                    PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
                     _ => {
@@ -467,7 +467,7 @@ pub(crate) struct MenuChild {
     accelerator: Option<KeyAccelerator>,
 
     // predefined menu item fields
-    predefined_item_type: Option<PredefinedMenuItemKind>,
+    predefined_item_type: Option<PredefinedMenuItemType>,
 
     // check menu item fields
     checked: bool,
@@ -545,7 +545,7 @@ impl MenuChild {
         }
     }
 
-    pub fn new_predefined(item_type: PredefinedMenuItemKind, text: Option<String>) -> Self {
+    pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         let internal_id = COUNTER.next();
         Self {
             item_type: MenuItemType::Predefined,
@@ -1199,10 +1199,10 @@ unsafe fn menu_selected(hwnd: windows_sys::Win32::Foundation::HWND, item: &mut M
             MenuItemType::Predefined => {
                 if let Some(predefined_item_type) = &item.predefined_item_type {
                     match predefined_item_type {
-                        PredefinedMenuItemKind::Copy => execute_edit_command(EditCommand::Copy),
-                        PredefinedMenuItemKind::Cut => execute_edit_command(EditCommand::Cut),
-                        PredefinedMenuItemKind::Paste => execute_edit_command(EditCommand::Paste),
-                        PredefinedMenuItemKind::SelectAll => {
+                        PredefinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
+                        PredefinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
+                        PredefinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
+                        PredefinedMenuItemType::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
                         PredefinedMenuItemType::Undo => execute_edit_command(EditCommand::Undo),
@@ -1211,19 +1211,19 @@ unsafe fn menu_selected(hwnd: windows_sys::Win32::Foundation::HWND, item: &mut M
                         PredefinedMenuItemType::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
                         }
-                        PredefinedMenuItemKind::Maximize => {
+                        PredefinedMenuItemType::Maximize => {
                             ShowWindow(hwnd, SW_MAXIMIZE);
                         }
-                        PredefinedMenuItemKind::Hide => {
+                        PredefinedMenuItemType::Hide => {
                             ShowWindow(hwnd, SW_HIDE);
                         }
-                        PredefinedMenuItemKind::CloseWindow => {
+                        PredefinedMenuItemType::CloseWindow => {
                             SendMessageW(hwnd, WM_CLOSE, 0, 0);
                         }
-                        PredefinedMenuItemKind::Quit => {
+                        PredefinedMenuItemType::Quit => {
                             PostQuitMessage(0);
                         }
-                        PredefinedMenuItemKind::About(Some(ref metadata)) => {
+                        PredefinedMenuItemType::About(Some(ref metadata)) => {
                             show_about_dialog(hwnd as _, metadata)
                         }
 

@@ -6,9 +6,6 @@ use crate::{
     IsMenuItem, MenuId, MenuItemKind,
 };
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use super::compat::{CompatMenuItem, CompatStandardItem, strip_mnemonic};
-
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
 ///
 /// [`Menu`]: crate::Menu
@@ -17,8 +14,6 @@ use super::compat::{CompatMenuItem, CompatStandardItem, strip_mnemonic};
 pub struct MenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    pub(crate) compat: Arc<ArcSwap<CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for MenuItem {}
@@ -49,19 +44,8 @@ impl MenuItem {
             None,
         );
         Self {
-            id: Rc::new(id.clone()),
+            id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: None,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
-            ))),
         }
     }
 

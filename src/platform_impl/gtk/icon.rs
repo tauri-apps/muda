@@ -41,14 +41,8 @@ impl PlatformIcon {
     /// Creates a GTK `BytesIcon` from the stored PNG data.
     ///
     /// This should only be called on the GTK main thread.
-    pub fn to_bytes_icon(&self) -> gtk4::gio::BytesIcon {
-        let bytes = gtk4::glib::Bytes::from(&self.png_data);
-        gtk4::gio::BytesIcon::new(&bytes)
-    }
-
-    /// Returns the raw PNG data.
-    #[cfg_attr(not(feature = "linux-ksni"), allow(dead_code))]
-    pub fn png_data(&self) -> &[u8] {
-        &self.png_data
+    pub fn to_bytes_icon(&self) -> gtk::gio::BytesIcon {
+        let bytes = gtk::glib::Bytes::from(&self.png_data);
+        gtk::gio::BytesIcon::new(&bytes)
     }
 }

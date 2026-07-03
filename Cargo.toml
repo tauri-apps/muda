@@ -16,11 +16,9 @@ include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-
 default = ["libxdo", "gtk"]
 # No-op on GTK4: libxdo is X11-only. The feature name stays for compatibility.
 libxdo = []
-gtk = ["dep:gtk4", "dep:png"]
+gtk = ["dep:gtk", "dep:png"]
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
-# ksni support for tray-icon on Linux (GTK-agnostic DBus tray)
-linux-ksni = ["dep:arc-swap"]
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -47,9 +45,8 @@ features = [
 ]
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
-gtk4 = { version = "0.10", optional = true }
+gtk = { package = "gtk4", version = "0.11", optional = true }
 png = { version = "0.18", optional = true }
-arc-swap = { version = "1.7.1", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.1"

@@ -4,20 +4,12 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use arc_swap::ArcSwap;
-
 use crate::{
     accelerator::{Accelerator, KeyAccelerator},
     icon::{Icon, NativeIcon},
     sealed::IsMenuItemBase,
     IsMenuItem, MenuId, MenuItemKind,
 };
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use super::compat::{CompatMenuItem, CompatStandardItem, strip_mnemonic};
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains an icon and a text.
@@ -28,8 +20,6 @@ use super::compat::{CompatMenuItem, CompatStandardItem, strip_mnemonic};
 pub struct IconMenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    pub(crate) compat: Arc<ArcSwap<CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for IconMenuItem {}
@@ -58,8 +48,6 @@ impl IconMenuItem {
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let icon_bytes = icon.as_ref().map(|i| i.inner.png_data().to_vec());
         let item = crate::platform_impl::MenuChild::new_icon(
             text.as_ref(),
             enabled,
@@ -67,21 +55,9 @@ impl IconMenuItem {
             accelerator.map(KeyAccelerator::from),
             None,
         );
-        let id = item.id().clone();
         Self {
-            id: Rc::new(id.clone()),
+            id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: icon_bytes,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
-            ))),
         }
     }
 
@@ -97,8 +73,6 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
-        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let icon_bytes = icon.as_ref().map(|i| i.inner.png_data().to_vec());
         Self {
             id: Rc::new(id.clone()),
             inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_icon(
@@ -131,21 +105,9 @@ impl IconMenuItem {
             accelerator.map(KeyAccelerator::from),
             None,
         );
-        let id = item.id().clone();
         Self {
-            id: Rc::new(id.clone()),
+            id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: None,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
-            ))),
         }
     }
 
@@ -175,17 +137,6 @@ impl IconMenuItem {
                     Some(id),
                 ),
             )),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(CompatMenuItem::Standard(
-                CompatStandardItem {
-                    id: id.0.clone(),
-                    label: strip_mnemonic(text.as_ref()),
-                    enabled,
-                    icon: None,
-                    predefined_item_id: None,
-                    about_metadata: None,
-                },
-            ))),
         }
     }
 

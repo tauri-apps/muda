@@ -1,11 +1,19 @@
-use keyboard_types::{Code, Modifiers};
+// Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
-use crate::accelerator::Accelerator;
+use keyboard_types::{Key, Modifiers};
 
-impl Accelerator {
+use crate::accelerator::KeyAccelerator;
+
+impl KeyAccelerator {
+    /// Render as a GTK accelerator string, e.g. `<Control><Shift>c`.
+    ///
+    /// The result is parseable by `gtk::accelerator_parse` and accepted by
+    /// `gio::prelude::ActionMapExt::set_accels_for_action`.
     pub fn to_gtk(&self) -> String {
-        let mut gtk = modifiers_to_gtk(self.mods);
-        gtk.push_str(code_to_gtk(self.key));
+        let mut gtk = modifiers_to_gtk(self.modifiers());
+        gtk.push_str(&key_to_gtk(self.key()));
         gtk
     }
 }
@@ -13,195 +21,36 @@ impl Accelerator {
 fn modifiers_to_gtk(mods: Modifiers) -> String {
     let mut gtk = String::new();
 
-    if mods.shift() {
+    if mods.contains(Modifiers::SHIFT) {
         gtk.push_str("<Shift>");
     }
-    if mods.ctrl() {
+    if mods.contains(Modifiers::CONTROL) {
         gtk.push_str("<Control>");
     }
-    if mods.alt() {
+    if mods.contains(Modifiers::ALT) {
         gtk.push_str("<Alt>");
     }
-    if mods.meta() {
+    if mods.contains(Modifiers::META) {
         gtk.push_str("<Meta>");
     }
     gtk
 }
 
-fn code_to_gtk(code: Code) -> &'static str {
-    match code {
-        Code::Backquote => "grave",
-        Code::Backslash => "backslash",
-        Code::BracketLeft => "bracketleft",
-        Code::BracketRight => "bracketright",
-        Code::Comma => "comma",
-        Code::Digit0 => "0",
-        Code::Digit1 => "1",
-        Code::Digit2 => "2",
-        Code::Digit3 => "3",
-        Code::Digit4 => "4",
-        Code::Digit5 => "5",
-        Code::Digit6 => "6",
-        Code::Digit7 => "7",
-        Code::Digit8 => "8",
-        Code::Digit9 => "9",
-        Code::Equal => "equal",
-        Code::KeyA => "A",
-        Code::KeyB => "B",
-        Code::KeyC => "C",
-        Code::KeyD => "D",
-        Code::KeyE => "E",
-        Code::KeyF => "F",
-        Code::KeyG => "G",
-        Code::KeyH => "H",
-        Code::KeyI => "I",
-        Code::KeyJ => "J",
-        Code::KeyK => "K",
-        Code::KeyL => "L",
-        Code::KeyM => "M",
-        Code::KeyN => "N",
-        Code::KeyO => "O",
-        Code::KeyP => "P",
-        Code::KeyQ => "Q",
-        Code::KeyR => "R",
-        Code::KeyS => "S",
-        Code::KeyT => "T",
-        Code::KeyU => "U",
-        Code::KeyV => "V",
-        Code::KeyW => "W",
-        Code::KeyX => "X",
-        Code::KeyY => "Y",
-        Code::KeyZ => "Z",
-        Code::Minus => "minus",
-        Code::Period => "period",
-        Code::Quote => "quotedbl",
-        Code::Semicolon => "semicolon",
-        Code::Slash => "slash",
-        Code::AltLeft => "Alt_L",
-        Code::AltRight => "Alt_R",
-        Code::Backspace => "BackSpace",
-        Code::CapsLock => "Caps_Lock",
-        Code::ContextMenu => "Menu",
-        Code::ControlLeft => "Control_L",
-        Code::ControlRight => "Control_R",
-        Code::Enter => "Return",
-        Code::MetaLeft => "Meta_L",
-        Code::MetaRight => "Meta_R",
-        Code::ShiftLeft => "Shift_L",
-        Code::ShiftRight => "Shift_R",
-        Code::Space => "space",
-        Code::Tab => "Tab",
-        Code::Delete => "Delete",
-        Code::End => "End",
-        Code::Help => "Help",
-        Code::Home => "Home",
-        Code::Insert => "Insert",
-        Code::PageDown => "Page_Down",
-        Code::PageUp => "Page_Up",
-        Code::ArrowDown => "downarrow",
-        Code::ArrowLeft => "leftarrow",
-        Code::ArrowRight => "rightarrow",
-        Code::ArrowUp => "uparrow",
-        Code::NumLock => "Num_Lock",
-        Code::Numpad0 => "KP_0",
-        Code::Numpad1 => "KP_1",
-        Code::Numpad2 => "KP_2",
-        Code::Numpad3 => "KP_3",
-        Code::Numpad4 => "KP_4",
-        Code::Numpad5 => "KP_5",
-        Code::Numpad6 => "KP_6",
-        Code::Numpad7 => "KP_7",
-        Code::Numpad8 => "KP_8",
-        Code::Numpad9 => "KP_9",
-        Code::NumpadAdd => "KP_Add",
-        Code::NumpadClear => "Clear",
-        Code::NumpadComma => "KP_Separator",
-        Code::NumpadDecimal => "KP_Decimal",
-        Code::NumpadDivide => "KP_Divide",
-        Code::NumpadEnter => "KP_Enter",
-        Code::NumpadEqual => "KP_Equal",
-        Code::NumpadHash => "numbersign",
-        Code::NumpadMemoryAdd => "KP_Add",
-        Code::NumpadMemoryClear => "Clear",
-        Code::NumpadMemorySubtract => "KP_Subtract",
-        Code::NumpadMultiply => "KP_Multiply",
-        Code::NumpadParenLeft => "parenleft",
-        Code::NumpadParenRight => "parenright",
-        Code::NumpadStar => "asterisk",
-        Code::NumpadSubtract => "KP_Subtract",
-        Code::Escape => "Escape",
-        Code::Fn => "F",
-        Code::FnLock => "F",
-        Code::PrintScreen => "Print",
-        Code::ScrollLock => "Scroll_Lock",
-        Code::Pause => "Pause",
-        Code::BrowserBack => "Back",
-        Code::BrowserFavorites => "Favorites",
-        Code::BrowserForward => "Forward",
-        Code::BrowserHome => "HomePage",
-        Code::BrowserRefresh => "Reload",
-        Code::BrowserSearch => "Search",
-        Code::BrowserStop => "Stop",
-        Code::Eject => "Eject",
-        Code::LaunchApp1 => "Launch0",
-        Code::LaunchApp2 => "Launch1",
-        Code::LaunchMail => "Mail",
-        Code::MediaPlayPause => "AudioPlay",
-        Code::MediaSelect => "AudioMedia",
-        Code::MediaStop => "AudioStop",
-        Code::MediaTrackNext => "AudioNext",
-        Code::MediaTrackPrevious => "AudioPrev",
-        Code::Power => "PowerOff",
-        Code::Sleep => "Sleep",
-        Code::AudioVolumeDown => "AudioLowerVolume",
-        Code::AudioVolumeMute => "AudioMute",
-        Code::AudioVolumeUp => "AudioRaiseVolume",
-        Code::WakeUp => "WakeUp",
-        Code::Hyper => "Hyper_L",
-        Code::Super => "Super_L",
-        Code::Suspend => "Suspend",
-        Code::Copy => "Copy",
-        Code::Cut => "Cut",
-        Code::Find => "Find",
-        Code::Open => "Open",
-        Code::Paste => "Paste",
-        Code::Select => "Select",
-        Code::Undo => "Undo",
-        Code::F1 => "F1",
-        Code::F2 => "F2",
-        Code::F3 => "F3",
-        Code::F4 => "F4",
-        Code::F5 => "F5",
-        Code::F6 => "F6",
-        Code::F7 => "F7",
-        Code::F8 => "F8",
-        Code::F9 => "F9",
-        Code::F10 => "F10",
-        Code::F11 => "F11",
-        Code::F12 => "F12",
-        Code::F13 => "F13",
-        Code::F14 => "F14",
-        Code::F15 => "F15",
-        Code::F16 => "F16",
-        Code::F17 => "F17",
-        Code::F18 => "F18",
-        Code::F19 => "F19",
-        Code::F20 => "F20",
-        Code::F21 => "F21",
-        Code::F22 => "F22",
-        Code::F23 => "F23",
-        Code::F24 => "F24",
-        Code::F25 => "F25",
-        Code::F26 => "F26",
-        Code::F27 => "F27",
-        Code::F28 => "F28",
-        Code::F29 => "F29",
-        Code::F30 => "F30",
-        Code::F31 => "F31",
-        Code::F32 => "F32",
-        Code::F33 => "F33",
-        Code::F34 => "F34",
-        Code::F35 => "F35",
-        _ => return "",
+fn key_to_gtk(key: &Key) -> String {
+    match key {
+        // A single character maps straight to its GDK key name.
+        Key::Character(c) => c.to_lowercase(),
+        // Named keys whose GDK name differs from the W3C name.
+        Key::Enter => "Return".to_string(),
+        Key::ArrowUp => "Up".to_string(),
+        Key::ArrowDown => "Down".to_string(),
+        Key::ArrowLeft => "Left".to_string(),
+        Key::ArrowRight => "Right".to_string(),
+        Key::Backspace => "BackSpace".to_string(),
+        Key::PageUp => "Page_Up".to_string(),
+        Key::PageDown => "Page_Down".to_string(),
+        // Escape, Delete, Tab, Home, End, Insert, F-keys, and space
+        // already match the GDK name that `accelerator_parse` understands.
+        other => other.to_string(),
     }
 }

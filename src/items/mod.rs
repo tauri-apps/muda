@@ -8,17 +8,11 @@ mod normal;
 mod predefined;
 mod submenu;
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-mod compat;
-
 pub use check::*;
 pub use icon::*;
 pub use normal::*;
 pub use predefined::*;
 pub use submenu::*;
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-pub use compat::*;
 
 #[cfg(test)]
 mod test {
