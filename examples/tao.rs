@@ -173,8 +173,10 @@ fn main() {
         target_os = "openbsd"
     ))]
     {
-        menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
-        menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
+        // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
+        // menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
+        // menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
+        let _ = (&menu_bar, &window, &window2);
     }
     #[cfg(target_os = "macos")]
     {
@@ -256,7 +258,11 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         target_os = "netbsd",
         target_os = "openbsd"
     ))]
-    menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+    {
+        // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
+        // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+        let _ = (window, menu, position);
+    }
     #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);
