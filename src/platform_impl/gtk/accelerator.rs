@@ -38,7 +38,9 @@ fn modifiers_to_gtk(mods: Modifiers) -> String {
 
 fn key_to_gtk(key: &Key) -> String {
     match key {
-        // A single character maps straight to its GDK key name.
+        // A single character maps straight to its GDK key name, except
+        // space, which GDK names rather than prints.
+        Key::Character(c) if c == " " => "space".to_string(),
         Key::Character(c) => c.to_lowercase(),
         // Named keys whose GDK name differs from the W3C name.
         Key::Enter => "Return".to_string(),
