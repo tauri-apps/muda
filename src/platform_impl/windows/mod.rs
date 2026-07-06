@@ -988,7 +988,7 @@ impl MenuChild {
     }
 }
 
-/// Internal Utilitles
+/// Internal Utilities
 impl MenuChild {
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<MenuChild>>> {
         let children = self.children.as_ref().unwrap();
