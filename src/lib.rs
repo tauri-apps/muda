@@ -23,7 +23,7 @@
 //!
 //! # Dependencies (Linux Only)
 //!
-//! `gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+//! `gtk` is used for menus and `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
@@ -373,7 +373,7 @@ pub trait ContextMenu {
     ) -> bool;
 
     /// Attach the menu subclass handler to the given hwnd
-    /// so you can recieve events from that window using [MenuEvent::receiver]
+    /// so you can receive events from that window using [MenuEvent::receiver]
     ///
     /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
     ///
@@ -483,7 +483,7 @@ pub struct MenuEvent {
     pub id: MenuId,
 }
 
-/// A reciever that could be used to listen to menu events.
+/// A receiver that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 

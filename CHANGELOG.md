@@ -67,7 +67,7 @@
 
 ## \[0.15.3]
 
-- [`11a1ef8`](https://www.github.com/tauri-apps/muda/commit/11a1ef84fa85cbe2f0bfb0c3a986d7a36d84288f) ([#241](https://www.github.com/tauri-apps/muda/pull/241) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On Windows, fix changing state of menu items inside a `muda::Menu` not immedietly reflected on the window menu bar.
+- [`11a1ef8`](https://www.github.com/tauri-apps/muda/commit/11a1ef84fa85cbe2f0bfb0c3a986d7a36d84288f) ([#241](https://www.github.com/tauri-apps/muda/pull/241) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On Windows, fix changing state of menu items inside a `muda::Menu` not immediately reflected on the window menu bar.
 
 ## \[0.15.2]
 
@@ -155,7 +155,7 @@
   - Removed `Error::EmptyAcceleratorToken` enum variant
   - Removed `Error::UnexpectedAcceleratorFormat` enum variant
   - Changed `Error::AcceleratorParseError` inner value from `String` to the newly added `AcceleratorParseError` enum.
-- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Avoid panicing when parsing an invalid `Accelerator` from a string such as `SHIFT+SHIFT` and return an error instead.
+- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Avoid panicking when parsing an invalid `Accelerator` from a string such as `SHIFT+SHIFT` and return an error instead.
 
 ## \[0.11.5]
 
@@ -200,7 +200,7 @@
 ## \[0.9.3]
 
 - [`bdd0c9a`](https://www.github.com/tauri-apps/muda/commit/bdd0c9aa0d7d4158535796a20a1c1597799840a4)([#122](https://www.github.com/tauri-apps/muda/pull/122)) On macOS, fix menu crash due to a double freeing the underlying NsMenu.
-- [`f7e3030`](https://www.github.com/tauri-apps/muda/commit/f7e3030f3438f92e92dfa724c5f8a6864387de0f)([#125](https://www.github.com/tauri-apps/muda/pull/125)) On Windwos, redraw the menubar when adding a new menu item or a submenu.
+- [`f7e3030`](https://www.github.com/tauri-apps/muda/commit/f7e3030f3438f92e92dfa724c5f8a6864387de0f)([#125](https://www.github.com/tauri-apps/muda/pull/125)) On Windows, redraw the menubar when adding a new menu item or a submenu.
 
 ## \[0.9.2]
 
@@ -249,7 +249,7 @@
 ## \[0.8.0]
 
 - [`662e17d`](https://www.github.com/tauri-apps/muda/commit/662e17d0ec75a746a330390ad3818e35bd2be234)([#92](https://www.github.com/tauri-apps/muda/pull/92)) Add `Drop` implementation for the inner types to release memory and OS resources.
-- [`7ca4b11`](https://www.github.com/tauri-apps/muda/commit/7ca4b115646a0ec1c19547267959625b6842b288)([#89](https://www.github.com/tauri-apps/muda/pull/89)) **Breaking Change:** On Linux, `Menu::inti_for_gtk_window` has been changed to require the second paramter to extend `gtk::Box`. This ensures that the menu bar is added at the beginning of the box instead of at the bottom.
+- [`7ca4b11`](https://www.github.com/tauri-apps/muda/commit/7ca4b115646a0ec1c19547267959625b6842b288)([#89](https://www.github.com/tauri-apps/muda/pull/89)) **Breaking Change:** On Linux, `Menu::inti_for_gtk_window` has been changed to require the second parameter to extend `gtk::Box`. This ensures that the menu bar is added at the beginning of the box instead of at the bottom.
 - [`bb92b56`](https://www.github.com/tauri-apps/muda/commit/bb92b5667eb43d39a162b86f0b779d06e36eca52) On macOS, changed `Submenu::set_windows_menu_for_nsapp` and `Submenu::set_help_menu_for_nsapp` to `Submenu::set_as_windows_menu_for_nsapp` and `Submenu::set_as_help_menu_for_nsapp`
 - [`874f345`](https://www.github.com/tauri-apps/muda/commit/874f345f3c719d70065fceeabebed6224d857813) Add `MenuId` struct an changed all `.id()` methods to return `MenuId` instead of a u32.
 - [`043026c`](https://www.github.com/tauri-apps/muda/commit/043026c30d46f81a0fc2975d7e6bea10421ceb47)([#93](https://www.github.com/tauri-apps/muda/pull/93)) Add `Menu/Submenu::remove_at` to remove an item at specified index.

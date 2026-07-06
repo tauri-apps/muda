@@ -652,7 +652,7 @@ impl MenuChild {
         for menus in self.ns_menus.as_ref().unwrap().values() {
             for menu in menus {
                 // check if we are removing this item from all ns_menus
-                //      which is usually when this is the item the user is actaully removing
+                //      which is usually when this is the item the user is actually removing
                 // or if we are removing from a specific menu (id)
                 //      which is when the actual item being removed is a submenu
                 //      and we are iterating through its children and removing

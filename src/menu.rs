@@ -63,7 +63,7 @@ impl Menu {
 
     /// Add a menu item to the end of this menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -74,7 +74,7 @@ impl Menu {
 
     /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -89,7 +89,7 @@ impl Menu {
 
     /// Add a menu item to the beginning of this menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -102,7 +102,7 @@ impl Menu {
 
     /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -111,9 +111,9 @@ impl Menu {
         self.insert_items(items, 0)
     }
 
-    /// Insert a menu item at the specified `postion` in the menu.
+    /// Insert a menu item at the specified `position` in the menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -124,9 +124,9 @@ impl Menu {
             .add_menu_item(item, AddOp::Insert(position))
     }
 
-    /// Insert menu items at the specified `postion` in the menu.
+    /// Insert menu items at the specified `position` in the menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -163,7 +163,7 @@ impl Menu {
 
     /// Adds this menu to a [`gtk::Window`]
     ///
-    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
+    /// - `container`: this is an optional parameter to specify a container for the [`gtk::MenuBar`],
     ///   it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
     ///   which is usually not the desired behavior.
     ///   If using a [`gtk::Box`] as a container, it is added using [`Box::pack_start(menubar, false, false, 0)`](gtk::prelude::BoxExt::pack_start) then

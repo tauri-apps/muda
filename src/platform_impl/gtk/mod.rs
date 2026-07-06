@@ -178,7 +178,7 @@ impl Menu {
 
         for (menu_id, menu_bar) in &self.gtk_menubars {
             // check if we are removing this item from all gtk_menubars
-            //      which is usually when this is the item the user is actaully removing
+            //      which is usually when this is the item the user is actually removing
             // or if we are removing from a specific menu (id)
             //      which is when the actual item being removed is a submenu
             //      and we are iterating through its children and removing
@@ -894,7 +894,7 @@ impl MenuChild {
         for menus in self.gtk_menus.as_ref().unwrap().values() {
             for (menu_id, menu) in menus {
                 // check if we are removing this item from all gtk_menus
-                //      which is usually when this is the item the user is actaully removing
+                //      which is usually when this is the item the user is actually removing
                 // or if we are removing from a specific menu (id)
                 //      which is when the actual item being removed is a submenu
                 //      and we are iterating through its children and removing

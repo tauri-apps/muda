@@ -26,7 +26,7 @@ Menu Utilities library for Desktop Applications.
 
 ## Dependencies (Linux Only)
 
-`gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+`gtk` is used for menus and `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
 
 #### Arch Linux / Manjaro:
 

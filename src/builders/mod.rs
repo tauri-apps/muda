@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! A module containting builder types
+//! A module containing builder types
 
 mod check;
 mod icon;
