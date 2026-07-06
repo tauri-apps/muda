@@ -11,7 +11,7 @@ use crate::{
 };
 use keyboard_types::{Code, Modifiers};
 
-/// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+/// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,

@@ -119,14 +119,14 @@ impl Submenu {
         self.insert_items(items, 0)
     }
 
-    /// Insert a menu item at the specified `postion` in the submenu.
+    /// Insert a menu item at the specified `position` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
         self.inner
             .borrow_mut()
             .add_menu_item(item, AddOp::Insert(position))
     }
 
-    /// Insert menu items at the specified `postion` in the submenu.
+    /// Insert menu items at the specified `position` in the submenu.
     pub fn insert_items(&self, items: &[&dyn IsMenuItem], position: usize) -> crate::Result<()> {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)?
