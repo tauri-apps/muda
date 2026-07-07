@@ -81,6 +81,6 @@ png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
-tao = "0.33"
-wry = "0.45"
+tao = { path = "../tao" }
+wry = { path = "../wry" }
 image = { version = "0.25", default-features = false, features = ["png"] }
