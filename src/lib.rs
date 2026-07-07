@@ -544,3 +544,8 @@ pub fn recv_menu_update() -> std::result::Result<(), crossbeam_channel::RecvErro
 pub fn send_menu_update() {
     let _ = MENU_UPDATE_CHANNEL.0.send(());
 }
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn send_menu_event(event: MenuEvent) {
+    MenuEvent::send(event);
+}
