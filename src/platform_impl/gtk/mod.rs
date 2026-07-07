@@ -82,6 +82,52 @@ impl GtkMenuBar {
             GtkMenuBar::ContextMenu { menu, .. } => menu,
         }
     }
+
+    /// Bind a widget to a `custom` slot in the generated menu.
+    ///
+    /// GTK4's `PopoverMenu` does not render icons set on a `gio::MenuItem`.
+    /// To show one we mark the model item with a `custom` attribute and
+    /// attach the real icon+label widget here; the binding reaches slots in
+    /// nested submenus too, so a single call per item is enough.
+    fn add_custom_child(&self, id: &str, widget: &impl IsA<gtk::Widget>) {
+        match self {
+            GtkMenuBar::MenuBar { widget: w, .. } => {
+                w.add_child(widget, id);
+            }
+            GtkMenuBar::ContextMenu { widget: w, .. } => {
+                w.add_child(widget, id);
+            }
+        }
+    }
+}
+
+/// Build the icon + label row shown in place of a default menu item.
+///
+/// A flat `Button` carrying the model item's action, so activating it fires
+/// the same `MenuEvent` a normal row would and `PopoverMenu` closes on click.
+fn custom_menu_row(icon: &crate::icon::Icon, label: &str, action: &str) -> gtk::Button {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let image = gtk::Image::from_gicon(&icon.inner.to_bytes_icon());
+    image.set_pixel_size(16);
+    let label = gtk::Label::new(Some(&strip_mnemonic(label)));
+    label.set_xalign(0.0);
+    label.set_hexpand(true);
+    row.append(&image);
+    row.append(&label);
+
+    let button = gtk::Button::builder()
+        .child(&row)
+        .has_frame(false)
+        .action_name(action)
+        .build();
+    button.add_css_class("model");
+    button
+}
+
+fn strip_mnemonic(text: &str) -> String {
+    text.replace("__", "\u{0}")
+        .replace('_', "")
+        .replace('\u{0}', "_")
 }
 
 pub struct Menu {
@@ -133,6 +179,21 @@ impl Menu {
         }
 
         Ok(())
+    }
+
+    /// Attach the icon+label widgets for every `custom` slot in the tree to
+    /// the given instance. Run after the instance's model is fully built.
+    fn bind_custom_children(&self, menu_bar: &GtkMenuBar) {
+        fn walk(children: &[Rc<RefCell<MenuChild>>], menu_bar: &GtkMenuBar) {
+            for child in children {
+                let child = child.borrow();
+                if let Some((id, row)) = child.custom_child() {
+                    menu_bar.add_custom_child(&id, &row);
+                }
+                walk(&child.children, menu_bar);
+            }
+        }
+        walk(&self.children, menu_bar);
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
@@ -199,6 +260,8 @@ impl Menu {
         for item in self.items() {
             self.add_menu_item_with_id(item.as_ref(), id)?;
         }
+
+        self.bind_custom_children(&self.instances[&id]);
 
         let menu_bar = self.instances[&id].menu_bar();
 
@@ -299,7 +362,7 @@ impl Menu {
     }
 
     pub fn gtk_context_menu(&mut self) -> gtk::PopoverMenu {
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        if !self.instances.contains_key(&self.ctx_menu_id) {
             let app = gio::Application::default()
                 .and_downcast::<gtk::Application>()
                 .expect("`gtk_context_menu` requires a running `gtk::Application`");
@@ -308,6 +371,7 @@ impl Menu {
             for item in self.items() {
                 let _ = self.add_menu_item_with_id(item.as_ref(), self.ctx_menu_id);
             }
+            self.bind_custom_children(&self.instances[&self.ctx_menu_id]);
         }
         self.instances
             .get(&self.ctx_menu_id)
@@ -325,7 +389,11 @@ impl Menu {
             return false; // TODO: better error
         };
 
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        // Rebuild the context instance every time so it reflects the current
+        // labels, icons, and checked state rather than a stale first build.
+        self.instances.remove(&self.ctx_menu_id);
+
+        {
             let action_group = action_group_from_app(&app);
             window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
@@ -336,6 +404,7 @@ impl Menu {
             for item in self.items() {
                 let _ = self.add_menu_item_with_id(item.as_ref(), self.ctx_menu_id);
             }
+            self.bind_custom_children(&self.instances[&self.ctx_menu_id]);
         }
 
         let (x, y) = match position {
@@ -581,7 +650,7 @@ impl MenuChild {
     }
 
     pub fn gtk_context_menu(&mut self) -> gtk::PopoverMenu {
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        if !self.instances.contains_key(&self.ctx_menu_id) {
             let app = gio::Application::default()
                 .and_downcast::<gtk::Application>()
                 .expect("`gtk_context_menu` requires a running `gtk::Application`");
@@ -616,7 +685,7 @@ impl MenuChild {
             return false; // TODO: better error
         };
 
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        if !self.instances.contains_key(&self.ctx_menu_id) {
             let menu = gio::Menu::new();
             let widget = gtk::PopoverMenu::from_model(Some(&menu));
 
@@ -972,8 +1041,10 @@ impl MenuChild {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
         }
 
-        if let Some(icon) = &self.icon {
-            item.set_icon(&icon.inner.to_bytes_icon());
+        // GTK4's PopoverMenu ignores icons set on the model item, so mark
+        // this row as custom and render the icon ourselves via `add_child`.
+        if self.icon.is_some() {
+            item.set_attribute_value("custom", Some(&self.id.as_ref().to_variant()));
         }
 
         if self.action.is_none() {
@@ -996,6 +1067,15 @@ impl MenuChild {
         self.instances.entry(menu_id).or_default().push(child);
 
         Ok(item)
+    }
+
+    /// The `custom` slot id and rendered row for an icon item, if any.
+    fn custom_child(&self) -> Option<(String, gtk::Button)> {
+        let icon = self.icon.as_ref()?;
+        Some((
+            self.id.as_ref().to_string(),
+            custom_menu_row(icon, &self.text, &self.detailed_action()),
+        ))
     }
 
     fn create_gtk_item_for_predefined_menu_item(
