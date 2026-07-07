@@ -11,7 +11,11 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     rc::Rc,
 };
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
 use dpi::Position;
 use gtk::{gdk::Rectangle, gio, prelude::*};
 pub(crate) use icon::PlatformIcon;
@@ -28,6 +32,11 @@ static COUNTER: Counter = Counter::new();
 
 const DEFAULT_ACTION_GROUP: &str = "muda";
 const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+fn compat_placeholder() -> Arc<ArcSwap<crate::CompatMenuItem>> {
+    Arc::new(ArcSwap::from_pointee(crate::CompatMenuItem::Separator))
+}
 
 enum GtkMenuBar {
     MenuBar {
@@ -167,6 +176,9 @@ impl Menu {
             }
         }
 
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
         Ok(())
     }
 
@@ -220,6 +232,9 @@ impl Menu {
         // Remove from children
         self.children.remove(position);
 
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
         Ok(())
     }
 
@@ -227,6 +242,14 @@ impl Menu {
         self.children
             .iter()
             .map(|c| c.borrow().kind(c.clone()))
+            .collect()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.children
+            .iter()
+            .map(|child| child.borrow().compat_child())
             .collect()
     }
 
@@ -504,6 +527,79 @@ pub struct MenuChild {
     children: Vec<Rc<RefCell<MenuChild>>>,
 
     action: Option<gio::SimpleAction>,
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    compat: Arc<ArcSwap<crate::CompatMenuItem>>,
+}
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+impl MenuChild {
+    pub(crate) fn compat_child(&self) -> Arc<ArcSwap<crate::CompatMenuItem>> {
+        self.sync_compat();
+        self.compat.clone()
+    }
+
+    pub(crate) fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.children
+            .iter()
+            .map(|child| child.borrow().compat_child())
+            .collect()
+    }
+
+    fn sync_compat(&self) {
+        self.compat.store(Arc::new(self.to_compat_item()));
+    }
+
+    fn to_compat_item(&self) -> crate::CompatMenuItem {
+        let label = crate::strip_mnemonic(&self.text);
+        match self.type_ {
+            MenuItemType::Check => crate::CompatCheckmarkItem {
+                id: self.id.0.clone(),
+                label,
+                enabled: self.enabled,
+                checked: self.is_checked(),
+            }
+            .into(),
+            MenuItemType::Submenu => crate::CompatSubMenuItem {
+                label,
+                enabled: self.enabled,
+                submenu: self.compat_items(),
+            }
+            .into(),
+            MenuItemType::Predefined => match self.predefined_item_type.as_ref() {
+                Some(PredefinedMenuItemType::Separator) => crate::CompatMenuItem::Separator,
+                Some(PredefinedMenuItemType::About(metadata)) => crate::CompatStandardItem {
+                    id: self.id.0.clone(),
+                    label,
+                    enabled: self.enabled,
+                    icon: None,
+                    about_metadata: metadata.clone(),
+                }
+                .into(),
+                _ => crate::CompatStandardItem {
+                    id: self.id.0.clone(),
+                    label,
+                    enabled: self.enabled,
+                    icon: None,
+                    about_metadata: None,
+                }
+                .into(),
+            },
+            MenuItemType::Icon | MenuItemType::MenuItem => crate::CompatStandardItem {
+                id: self.id.0.clone(),
+                label,
+                enabled: self.enabled,
+                icon: self.icon.as_ref().map(|icon| icon.inner.png_data()),
+                about_metadata: None,
+            }
+            .into(),
+        }
+    }
+
+    fn notify_compat_changed(&self) {
+        self.sync_compat();
+        crate::send_menu_update();
+    }
 }
 
 impl MenuChild {
@@ -521,6 +617,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 
@@ -568,6 +666,9 @@ impl MenuChild {
             AddOp::Append => self.children.push(item.child()),
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
 
         for menus in self.instances.values() {
             for gtk_child in menus {
@@ -632,6 +733,9 @@ impl MenuChild {
 
         // Remove from children
         self.children.remove(position);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
 
         Ok(())
     }
@@ -743,6 +847,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 
@@ -847,6 +953,9 @@ impl MenuChild {
                 }
             }
         }
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -859,6 +968,9 @@ impl MenuChild {
         if let Some(action) = self.action.as_ref() {
             action.set_enabled(enabled);
         }
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
     }
 
     pub fn set_key_accelerator(
@@ -894,6 +1006,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 }
@@ -919,6 +1033,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 
@@ -972,6 +1088,9 @@ impl MenuChild {
         if let Some(action) = self.action.as_ref() {
             action.set_state(&checked.to_variant());
         }
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
     }
 }
 
@@ -996,6 +1115,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 
@@ -1019,6 +1140,8 @@ impl MenuChild {
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
     }
 
@@ -1290,6 +1413,9 @@ impl MenuChild {
                 }
             }
         }
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.notify_compat_changed();
     }
 }
 

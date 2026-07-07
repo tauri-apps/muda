@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 mod check;
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+mod compat;
 mod icon;
 mod normal;
 mod predefined;
 mod submenu;
 
 pub use check::*;
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub use compat::*;
 pub use icon::*;
 pub use normal::*;
 pub use predefined::*;

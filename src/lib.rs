@@ -473,6 +473,10 @@ pub trait ContextMenu {
     fn as_submenu_unchecked(&self) -> &Menu {
         self.as_menu().expect("Not a Submenu")
     }
+
+    /// Returns a GTK-agnostic menu representation for Linux KSNI tray menus.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<CompatMenuItem>>>;
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -489,6 +493,8 @@ type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 
 static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(unbounded);
 static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+static MENU_UPDATE_CHANNEL: Lazy<(Sender<()>, Receiver<()>)> = Lazy::new(unbounded);
 
 impl MenuEvent {
     /// Returns the id of the menu item which triggered this event
@@ -527,4 +533,14 @@ impl MenuEvent {
             let _ = MENU_CHANNEL.0.send(event);
         }
     }
+}
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn recv_menu_update() -> std::result::Result<(), crossbeam_channel::RecvError> {
+    MENU_UPDATE_CHANNEL.1.recv()
+}
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn send_menu_update() {
+    let _ = MENU_UPDATE_CHANNEL.0.send(());
 }

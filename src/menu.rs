@@ -483,6 +483,11 @@ impl ContextMenu for Menu {
         self.inner.borrow_mut().gtk_context_menu()
     }
 
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<std::sync::Arc<arc_swap::ArcSwap<crate::CompatMenuItem>>> {
+        self.inner.borrow().compat_items()
+    }
+
     #[cfg(target_os = "macos")]
     unsafe fn show_context_menu_for_nsview(
         &self,

@@ -17,10 +17,12 @@ default = ["libxdo", "gtk"]
 # No-op on GTK4: libxdo is X11-only. The feature name stays for compatibility.
 libxdo = []
 gtk = ["dep:gtk", "dep:png"]
+linux-ksni = ["gtk", "dep:arc-swap"]
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
+arc-swap = { version = "1.7.1", optional = true }
 crossbeam-channel = "0.5"
 keyboard-types = "0.7"
 once_cell = "1"

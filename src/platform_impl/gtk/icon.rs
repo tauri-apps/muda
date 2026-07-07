@@ -45,4 +45,9 @@ impl PlatformIcon {
         let bytes = gtk::glib::Bytes::from(&self.png_data);
         gtk::gio::BytesIcon::new(&bytes)
     }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn png_data(&self) -> Vec<u8> {
+        self.png_data.clone()
+    }
 }
