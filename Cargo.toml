@@ -1,20 +1,21 @@
 [package]
 name = "muda"
-version = "0.16.1"
+version = "0.19.3"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
-repository = "https://github.com/amrbashir/muda"
+repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
-rust-version = "1.71"
+rust-version = "1.73"
+include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
 
 [features]
 default = []
 common-controls-v6 = []
-serde = ["dep:serde", "dpi/serde"]
+serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
 crossbeam-channel = "0.5"
@@ -25,7 +26,7 @@ serde = { version = "1", optional = true }
 dpi = "0.1"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
-version = "0.59"
+version = ">=0.60, <=0.61"
 features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_Foundation",
@@ -45,7 +46,7 @@ gtk4 = "0.9"
 png = "0.17"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6.0"
+objc2 = "0.6.1"
 objc2-core-foundation = { version = "0.3.0", default-features = false, features = [
   "std",
   "CFCGTypes",
@@ -73,10 +74,10 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSView",
   "NSWindow",
 ] }
-png = "0.17"
+png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
-tao = "0.30"
+tao = "0.33"
 wry = "0.45"
-image = "0.25"
+image = { version = "0.25", default-features = false, features = ["png"] }

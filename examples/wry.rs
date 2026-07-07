@@ -6,14 +6,20 @@
 use std::rc::Rc;
 
 use muda::{
-    accelerator::{Accelerator, Code, Modifiers},
+    accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
     dpi::Position,
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -22,7 +28,13 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use wry::WebViewBuilderExtUnix;
 use wry::{http::Request, WebViewBuilder};
 
@@ -86,22 +98,25 @@ fn main() -> wry::Result<()> {
             .unwrap();
     }
 
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+
+    window_m.set_icon(Some(icon.clone()));
 
     menu_bar
         .append_items(&[&file_m, &edit_m, &window_m])
         .unwrap();
 
-    let custom_i_1 = MenuItem::new(
-        "C&ustom 1",
-        true,
-        Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
-    );
+    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
+    custom_i_1.set_key_accelerator(Some(KeyAccelerator::new(
+        Some(Modifiers::CONTROL),
+        Key::Character("+".into()),
+    )));
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-    let icon = load_icon(std::path::Path::new(path));
     let image_item = IconMenuItem::new(
         "Image custom 1",
         true,
@@ -170,7 +185,13 @@ fn main() -> wry::Result<()> {
         menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
         menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         // menu_bar
         //     .init_for_gtk_window(window.gtk_window(), window.default_vbox())
@@ -272,9 +293,21 @@ fn main() -> wry::Result<()> {
     };
 
     fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )))]
         return WebViewBuilder::new(window);
-        #[cfg(target_os = "linux")]
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
         WebViewBuilder::new_gtk(window.default_vbox().unwrap())
     };
 

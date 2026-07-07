@@ -1,5 +1,59 @@
 # Changelog
 
+## \[0.19.3]
+
+- [`73106f5`](https://www.github.com/tauri-apps/muda/commit/73106f5c548a08bfeea35a1627ea533726f5ba2e) ([#363](https://www.github.com/tauri-apps/muda/pull/363) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) On Windows, fixed a `dangling` pointer crash when `Menu::remove_for_hwnd` is called before dropping that `Menu` and then attached a new `Menu`
+
+## \[0.19.2]
+
+- [`597e1bc`](https://www.github.com/tauri-apps/muda/commit/597e1bcb300fce429643725810e63a95333c7046) ([#354](https://www.github.com/tauri-apps/muda/pull/354) by [@kohii](https://www.github.com/tauri-apps/muda/../../kohii)) On macOS, render `Key::Enter` accelerators in menus as ⏎ (Return) instead of ⌤ (numeric-keypad Enter). Activation behavior is unchanged.
+- [`51fde8e`](https://www.github.com/tauri-apps/muda/commit/51fde8e47e4c181fce892b2420d22f3d4e69bead) ([#357](https://www.github.com/tauri-apps/muda/pull/357) by [@mattico](https://www.github.com/tauri-apps/muda/../../mattico)) On Windows, fixed a bug that would truncate menubar items text to ~10 characters in dark-mode.
+
+## \[0.19.1]
+
+- [`b3d108e`](https://www.github.com/tauri-apps/muda/commit/b3d108ea60028acb3faf62d2ab975b4ded1d2e4e) ([#350](https://www.github.com/tauri-apps/muda/pull/350) by [@lucasfernog](https://www.github.com/tauri-apps/muda/../../lucasfernog)) Bump objc2 requirement to 0.6.1.
+
+## \[0.19.0]
+
+- [`521b5ff`](https://www.github.com/tauri-apps/muda/commit/521b5ffdac0dae0bc865434241c401bac483daed) ([#344](https://www.github.com/tauri-apps/muda/pull/344) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Update png dependency version to 0.18.
+
+  This avoids duplicated dependencies in downstream crates.
+- [`521b5ff`](https://www.github.com/tauri-apps/muda/commit/521b5ffdac0dae0bc865434241c401bac483daed) ([#344](https://www.github.com/tauri-apps/muda/pull/344) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Update rust version to 1.73.
+- [`820bd54`](https://www.github.com/tauri-apps/muda/commit/820bd54069b3dccba9b5c6e9c6aa7c00f0e6ffb6) ([#347](https://www.github.com/tauri-apps/muda/pull/347) by [@renovate](https://www.github.com/tauri-apps/muda/../../renovate)) Relaxed `windows-sys` dependency to `>=0.60, <=0.61` instead of `0.60`
+
+## \[0.18.0]
+
+- [`b324619`](https://www.github.com/tauri-apps/muda/commit/b324619069e6ebd7b259fa15400fca87586b5dc6) ([#339](https://www.github.com/tauri-apps/muda/pull/339) by [@LeonMatthes](https://www.github.com/tauri-apps/muda/../../LeonMatthes)) Add a new `KeyAccelerator` struct based on `keyboard_types::Key` alongside the existing `Accelerator` (based on `Code`).
+  This enables expressing logical key shortcuts like "Ctrl++", "Ctrl+€" that physical key codes cannot represent (see https://github.com/tauri-apps/muda/issues/333).
+- [`adb9f55`](https://www.github.com/tauri-apps/muda/commit/adb9f5565444f6240c3df25347a25bcfcdc442b2) ([#337](https://www.github.com/tauri-apps/muda/pull/337) by [@npwoods](https://www.github.com/tauri-apps/muda/../../npwoods)) On Windows, fixed a bug that would cause window subclasses to not be cleaned up when menus were dropped
+
+## \[0.17.2]
+
+- [`dca0836`](https://www.github.com/tauri-apps/muda/commit/dca083660d04209109ae854b9a9436a809daf409) ([#321](https://www.github.com/tauri-apps/muda/pull/321)) Fix padding unconditionally added to top-level submenus for icons even when there's no icon on Linux
+- [`372d367`](https://www.github.com/tauri-apps/muda/commit/372d3675e477d698297b0e10864932261d41c66e) ([#335](https://www.github.com/tauri-apps/muda/pull/335)) Fix `Submenu::set_as_help_menu_for_nsapp` and `Submenu::set_as_windows_menu_for_nsapp` not working and macOS wouldn't recognize and add default menu items to them.
+- [`43ba984`](https://www.github.com/tauri-apps/muda/commit/43ba984a89b6b36f2aa87be6206763d96f9c259b) ([#326](https://www.github.com/tauri-apps/muda/pull/326)) Add support for `PredefinedMenuItem::undo` and `PredefinedMenuItem::redo` on Windows.
+
+## \[0.17.1]
+
+- [`0ae81ad`](https://www.github.com/tauri-apps/muda/commit/0ae81ad8b22dd2622e302254ce434d14880087a3) ([#308](https://www.github.com/tauri-apps/muda/pull/308) by [@s00d](https://www.github.com/tauri-apps/muda/../../s00d)) On Windows, fix icon of `Submenu` not visible when added to a root `Menu`
+
+## \[0.17.0]
+
+- [`8e986af`](https://www.github.com/tauri-apps/muda/commit/8e986af3cea96a729413abc75c3702dec3990bd2) ([#289](https://www.github.com/tauri-apps/muda/pull/289) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add helper methods on `ContextMenu` trait to convert it back to a concrete type:
+
+  - `ContextMenu::as_menu`
+  - `ContextMenu::as_menu_unchecked`
+  - `ContextMenu::as_submenu`
+  - `ContextMenu::as_submenu_unchecked`
+- [`8efa5a2`](https://www.github.com/tauri-apps/muda/commit/8efa5a201b6acad72dee4c0c097a4bbda172b353) ([#300](https://www.github.com/tauri-apps/muda/pull/300) by [@dgerhardt](https://www.github.com/tauri-apps/muda/../../dgerhardt)) On Linux, fix `&&` resulting in `&&` when it should be just `&`. Also fix `_` not visible and actually adding a mnemonic. This makes the behavior on Linux match the behavior on Windows.
+- [`e19a6eb`](https://www.github.com/tauri-apps/muda/commit/e19a6eb7417e722ee73fbae8bd97becbf5600142) ([#283](https://www.github.com/tauri-apps/muda/pull/283) by [@ogoffart](https://www.github.com/tauri-apps/muda/../../ogoffart)) Make gtk an optional feature (enabled by default)
+- [`e37d99b`](https://www.github.com/tauri-apps/muda/commit/e37d99b6de01dde0e3206a0f358cdc10a2aa3ddb) ([#277](https://www.github.com/tauri-apps/muda/pull/277) by [@s00d](https://www.github.com/tauri-apps/muda/../../s00d)) Add support for icons on `Submenu` so we added:
+
+  - `Submenu::set_icon`
+  - `Submenu::set_native_icon`
+  - `SubmenuBuilder::icon`
+  - `SubmenuBuilder::native_icon`
+
 ## \[0.16.1]
 
 - [`6b3e2e5`](https://www.github.com/tauri-apps/muda/commit/6b3e2e51bb501ffbdf4526e59e4dedcb37c7b29b) ([#278](https://www.github.com/tauri-apps/muda/pull/278) by [@Legend-Master](https://www.github.com/tauri-apps/muda/../../Legend-Master)) Fix the buffer overflow when calling `text` on Windows
@@ -13,7 +67,7 @@
 
 ## \[0.15.3]
 
-- [`11a1ef8`](https://www.github.com/tauri-apps/muda/commit/11a1ef84fa85cbe2f0bfb0c3a986d7a36d84288f) ([#241](https://www.github.com/tauri-apps/muda/pull/241) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On Windows, fix changing state of menu items inside a `muda::Menu` not immedietly reflected on the window menu bar.
+- [`11a1ef8`](https://www.github.com/tauri-apps/muda/commit/11a1ef84fa85cbe2f0bfb0c3a986d7a36d84288f) ([#241](https://www.github.com/tauri-apps/muda/pull/241) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On Windows, fix changing state of menu items inside a `muda::Menu` not immediately reflected on the window menu bar.
 
 ## \[0.15.2]
 
@@ -101,7 +155,7 @@
   - Removed `Error::EmptyAcceleratorToken` enum variant
   - Removed `Error::UnexpectedAcceleratorFormat` enum variant
   - Changed `Error::AcceleratorParseError` inner value from `String` to the newly added `AcceleratorParseError` enum.
-- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Avoid panicing when parsing an invalid `Accelerator` from a string such as `SHIFT+SHIFT` and return an error instead.
+- [`2d7828f`](https://www.github.com/tauri-apps/muda/commit/2d7828fdd9d216d9a245bad7eae8f096b42948c0)([#157](https://www.github.com/tauri-apps/muda/pull/157)) Avoid panicking when parsing an invalid `Accelerator` from a string such as `SHIFT+SHIFT` and return an error instead.
 
 ## \[0.11.5]
 
@@ -146,7 +200,7 @@
 ## \[0.9.3]
 
 - [`bdd0c9a`](https://www.github.com/tauri-apps/muda/commit/bdd0c9aa0d7d4158535796a20a1c1597799840a4)([#122](https://www.github.com/tauri-apps/muda/pull/122)) On macOS, fix menu crash due to a double freeing the underlying NsMenu.
-- [`f7e3030`](https://www.github.com/tauri-apps/muda/commit/f7e3030f3438f92e92dfa724c5f8a6864387de0f)([#125](https://www.github.com/tauri-apps/muda/pull/125)) On Windwos, redraw the menubar when adding a new menu item or a submenu.
+- [`f7e3030`](https://www.github.com/tauri-apps/muda/commit/f7e3030f3438f92e92dfa724c5f8a6864387de0f)([#125](https://www.github.com/tauri-apps/muda/pull/125)) On Windows, redraw the menubar when adding a new menu item or a submenu.
 
 ## \[0.9.2]
 
@@ -195,7 +249,7 @@
 ## \[0.8.0]
 
 - [`662e17d`](https://www.github.com/tauri-apps/muda/commit/662e17d0ec75a746a330390ad3818e35bd2be234)([#92](https://www.github.com/tauri-apps/muda/pull/92)) Add `Drop` implementation for the inner types to release memory and OS resources.
-- [`7ca4b11`](https://www.github.com/tauri-apps/muda/commit/7ca4b115646a0ec1c19547267959625b6842b288)([#89](https://www.github.com/tauri-apps/muda/pull/89)) **Breaking Change:** On Linux, `Menu::inti_for_gtk_window` has been changed to require the second paramter to extend `gtk::Box`. This ensures that the menu bar is added at the beginning of the box instead of at the bottom.
+- [`7ca4b11`](https://www.github.com/tauri-apps/muda/commit/7ca4b115646a0ec1c19547267959625b6842b288)([#89](https://www.github.com/tauri-apps/muda/pull/89)) **Breaking Change:** On Linux, `Menu::inti_for_gtk_window` has been changed to require the second parameter to extend `gtk::Box`. This ensures that the menu bar is added at the beginning of the box instead of at the bottom.
 - [`bb92b56`](https://www.github.com/tauri-apps/muda/commit/bb92b5667eb43d39a162b86f0b779d06e36eca52) On macOS, changed `Submenu::set_windows_menu_for_nsapp` and `Submenu::set_help_menu_for_nsapp` to `Submenu::set_as_windows_menu_for_nsapp` and `Submenu::set_as_help_menu_for_nsapp`
 - [`874f345`](https://www.github.com/tauri-apps/muda/commit/874f345f3c719d70065fceeabebed6224d857813) Add `MenuId` struct an changed all `.id()` methods to return `MenuId` instead of a u32.
 - [`043026c`](https://www.github.com/tauri-apps/muda/commit/043026c30d46f81a0fc2975d7e6bea10421ceb47)([#93](https://www.github.com/tauri-apps/muda/pull/93)) Add `Menu/Submenu::remove_at` to remove an item at specified index.

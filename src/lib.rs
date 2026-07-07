@@ -23,18 +23,18 @@
 //!
 //! # Dependencies (Linux Only)
 //!
-//! `gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+//! `gtk4` is used for menus. Be sure to install following packages before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
-//! pacman -S gtk3 xdotool
+//! pacman -S gtk4
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
-//! sudo apt install libgtk-3-dev libxdo-dev
+//! sudo apt install libgtk-4-dev
 //! ```
 //!
 //! # Example
@@ -52,7 +52,7 @@
 //!         &MenuItem::new(
 //!             "Menu item #1",
 //!             true,
-//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
+//!             Some(Accelerator::new(Modifiers::ALT, Code::KeyD)),
 //!         ),
 //!         &PredefinedMenuItem::separator(),
 //!         &menu_item2,
@@ -78,9 +78,9 @@
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
-//! # let gtk_window = gtk::Window::builder().build();
+//! # let gtk_window = gtk4::Window::builder().build();
 //! # #[cfg(target_os = "linux")]
-//! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+//! # let vertical_gtk_box = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
@@ -99,7 +99,7 @@
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(target_os = "linux")]
-//! # let gtk_window = gtk::Window::builder().build();
+//! # let gtk_window = gtk4::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
 //! // --snip--
@@ -305,20 +305,15 @@ mod sealed {
     pub trait IsMenuItemBase {}
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum MenuItemType {
+    #[default]
     MenuItem,
     Submenu,
     Predefined,
     Check,
     Icon,
-}
-
-impl Default for MenuItemType {
-    fn default() -> Self {
-        Self::MenuItem
-    }
 }
 
 /// A helper trait with methods to help creating a context menu.
@@ -348,7 +343,7 @@ pub trait ContextMenu {
     ) -> bool;
 
     /// Attach the menu subclass handler to the given hwnd
-    /// so you can recieve events from that window using [MenuEvent::receiver]
+    /// so you can receive events from that window using [MenuEvent::receiver]
     ///
     /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
     ///
@@ -368,7 +363,7 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk::Window`]
+    /// Shows this menu as a context menu inside a [`gtk4::Window`]
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     ///
@@ -404,6 +399,26 @@ pub trait ContextMenu {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
+    fn as_menu(&self) -> Option<&Menu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Menu`], and panics if it wasn't.
+    fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Cast this context menu to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Submenu")
+    }
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -414,7 +429,7 @@ pub struct MenuEvent {
     pub id: MenuId,
 }
 
-/// A reciever that could be used to listen to menu events.
+/// A receiver that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 

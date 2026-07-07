@@ -5,8 +5,8 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, IsMenuItem, MenuId,
-    MenuItemKind,
+    dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
+    MenuItemKind, NativeIcon,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -119,14 +119,14 @@ impl Submenu {
         self.insert_items(items, 0)
     }
 
-    /// Insert a menu item at the specified `postion` in the submenu.
+    /// Insert a menu item at the specified `position` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
         self.inner
             .borrow_mut()
             .add_menu_item(item, AddOp::Insert(position))
     }
 
-    /// Insert menu items at the specified `postion` in the submenu.
+    /// Insert menu items at the specified `position` in the submenu.
     pub fn insert_items(&self, items: &[&dyn IsMenuItem], position: usize) -> crate::Result<()> {
         for (i, item) in items.iter().enumerate() {
             self.insert(*item, position + i)?
@@ -180,20 +180,39 @@ impl Submenu {
     }
 
     /// Set this submenu as the Window menu for the application on macOS.
-    ///
     /// This will cause macOS to automatically add window-switching items and
     /// certain other items to the menu.
+    ///
+    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
+    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
+    ///
+    ///
+    /// # Note
+    ///
+    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
+    /// this method will set the first instance of this submenu as the Window menu for the application.
+    ///
+    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
     #[cfg(target_os = "macos")]
     pub fn set_as_windows_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_windows_menu_for_nsapp()
     }
 
     /// Set this submenu as the Help menu for the application on macOS.
-    ///
     /// This will cause macOS to automatically add a search box to the menu.
+    ///
+    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
+    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
     ///
     /// If no menu is set as the Help menu, macOS will automatically use any menu
     /// which has a title matching the localized word "Help".
+    ///
+    /// # Note
+    ///
+    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
+    /// this method will set the first instance of this submenu as the Help menu for the application.
+    ///
+    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
     #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.inner.borrow_mut().set_as_help_menu_for_nsapp()
@@ -207,6 +226,21 @@ impl Submenu {
         } else {
             self.id().clone()
         }
+    }
+
+    /// Change this menu item icon or remove it.
+    pub fn set_icon(&self, icon: Option<Icon>) {
+        self.inner.borrow_mut().set_icon(icon)
+    }
+
+    /// Change this menu item icon to a native image or remove it.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: Unsupported.
+    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
+        #[cfg(target_os = "macos")]
+        self.inner.borrow_mut().set_native_icon(_icon)
     }
 }
 
@@ -258,5 +292,9 @@ impl ContextMenu for Submenu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
+    }
+
+    fn as_submenu(&self) -> Option<&Submenu> {
+        Some(self)
     }
 }

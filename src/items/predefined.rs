@@ -11,7 +11,7 @@ use crate::{
 };
 use keyboard_types::{Code, Modifiers};
 
-/// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+/// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
@@ -63,7 +63,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
@@ -71,7 +71,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Linux:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
@@ -238,7 +238,7 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PredefinedMenuItemType {
@@ -260,13 +260,8 @@ pub(crate) enum PredefinedMenuItemType {
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
+    #[default]
     None,
-}
-
-impl Default for PredefinedMenuItemType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl PredefinedMenuItemType {

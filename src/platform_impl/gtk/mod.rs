@@ -18,7 +18,7 @@ pub(crate) use icon::PlatformIcon;
 use mnemonic::to_gtk_mnemonic;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::KeyAccelerator,
     util::{AddOp, Counter},
     Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
     PredefinedMenuItemType,
@@ -367,7 +367,7 @@ pub struct MenuChild {
     id: MenuId,
     text: String,
     enabled: bool,
-    accelerator: Option<Accelerator>,
+    key_accelerator: Option<KeyAccelerator>,
 
     checked: bool,
 
@@ -390,7 +390,7 @@ impl MenuChild {
             enabled,
             checked: false,
             icon: None,
-            accelerator: None,
+            key_accelerator: None,
             type_: MenuItemType::Submenu,
             ctx_menu_id: COUNTER.next(),
             instances: HashMap::new(),
@@ -534,17 +534,17 @@ impl MenuChild {
 }
 
 impl MenuChild {
-    pub fn new_menu_item(
+    pub fn new(
         text: &str,
         enabled: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             text: text.to_string(),
             enabled,
-            accelerator,
+            key_accelerator,
             icon: None,
             checked: false,
             type_: MenuItemType::MenuItem,
@@ -563,7 +563,7 @@ impl MenuChild {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
-        if let Some(accelerator) = &self.accelerator {
+        if let Some(accelerator) = &self.key_accelerator {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
         }
 
@@ -620,16 +620,19 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.accelerator = accelerator;
-
+    pub fn set_key_accelerator(
+        &mut self,
+        key_accelerator: Option<KeyAccelerator>,
+    ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
-        let accelerator = accelerator.map(|a| a.to_gtk());
+        let accelerator = key_accelerator.as_ref().map(|a| a.to_gtk());
         let accelerator = accelerator.as_deref().map(|a| [a]).unwrap_or_default();
         for item in self.instances.values().flat_map(|v| v.iter()) {
             let app = item.application();
             app.set_accels_for_action(&detailed_action, accelerator.as_slice());
         }
+
+        self.key_accelerator = key_accelerator;
 
         Ok(())
     }
@@ -641,7 +644,7 @@ impl MenuChild {
             id: MenuId(COUNTER.next().to_string()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
-            accelerator: None,
+            key_accelerator: None,
             icon: None,
             checked: false,
             type_: MenuItemType::Predefined,
@@ -658,14 +661,14 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             text: text.to_string(),
             enabled,
-            accelerator,
+            key_accelerator,
             icon: None,
             checked,
             type_: MenuItemType::Check,
@@ -684,7 +687,7 @@ impl MenuChild {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
-        if let Some(accelerator) = &self.accelerator {
+        if let Some(accelerator) = &self.key_accelerator {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
         }
 
@@ -732,14 +735,14 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             text: text.to_string(),
             enabled,
-            accelerator,
+            key_accelerator,
             icon,
             checked: false,
             type_: MenuItemType::Icon,
@@ -754,14 +757,14 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<NativeIcon>,
-        accelerator: Option<Accelerator>,
+        key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             text: text.to_string(),
             enabled,
-            accelerator,
+            key_accelerator,
             icon: None,
             checked: false,
             type_: MenuItemType::Submenu,
@@ -780,7 +783,7 @@ impl MenuChild {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
 
-        if let Some(accelerator) = &self.accelerator {
+        if let Some(accelerator) = &self.key_accelerator {
             app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
         }
 
