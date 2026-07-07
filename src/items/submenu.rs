@@ -279,12 +279,26 @@ impl ContextMenu for Submenu {
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
-        w: &gtk4::Window,
+        w: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
         self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(w, position)
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
+        self.inner.borrow_mut().gtk_context_menu()
     }
 
     #[cfg(target_os = "macos")]

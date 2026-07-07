@@ -121,7 +121,7 @@ fn main() -> wry::Result<()> {
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
+        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
     );
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -130,7 +130,7 @@ fn main() -> wry::Result<()> {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
+        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);
@@ -193,12 +193,14 @@ fn main() -> wry::Result<()> {
         target_os = "openbsd"
     ))]
     {
+        // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
         // menu_bar
         //     .init_for_gtk_window(window.gtk_window(), window.default_vbox())
         //     .unwrap();
         // menu_bar
         //     .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
         //     .unwrap();
+        let _ = (&menu_bar, &window, &window2);
     }
     #[cfg(target_os = "macos")]
     {
@@ -278,14 +280,24 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                // #[cfg(target_os = "linux")]
-                // if let Some(menu_bar) = menu_bar
-                //     .clone()
-                //     .gtk_menubar_for_gtk_window(window.gtk_window())
-                // {
-                //     use gtk::prelude::*;
-                //     y += menu_bar.allocated_height();
-                // }
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                {
+                    // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
+                    // if let Some(menu_bar) = menu_bar
+                    //     .clone()
+                    //     .gtk_menubar_for_gtk_window(window.gtk_window())
+                    // {
+                    //     use gtk::prelude::*;
+                    //     y += menu_bar.allocated_height();
+                    // }
+                    let _ = &mut y;
+                }
 
                 show_context_menu(&window, &file_m_c, Some(Position::Logical((x, y).into())))
             }
@@ -348,8 +360,18 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    // #[cfg(target_os = "linux")]
-    // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
+        // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+        let _ = (window, menu, position);
+    }
     #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);

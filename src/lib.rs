@@ -52,7 +52,7 @@
 //!         &MenuItem::new(
 //!             "Menu item #1",
 //!             true,
-//!             Some(Accelerator::new(Modifiers::ALT, Code::KeyD)),
+//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
 //!         ),
 //!         &PredefinedMenuItem::separator(),
 //!         &menu_item2,
@@ -78,9 +78,9 @@
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let gtk_window = gtk4::Window::builder().build();
+//! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let vertical_gtk_box = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+//! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
@@ -99,7 +99,7 @@
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let gtk_window = gtk4::Window::builder().build();
+//! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
 //! // --snip--
@@ -363,7 +363,7 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk4::Window`]
+    /// Shows this menu as a context menu inside a [`gtk::Window`]
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     ///
@@ -382,9 +382,24 @@ pub trait ContextMenu {
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
-        w: &gtk4::Window,
+        w: &gtk::Window,
         position: Option<dpi::Position>,
     ) -> bool;
+
+    /// Get the underlying gtk menu reserved for context menus.
+    ///
+    /// The returned [`gtk::PopoverMenu`] is valid as long as the `ContextMenu` is.
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///

@@ -5,7 +5,7 @@
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use gtk4::prelude::*;
+use gtk::prelude::*;
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -32,7 +32,7 @@ use muda::{accelerator::Accelerator, MenuEvent};
 ))]
 fn main() {
     // Create a new application
-    let application = gtk4::Application::builder()
+    let application = gtk::Application::builder()
         .application_id("com.github.gtk4-rs.examples.menubar")
         .build();
     application.connect_startup(on_startup);
@@ -47,7 +47,7 @@ fn main() {
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-fn on_startup(_: &gtk4::Application) {
+fn on_startup(_: &gtk::Application) {
     MenuEvent::set_event_handler(Some(|event| {
         println!("{event:?}");
     }));
@@ -60,10 +60,10 @@ fn on_startup(_: &gtk4::Application) {
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-fn on_activate(application: &gtk4::Application) {
+fn on_activate(application: &gtk::Application) {
     use muda::ContextMenu;
 
-    let window = gtk4::ApplicationWindow::builder()
+    let window = gtk::ApplicationWindow::builder()
         .application(application)
         .title("Menubar Example")
         .default_width(350)
@@ -79,7 +79,7 @@ fn on_activate(application: &gtk4::Application) {
         "Check",
         true,
         true,
-        Some(Accelerator::new(Modifiers::empty(), Code::KeyQ)),
+        Some(Accelerator::new(Some(Modifiers::empty()), Code::KeyQ)),
     );
 
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
@@ -90,7 +90,7 @@ fn on_activate(application: &gtk4::Application) {
         "quit",
         "&Quit",
         true,
-        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyQ)),
+        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyQ)),
     );
 
     let file_menu = muda::Submenu::new("&File", true);
@@ -102,10 +102,10 @@ fn on_activate(application: &gtk4::Application) {
     let menubar = muda::Menu::new();
     menubar.append(&file_menu).unwrap();
 
-    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     menubar.init_for_gtk_window(&window, Some(&vbox)).unwrap();
 
-    let btn = gtk4::Button::with_label("ASdasd");
+    let btn = gtk::Button::with_label("ASdasd");
     let w = window.clone();
 
     btn.connect_clicked(move |_| {
@@ -125,6 +125,13 @@ fn on_activate(application: &gtk4::Application) {
 )))]
 fn main() {}
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 fn load_icon(path: &std::path::Path) -> muda::Icon {
     let (icon_rgba, icon_width, icon_height) = {
         let image = image::open(path)
