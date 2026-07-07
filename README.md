@@ -20,8 +20,6 @@ Menu Utilities library for Desktop Applications.
 ### Cargo Features
 
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
-- `libxdo`: Enables linking to `libxdo` on Linux or FreeBSD which is used for the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
-- `serde`: Enables de/serializing the dpi types.
 - `gtk`: Enables the `gtk` crate dependency on Linux or FreeBSD. This is required for `muda` to function properly on Linux or FreeBSD.
 
 ## Dependencies (Linux Only)

@@ -13,7 +13,8 @@ rust-version = "1.73"
 include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
 
 [features]
-default = []
+default = ["gtk"]
+gtk = ["dep:gtk4", "dep:png"]
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
@@ -41,9 +42,9 @@ features = [
   "Win32_UI_Controls",
 ]
 
-[target.'cfg(target_os = "linux")'.dependencies]
-gtk4 = "0.9"
-png = "0.17"
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk4 = { version = "0.9", optional = true }
+png = { version = "0.17", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.1"

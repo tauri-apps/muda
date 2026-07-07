@@ -239,7 +239,13 @@ impl Menu {
         Ok(())
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
