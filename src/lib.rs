@@ -439,7 +439,9 @@ pub trait ContextMenu {
 
     /// Get the menu items in a platform-neutral representation suitable for Linux KSNI trays.
     #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    fn compat_items(&self) -> Vec<Arc<ArcSwap<CompatMenuItem>>>;
+    fn compat_items(&self) -> Vec<Arc<ArcSwap<CompatMenuItem>>> {
+        Vec::new()
+    }
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
