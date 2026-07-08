@@ -186,6 +186,12 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 pub mod about_metadata;
 pub mod accelerator;
 mod builders;
@@ -431,6 +437,10 @@ pub trait ContextMenu {
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
+    /// Get the menu items in a platform-neutral representation suitable for Linux KSNI trays.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<Arc<ArcSwap<CompatMenuItem>>>;
+
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
@@ -520,11 +530,28 @@ impl MenuEvent {
         }
     }
 
-    pub(crate) fn send(event: MenuEvent) {
+    /// Emit a menu event.
+    ///
+    /// This is intended for platform integrations that present `muda` menus
+    /// outside of `muda` itself.
+    pub fn send(event: MenuEvent) {
         if let Some(handler) = MENU_EVENT_HANDLER.get_or_init(|| None) {
             handler(event);
         } else {
             let _ = MENU_CHANNEL.0.send(event);
         }
     }
+}
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+static MENU_UPDATE_CHANNEL: Lazy<(Sender<()>, Receiver<()>)> = Lazy::new(unbounded);
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn recv_menu_update() -> std::result::Result<(), crossbeam_channel::RecvError> {
+    MENU_UPDATE_CHANNEL.1.recv()
+}
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+pub fn send_menu_update() {
+    let _ = MENU_UPDATE_CHANNEL.0.send(());
 }

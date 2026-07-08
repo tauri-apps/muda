@@ -23,6 +23,7 @@ Menu Utilities library for Desktop Applications.
 - `libxdo`: Enables linking to `libxdo` on Linux or FreeBSD which is used for the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
 - `serde`: Enables de/serializing the dpi types.
 - `gtk`: Enables the `gtk` crate dependency on Linux or FreeBSD. This is required for `muda` to function properly on Linux or FreeBSD.
+- `linux-ksni`: Enables a GTK-free Linux menu compatibility model for StatusNotifierItem tray integrations.
 
 ## Dependencies (Linux Only)
 

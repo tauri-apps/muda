@@ -4,6 +4,12 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{
     accelerator::{Accelerator, CMD_OR_CTRL},
     sealed::IsMenuItemBase,
@@ -16,6 +22,8 @@ use keyboard_types::{Code, Modifiers};
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) compat: Arc<ArcSwap<crate::CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for PredefinedMenuItem {}
@@ -34,6 +42,24 @@ impl IsMenuItem for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn compat_menu_item(
+        item: &crate::platform_impl::MenuChild,
+    ) -> crate::CompatMenuItem {
+        let label = super::strip_mnemonic(item.text());
+        if label.is_empty() {
+            crate::CompatMenuItem::Separator
+        } else {
+            crate::CompatStandardItem {
+                id: item.id().0.clone(),
+                label,
+                enabled: item.is_enabled(),
+                icon: None,
+            }
+            .into()
+        }
+    }
+
     /// Separator menu item
     pub fn separator() -> PredefinedMenuItem {
         PredefinedMenuItem::new::<&str>(PredefinedMenuItemType::Separator, None)
@@ -176,9 +202,14 @@ impl PredefinedMenuItem {
             item,
             text.map(|t| t.as_ref().to_string()),
         );
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = item.compat_child();
+
         Self {
             id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat,
         }
     }
 
@@ -194,7 +225,14 @@ impl PredefinedMenuItem {
 
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        let mut inner = self.inner.borrow_mut();
+        inner.set_text(text.as_ref());
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        {
+            self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+            crate::send_menu_update();
+        }
     }
 
     /// Convert this menu item into its menu ID.
@@ -240,6 +278,7 @@ fn test_about_metadata() {
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+#[allow(dead_code)]
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PredefinedMenuItemType {
     Separator,

@@ -4,6 +4,12 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{
     accelerator::{Accelerator, KeyAccelerator},
     icon::{Icon, NativeIcon},
@@ -20,6 +26,8 @@ use crate::{
 pub struct IconMenuItem {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) compat: Arc<ArcSwap<crate::CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for IconMenuItem {}
@@ -38,6 +46,24 @@ impl IsMenuItem for IconMenuItem {
 }
 
 impl IconMenuItem {
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn compat_menu_item(
+        item: &crate::platform_impl::MenuChild,
+    ) -> crate::CompatMenuItem {
+        #[cfg(not(feature = "gtk"))]
+        let icon = item.icon_png();
+        #[cfg(feature = "gtk")]
+        let icon = None;
+
+        crate::CompatStandardItem {
+            id: item.id().0.clone(),
+            label: super::strip_mnemonic(item.text()),
+            enabled: item.is_enabled(),
+            icon,
+        }
+        .into()
+    }
+
     /// Create a new icon menu item.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -55,9 +81,14 @@ impl IconMenuItem {
             accelerator.map(KeyAccelerator::from),
             None,
         );
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = item.compat_child();
+
         Self {
             id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat,
         }
     }
 
@@ -73,15 +104,21 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
+        let item = crate::platform_impl::MenuChild::new_icon(
+            text.as_ref(),
+            enabled,
+            icon,
+            accelerator.map(KeyAccelerator::from),
+            Some(id),
+        );
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = item.compat_child();
+
         Self {
-            id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_icon(
-                text.as_ref(),
-                enabled,
-                icon,
-                accelerator.map(KeyAccelerator::from),
-                Some(id),
-            ))),
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat,
         }
     }
 
@@ -105,9 +142,14 @@ impl IconMenuItem {
             accelerator.map(KeyAccelerator::from),
             None,
         );
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = item.compat_child();
+
         Self {
             id: Rc::new(item.id().clone()),
             inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat,
         }
     }
 
@@ -126,17 +168,21 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
+        let item = crate::platform_impl::MenuChild::new_native_icon(
+            text.as_ref(),
+            enabled,
+            native_icon,
+            accelerator.map(KeyAccelerator::from),
+            Some(id),
+        );
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = item.compat_child();
+
         Self {
-            id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(
-                crate::platform_impl::MenuChild::new_native_icon(
-                    text.as_ref(),
-                    enabled,
-                    native_icon,
-                    accelerator.map(KeyAccelerator::from),
-                    Some(id),
-                ),
-            )),
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat,
         }
     }
 
@@ -154,7 +200,14 @@ impl IconMenuItem {
     /// an `&` before a character to assign this character as the mnemonic
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        let mut inner = self.inner.borrow_mut();
+        inner.set_text(text.as_ref());
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        {
+            self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+            crate::send_menu_update();
+        }
     }
 
     /// Get whether this check menu item is enabled or not.
@@ -164,7 +217,14 @@ impl IconMenuItem {
 
     /// Enable or disable this check menu item.
     pub fn set_enabled(&self, enabled: bool) {
-        self.inner.borrow_mut().set_enabled(enabled)
+        let mut inner = self.inner.borrow_mut();
+        inner.set_enabled(enabled);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        {
+            self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+            crate::send_menu_update();
+        }
     }
 
     /// Set this icon menu item accelerator.
@@ -185,7 +245,14 @@ impl IconMenuItem {
 
     /// Change this menu item icon or remove it.
     pub fn set_icon(&self, icon: Option<Icon>) {
-        self.inner.borrow_mut().set_icon(icon)
+        let mut inner = self.inner.borrow_mut();
+        inner.set_icon(icon);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        {
+            self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+            crate::send_menu_update();
+        }
     }
 
     /// Change this menu item icon to a native image or remove it.

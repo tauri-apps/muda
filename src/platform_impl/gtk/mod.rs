@@ -22,10 +22,21 @@ use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
     rc::Rc,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 static COUNTER: Counter = Counter::new();
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+fn compat_placeholder() -> Arc<ArcSwap<crate::CompatMenuItem>> {
+    Arc::new(ArcSwap::from_pointee(crate::CompatMenuItem::Separator))
+}
 
 macro_rules! is_item_supported {
     ($item:tt) => {{
@@ -246,6 +257,14 @@ impl Menu {
             .collect()
     }
 
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.items()
+            .into_iter()
+            .map(|item| item.compat_child())
+            .collect()
+    }
+
     pub fn init_for_gtk_window<W, C>(
         &mut self,
         window: &W,
@@ -419,6 +438,8 @@ pub struct MenuChild {
     gtk_menus: Option<HashMap<u32, Vec<(u32, gtk::Menu)>>>,
     gtk_menu: Option<(u32, Option<gtk::Menu>)>, // dedicated menu for tray or context menus
     accel_group: Option<gtk::AccelGroup>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    compat: Arc<ArcSwap<crate::CompatMenuItem>>,
 }
 
 impl Drop for MenuChild {
@@ -508,7 +529,10 @@ impl MenuChild {
             icon: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 
     pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
@@ -528,7 +552,10 @@ impl MenuChild {
             predefined_item_type: None,
             accelerator: None,
             checked: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 
     pub(crate) fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
@@ -548,7 +575,10 @@ impl MenuChild {
             gtk_menus: None,
             icon: None,
             is_syncing_checked_state: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 
     pub fn new_check(
@@ -574,7 +604,10 @@ impl MenuChild {
             gtk_menus: None,
             icon: None,
             predefined_item_type: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 
     pub fn new_icon(
@@ -600,7 +633,10 @@ impl MenuChild {
             gtk_menus: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 
     pub fn new_native_icon(
@@ -626,12 +662,65 @@ impl MenuChild {
             icon: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: compat_placeholder(),
         }
+        .with_compat()
     }
 }
 
 /// Shared methods
 impl MenuChild {
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn with_compat(mut self) -> Self {
+        self.refresh_compat();
+        self
+    }
+
+    #[cfg(not(all(feature = "linux-ksni", target_os = "linux")))]
+    fn with_compat(self) -> Self {
+        self
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn compat_child(&self) -> Arc<ArcSwap<crate::CompatMenuItem>> {
+        self.compat.clone()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn refresh_compat(&mut self) {
+        self.compat.store(Arc::new(self.compat_menu_item()));
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_menu_item(&self) -> crate::CompatMenuItem {
+        match self.item_type {
+            MenuItemType::Submenu => crate::CompatSubMenuItem {
+                label: crate::strip_mnemonic(self.text()),
+                enabled: self.is_enabled(),
+                submenu: self.compat_items(),
+            }
+            .into(),
+            MenuItemType::Check => crate::CompatCheckmarkItem {
+                id: self.id.0.clone(),
+                label: crate::strip_mnemonic(self.text()),
+                enabled: self.is_enabled(),
+                checked: self.is_checked(),
+            }
+            .into(),
+            MenuItemType::Predefined if self.is_separator() => crate::CompatMenuItem::Separator,
+            MenuItemType::MenuItem | MenuItemType::Predefined | MenuItemType::Icon => {
+                crate::CompatStandardItem {
+                    id: self.id.0.clone(),
+                    label: crate::strip_mnemonic(self.text()),
+                    enabled: self.is_enabled(),
+                    icon: None,
+                }
+                .into()
+            }
+        }
+    }
+
     pub(crate) fn item_type(&self) -> MenuItemType {
         self.item_type
     }
@@ -800,6 +889,14 @@ impl MenuChild {
 
 /// Submenu methods
 impl MenuChild {
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn is_separator(&self) -> bool {
+        matches!(
+            self.predefined_item_type,
+            Some(PredefinedMenuItemType::Separator)
+        )
+    }
+
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
         if is_item_supported!(item) {
             for menus in self.gtk_menus.as_ref().unwrap().values() {
@@ -963,6 +1060,14 @@ impl MenuChild {
             .unwrap()
             .iter()
             .map(|c| c.borrow().kind(c.clone()))
+            .collect()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.items()
+            .into_iter()
+            .map(|item| item.compat_child())
             .collect()
     }
 

@@ -4,7 +4,28 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{dpi::Position, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind};
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    )
+))]
+use crate::dpi::Position;
+use crate::{util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind};
 
 /// A root menu that can be added to a Window on Windows and Linux
 /// and used as the app global menu on macOS.
@@ -69,7 +90,12 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.inner.borrow_mut().add_menu_item(item, AddOp::Append)
+        self.inner.borrow_mut().add_menu_item(item, AddOp::Append)?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
@@ -97,7 +123,12 @@ impl Menu {
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner
             .borrow_mut()
-            .add_menu_item(item, AddOp::Insert(0))
+            .add_menu_item(item, AddOp::Insert(0))?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
@@ -121,7 +152,12 @@ impl Menu {
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
         self.inner
             .borrow_mut()
-            .add_menu_item(item, AddOp::Insert(position))
+            .add_menu_item(item, AddOp::Insert(position))?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Insert menu items at the specified `position` in the menu.
@@ -141,7 +177,12 @@ impl Menu {
 
     /// Remove a menu item from this menu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.inner.borrow_mut().remove(item)
+        self.inner.borrow_mut().remove(item)?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Remove the menu item at the specified position from this menu and returns it.
@@ -493,6 +534,11 @@ impl ContextMenu for Menu {
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.inner.borrow().ns_menu()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.inner.borrow().compat_items()
     }
 
     fn as_menu(&self) -> Option<&Menu> {
