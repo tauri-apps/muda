@@ -6,13 +6,13 @@ mod accelerator;
 mod icon;
 mod mnemonic;
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
     rc::Rc,
 };
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
 
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
 use arc_swap::ArcSwap;

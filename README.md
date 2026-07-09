@@ -20,24 +20,24 @@ Menu Utilities library for Desktop Applications.
 ### Cargo Features
 
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
-- `libxdo`: Enables linking to `libxdo` on Linux or FreeBSD which is used for the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
+- `libxdo`: Compatibility feature for the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items. It is a no-op on the GTK4 backend.
 - `serde`: Enables de/serializing the dpi types.
 - `gtk`: Enables the `gtk` crate dependency on Linux or FreeBSD. This is required for `muda` to function properly on Linux or FreeBSD.
 
 ## Dependencies (Linux Only)
 
-`gtk` is used for menus and `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+GTK4 is used for menus. Be sure to install the following packages before building:
 
 #### Arch Linux / Manjaro:
 
 ```sh
-pacman -S gtk3 xdotool
+pacman -S gtk4
 ```
 
 #### Debian / Ubuntu:
 
 ```sh
-sudo apt install libgtk-3-dev libxdo-dev
+sudo apt install libgtk-4-dev
 ```
 
 ## Dependencies in FreeBSD
@@ -45,7 +45,7 @@ sudo apt install libgtk-3-dev libxdo-dev
 Install this dependencies in order to compile `muda`. Instructions using `pkg`:
 
 ```sh
-pkg install -y rust glib pkgconf gtk3
+pkg install -y rust glib pkgconf gtk4
 ```
 
 ## Example

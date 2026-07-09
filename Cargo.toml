@@ -83,6 +83,6 @@ png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
-tao = { path = "../tao" }
-wry = { path = "../wry" }
+tao = { git = "https://github.com/OlympusLedgerOrg/tao", branch = "port-gtk4" }
+wry = { git = "https://github.com/OlympusLedgerOrg/wry", branch = "port-webkitgtk6" }
 image = { version = "0.25", default-features = false, features = ["png"] }

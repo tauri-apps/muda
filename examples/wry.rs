@@ -304,7 +304,11 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
+    fn create_webview() -> WebViewBuilder<'static> {
+        WebViewBuilder::new()
+    }
+
+    fn build_webview(builder: WebViewBuilder<'_>, window: &Window) -> wry::Result<wry::WebView> {
         #[cfg(not(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -312,7 +316,8 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         )))]
-        return WebViewBuilder::new(window);
+        return builder.build(window);
+
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -320,17 +325,23 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         ))]
-        WebViewBuilder::new_gtk(window.default_vbox().unwrap())
-    };
+        {
+            builder.build_gtk(window.default_vbox().unwrap())
+        }
+    }
 
-    let webview = create_webview(&window)
-        .with_html(&html)
-        .with_ipc_handler(create_ipc_handler(&window))
-        .build()?;
-    let webview2 = create_webview(&window2)
-        .with_html(html)
-        .with_ipc_handler(create_ipc_handler(&window2))
-        .build()?;
+    let webview = build_webview(
+        create_webview()
+            .with_html(&html)
+            .with_ipc_handler(create_ipc_handler(&window)),
+        &window,
+    )?;
+    let webview2 = build_webview(
+        create_webview()
+            .with_html(html)
+            .with_ipc_handler(create_ipc_handler(&window2)),
+        &window2,
+    )?;
 
     let menu_channel = MenuEvent::receiver();
 
