@@ -834,7 +834,8 @@ impl dyn IsMenuItem + '_ {
             MenuItemType::MenuItem => child.create_gtk_item_for_menu_item(app, menu_id),
             MenuItemType::Check => child.create_gtk_item_for_check_menu_item(app, menu_id),
             MenuItemType::Icon => child.create_gtk_item_for_icon_menu_item(app, menu_id),
-            _ => todo!(),
+            // TODO:
+            _ => child.create_gtk_item_for_submenu(app, menu_id),
             // MenuItemType::Predefined => {
             //     child.create_gtk_item_for_predefined_menu_item(menu_id, action_group)
             // }

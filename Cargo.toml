@@ -10,7 +10,14 @@ repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
 rust-version = "1.73"
-include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
+include = [
+  "README.md",
+  "src/**/*.rs",
+  "Cargo.toml",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "LICENSE.spdx",
+]
 
 [features]
 default = ["gtk"]
@@ -43,7 +50,7 @@ features = [
 ]
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
-gtk4 = { version = "0.9", optional = true }
+gtk4 = { version = "0.11", optional = true }
 png = { version = "0.17", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]

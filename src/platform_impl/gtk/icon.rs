@@ -8,6 +8,10 @@ use crate::icon::BadIcon;
 #[derive(Debug, Clone)]
 pub struct PlatformIcon(gtk4::gio::BytesIcon);
 
+// Safety: `PlatformIcon` is used only on the same thread as the one created it
+unsafe impl Send for PlatformIcon {}
+unsafe impl Sync for PlatformIcon {}
+
 impl PlatformIcon {
     /// Creates an `Icon` from 32bpp RGBA data.
     ///
