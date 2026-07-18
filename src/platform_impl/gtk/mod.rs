@@ -29,6 +29,28 @@ static COUNTER: Counter = Counter::new();
 const DEFAULT_ACTION_GROUP: &str = "muda";
 const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
 
+/// Mirrors the GTK3 backend's `is_item_supported` filter: predefined item
+/// types with no GTK representation are silently skipped by the add paths
+/// instead of panicking, so a cross-platform menu definition stays portable.
+fn is_item_supported(item: &dyn IsMenuItem) -> bool {
+    let child = item.child();
+    let child = child.borrow();
+    if let Some(predefined_item_type) = &child.predefined_item_type {
+        !matches!(
+            predefined_item_type,
+            PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::HideOthers
+                | PredefinedMenuItemType::ShowAll
+                | PredefinedMenuItemType::Services
+                | PredefinedMenuItemType::BringAllToFront
+                | PredefinedMenuItemType::None
+        )
+    } else {
+        true
+    }
+}
+
 enum GtkMenuBar {
     MenuBar {
         widget: gtk::PopoverMenuBar,
@@ -157,13 +179,15 @@ impl Menu {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
-        for (menu_id, menu_bar) in &self.instances {
-            let parent_menu = menu_bar.menu();
-            let gtk_item =
-                item.make_gtk_menu_item(menu_bar.application(), *menu_id, parent_menu)?;
-            match op {
-                AddOp::Append => parent_menu.append_item(&gtk_item),
-                AddOp::Insert(position) => parent_menu.insert_item(position as i32, &gtk_item),
+        if is_item_supported(item) {
+            for (menu_id, menu_bar) in &self.instances {
+                let parent_menu = menu_bar.menu();
+                let gtk_item =
+                    item.make_gtk_menu_item(menu_bar.application(), *menu_id, parent_menu)?;
+                match op {
+                    AddOp::Append => parent_menu.append_item(&gtk_item),
+                    AddOp::Insert(position) => parent_menu.insert_item(position as i32, &gtk_item),
+                }
             }
         }
 
@@ -171,6 +195,10 @@ impl Menu {
     }
 
     pub fn add_menu_item_with_id(&mut self, item: &dyn IsMenuItem, id: u32) -> crate::Result<()> {
+        if !is_item_supported(item) {
+            return Ok(());
+        }
+
         for (menu_id, menu_bar) in self.instances.iter().filter(|m| *m.0 == id) {
             let parent_menu = menu_bar.menu();
             let gtk_item =
@@ -575,15 +603,22 @@ impl MenuChild {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
-        for menus in self.instances.values() {
-            for gtk_child in menus {
-                let parent_menu = gtk_child.menu();
-                let gtk_item =
-                    item.make_gtk_menu_item(gtk_child.application(), gtk_child.id(), parent_menu)?;
+        if is_item_supported(item) {
+            for menus in self.instances.values() {
+                for gtk_child in menus {
+                    let parent_menu = gtk_child.menu();
+                    let gtk_item = item.make_gtk_menu_item(
+                        gtk_child.application(),
+                        gtk_child.id(),
+                        parent_menu,
+                    )?;
 
-                match op {
-                    AddOp::Append => parent_menu.append_item(&gtk_item),
-                    AddOp::Insert(position) => parent_menu.insert_item(position as i32, &gtk_item),
+                    match op {
+                        AddOp::Append => parent_menu.append_item(&gtk_item),
+                        AddOp::Insert(position) => {
+                            parent_menu.insert_item(position as i32, &gtk_item)
+                        }
+                    }
                 }
             }
         }
@@ -592,6 +627,10 @@ impl MenuChild {
     }
 
     pub fn add_menu_item_with_id(&self, item: &dyn IsMenuItem, id: u32) -> crate::Result<()> {
+        if !is_item_supported(item) {
+            return Ok(());
+        }
+
         for menus in self.instances.values() {
             for gtk_child in menus.iter().filter(|m| m.id() == id) {
                 let parent_menu = gtk_child.menu();
@@ -1221,7 +1260,8 @@ impl MenuChild {
                 return Ok(item);
             }
 
-            // Unsupported on Linux (matches GTK3 behavior)
+            // Unsupported on Linux; the add paths filter these out via
+            // is_item_supported before any gtk item is created.
             PredefinedMenuItemType::Quit
             | PredefinedMenuItemType::Hide
             | PredefinedMenuItemType::HideOthers
@@ -1350,4 +1390,19 @@ fn get_cursor_pos(window: &gtk::Window) -> (i32, i32) {
             (x as _, y as _)
         })
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_item_supported;
+    use crate::{MenuItem, PredefinedMenuItem};
+
+    #[test]
+    fn unsupported_predefined_items_are_filtered_not_fatal() {
+        assert!(!is_item_supported(&PredefinedMenuItem::quit(None)));
+        assert!(!is_item_supported(&PredefinedMenuItem::hide(None)));
+        assert!(is_item_supported(&PredefinedMenuItem::separator()));
+        assert!(is_item_supported(&PredefinedMenuItem::copy(None)));
+        assert!(is_item_supported(&MenuItem::new("plain", true, None)));
+    }
 }
