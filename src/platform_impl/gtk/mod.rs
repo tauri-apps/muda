@@ -29,6 +29,8 @@ static COUNTER: Counter = Counter::new();
 const DEFAULT_ACTION_GROUP: &str = "muda";
 const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
 
+type GtkId = usize;
+
 enum GtkMenuBar {
     MenuBar {
         widget: gtk4::PopoverMenuBar,
@@ -86,8 +88,8 @@ impl GtkMenuBar {
 
 pub struct Menu {
     id: MenuId,
-    instances: HashMap<u32, GtkMenuBar>,
-    ctx_menu_id: u32,
+    instances: HashMap<GtkId, GtkMenuBar>,
+    ctx_menu_id: GtkId,
     children: Vec<Rc<RefCell<MenuChild>>>,
 }
 
@@ -96,7 +98,7 @@ impl Menu {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             instances: HashMap::new(),
-            ctx_menu_id: COUNTER.next(),
+            ctx_menu_id: COUNTER.next() as GtkId,
             children: Vec::new(),
         }
     }
@@ -122,7 +124,7 @@ impl Menu {
         Ok(())
     }
 
-    pub fn add_menu_item_with_id(&mut self, item: &dyn IsMenuItem, id: u32) -> crate::Result<()> {
+    pub fn add_menu_item_with_id(&mut self, item: &dyn IsMenuItem, id: GtkId) -> crate::Result<()> {
         for (menu_id, menu_bar) in self.instances.iter().filter(|m| *m.0 == id) {
             let gtk_item = item.make_gtk_menu_item(menu_bar.applicaiton(), *menu_id)?;
             menu_bar.menu().append_item(&gtk_item);
@@ -152,7 +154,7 @@ impl Menu {
         W: gtk4::prelude::IsA<gtk4::Widget>,
         C: gtk4::prelude::IsA<gtk4::Widget>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
 
         let Some(app) = window.application() else {
             return Err(crate::Error::GtkWindowWithoutApplication);
@@ -202,7 +204,7 @@ impl Menu {
         W: gtk4::prelude::IsA<gtk4::Window>,
         W: gtk4::prelude::IsA<gtk4::Widget>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
 
         let Some(_menu_bar) = self.instances.remove(&id) else {
             return Err(crate::Error::NotInitialized);
@@ -219,7 +221,7 @@ impl Menu {
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
         let Some(menu_bar) = self.instances.get(&id) else {
             return Err(crate::Error::NotInitialized);
         };
@@ -231,7 +233,7 @@ impl Menu {
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
         let Some(menu_bar) = self.instances.get(&id) else {
             return Err(crate::Error::NotInitialized);
         };
@@ -250,7 +252,7 @@ impl Menu {
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
         self.instances
             .get(&id)
             .map(|m| m.menu_bar().is_visible())
@@ -261,7 +263,7 @@ impl Menu {
     where
         W: gtk4::prelude::IsA<gtk4::Window>,
     {
-        let id = window.as_ptr() as u32;
+        let id = window.as_ptr() as GtkId;
         self.instances.get(&id).map(|m| m.menu_bar().clone())
     }
 
@@ -315,13 +317,13 @@ enum GtkMenuChild {
         app: gtk4::Application,
     },
     Submenu {
-        id: u32,
+        id: GtkId,
         item: gio::MenuItem,
         menu: gio::Menu,
         app: gtk4::Application,
     },
     ContextMenu {
-        id: u32,
+        id: GtkId,
         widget: gtk4::PopoverMenu,
         menu: gio::Menu,
         app: gtk4::Application,
@@ -329,7 +331,7 @@ enum GtkMenuChild {
 }
 
 impl GtkMenuChild {
-    fn id(&self) -> u32 {
+    fn id(&self) -> GtkId {
         match self {
             GtkMenuChild::Submenu { id, .. } => *id,
             GtkMenuChild::ContextMenu { id, .. } => *id,
@@ -382,8 +384,8 @@ pub struct MenuChild {
 
     type_: MenuItemType,
 
-    instances: HashMap<u32, Vec<GtkMenuChild>>,
-    ctx_menu_id: u32,
+    instances: HashMap<GtkId, Vec<GtkMenuChild>>,
+    ctx_menu_id: GtkId,
     children: Vec<Rc<RefCell<MenuChild>>>,
 
     action: Option<gio::SimpleAction>,
@@ -400,7 +402,7 @@ impl MenuChild {
             icon: None,
             key_accelerator: None,
             type_: MenuItemType::Submenu,
-            ctx_menu_id: COUNTER.next(),
+            ctx_menu_id: COUNTER.next() as GtkId,
             instances: HashMap::new(),
             children: Vec::new(),
             action: None,
@@ -410,7 +412,7 @@ impl MenuChild {
     fn create_gtk_item_for_submenu(
         &mut self,
         app: &gtk4::Application,
-        menu_id: u32,
+        menu_id: GtkId,
     ) -> crate::Result<gio::MenuItem> {
         let menu = gio::Menu::new();
         let item = gio::MenuItem::new_submenu(Some(&to_gtk_mnemonic(&self.text)), &menu);
@@ -427,7 +429,7 @@ impl MenuChild {
             self.action = Some(action);
         }
 
-        let id = COUNTER.next();
+        let id = COUNTER.next() as GtkId;
         let child = GtkMenuChild::Submenu {
             item: item.clone(),
             menu,
@@ -466,7 +468,7 @@ impl MenuChild {
         Ok(())
     }
 
-    pub fn add_menu_item_with_id(&self, item: &dyn IsMenuItem, id: u32) -> crate::Result<()> {
+    pub fn add_menu_item_with_id(&self, item: &dyn IsMenuItem, id: GtkId) -> crate::Result<()> {
         for menus in self.instances.values() {
             for gtk_child in menus.iter().filter(|m| m.id() == id) {
                 let gtk_item = item.make_gtk_menu_item(gtk_child.application(), gtk_child.id())?;
@@ -567,7 +569,7 @@ impl MenuChild {
     fn create_gtk_item_for_menu_item(
         &mut self,
         app: &gtk4::Application,
-        menu_id: u32,
+        menu_id: GtkId,
     ) -> crate::Result<gio::MenuItem> {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
@@ -693,7 +695,7 @@ impl MenuChild {
     fn create_gtk_item_for_check_menu_item(
         &mut self,
         app: &gtk4::Application,
-        menu_id: u32,
+        menu_id: GtkId,
     ) -> crate::Result<gio::MenuItem> {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
@@ -791,7 +793,7 @@ impl MenuChild {
     fn create_gtk_item_for_icon_menu_item(
         &mut self,
         app: &gtk4::Application,
-        menu_id: u32,
+        menu_id: GtkId,
     ) -> crate::Result<gio::MenuItem> {
         let detailed_action = self.detailed_action();
         let item = gio::MenuItem::new(Some(&to_gtk_mnemonic(&self.text)), Some(&detailed_action));
@@ -832,7 +834,7 @@ impl dyn IsMenuItem + '_ {
     fn make_gtk_menu_item(
         &self,
         app: &gtk4::Application,
-        menu_id: u32,
+        menu_id: GtkId,
     ) -> crate::Result<gio::MenuItem> {
         let kind = self.kind();
         let mut child = kind.child_mut();
