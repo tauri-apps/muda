@@ -371,6 +371,7 @@ impl GtkMenuChild {
 
 pub struct MenuChild {
     id: MenuId,
+    action_name: String,
     text: String,
     enabled: bool,
     key_accelerator: Option<KeyAccelerator>,
@@ -392,6 +393,7 @@ impl MenuChild {
     pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
             checked: false,
@@ -417,7 +419,7 @@ impl MenuChild {
         if self.action.is_none() {
             let action_group = action_group_from_app(&app);
 
-            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            let action = gio::SimpleAction::new(&self.action_name, None);
             action.connect_activate(|_, _| ());
             action.set_enabled(self.enabled);
             action_group.add_action(&action);
@@ -548,6 +550,7 @@ impl MenuChild {
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
             key_accelerator,
@@ -576,7 +579,7 @@ impl MenuChild {
         if self.action.is_none() {
             let action_group = action_group_from_app(&app);
 
-            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            let action = gio::SimpleAction::new(&self.action_name, None);
             let id = self.id.clone();
             action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
             action.set_enabled(self.enabled);
@@ -599,7 +602,7 @@ impl MenuChild {
     }
 
     fn detailed_action(&self) -> String {
-        format!("{DEFAULT_ACTION_GROUP}.{}", self.id.as_ref())
+        format!("{DEFAULT_ACTION_GROUP}.{}", self.action_name)
     }
 
     pub fn item_type(&self) -> &MenuItemType {
@@ -648,6 +651,7 @@ impl MenuChild {
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         Self {
             id: MenuId(COUNTER.next().to_string()),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
             key_accelerator: None,
@@ -672,6 +676,7 @@ impl MenuChild {
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
             key_accelerator,
@@ -701,7 +706,7 @@ impl MenuChild {
             let action_group = action_group_from_app(&app);
 
             let state = &self.checked.to_variant();
-            let action = gio::SimpleAction::new_stateful(self.id.as_ref(), None, state);
+            let action = gio::SimpleAction::new_stateful(&self.action_name, None, state);
             let id = self.id.clone();
             action.connect_state_notify(move |_| MenuEvent::send(MenuEvent { id: id.clone() }));
             action.set_enabled(self.enabled);
@@ -746,6 +751,7 @@ impl MenuChild {
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
             key_accelerator,
@@ -768,6 +774,7 @@ impl MenuChild {
     ) -> Self {
         Self {
             id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
+            action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
             key_accelerator,
@@ -800,7 +807,7 @@ impl MenuChild {
         if self.action.is_none() {
             let action_group = action_group_from_app(&app);
 
-            let action = gio::SimpleAction::new(self.id.as_ref(), None);
+            let action = gio::SimpleAction::new(&self.action_name, None);
             let id = self.id.clone();
             action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
             action.set_enabled(self.enabled);
