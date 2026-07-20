@@ -68,7 +68,6 @@ macro_rules! inner_menu_child_and_flags {
                 let child = i.inner;
                 let child_ = child.borrow();
                 match child_.predefined_item_type.as_ref().unwrap() {
-                    PredefinedMenuItemType::None => return Ok(()),
                     PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }

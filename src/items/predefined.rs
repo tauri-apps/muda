@@ -255,7 +255,7 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PredefinedMenuItemType {
@@ -277,8 +277,6 @@ pub(crate) enum PredefinedMenuItemType {
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
-    #[default]
-    None,
 }
 
 impl PredefinedMenuItemType {
@@ -311,7 +309,6 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::About(_) => "&About",
             PredefinedMenuItemType::Services => "Services",
             PredefinedMenuItemType::BringAllToFront => "Bring All to Front",
-            PredefinedMenuItemType::None => "",
         }
     }
 

@@ -1007,7 +1007,6 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::About(_) => Some(sel!(fireMenuItemAction:)),
             PredefinedMenuItemType::Services => None,
             PredefinedMenuItemType::BringAllToFront => Some(sel!(arrangeInFront:)),
-            PredefinedMenuItemType::None => None,
         }
     }
 }
