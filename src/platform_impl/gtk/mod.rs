@@ -993,7 +993,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        icon: Option<NativeIcon>,
+        _icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -1005,7 +1005,7 @@ impl MenuChild {
             key_accelerator,
             icon: None,
             checked: false,
-            type_: MenuItemType::Submenu,
+            type_: MenuItemType::Icon,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
