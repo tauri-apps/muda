@@ -28,6 +28,29 @@ const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";
 
 type GtkId = usize;
 
+macro_rules! is_item_supported {
+    ($item:expr) => {{
+        let child = $item.child();
+        let child = child.borrow();
+        if let Some(predefined_item_type) = &child.predefined_item_type {
+            matches!(
+                predefined_item_type,
+                PredefinedMenuItemType::Separator | PredefinedMenuItemType::About(_)
+            )
+        } else {
+            true
+        }
+    }};
+}
+
+macro_rules! return_if_item_not_supported {
+    ($item:expr) => {
+        if !is_item_supported!($item) {
+            return Ok(());
+        }
+    };
+}
+
 enum GtkMenuBar {
     MenuBar {
         widget: gtk4::PopoverMenuBar,
@@ -110,6 +133,8 @@ impl Menu {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
+        return_if_item_not_supported!(item);
+
         for (menu_id, menu_bar) in &self.instances {
             let gtk_item =
                 item.make_gtk_menu_item(menu_bar.applicaiton(), *menu_id, menu_bar.menu())?;
@@ -128,6 +153,8 @@ impl Menu {
         item: &dyn IsMenuItem,
         id: GtkId,
     ) -> crate::Result<()> {
+        return_if_item_not_supported!(item);
+
         if let Some(menu_bar) = self.instances.get(&id) {
             let gtk_item = item.make_gtk_menu_item(menu_bar.applicaiton(), id, menu_bar.menu())?;
             menu_bar.menu().append_item(&gtk_item);
@@ -476,6 +503,7 @@ pub struct MenuChild {
     icon: Option<Icon>,
 
     type_: MenuItemType,
+    predefined_item_type: Option<PredefinedMenuItemType>,
 
     instances: HashMap<GtkId, Vec<GtkMenuChild>>,
     ctx_menu_id: GtkId,
@@ -495,6 +523,7 @@ impl MenuChild {
             icon: None,
             key_accelerator: None,
             type_: MenuItemType::Submenu,
+            predefined_item_type: None,
             ctx_menu_id: COUNTER.next() as GtkId,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -546,6 +575,8 @@ impl MenuChild {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
+        return_if_item_not_supported!(item);
+
         for menus in self.instances.values() {
             for gtk_child in menus {
                 let app = gtk_child.application();
@@ -570,6 +601,8 @@ impl MenuChild {
         item: &dyn IsMenuItem,
         id: GtkId,
     ) -> crate::Result<()> {
+        return_if_item_not_supported!(item);
+
         for menus in self.instances.values() {
             for gtk_child in menus.iter().filter(|m| m.id() == id) {
                 let app = gtk_child.application();
@@ -699,6 +732,7 @@ impl MenuChild {
             icon: None,
             checked: false,
             type_: MenuItemType::MenuItem,
+            predefined_item_type: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -922,6 +956,7 @@ impl MenuChild {
             icon: None,
             checked: false,
             type_: MenuItemType::Predefined,
+            predefined_item_type: Some(item_type),
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -947,6 +982,7 @@ impl MenuChild {
             icon: None,
             checked,
             type_: MenuItemType::Check,
+            predefined_item_type: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1034,6 +1070,7 @@ impl MenuChild {
             icon,
             checked: false,
             type_: MenuItemType::Icon,
+            predefined_item_type: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1057,6 +1094,7 @@ impl MenuChild {
             icon: None,
             checked: false,
             type_: MenuItemType::Icon,
+            predefined_item_type: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
