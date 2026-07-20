@@ -94,19 +94,11 @@ impl PredefinedMenuItem {
     }
 
     /// Minimize window menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Minimize, text)
     }
 
     /// Maximize window menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Maximize, text)
     }
@@ -115,16 +107,12 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows:** Unsupported.
     pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Fullscreen, text)
     }
 
     /// Hide window menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Hide, text)
     }
@@ -148,10 +136,6 @@ impl PredefinedMenuItem {
     }
 
     /// Close window menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::CloseWindow, text)
     }

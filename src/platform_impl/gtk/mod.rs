@@ -35,7 +35,11 @@ macro_rules! is_item_supported {
         if let Some(predefined_item_type) = &child.predefined_item_type {
             matches!(
                 predefined_item_type,
-                PredefinedMenuItemType::Separator | PredefinedMenuItemType::About(_)
+                PredefinedMenuItemType::Minimize
+                    | PredefinedMenuItemType::Maximize
+                    | PredefinedMenuItemType::Fullscreen
+                    | PredefinedMenuItemType::Hide
+                    | PredefinedMenuItemType::CloseWindow
             )
         } else {
             true
@@ -947,12 +951,14 @@ impl MenuChild {
 
 impl MenuChild {
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+        let key_accelerator = item_type.accelerator().map(Into::into);
+
         Self {
             id: MenuId(COUNTER.next().to_string()),
             action_name: format!("item-{}", COUNTER.next()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled: true,
-            key_accelerator: None,
+            key_accelerator,
             icon: None,
             checked: false,
             type_: MenuItemType::Predefined,
@@ -962,6 +968,46 @@ impl MenuChild {
             children: Vec::new(),
             action: None,
         }
+    }
+
+    fn create_gtk_item_for_predefined_menu_item(
+        &mut self,
+        app: &gtk4::Application,
+        menu_id: GtkId,
+        parent_menu: &gio::Menu,
+    ) -> crate::Result<gio::MenuItem> {
+        let predefined_item_type = self.predefined_item_type.as_ref().unwrap().clone();
+
+        let detailed_action = self.detailed_action();
+        let id = COUNTER.next() as GtkId;
+        let item = gtk_action_item(&self.text, &detailed_action, None, id);
+
+        if let Some(accelerator) = &self.key_accelerator {
+            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        }
+
+        if self.action.is_none() {
+            let action_group = action_group_from_app(&app);
+
+            let action = gio::SimpleAction::new(&self.action_name, None);
+            let app = app.clone();
+            action.connect_activate(move |_, _| {
+                activate_predefined_window_action(&app, &predefined_item_type)
+            });
+            action.set_enabled(self.enabled);
+            action_group.add_action(&action);
+
+            self.action = Some(action);
+        }
+
+        let child = GtkMenuChild::Item {
+            id,
+            parent_menu: parent_menu.clone(),
+            app: app.clone(),
+        };
+        self.instances.entry(menu_id).or_default().push(child);
+
+        Ok(item)
     }
 }
 
@@ -1164,12 +1210,34 @@ impl dyn IsMenuItem + '_ {
             MenuItemType::Icon => {
                 child.create_gtk_item_for_icon_menu_item(app, menu_id, parent_menu)
             }
-            // TODO:
-            _ => child.create_gtk_item_for_submenu(app, menu_id, parent_menu),
-            // MenuItemType::Predefined => {
-            //     child.create_gtk_item_for_predefined_menu_item(menu_id, action_group)
-            // }
+            MenuItemType::Predefined => {
+                child.create_gtk_item_for_predefined_menu_item(app, menu_id, parent_menu)
+            }
         }
+    }
+}
+
+fn activate_predefined_window_action(
+    app: &gtk4::Application,
+    predefined_item_type: &PredefinedMenuItemType,
+) {
+    let Some(window) = app.active_window() else {
+        return;
+    };
+
+    match predefined_item_type {
+        PredefinedMenuItemType::Minimize => window.minimize(),
+        PredefinedMenuItemType::Maximize => window.maximize(),
+        PredefinedMenuItemType::Fullscreen => {
+            if window.is_fullscreen() {
+                window.unfullscreen();
+            } else {
+                window.fullscreen();
+            }
+        }
+        PredefinedMenuItemType::Hide => window.set_visible(false),
+        PredefinedMenuItemType::CloseWindow => window.close(),
+        _ => {}
     }
 }
 
