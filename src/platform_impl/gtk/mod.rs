@@ -923,7 +923,16 @@ impl MenuChild {
             let state = &self.checked.to_variant();
             let action = gio::SimpleAction::new_stateful(&self.action_name, None, state);
             let id = self.id.clone();
-            action.connect_state_notify(move |_| MenuEvent::send(MenuEvent { id: id.clone() }));
+            // Dispatch from activation, not state notification, so set_checked()
+            // can synchronize GTK state without emitting a user menu event.
+            action.connect_activate(move |action, _| {
+                let checked = action
+                    .state()
+                    .and_then(|state| state.get())
+                    .unwrap_or(false);
+                action.set_state(&(!checked).to_variant());
+                MenuEvent::send(MenuEvent { id: id.clone() });
+            });
             action.set_enabled(self.enabled);
             action_group.add_action(&action);
 
