@@ -6,11 +6,7 @@ mod accelerator;
 mod icon;
 mod mnemonic;
 
-use std::{
-    cell::RefCell,
-    collections::{hash_map::Entry, HashMap},
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use dpi::Position;
 use gtk4::{gdk::Rectangle, gio, prelude::*};
@@ -200,13 +196,13 @@ impl Menu {
             return Err(crate::Error::GtkWindowWithoutApplication);
         };
 
-        // This is the first time this method has been called on this window
-        // so we need to create the menubar
-        if let Entry::Vacant(e) = self.instances.entry(id) {
-            e.insert(GtkMenuBar::new(app.clone()));
-        } else {
+        if self.instances.contains_key(&id) {
             return Err(crate::Error::AlreadyInitialized);
         }
+
+        let menu_bar = GtkMenuBar::new(app.clone());
+        attach_menubar_to_window(window, container, menu_bar.menu_bar())?;
+        self.instances.insert(id, menu_bar);
 
         let action_group = action_group_from_app(&app);
         window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
@@ -216,24 +212,6 @@ impl Menu {
         }
 
         let menu_bar = self.instances[&id].menu_bar();
-
-        // add the menubar to the specified widget, otherwise to the window
-        if let Some(container) = container {
-            if container.type_().name() == "GtkBox" {
-                let gtk_box = container.dynamic_cast_ref::<gtk4::Box>().unwrap();
-                gtk_box.prepend(menu_bar);
-            } else if container.type_().name() == "GtkFixed" {
-                let gtk_box = container.dynamic_cast_ref::<gtk4::Fixed>().unwrap();
-                gtk_box.put(menu_bar, 0., 0.);
-            } else if container.type_().name() == "GtkStack" {
-                let gtk_box = container.dynamic_cast_ref::<gtk4::Stack>().unwrap();
-                gtk_box.add_child(menu_bar);
-            }
-        } else {
-            window.set_child(Some(menu_bar));
-        }
-
-        // show the menu bar
         menu_bar.set_visible(true);
 
         Ok(())
@@ -454,6 +432,32 @@ fn internal_id_at(menu: &gio::Menu, index: i32) -> Option<GtkId> {
 
 fn find_row_index(menu: &gio::Menu, id: GtkId) -> Option<i32> {
     (0..menu.n_items()).find(|index| internal_id_at(menu, *index) == Some(id))
+}
+
+fn attach_menubar_to_window<W, C>(
+    window: &W,
+    container: Option<&C>,
+    menu_bar: &gtk4::PopoverMenuBar,
+) -> crate::Result<()>
+where
+    W: gtk4::prelude::IsA<gtk4::Window>,
+    C: gtk4::prelude::IsA<gtk4::Widget>,
+{
+    if let Some(container) = container {
+        if let Some(gtk_box) = container.dynamic_cast_ref::<gtk4::Box>() {
+            gtk_box.prepend(menu_bar);
+        } else if let Some(gtk_fixed) = container.dynamic_cast_ref::<gtk4::Fixed>() {
+            gtk_fixed.put(menu_bar, 0., 0.);
+        } else if let Some(gtk_stack) = container.dynamic_cast_ref::<gtk4::Stack>() {
+            gtk_stack.add_child(menu_bar);
+        } else {
+            return Err(crate::Error::UnsupportedGtkContainer);
+        }
+    } else {
+        window.set_child(Some(menu_bar));
+    }
+
+    Ok(())
 }
 
 pub struct MenuChild {
