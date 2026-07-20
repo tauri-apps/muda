@@ -224,13 +224,17 @@ impl Menu {
     {
         let id = window.as_ptr() as GtkId;
 
-        let Some(_menu_bar) = self.instances.remove(&id) else {
+        let Some(menu_bar) = self.instances.remove(&id) else {
             return Err(crate::Error::NotInitialized);
         };
 
-        window.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+        for child in &self.children {
+            child.borrow_mut().remove_instances_for_parent(id);
+        }
 
-        // TODO: destroy the menu bar
+        menu_bar.menu_bar().unparent();
+
+        window.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
 
         Ok(())
     }
@@ -296,9 +300,11 @@ impl Menu {
 
         if self.instances.get(&self.ctx_menu_id).is_none() {
             let action_group = action_group_from_app(&app);
-            window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
             let menu = GtkMenuBar::new_context(app);
+
+            let widget = menu.context_menu();
+            widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
             self.instances.insert(self.ctx_menu_id, menu);
 
@@ -316,9 +322,7 @@ impl Menu {
         let menu = self.instances.get(&self.ctx_menu_id).unwrap();
         let context_menu = menu.context_menu();
 
-        if context_menu.parent().is_some() {
-            context_menu.unparent();
-        }
+        context_menu.unparent();
         context_menu.set_parent(window);
 
         context_menu.popup();
@@ -642,7 +646,7 @@ impl MenuChild {
             let widget = gtk4::PopoverMenu::from_model(Some(&menu));
 
             let action_group = action_group_from_app(&app);
-            window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
+            widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
             let menu = GtkMenuChild::ContextMenu {
                 id: self.ctx_menu_id,
@@ -669,9 +673,7 @@ impl MenuChild {
 
         let context_menu = menu.context_menu();
 
-        if context_menu.parent().is_some() {
-            context_menu.unparent();
-        }
+        context_menu.unparent();
         context_menu.set_parent(window);
 
         context_menu.popup();
