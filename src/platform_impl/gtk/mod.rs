@@ -815,6 +815,41 @@ impl MenuChild {
         }
     }
 
+    // A logical menu item is alive while at least one GTK menu row still
+    // represents it. Context popovers are containers, not item rows.
+    fn is_alive(&self) -> bool {
+        self.instances
+            .values()
+            .flatten()
+            .any(|child| !matches!(child, GtkMenuChild::ContextMenu { .. }))
+    }
+
+    fn cleanup_unused_action(&mut self, app: &gtk4::Application) {
+        if self.is_alive() {
+            return;
+        }
+
+        app.set_accels_for_action(&self.detailed_action(), &[]);
+
+        let Some(action) = self.action.take() else {
+            return;
+        };
+
+        if self.type_ == MenuItemType::Check {
+            // Any check activation other than set_checked() updates the GTK
+            // action state, so self.checked may be stale, and
+            // we need to synchronize it from the GTK state so later
+            // calls to is_checked() or readdition of the item to a menu
+            // will have the correct checked state.
+            if let Some(checked) = action.state().and_then(|state| state.get()) {
+                self.checked = checked;
+            }
+        }
+
+        let action_group = action_group_from_app(app);
+        action_group.remove_action(&self.action_name);
+    }
+
     fn remove_instance_for_parent_at_position(&mut self, parent_id: GtkId, position: usize) {
         let Some(instances) = self.instances.get_mut(&parent_id) else {
             return;
@@ -839,17 +874,23 @@ impl MenuChild {
             self.instances.remove(&parent_id);
         }
 
+        let app = instance.application().clone();
         if let GtkMenuChild::Submenu { id, .. } = instance {
             for child in &mut self.children {
                 child.borrow_mut().remove_instances_for_parent(id);
             }
         }
+        self.cleanup_unused_action(&app);
     }
 
     fn remove_instances_for_parent(&mut self, parent_id: GtkId) {
         let Some(instances) = self.instances.remove(&parent_id) else {
             return;
         };
+
+        let app = instances
+            .first()
+            .map(|instance| instance.application().clone());
 
         for instance in instances {
             let parent_menu = instance.parent_menu();
@@ -862,6 +903,10 @@ impl MenuChild {
                     child.borrow_mut().remove_instances_for_parent(id);
                 }
             }
+        }
+
+        if let Some(app) = app {
+            self.cleanup_unused_action(&app);
         }
     }
 }
