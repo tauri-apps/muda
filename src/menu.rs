@@ -139,21 +139,14 @@ impl Menu {
         Ok(())
     }
 
-    /// Remove a menu item from this menu.
+    /// Remove all occurrences of a menu item from this menu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner.borrow_mut().remove(item)
     }
 
     /// Remove the menu item at the specified position from this menu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
-        let mut items = self.items();
-        if items.len() > position {
-            let item = items.remove(position);
-            let _ = self.remove(item.as_ref());
-            Some(item)
-        } else {
-            None
-        }
+        self.inner.borrow_mut().remove_at(position)
     }
 
     /// Returns a list of menu items that has been added to this menu.

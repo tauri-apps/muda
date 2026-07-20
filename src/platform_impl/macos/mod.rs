@@ -201,6 +201,11 @@ impl Menu {
         Ok(())
     }
 
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        // TODO: implement this and make .remove() remove all occurances to match other backends
+        None
+    }
+
     pub fn items(&self) -> Vec<MenuItemKind> {
         self.children
             .iter()
@@ -627,6 +632,12 @@ impl MenuChild {
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         self.remove_inner(item, true, None)
     }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        // TODO: implement this and make .remove() remove all occurances to match other backends
+        None
+    }
+
     pub fn remove_inner(
         &mut self,
         item: &dyn crate::IsMenuItem,

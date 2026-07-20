@@ -135,21 +135,14 @@ impl Submenu {
         Ok(())
     }
 
-    /// Remove a menu item from this submenu.
+    /// Remove all occurrences of a menu item from this submenu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner.borrow_mut().remove(item)
     }
 
     /// Remove the menu item at the specified position from this submenu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
-        let mut items = self.items();
-        if items.len() > position {
-            let item = items.remove(position);
-            let _ = self.remove(item.as_ref());
-            Some(item)
-        } else {
-            None
-        }
+        self.inner.borrow_mut().remove_at(position)
     }
 
     /// Returns a list of menu items that has been added to this submenu.
