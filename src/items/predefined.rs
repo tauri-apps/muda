@@ -141,10 +141,6 @@ impl PredefinedMenuItem {
     }
 
     /// Quit app menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Quit, text)
     }

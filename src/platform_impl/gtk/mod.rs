@@ -40,6 +40,7 @@ macro_rules! is_item_supported {
                     | PredefinedMenuItemType::Fullscreen
                     | PredefinedMenuItemType::Hide
                     | PredefinedMenuItemType::CloseWindow
+                    | PredefinedMenuItemType::Quit
             )
         } else {
             true
@@ -992,7 +993,7 @@ impl MenuChild {
             let action = gio::SimpleAction::new(&self.action_name, None);
             let app = app.clone();
             action.connect_activate(move |_, _| {
-                activate_predefined_window_action(&app, &predefined_item_type)
+                activate_predefined_action(&app, &predefined_item_type)
             });
             action.set_enabled(self.enabled);
             action_group.add_action(&action);
@@ -1217,7 +1218,7 @@ impl dyn IsMenuItem + '_ {
     }
 }
 
-fn activate_predefined_window_action(
+fn activate_predefined_action(
     app: &gtk4::Application,
     predefined_item_type: &PredefinedMenuItemType,
 ) {
@@ -1237,6 +1238,12 @@ fn activate_predefined_window_action(
         }
         PredefinedMenuItemType::Hide => window.set_visible(false),
         PredefinedMenuItemType::CloseWindow => window.close(),
+        PredefinedMenuItemType::Quit => {
+            for window in app.windows() {
+                window.close();
+            }
+            app.quit();
+        }
         _ => {}
     }
 }
