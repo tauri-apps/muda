@@ -372,7 +372,7 @@ impl Menu {
         }
 
         let (x, y) = match position {
-            Some(p) => p.to_logical::<i32>(window.scale_factor() as _).into(),
+            Some(p) => p.to_logical::<i32>(scale_factor(window)).into(),
             None => get_cursor_pos(window),
         };
 
@@ -799,7 +799,7 @@ impl MenuChild {
         let menu = menus.first().unwrap();
 
         let (x, y) = match position {
-            Some(p) => p.to_logical::<i32>(window.scale_factor() as _).into(),
+            Some(p) => p.to_logical::<i32>(scale_factor(window)).into(),
             None => get_cursor_pos(window),
         };
 
@@ -1533,6 +1533,13 @@ fn get_cursor_pos(window: &gtk4::Window) -> (i32, i32) {
             (x as _, y as _)
         })
         .unwrap_or_default()
+}
+
+fn scale_factor(window: &gtk4::Window) -> f64 {
+    window
+        .surface()
+        .map(|surface| surface.scale())
+        .unwrap_or_else(|| window.scale_factor() as f64)
 }
 
 fn run_context_menu(
