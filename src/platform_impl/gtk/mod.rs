@@ -632,7 +632,9 @@ impl MenuChild {
         self.instances.entry(menu_id).or_default().push(child);
 
         for item in self.items() {
-            self.add_existing_item_to_instance(item.as_ref(), id)?;
+            // The submenu row is not in the parent model yet, so custom
+            // widgets are registered by add_custom_widget_to_host later.
+            self.add_existing_item_deferred(item.as_ref(), id)?;
         }
 
         Ok(item)
@@ -676,6 +678,19 @@ impl MenuChild {
         item: &dyn IsMenuItem,
         id: GtkId,
     ) -> crate::Result<()> {
+        self.add_existing_item_to_instance_inner(item, id, true)
+    }
+
+    fn add_existing_item_deferred(&self, item: &dyn IsMenuItem, id: GtkId) -> crate::Result<()> {
+        self.add_existing_item_to_instance_inner(item, id, false)
+    }
+
+    fn add_existing_item_to_instance_inner(
+        &self,
+        item: &dyn IsMenuItem,
+        id: GtkId,
+        add_custom_widget: bool,
+    ) -> crate::Result<()> {
         return_if_item_not_supported!(item);
 
         for menus in self.instances.values() {
@@ -688,8 +703,10 @@ impl MenuChild {
                 let gtk_item = item.make_gtk_menu_item(app, menu_id, parent_menu, &host)?;
                 gtk_child.menu().append_item(&gtk_item);
 
-                if let Some(instance_id) = internal_id(&gtk_item) {
-                    item.add_custom_widget_to_host(menu_id, instance_id);
+                if add_custom_widget {
+                    if let Some(instance_id) = internal_id(&gtk_item) {
+                        item.add_custom_widget_to_host(menu_id, instance_id);
+                    }
                 }
             }
         }
@@ -983,7 +1000,6 @@ impl MenuChild {
         let Some(id) = internal_id_at(&parent_menu, position as i32) else {
             return;
         };
-        parent_menu.remove(position as i32);
 
         // Drop the tracked GTK occurrence that belonged to the removed row.
         let Some(instance_index) = instances.iter().position(|instance| instance.id() == id) else {
@@ -995,6 +1011,7 @@ impl MenuChild {
         }
 
         instance.remove_custom_widget();
+        parent_menu.remove(position as i32);
 
         if let GtkMenuChild::Submenu { id, .. } = instance {
             for child in &mut self.children {
@@ -1017,11 +1034,10 @@ impl MenuChild {
 
         for instance in instances {
             let parent_menu = instance.parent_menu();
+            instance.remove_custom_widget();
             if let Some(index) = find_row_index(&parent_menu, instance.id()) {
                 parent_menu.remove(index);
             }
-
-            instance.remove_custom_widget();
 
             if let GtkMenuChild::Submenu { id, .. } = instance {
                 for child in &mut self.children {
