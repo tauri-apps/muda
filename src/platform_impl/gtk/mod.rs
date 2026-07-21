@@ -380,7 +380,6 @@ impl Menu {
         let menu = self.instances.get(&self.ctx_menu_id).unwrap();
         let context_menu = menu.context_menu();
 
-        context_menu.unparent();
         context_menu.set_parent(window);
 
         let items = self.items();
@@ -806,7 +805,6 @@ impl MenuChild {
 
         let context_menu = menu.context_menu();
 
-        context_menu.unparent();
         context_menu.set_parent(window);
 
         let items = self.items();
@@ -1545,6 +1543,10 @@ fn run_context_menu(
 ) -> bool {
     let main_loop = glib::MainLoop::new(None, false);
     let selected = Rc::new(Cell::new(false));
+
+    // Connect handlers on each menu item action so we can detect when the user selects
+    // vs the menu closed aka user canceled selection.
+    // Either way we quit this main loop from each item handler or the closed handler.
     let handlers = connect_context_menu_action_handlers(items, &main_loop, &selected);
     let closed_handler = context_menu.connect_closed({
         let main_loop = main_loop.clone();
@@ -1554,10 +1556,15 @@ fn run_context_menu(
         }
     });
 
+    // Show the context menu.
     context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
     context_menu.popup();
+
+    // Run a nested main loop and wait for the user to select an item or close the menu.
     main_loop.run();
 
+    // Unparent and disconnect handlers.
+    context_menu.unparent();
     context_menu.disconnect(closed_handler);
     for (action, handler) in handlers {
         action.disconnect(handler);
@@ -1580,6 +1587,7 @@ fn connect_context_menu_action_handlers(
     handlers
 }
 
+/// Recursively connect handlers for each menu item action so we can detect when the user selects an item.
 fn connect_context_menu_action_handler(
     item: &dyn IsMenuItem,
     main_loop: &glib::MainLoop,
@@ -1588,18 +1596,16 @@ fn connect_context_menu_action_handler(
 ) {
     let kind = item.kind();
     let child = kind.child();
-    let submenu_items = if matches!(child.item_type(), MenuItemType::Submenu) {
-        Some(child.items())
-    } else {
-        None
-    };
-    let action = submenu_items
-        .is_none()
-        .then(|| child.action.clone())
-        .flatten();
-    drop(child);
 
-    if let Some(action) = action {
+    if matches!(child.item_type(), MenuItemType::Submenu) {
+        for item in child.items() {
+            connect_context_menu_action_handler(item.as_ref(), main_loop, selected, handlers);
+        }
+    } else {
+        let Some(action) = child.action.as_ref().cloned() else {
+            return;
+        };
+
         let selected = selected.clone();
         let main_loop = main_loop.clone();
         let handler = action.connect_activate(move |_, _| {
@@ -1607,12 +1613,6 @@ fn connect_context_menu_action_handler(
             main_loop.quit();
         });
         handlers.push((action, handler));
-    }
-
-    if let Some(items) = submenu_items {
-        for item in items {
-            connect_context_menu_action_handler(item.as_ref(), main_loop, selected, handlers);
-        }
     }
 }
 
