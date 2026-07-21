@@ -6,10 +6,14 @@ mod accelerator;
 mod icon;
 mod mnemonic;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use dpi::Position;
-use gtk4::{gdk::Rectangle, gio, prelude::*};
+use gtk4::{gdk::Rectangle, gio, glib, prelude::*};
 pub(crate) use icon::PlatformIcon;
 use mnemonic::to_gtk_mnemonic;
 
@@ -379,10 +383,8 @@ impl Menu {
         context_menu.unparent();
         context_menu.set_parent(window);
 
-        context_menu.popup();
-        context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
-
-        true
+        let items = self.items();
+        run_context_menu(context_menu, &items, x, y)
     }
 }
 
@@ -807,10 +809,8 @@ impl MenuChild {
         context_menu.unparent();
         context_menu.set_parent(window);
 
-        context_menu.popup();
-        context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
-
-        true
+        let items = self.items();
+        run_context_menu(context_menu, &items, x, y)
     }
 }
 
@@ -1535,6 +1535,85 @@ fn get_cursor_pos(window: &gtk4::Window) -> (i32, i32) {
             (x as _, y as _)
         })
         .unwrap_or_default()
+}
+
+fn run_context_menu(
+    context_menu: &gtk4::PopoverMenu,
+    items: &[MenuItemKind],
+    x: i32,
+    y: i32,
+) -> bool {
+    let main_loop = glib::MainLoop::new(None, false);
+    let selected = Rc::new(Cell::new(false));
+    let handlers = connect_context_menu_action_handlers(items, &main_loop, &selected);
+    let closed_handler = context_menu.connect_closed({
+        let main_loop = main_loop.clone();
+        move |_| {
+            let main_loop = main_loop.clone();
+            glib::idle_add_local_once(move || main_loop.quit());
+        }
+    });
+
+    context_menu.set_pointing_to(Some(&Rectangle::new(x, y, 0, 0)));
+    context_menu.popup();
+    main_loop.run();
+
+    context_menu.disconnect(closed_handler);
+    for (action, handler) in handlers {
+        action.disconnect(handler);
+    }
+
+    selected.get()
+}
+
+fn connect_context_menu_action_handlers(
+    items: &[MenuItemKind],
+    main_loop: &glib::MainLoop,
+    selected: &Rc<Cell<bool>>,
+) -> Vec<(gio::SimpleAction, glib::SignalHandlerId)> {
+    let mut handlers = Vec::new();
+
+    for item in items {
+        connect_context_menu_action_handler(item.as_ref(), main_loop, selected, &mut handlers);
+    }
+
+    handlers
+}
+
+fn connect_context_menu_action_handler(
+    item: &dyn IsMenuItem,
+    main_loop: &glib::MainLoop,
+    selected: &Rc<Cell<bool>>,
+    handlers: &mut Vec<(gio::SimpleAction, glib::SignalHandlerId)>,
+) {
+    let kind = item.kind();
+    let child = kind.child();
+    let submenu_items = if matches!(child.item_type(), MenuItemType::Submenu) {
+        Some(child.items())
+    } else {
+        None
+    };
+    let action = submenu_items
+        .is_none()
+        .then(|| child.action.clone())
+        .flatten();
+    drop(child);
+
+    if let Some(action) = action {
+        let selected = selected.clone();
+        let main_loop = main_loop.clone();
+        let handler = action.connect_activate(move |_, _| {
+            selected.set(true);
+            main_loop.quit();
+        });
+        handlers.push((action, handler));
+    }
+
+    if let Some(items) = submenu_items {
+        for item in items {
+            connect_context_menu_action_handler(item.as_ref(), main_loop, selected, handlers);
+        }
+    }
 }
 
 fn add_custom_child(host: &gtk4::Widget, child: &impl IsA<gtk4::Widget>, id: &str) {
