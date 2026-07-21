@@ -35,7 +35,8 @@ macro_rules! is_item_supported {
         if let Some(predefined_item_type) = &child.predefined_item_type {
             matches!(
                 predefined_item_type,
-                PredefinedMenuItemType::Minimize
+                PredefinedMenuItemType::Separator
+                    | PredefinedMenuItemType::Minimize
                     | PredefinedMenuItemType::Maximize
                     | PredefinedMenuItemType::Fullscreen
                     | PredefinedMenuItemType::Hide
@@ -110,6 +111,13 @@ impl GtkMenuBar {
             GtkMenuBar::ContextMenu { menu, .. } => menu,
         }
     }
+
+    fn custom_widget_host(&self) -> &gtk4::Widget {
+        match self {
+            GtkMenuBar::MenuBar { widget, .. } => widget.upcast_ref(),
+            GtkMenuBar::ContextMenu { widget, .. } => widget.upcast_ref(),
+        }
+    }
 }
 
 pub struct Menu {
@@ -142,12 +150,18 @@ impl Menu {
         return_if_item_not_supported!(item);
 
         for (menu_id, menu_bar) in &self.instances {
-            let gtk_item =
-                item.make_gtk_menu_item(menu_bar.applicaiton(), *menu_id, menu_bar.menu())?;
+            let host = menu_bar.custom_widget_host();
+            let app = menu_bar.applicaiton();
+
+            let gtk_item = item.make_gtk_menu_item(app, *menu_id, menu_bar.menu(), host)?;
 
             match op {
                 AddOp::Append => menu_bar.menu().append_item(&gtk_item),
                 AddOp::Insert(position) => menu_bar.menu().insert_item(position as i32, &gtk_item),
+            }
+
+            if let Some(instance_id) = internal_id(&gtk_item) {
+                item.add_custom_widget_to_host(*menu_id, instance_id);
             }
         }
 
@@ -162,8 +176,15 @@ impl Menu {
         return_if_item_not_supported!(item);
 
         if let Some(menu_bar) = self.instances.get(&id) {
-            let gtk_item = item.make_gtk_menu_item(menu_bar.applicaiton(), id, menu_bar.menu())?;
+            let host = menu_bar.custom_widget_host();
+            let app = menu_bar.applicaiton();
+
+            let gtk_item = item.make_gtk_menu_item(app, id, menu_bar.menu(), host)?;
             menu_bar.menu().append_item(&gtk_item);
+
+            if let Some(instance_id) = internal_id(&gtk_item) {
+                item.add_custom_widget_to_host(id, instance_id);
+            }
         }
 
         Ok(())
@@ -366,16 +387,24 @@ impl Menu {
 }
 
 #[derive(Clone)]
+struct GtkCustomWidget {
+    widget: gtk4::Widget,
+    host: gtk4::Widget,
+}
+
+#[derive(Clone)]
 enum GtkMenuChild {
     Item {
         id: GtkId,
         parent_menu: gio::Menu,
+        custom_widget: Option<GtkCustomWidget>,
         app: gtk4::Application,
     },
     Submenu {
         id: GtkId,
         parent_menu: gio::Menu,
         menu: gio::Menu,
+        custom_widget_host: gtk4::Widget,
         app: gtk4::Application,
     },
     ContextMenu {
@@ -411,6 +440,16 @@ impl GtkMenuChild {
         }
     }
 
+    fn custom_widget_host(&self) -> &gtk4::Widget {
+        match self {
+            GtkMenuChild::Submenu {
+                custom_widget_host, ..
+            } => custom_widget_host,
+            GtkMenuChild::ContextMenu { widget, .. } => widget.upcast_ref(),
+            _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
+        }
+    }
+
     fn context_menu(&self) -> &gtk4::PopoverMenu {
         match self {
             GtkMenuChild::ContextMenu { widget, .. } => widget,
@@ -431,6 +470,22 @@ impl GtkMenuChild {
         if let Some(index) = find_row_index(parent_menu, self.id()) {
             parent_menu.remove(index);
             parent_menu.insert_item(index, item);
+        }
+    }
+
+    fn remove_custom_widget(&self) {
+        if let GtkMenuChild::Item {
+            custom_widget: Some(custom_widget),
+            ..
+        } = self
+        {
+            let GtkCustomWidget { widget, host } = custom_widget;
+
+            if let Some(menu_bar) = host.downcast_ref::<gtk4::PopoverMenuBar>() {
+                let _ = menu_bar.remove_child(widget);
+            } else if let Some(menu) = host.downcast_ref::<gtk4::PopoverMenu>() {
+                let _ = menu.remove_child(widget);
+            }
         }
     }
 }
@@ -463,6 +518,12 @@ fn gtk_submenu_item(
 
 fn internal_id_at(menu: &gio::Menu, index: i32) -> Option<GtkId> {
     menu.item_attribute_value(index, INTERNAL_ID_ATTRIBUTE, None)
+        .and_then(|value| value.get::<u64>())
+        .map(|id| id as GtkId)
+}
+
+fn internal_id(item: &gio::MenuItem) -> Option<GtkId> {
+    item.attribute_value(INTERNAL_ID_ATTRIBUTE, None)
         .and_then(|value| value.get::<u64>())
         .map(|id| id as GtkId)
 }
@@ -542,6 +603,7 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: GtkId,
         parent_menu: &gio::Menu,
+        custom_widget_host: &gtk4::Widget,
     ) -> crate::Result<gio::MenuItem> {
         let menu = gio::Menu::new();
         let detailed_action = self.detailed_action();
@@ -562,6 +624,7 @@ impl MenuChild {
         let child = GtkMenuChild::Submenu {
             parent_menu: parent_menu.clone(),
             menu,
+            custom_widget_host: custom_widget_host.clone(),
             id,
             app: app.clone(),
         };
@@ -588,13 +651,19 @@ impl MenuChild {
                 let app = gtk_child.application();
                 let menu_id = gtk_child.id();
                 let parent_menu = gtk_child.menu();
-                let gtk_item = item.make_gtk_menu_item(app, menu_id, parent_menu)?;
+                let host = gtk_child.custom_widget_host();
+
+                let gtk_item = item.make_gtk_menu_item(app, menu_id, parent_menu, &host)?;
 
                 match op {
                     AddOp::Append => gtk_child.menu().append_item(&gtk_item),
                     AddOp::Insert(position) => {
                         gtk_child.menu().insert_item(position as i32, &gtk_item)
                     }
+                }
+
+                if let Some(instance_id) = internal_id(&gtk_item) {
+                    item.add_custom_widget_to_host(menu_id, instance_id);
                 }
             }
         }
@@ -614,8 +683,14 @@ impl MenuChild {
                 let app = gtk_child.application();
                 let menu_id = gtk_child.id();
                 let parent_menu = gtk_child.menu();
-                let gtk_item = item.make_gtk_menu_item(app, menu_id, parent_menu)?;
+                let host = gtk_child.custom_widget_host();
+
+                let gtk_item = item.make_gtk_menu_item(app, menu_id, parent_menu, &host)?;
                 gtk_child.menu().append_item(&gtk_item);
+
+                if let Some(instance_id) = internal_id(&gtk_item) {
+                    item.add_custom_widget_to_host(menu_id, instance_id);
+                }
             }
         }
 
@@ -775,6 +850,7 @@ impl MenuChild {
         let child = GtkMenuChild::Item {
             id,
             parent_menu: parent_menu.clone(),
+            custom_widget: None,
             app: app.clone(),
         };
         self.instances.entry(menu_id).or_default().push(child);
@@ -844,14 +920,18 @@ impl MenuChild {
         let detailed_action = self.detailed_action();
 
         match instance {
-            GtkMenuChild::Item { id, .. } => {
+            GtkMenuChild::Item {
+                id,
+                custom_widget: None,
+                ..
+            } => {
                 let icon = self.icon.as_ref();
                 Some(gtk_action_item(&self.text, &detailed_action, icon, *id))
             }
             GtkMenuChild::Submenu { id, menu, .. } => {
                 Some(gtk_submenu_item(&self.text, &detailed_action, menu, *id))
             }
-            GtkMenuChild::ContextMenu { .. } => None,
+            _ => None,
         }
     }
 
@@ -914,12 +994,15 @@ impl MenuChild {
             self.instances.remove(&parent_id);
         }
 
-        let app = instance.application().clone();
+        instance.remove_custom_widget();
+
         if let GtkMenuChild::Submenu { id, .. } = instance {
             for child in &mut self.children {
                 child.borrow_mut().remove_instances_for_parent(id);
             }
         }
+
+        let app = instance.application();
         self.cleanup_unused_action(&app);
     }
 
@@ -937,6 +1020,8 @@ impl MenuChild {
             if let Some(index) = find_row_index(&parent_menu, instance.id()) {
                 parent_menu.remove(index);
             }
+
+            instance.remove_custom_widget();
 
             if let GtkMenuChild::Submenu { id, .. } = instance {
                 for child in &mut self.children {
@@ -977,8 +1062,19 @@ impl MenuChild {
         app: &gtk4::Application,
         menu_id: GtkId,
         parent_menu: &gio::Menu,
+        custom_widget_host: &gtk4::Widget,
     ) -> crate::Result<gio::MenuItem> {
         let predefined_item_type = self.predefined_item_type.as_ref().unwrap().clone();
+
+        // Separator is a special case, that requires custom widget
+        if matches!(predefined_item_type, PredefinedMenuItemType::Separator) {
+            return self.create_gtk_item_for_separator(
+                app,
+                menu_id,
+                parent_menu,
+                custom_widget_host,
+            );
+        }
 
         let detailed_action = self.detailed_action();
         let id = COUNTER.next() as GtkId;
@@ -1005,6 +1101,40 @@ impl MenuChild {
         let child = GtkMenuChild::Item {
             id,
             parent_menu: parent_menu.clone(),
+            custom_widget: None,
+            app: app.clone(),
+        };
+        self.instances.entry(menu_id).or_default().push(child);
+
+        Ok(item)
+    }
+
+    fn create_gtk_item_for_separator(
+        &mut self,
+        app: &gtk4::Application,
+        menu_id: GtkId,
+        parent_menu: &gio::Menu,
+        custom_widget_host: &gtk4::Widget,
+    ) -> crate::Result<gio::MenuItem> {
+        let id = COUNTER.next() as GtkId;
+
+        let item = gio::MenuItem::new(None, None);
+        // We need to set "custom" attribute to mark it as a custom widget,
+        // so later .add_child() will associate the widget with the menu item.
+        item.set_attribute_value("custom", Some(&id.to_string().to_variant()));
+        item.set_attribute_value(INTERNAL_ID_ATTRIBUTE, Some(&(id as u64).to_variant()));
+
+        // GTK can only attach a custom child after the menu model contains
+        // the row with the matching "custom" attribute.
+        let separator = gtk4::Separator::new(gtk4::Orientation::Horizontal).upcast();
+
+        let child = GtkMenuChild::Item {
+            id,
+            parent_menu: parent_menu.clone(),
+            custom_widget: Some(GtkCustomWidget {
+                widget: separator,
+                host: custom_widget_host.clone(),
+            }),
             app: app.clone(),
         };
         self.instances.entry(menu_id).or_default().push(child);
@@ -1077,6 +1207,7 @@ impl MenuChild {
         let child = GtkMenuChild::Item {
             id,
             parent_menu: parent_menu.clone(),
+            custom_widget: None,
             app: app.clone(),
         };
         self.instances.entry(menu_id).or_default().push(child);
@@ -1179,6 +1310,7 @@ impl MenuChild {
         let child = GtkMenuChild::Item {
             id,
             parent_menu: parent_menu.clone(),
+            custom_widget: None,
             app: app.clone(),
         };
         self.instances.entry(menu_id).or_default().push(child);
@@ -1198,11 +1330,14 @@ impl dyn IsMenuItem + '_ {
         app: &gtk4::Application,
         menu_id: GtkId,
         parent_menu: &gio::Menu,
+        custom_widget_host: &gtk4::Widget,
     ) -> crate::Result<gio::MenuItem> {
         let kind = self.kind();
         let mut child = kind.child_mut();
         match child.item_type() {
-            MenuItemType::Submenu => child.create_gtk_item_for_submenu(app, menu_id, parent_menu),
+            MenuItemType::Submenu => {
+                child.create_gtk_item_for_submenu(app, menu_id, parent_menu, custom_widget_host)
+            }
             MenuItemType::MenuItem => {
                 child.create_gtk_item_for_menu_item(app, menu_id, parent_menu)
             }
@@ -1212,8 +1347,53 @@ impl dyn IsMenuItem + '_ {
             MenuItemType::Icon => {
                 child.create_gtk_item_for_icon_menu_item(app, menu_id, parent_menu)
             }
-            MenuItemType::Predefined => {
-                child.create_gtk_item_for_predefined_menu_item(app, menu_id, parent_menu)
+            MenuItemType::Predefined => child.create_gtk_item_for_predefined_menu_item(
+                app,
+                menu_id,
+                parent_menu,
+                custom_widget_host,
+            ),
+        }
+    }
+
+    // GTK can only attach a custom child after the menu model contains
+    // the row with the matching "custom" attribute.
+    fn add_custom_widget_to_host(&self, menu_id: GtkId, instance_id: GtkId) {
+        let kind = self.kind();
+        let child = kind.child();
+        let instances = child.instances.get(&menu_id);
+        let Some(instance) = instances.and_then(|is| is.iter().find(|i| i.id() == instance_id))
+        else {
+            return;
+        };
+
+        if let GtkMenuChild::Item {
+            custom_widget: Some(custom_widget),
+            ..
+        } = instance
+        {
+            let custom_id = instance_id.to_string();
+            add_custom_child(&custom_widget.host, &custom_widget.widget, &custom_id);
+        }
+
+        if let GtkMenuChild::Submenu { id, menu, .. } = instance {
+            let id = *id;
+            let menu = menu.clone();
+            let items = child
+                .items()
+                .into_iter()
+                .filter(|item| is_item_supported!(item.as_ref()))
+                .collect::<Vec<_>>();
+
+            // Release the borrow before recursing into submenu children.
+            drop(child);
+
+            for (index, item) in items.iter().enumerate() {
+                let Some(instance_id) = internal_id_at(&menu, index as i32) else {
+                    continue;
+                };
+
+                item.as_ref().add_custom_widget_to_host(id, instance_id);
             }
         }
     }
@@ -1339,4 +1519,12 @@ fn get_cursor_pos(window: &gtk4::Window) -> (i32, i32) {
             (x as _, y as _)
         })
         .unwrap_or_default()
+}
+
+fn add_custom_child(host: &gtk4::Widget, child: &impl IsA<gtk4::Widget>, id: &str) {
+    if let Some(menu_bar) = host.downcast_ref::<gtk4::PopoverMenuBar>() {
+        let _ = menu_bar.add_child(child, id);
+    } else if let Some(menu) = host.downcast_ref::<gtk4::PopoverMenu>() {
+        let _ = menu.add_child(child, id);
+    }
 }
