@@ -16,7 +16,7 @@ use mnemonic::to_gtk_mnemonic;
 use crate::{
     accelerator::KeyAccelerator,
     util::{AddOp, Counter},
-    Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
+    AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
     PredefinedMenuItemType,
 };
 
@@ -41,6 +41,7 @@ macro_rules! is_item_supported {
                     | PredefinedMenuItemType::Hide
                     | PredefinedMenuItemType::CloseWindow
                     | PredefinedMenuItemType::Quit
+                    | PredefinedMenuItemType::About(_)
             )
         } else {
             true
@@ -1244,8 +1245,74 @@ fn activate_predefined_action(
             }
             app.quit();
         }
+        PredefinedMenuItemType::About(metadata) => {
+            show_about_dialog(app, &window, metadata.as_ref());
+        }
         _ => {}
     }
+}
+
+fn show_about_dialog(
+    app: &gtk4::Application,
+    window: &gtk4::Window,
+    metadata: Option<&AboutMetadata>,
+) {
+    let title = metadata
+        .and_then(|m| m.name.as_deref())
+        .unwrap_or_default()
+        .to_string();
+    let title = format!("About {}", title);
+
+    let mut builder = gtk4::AboutDialog::builder()
+        .application(app)
+        .modal(true)
+        .transient_for(window)
+        .title(&title);
+
+    if let Some(metadata) = metadata {
+        if let Some(name) = &metadata.name {
+            builder = builder.program_name(name);
+        }
+        if let Some(version) = &metadata.full_version() {
+            builder = builder.version(version);
+        }
+        if let Some(authors) = &metadata.authors {
+            let authors = authors.iter().map(String::as_str).collect::<Vec<_>>();
+            builder = builder.authors(authors);
+        }
+        if let Some(comments) = &metadata.comments {
+            builder = builder.comments(comments);
+        }
+        if let Some(copyright) = &metadata.copyright {
+            builder = builder.copyright(copyright);
+        }
+        if let Some(license) = &metadata.license {
+            builder = builder.license(license).wrap_license(true);
+        }
+        if let Some(website) = &metadata.website {
+            builder = builder.website(website);
+        }
+        if let Some(website_label) = &metadata.website_label {
+            builder = builder.website_label(website_label);
+        }
+        if let Some(icon) = &metadata.icon {
+            if let Ok(texture) = gtk4::gdk::Texture::from_bytes(&icon.inner.bytes_icon().bytes()) {
+                builder = builder.logo(&texture);
+            }
+        }
+    }
+
+    let dialog = builder.build();
+
+    if let Some(titlebar) = dialog
+        .titlebar()
+        .and_then(|titlebar| titlebar.downcast::<gtk4::HeaderBar>().ok())
+    {
+        let title_label = gtk4::Label::new(Some(&title));
+        titlebar.set_title_widget(Some(&title_label));
+    }
+
+    dialog.present();
 }
 
 /// Returns and creates the action group on this applicaiton if necessary.
