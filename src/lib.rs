@@ -183,6 +183,9 @@
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
 
+#[cfg(all(feature = "gtk", feature = "gtk4"))]
+compile_error!("features `gtk` and `gtk4` cannot be enabled together");
+
 #[cfg(all(
     any(
         target_os = "linux",
