@@ -121,7 +121,7 @@ fn main() -> wry::Result<()> {
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
+        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
     );
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
@@ -130,7 +130,7 @@ fn main() -> wry::Result<()> {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
+        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);

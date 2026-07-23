@@ -370,7 +370,7 @@ impl Menu {
             return false; // TODO: better error
         };
 
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        if !self.instances.contains_key(&self.ctx_menu_id) {
             let action_group = action_group_from_app(&app);
 
             let menu = GtkMenuBar::new_context(app);
@@ -696,7 +696,7 @@ impl MenuChild {
             return false; // TODO: better error
         };
 
-        if self.instances.get(&self.ctx_menu_id).is_none() {
+        if !self.instances.contains_key(&self.ctx_menu_id) {
             let menu = gio::Menu::new();
             let widget = gtk4::PopoverMenu::from_model_full(&menu, gtk4::PopoverMenuFlags::NESTED);
 
@@ -775,7 +775,7 @@ impl MenuChild {
         }
 
         if self.action.is_none() {
-            let action_group = action_group_from_app(&app);
+            let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
             let id = self.id.clone();
@@ -822,7 +822,7 @@ impl MenuChild {
         self.text = text.to_string();
         self.replace_gtk_items();
 
-        self.for_each_icon_item(|widget| widget.set_label(&text));
+        self.for_each_icon_item(|widget| widget.set_label(text));
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -956,7 +956,7 @@ impl MenuChild {
         }
 
         let app = instance.application();
-        self.cleanup_unused_action(&app);
+        self.cleanup_unused_action(app);
     }
 
     fn remove_instances_for_parent(&mut self, parent_id: GtkId) {
@@ -971,7 +971,7 @@ impl MenuChild {
         for instance in instances {
             let parent_menu = instance.parent_menu();
             instance.remove_custom_widget();
-            if let Some(index) = find_row_index(&parent_menu, instance.id()) {
+            if let Some(index) = find_row_index(parent_menu, instance.id()) {
                 parent_menu.remove(index);
             }
 
@@ -1039,7 +1039,7 @@ impl MenuChild {
         }
 
         if self.action.is_none() {
-            let action_group = action_group_from_app(&app);
+            let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
             let app = app.clone();
@@ -1143,7 +1143,7 @@ impl MenuChild {
         }
 
         if self.action.is_none() {
-            let action_group = action_group_from_app(&app);
+            let action_group = action_group_from_app(app);
 
             let state = &self.checked.to_variant();
             let action = gio::SimpleAction::new_stateful(&self.action_name, None, state);
@@ -1263,7 +1263,7 @@ impl MenuChild {
         }
 
         if self.action.is_none() {
-            let action_group = action_group_from_app(&app);
+            let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
             let id = self.id.clone();

@@ -294,34 +294,43 @@ impl PredefinedMenuItemType {
 
     pub(crate) fn accelerator(&self) -> Option<Accelerator> {
         match self {
-            PredefinedMenuItemType::Copy => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyC)),
-            PredefinedMenuItemType::Cut => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyX)),
-            PredefinedMenuItemType::Paste => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyV)),
-            PredefinedMenuItemType::Undo => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyZ)),
+            PredefinedMenuItemType::Copy => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyC)),
+            PredefinedMenuItemType::Cut => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyX)),
+            PredefinedMenuItemType::Paste => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyV)),
+            PredefinedMenuItemType::Undo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyZ)),
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::Redo => Some(Accelerator::new(
                 Some(CMD_OR_CTRL | Modifiers::SHIFT),
                 Code::KeyZ,
             )),
             #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemType::Redo => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyY)),
-            PredefinedMenuItemType::SelectAll => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyA)),
-            PredefinedMenuItemType::Minimize => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyM)),
+            PredefinedMenuItemType::Redo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyY)),
+            PredefinedMenuItemType::SelectAll => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyA))
+            }
+            PredefinedMenuItemType::Minimize => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyM))
+            }
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::Fullscreen => Some(Accelerator::new(
                 Some(Modifiers::META | Modifiers::CONTROL),
                 Code::KeyF,
             )),
-            PredefinedMenuItemType::Hide => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyH)),
-            PredefinedMenuItemType::HideOthers => {
-                Some(Accelerator::new(CMD_OR_CTRL | Modifiers::ALT, Code::KeyH))
+            PredefinedMenuItemType::Hide => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyH)),
+            PredefinedMenuItemType::HideOthers => Some(Accelerator::new(
+                Some(CMD_OR_CTRL | Modifiers::ALT),
+                Code::KeyH,
+            )),
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyW))
+            }
+            #[cfg(not(target_os = "macos"))]
+            PredefinedMenuItemType::CloseWindow => {
+                Some(Accelerator::new(Some(Modifiers::ALT), Code::F4))
             }
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemType::CloseWindow => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyW)),
-            #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemType::CloseWindow => Some(Accelerator::new(Modifiers::ALT, Code::F4)),
-            #[cfg(target_os = "macos")]
-            PredefinedMenuItemType::Quit => Some(Accelerator::new(CMD_OR_CTRL, Code::KeyQ)),
+            PredefinedMenuItemType::Quit => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyQ)),
             _ => None,
         }
     }

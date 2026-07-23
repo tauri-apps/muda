@@ -16,8 +16,8 @@
 //! let key_accelerator = KeyAccelerator::new(Some(Modifiers::SHIFT), Key::Character("q".to_owned()));
 //! let key_accelerator_without_mods = KeyAccelerator::new(None, Key::Character("q".to_owned()));
 //!
-//! let accelerator = Accelerator::new(Modifiers::SHIFT, Code::KeyQ);
-//! let accelerator_without_mods = Accelerator::key_only(Code::KeyQ);
+//! let accelerator = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyQ);
+//! let accelerator_without_mods = Accelerator::new(None, Code::KeyQ);
 //! ```
 //! or from `&str`, note that all modifiers
 //! have to be listed before the non-modifier key, `shift+alt+KeyQ` is legal,
@@ -74,8 +74,9 @@ pub struct Accelerator {
 
 impl Accelerator {
     /// Creates a new accelerator to define keyboard shortcuts throughout your application.
-    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`] are supported.
-    pub fn new(mut mods: Modifiers, key: Code) -> Self {
+    /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`]
+    pub fn new(mods: Option<Modifiers>, key: Code) -> Self {
+        let mut mods = mods.unwrap_or_else(Modifiers::empty);
         if mods.contains(Modifiers::META) {
             mods.remove(Modifiers::META);
             mods.insert(Modifiers::SUPER);
@@ -84,11 +85,6 @@ impl Accelerator {
         let id = Self::generate_hash(mods, key);
 
         Self { mods, key, id }
-    }
-
-    /// Same as [`Accelerator::new`] but consists of key without a modifier.
-    pub fn key_only(key: Code) -> Self {
-        Self::new(Modifiers::empty(), key)
     }
 
     fn generate_hash(mods: Modifiers, key: Code) -> u32 {
@@ -149,7 +145,7 @@ fn parse_accelerator(accelerator: &str) -> Result<Accelerator, AcceleratorParseE
     let modifiers = parse_modifiers(accelerator, modifiers_str)?;
     let code = parse_code(code_str)?;
 
-    Ok(Accelerator::new(modifiers, code))
+    Ok(Accelerator::new(Some(modifiers), code))
 }
 
 fn parse_code(code: &str) -> Result<Code, AcceleratorParseError> {
@@ -422,7 +418,7 @@ fn code_to_key(code: Code) -> Key {
 /// or converted from an existing [`Accelerator`]
 /// ```no_run
 /// # use muda::accelerator::{Accelerator, KeyAccelerator, Code, Modifiers};
-/// let old_accel = Accelerator::new(Modifiers::CONTROL, Code::KeyC);
+/// let old_accel = Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC);
 /// let new_accel: KeyAccelerator = old_accel.into();
 /// ```
 /// or parsed from a string, which supports literal character keys
@@ -769,7 +765,7 @@ fn test_parse_key_accelerator_error() {
 fn test_equality() {
     let h1 = parse_accelerator("Shift+KeyR").unwrap();
     let h2 = parse_accelerator("Shift+KeyR").unwrap();
-    let h3 = Accelerator::new(Modifiers::SHIFT, Code::KeyR);
+    let h3 = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyR);
     let h4 = parse_accelerator("Alt+KeyR").unwrap();
     let h5 = parse_accelerator("Alt+KeyR").unwrap();
     let h6 = parse_accelerator("KeyR").unwrap();
@@ -835,11 +831,11 @@ fn test_parse_key_accelerator() {
 fn test_key_accelerator_from_accelerator() {
     let cases = [
         (
-            Accelerator::new(Modifiers::CONTROL, Code::KeyC),
+            Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC),
             Key::Character("c".into()),
         ),
         (
-            Accelerator::new(Modifiers::SHIFT, Code::ArrowUp),
+            Accelerator::new(Some(Modifiers::SHIFT), Code::ArrowUp),
             Key::ArrowUp,
         ),
     ];
@@ -868,7 +864,7 @@ fn test_key_accelerator_equality() {
     assert!(h1.id() == h2.id() && h2.id() == h3.id() && h3.id() != h4.id());
 
     // Converted from Accelerator should match parsed KeyAccelerator
-    let from_code = Accelerator::new(Modifiers::SHIFT, Code::KeyR);
+    let from_code = Accelerator::new(Some(Modifiers::SHIFT), Code::KeyR);
     let from_code: KeyAccelerator = from_code.into();
     assert_eq!(from_code, h1);
     assert_eq!(from_code.id(), h1.id());
