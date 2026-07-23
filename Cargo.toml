@@ -95,3 +95,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",
 ] }
+
+[[example]]
+name = "winit_gtk4"
+required-features = ["gtk4"]
