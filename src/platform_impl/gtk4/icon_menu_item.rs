@@ -4,7 +4,7 @@
 
 use std::cell::OnceCell;
 
-use gtk4::{glib, prelude::*, subclass::prelude::*};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{accelerator::KeyAccelerator, Icon};
 
@@ -17,20 +17,20 @@ mod imp {
 
     #[derive(Default)]
     pub struct IconMenuItem {
-        pub(super) image: OnceCell<gtk4::Image>,
-        pub(super) label: OnceCell<gtk4::Label>,
-        pub(super) accelerator_label: OnceCell<gtk4::Label>,
+        pub(super) image: OnceCell<gtk::Image>,
+        pub(super) label: OnceCell<gtk::Label>,
+        pub(super) accelerator_label: OnceCell<gtk::Label>,
     }
 
     #[glib::object_subclass]
     impl ObjectSubclass for IconMenuItem {
         const NAME: &'static str = "MudaIconMenuItem";
         type Type = super::IconMenuItem;
-        type ParentType = gtk4::Button;
+        type ParentType = gtk::Button;
 
         fn class_init(klass: &mut Self::Class) {
             klass.set_css_name("modelbutton");
-            klass.set_accessible_role(gtk4::AccessibleRole::MenuItem);
+            klass.set_accessible_role(gtk::AccessibleRole::MenuItem);
         }
     }
 
@@ -41,8 +41,8 @@ mod imp {
 
 glib::wrapper! {
     pub struct IconMenuItem(ObjectSubclass<imp::IconMenuItem>)
-        @extends gtk4::Button, gtk4::Widget,
-        @implements gtk4::Accessible, gtk4::Buildable, gtk4::ConstraintTarget, gtk4::Actionable;
+        @extends gtk::Button, gtk::Widget,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Actionable;
 }
 
 impl IconMenuItem {
@@ -59,25 +59,25 @@ impl IconMenuItem {
         item.set_detailed_action_name(detailed_action);
         item.set_can_focus(true);
         item.set_focusable(true);
-        item.set_halign(gtk4::Align::Fill);
+        item.set_halign(gtk::Align::Fill);
         item.set_hexpand(true);
 
-        let image = gtk4::Image::builder()
-            .halign(gtk4::Align::Center)
-            .valign(gtk4::Align::Center)
+        let image = gtk::Image::builder()
+            .halign(gtk::Align::Center)
+            .valign(gtk::Align::Center)
             .width_request(MENU_ICON_SIZE)
             .height_request(MENU_ICON_SIZE)
             .build();
 
-        let label = gtk4::Label::builder().xalign(0.0).hexpand(true).build();
+        let label = gtk::Label::builder().xalign(0.0).hexpand(true).build();
 
-        let accelerator_label = gtk4::Label::builder()
+        let accelerator_label = gtk::Label::builder()
             .css_name("accelerator")
             .margin_start(24)
             .build();
 
-        let content = gtk4::Box::builder()
-            .orientation(gtk4::Orientation::Horizontal)
+        let content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
             .spacing(6)
             .hexpand(true)
             .build();
@@ -120,7 +120,7 @@ impl IconMenuItem {
             let texture = icon.inner.texture();
             image.set_paintable(Some(&texture));
         } else {
-            image.set_paintable(gtk4::gdk::Paintable::NONE);
+            image.set_paintable(gtk::gdk::Paintable::NONE);
         }
     }
 
@@ -130,8 +130,8 @@ impl IconMenuItem {
         };
 
         let accelerator = key_accelerator.and_then(|accelerator| {
-            let (key, mods) = gtk4::accelerator_parse(accelerator.to_gtk())?;
-            let label = gtk4::accelerator_get_label(key, mods);
+            let (key, mods) = gtk::accelerator_parse(accelerator.to_gtk())?;
+            let label = gtk::accelerator_get_label(key, mods);
             (!label.is_empty()).then_some(label)
         });
 
@@ -150,19 +150,19 @@ impl IconMenuItem {
         //
         // Upon focus, we also clear the PRELIGHT and SELECTED state of
         // sibling menu items to ensure only one item is visually highlighted at a time.
-        let focus = gtk4::EventControllerFocus::new();
+        let focus = gtk::EventControllerFocus::new();
         focus.connect_enter({
             move |controller| {
                 if let Some(widget) = controller.widget() {
                     clear_sibling_selected_visual_state(&widget);
-                    widget.set_state_flags(gtk4::StateFlags::PRELIGHT, false);
+                    widget.set_state_flags(gtk::StateFlags::PRELIGHT, false);
                 }
             }
         });
         focus.connect_leave({
             move |controller| {
                 if let Some(widget) = controller.widget() {
-                    widget.unset_state_flags(gtk4::StateFlags::PRELIGHT);
+                    widget.unset_state_flags(gtk::StateFlags::PRELIGHT);
                 }
             }
         });
@@ -171,8 +171,8 @@ impl IconMenuItem {
         // Close nearest popover menu (aka submenu hosting this item and its parents) when clicked
         self.connect_clicked(|button| {
             if let Some(popover) = button
-                .ancestor(gtk4::Popover::static_type())
-                .and_then(|widget| widget.downcast::<gtk4::Popover>().ok())
+                .ancestor(gtk::Popover::static_type())
+                .and_then(|widget| widget.downcast::<gtk::Popover>().ok())
             {
                 // popdown instead of hide to cascade close all submenus
                 popover.popdown();
@@ -180,7 +180,7 @@ impl IconMenuItem {
         });
 
         // Close nearest sibling popover menu (aka submenu of the same parent as this item) when mouse enters this item
-        let motion = gtk4::EventControllerMotion::new();
+        let motion = gtk::EventControllerMotion::new();
         motion.connect_enter({
             move |controller, _, _| {
                 let Some(widget) = controller.widget() else {
@@ -198,7 +198,7 @@ impl IconMenuItem {
     }
 }
 
-/// Heirarchy of widgets for menu items in GTK4:
+/// Heirarchy of widgets for menu items in gtk:
 ///
 /// - GtkModelButton        -> Normal Menu Item
 ///   |_ GtkLabel
@@ -209,7 +209,7 @@ impl IconMenuItem {
 ///   |_ GtkPopoverMenu
 /// - GtkModelButton        -> Normal Menu Item
 ///   |_ GtkLabel
-fn find_sibling_popover_menu(widget: &gtk4::Widget) -> Option<gtk4::PopoverMenu> {
+fn find_sibling_popover_menu(widget: &gtk::Widget) -> Option<gtk::PopoverMenu> {
     let parent = widget.parent()?.parent()?;
 
     let mut child = parent.first_child();
@@ -224,10 +224,10 @@ fn find_sibling_popover_menu(widget: &gtk4::Widget) -> Option<gtk4::PopoverMenu>
     None
 }
 
-fn find_child_popover_menu(widget: &gtk4::Widget) -> Option<gtk4::PopoverMenu> {
+fn find_child_popover_menu(widget: &gtk::Widget) -> Option<gtk::PopoverMenu> {
     let mut child = widget.first_child();
     while let Some(sibling) = child {
-        if let Some(menu) = sibling.downcast_ref::<gtk4::PopoverMenu>() {
+        if let Some(menu) = sibling.downcast_ref::<gtk::PopoverMenu>() {
             return Some(menu.clone());
         }
 
@@ -237,7 +237,7 @@ fn find_child_popover_menu(widget: &gtk4::Widget) -> Option<gtk4::PopoverMenu> {
     None
 }
 
-fn clear_sibling_selected_visual_state(widget: &gtk4::Widget) {
+fn clear_sibling_selected_visual_state(widget: &gtk::Widget) {
     let Some(row) = widget.parent() else {
         return;
     };
@@ -248,7 +248,7 @@ fn clear_sibling_selected_visual_state(widget: &gtk4::Widget) {
     let mut child = parent.first_child();
     while let Some(sibling) = child {
         if sibling != row {
-            sibling.unset_state_flags(gtk4::StateFlags::PRELIGHT | gtk4::StateFlags::SELECTED);
+            sibling.unset_state_flags(gtk::StateFlags::PRELIGHT | gtk::StateFlags::SELECTED);
         }
 
         child = sibling.next_sibling();

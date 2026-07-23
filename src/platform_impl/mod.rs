@@ -13,6 +13,18 @@ mod platform;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
+    feature = "gtk4"
+))]
+#[path = "gtk4/mod.rs"]
+mod platform;
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
     feature = "gtk"
 ))]
 #[path = "gtk/mod.rs"]

@@ -139,6 +139,7 @@ impl Menu {
         Ok(())
     }
 
+    /// Remove a menu item from this menu.
     /// Remove all occurrences of a menu item from this menu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner.borrow_mut().remove(item)
@@ -154,20 +155,18 @@ impl Menu {
         self.inner.borrow().items()
     }
 
-    /// Adds this menu to a [`gtk4::Window`]
+    /// Adds this menu to a [`gtk::Window`]
     ///
-    /// - `container`: this is an optional parameter to specify a container for the [`gtk4::PopoverMenuBar`],
+    /// - `container`: this is an optional parameter to specify a container for the [`gtk::MenuBar`],
     ///   it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
     ///   which is usually not the desired behavior.
-    ///   Supported types of containers are [`gtk4::Box`], [`gtk4::Stack`] and [`gtk4::Fixed`]:
-    ///   - [`gtk4::Box`], menu bar is add at the beginning using [`gtk4::prelude::BoxExt::prepend`]
-    ///   - [`gtk4::Stack`], menu bar is added using [`gtk4::Stack::add_child`].
-    ///   - [`gtk4::Fixed`], menu bar is put at 0,0 using [`gtk4::prelude::FixedExt::put`].
+    ///   If using a [`gtk::Box`] as a container, it is added using [`Box::pack_start(menubar, false, false, 0)`](gtk::prelude::BoxExt::pack_start) then
+    ///   reordered to be the first child of [`gtk::Box`] using [`Box::reorder_child(menubar, 0)`](gtk::prelude::BoxExt::reorder_child).
     ///
     /// ## Example:
     /// ```no_run
-    /// let window = gtk4::Window::builder().build();
-    /// let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    /// let window = gtk::Window::builder().build();
+    /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     /// let menu = muda::Menu::new();
     /// // -- snip, add your menu items --
     /// menu.init_for_gtk_window(&window, Some(&vbox));
@@ -185,13 +184,13 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
-        W: gtk4::prelude::IsA<gtk4::Widget>,
-        C: gtk4::prelude::IsA<gtk4::Widget>,
+        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+        C: gtk::prelude::IsA<gtk::Widget>,
     {
         self.inner
             .borrow_mut()
@@ -273,7 +272,7 @@ impl Menu {
         self.inner.borrow_mut().haccel()
     }
 
-    /// Removes this menu from a [`gtk4::Window`]
+    /// Removes this menu from a [`gtk::Window`]
     #[cfg(all(
         any(
             target_os = "linux",
@@ -282,12 +281,12 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
-        W: gtk4::prelude::IsA<gtk4::Widget>,
+        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::Widget>,
     {
         self.inner.borrow_mut().remove_for_gtk_window(window)
     }
@@ -302,7 +301,7 @@ impl Menu {
         self.inner.borrow_mut().remove_for_hwnd(hwnd)
     }
 
-    /// Hides this menu from a [`gtk4::Window`]
+    /// Hides this menu from a [`gtk::Window`]
     #[cfg(all(
         any(
             target_os = "linux",
@@ -311,11 +310,11 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow_mut().hide_for_gtk_window(window)
     }
@@ -330,7 +329,7 @@ impl Menu {
         self.inner.borrow().hide_for_hwnd(hwnd)
     }
 
-    /// Shows this menu on a [`gtk4::Window`]
+    /// Shows this menu on a [`gtk::Window`]
     #[cfg(all(
         any(
             target_os = "linux",
@@ -339,11 +338,11 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow_mut().show_for_gtk_window(window)
     }
@@ -358,7 +357,7 @@ impl Menu {
         self.inner.borrow().show_for_hwnd(hwnd)
     }
 
-    /// Returns whether this menu visible on a [`gtk4::Window`]
+    /// Returns whether this menu visible on a [`gtk::Window`]
     #[cfg(all(
         any(
             target_os = "linux",
@@ -367,11 +366,11 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow().is_visible_on_gtk_window(window)
     }
@@ -386,11 +385,30 @@ impl Menu {
         ),
         feature = "gtk"
     ))]
-    /// Returns the [`gtk4::MenuBar`] that is associated with this window if it exists.
+    /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
     /// This is useful to get information about the menubar for example its height.
-    pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
+    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
     where
-        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        self.inner.borrow().gtk_menubar_for_gtk_window(window)
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    /// Returns the [`gtk::PopoverMenubar`] that is associated with this window if it exists.
+    /// This is useful to get information about the menubar for example its height.
+    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::PopoverMenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
     {
         self.inner.borrow().gtk_menubar_for_gtk_window(window)
     }
@@ -449,16 +467,44 @@ impl ContextMenu for Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
-        window: &gtk4::Window,
+        window: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
         self.inner
             .borrow_mut()
             .show_context_menu_for_gtk_window(window, position)
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::Menu {
+        self.inner.borrow_mut().gtk_context_menu()
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
+        self.inner.borrow_mut().gtk_context_menu()
     }
 
     #[cfg(target_os = "macos")]

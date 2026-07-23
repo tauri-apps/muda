@@ -40,37 +40,21 @@ impl PredefinedMenuItem {
     }
 
     /// Copy menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Copy, text)
     }
 
     /// Cut menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Cut, text)
     }
 
     /// Paste menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
 
     /// SelectAll menu item
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Linux:** Unsupported.
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::SelectAll, text)
     }
@@ -83,7 +67,6 @@ impl PredefinedMenuItem {
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
-
     /// Redo menu item
     ///
     /// ## Platform-specific:
@@ -94,11 +77,19 @@ impl PredefinedMenuItem {
     }
 
     /// Minimize window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Minimize, text)
     }
 
     /// Maximize window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Maximize, text)
     }
@@ -107,12 +98,16 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows:** Unsupported.
+    /// - **Windows / Linux:** Unsupported.
     pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Fullscreen, text)
     }
 
     /// Hide window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Hide, text)
     }
@@ -136,11 +131,19 @@ impl PredefinedMenuItem {
     }
 
     /// Close window menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::CloseWindow, text)
     }
 
     /// Quit app menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Linux:** Unsupported.
     pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Quit, text)
     }

@@ -2,15 +2,32 @@
 // Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::icon::{BadIcon, RgbaIcon};
+use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
+
+use crate::icon::BadIcon;
 
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
-pub struct PlatformIcon(gtk4::gdk_pixbuf::Pixbuf);
+pub struct PlatformIcon {
+    raw: Vec<u8>,
+    width: i32,
+    height: i32,
+    row_stride: i32,
+}
 
-// Safety: `PlatformIcon` is used only on the same thread as the one created it
-unsafe impl Send for PlatformIcon {}
-unsafe impl Sync for PlatformIcon {}
+impl From<PlatformIcon> for Pixbuf {
+    fn from(icon: PlatformIcon) -> Self {
+        Pixbuf::from_mut_slice(
+            icon.raw,
+            gtk::gdk_pixbuf::Colorspace::Rgb,
+            true,
+            8,
+            icon.width,
+            icon.height,
+            icon.row_stride,
+        )
+    }
+}
 
 impl PlatformIcon {
     /// Creates an `Icon` from 32bpp RGBA data.
@@ -18,27 +35,31 @@ impl PlatformIcon {
     /// The length of `rgba` must be divisible by 4, and `width * height` must equal
     /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-        let RgbaIcon {
-            rgba,
-            width,
-            height,
-        } = RgbaIcon::from_rgba(rgba, width, height)?;
-
-        let bytes = gtk4::glib::Bytes::from_owned(rgba);
-        let pixbuf = gtk4::gdk_pixbuf::Pixbuf::from_bytes(
-            &bytes,
-            gtk4::gdk_pixbuf::Colorspace::Rgb,
-            true,
-            8,
-            width as i32,
-            height as i32,
-            (width * 4) as i32,
-        );
-
-        Ok(Self(pixbuf))
+        let row_stride =
+            Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
+        Ok(Self {
+            raw: rgba,
+            width: width as i32,
+            height: height as i32,
+            row_stride,
+        })
     }
 
-    pub fn texture(&self) -> gtk4::gdk::Texture {
-        gtk4::gdk::Texture::for_pixbuf(&self.0)
+    pub fn to_pixbuf(&self) -> Pixbuf {
+        Pixbuf::from_mut_slice(
+            self.raw.clone(),
+            gtk::gdk_pixbuf::Colorspace::Rgb,
+            true,
+            8,
+            self.width,
+            self.height,
+            self.row_stride,
+        )
+    }
+
+    pub fn to_pixbuf_scale(&self, w: i32, h: i32) -> Pixbuf {
+        self.to_pixbuf()
+            .scale_simple(w, h, gtk::gdk_pixbuf::InterpType::Bilinear)
+            .unwrap()
     }
 }

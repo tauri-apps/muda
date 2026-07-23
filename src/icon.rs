@@ -34,18 +34,6 @@ pub enum BadIcon {
     },
     /// Produced when underlying OS functionality failed to create the icon
     OsError(io::Error),
-    /// Produced when encoding provided RGBA into png
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk"
-    ))]
-    PngEncodingError(png::EncodingError),
 }
 
 impl fmt::Display for BadIcon {
@@ -65,8 +53,6 @@ impl fmt::Display for BadIcon {
                 width, height, pixel_count, width_x_height,
             ),
             BadIcon::OsError(e) => write!(f, "OS error when instantiating the icon: {:?}", e),
-            #[cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"), feature = "gtk"))]
-            BadIcon::PngEncodingError(e) => write!(f, "PNG encoding error when instantiating the icon: {:?}", e),
         }
     }
 }

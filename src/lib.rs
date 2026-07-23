@@ -23,18 +23,18 @@
 //!
 //! # Dependencies (Linux Only)
 //!
-//! `gtk4` is used for menus. Be sure to install following packages before building:
+//! `gtk` is used for menus and `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
-//! pacman -S gtk4
+//! pacman -S gtk3 xdotool
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
-//! sudo apt install libgtk-4-dev
+//! sudo apt install libgtk-3-dev libxdo-dev
 //! ```
 //!
 //! # Example
@@ -77,14 +77,32 @@
 //! ```no_run
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let gtk_window = gtk4::Window::builder().build();
-//! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let vertical_gtk_box = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! ))]
+//! # let gtk_window = gtk::Window::builder().build();
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
+//! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
@@ -98,15 +116,27 @@
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
-//! # let gtk_window = gtk4::Window::builder().build();
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
+//! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
 //! // --snip--
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
@@ -152,6 +182,18 @@
 //! [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+extern crate gtk4 as gtk;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
@@ -363,7 +405,7 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk4::Window`]
+    /// Shows this menu as a context menu inside a [`gtk::Window`]
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     ///
@@ -378,13 +420,40 @@ pub trait ContextMenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
-        w: &gtk4::Window,
+        w: &gtk::Window,
         position: Option<dpi::Position>,
     ) -> bool;
+
+    /// Get the underlying gtk menu reserved for context menus.
+    ///
+    /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::Menu;
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///

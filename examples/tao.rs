@@ -165,11 +165,17 @@ fn main() {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
-    // #[cfg(target_os = "linux")]
-    // {
-    //     menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
-    //     menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
-    // }
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
+        menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
+    }
     #[cfg(target_os = "macos")]
     {
         menu_bar.init_for_nsapp();
@@ -243,8 +249,14 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    // #[cfg(target_os = "linux")]
-    // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);
