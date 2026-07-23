@@ -193,12 +193,12 @@ fn main() -> wry::Result<()> {
         target_os = "openbsd"
     ))]
     {
-        // menu_bar
-        //     .init_for_gtk_window(window.gtk_window(), window.default_vbox())
-        //     .unwrap();
-        // menu_bar
-        //     .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
-        //     .unwrap();
+        menu_bar
+            .init_for_gtk_window(window.gtk_window(), window.default_vbox())
+            .unwrap();
+        menu_bar
+            .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
+            .unwrap();
     }
     #[cfg(target_os = "macos")]
     {
@@ -278,14 +278,20 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                // #[cfg(target_os = "linux")]
-                // if let Some(menu_bar) = menu_bar
-                //     .clone()
-                //     .gtk_menubar_for_gtk_window(window.gtk_window())
-                // {
-                //     use gtk::prelude::*;
-                //     y += menu_bar.allocated_height();
-                // }
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                if let Some(menu_bar) = menu_bar
+                    .clone()
+                    .gtk_menubar_for_gtk_window(window.gtk_window())
+                {
+                    use gtk::prelude::*;
+                    y += menu_bar.allocated_height();
+                }
 
                 show_context_menu(&window, &file_m_c, Some(Position::Logical((x, y).into())))
             }
@@ -348,8 +354,14 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    // #[cfg(target_os = "linux")]
-    // menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);
