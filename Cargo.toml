@@ -21,7 +21,7 @@ include = [
 
 [features]
 default = ["gtk"]
-gtk = ["dep:gtk4", "dep:png"]
+gtk = ["dep:gtk4", "dep:png", "gtk4/v4_12"]
 common-controls-v6 = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 

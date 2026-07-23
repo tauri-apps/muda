@@ -175,7 +175,7 @@ impl AppMenu {
 
         let image_item = IconMenuItem::with_id(
             "image-custom-1",
-            "Image custom 1",
+            "&Image custom 1",
             true,
             Some(icon),
             Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
