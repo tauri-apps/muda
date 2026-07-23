@@ -169,7 +169,7 @@ impl Icon {
 ///
 /// ## Platform-specific:
 ///
-/// - **Windows / Linux**: Unsupported.
+/// - **Windows / GTK 3 / GTK 4**: Unsupported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NativeIcon {

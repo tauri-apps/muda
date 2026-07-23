@@ -91,7 +91,7 @@ impl IconMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
     pub fn with_native_icon<S: AsRef<str>>(
         text: S,
         enabled: bool,
@@ -117,7 +117,7 @@ impl IconMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
     pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
         id: I,
         text: S,
@@ -192,7 +192,7 @@ impl IconMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
     pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)

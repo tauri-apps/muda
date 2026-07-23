@@ -230,7 +230,7 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
     pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)

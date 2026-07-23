@@ -8,7 +8,7 @@ use crate::accelerator::KeyAccelerator;
 
 impl KeyAccelerator {
     /// Builds a GTK accelerator string (e.g. `<Shift><Control>a`) that can be
-    /// passed to [`gtk::Application::set_accels_for_action`].
+    /// passed to `gtk::Application::set_accels_for_action`.
     pub fn to_gtk(&self) -> String {
         let mut gtk = modifiers_to_gtk(self.mods);
         gtk.push_str(&key_to_gtk(&self.key));
