@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
-rust-version = "1.73"
+rust-version = "1.92"
 include = [
   "README.md",
   "src/**/*.rs",
@@ -92,10 +92,17 @@ winit = "0.30"
 tao = "0.33"
 wry = "0.45"
 image = { version = "0.25", default-features = false, features = ["png"] }
+winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
+  "gtk4",
+] }
 
 [[example]]
 name = "tao"
 required-features = ["gtk"]
+
+[[example]]
+name = "winit_gtk4"
+required-features = ["gtk4"]
 
 [[example]]
 name = "wry"

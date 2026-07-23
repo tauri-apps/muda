@@ -33,7 +33,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    name: test (${{ matrix.platform }} (${{ matrix.backend }})
+    name: test (${{ matrix.platform }} (${{ matrix.backend }}))
 
     steps:
       - uses: actions/checkout@v4
@@ -46,8 +46,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: dtolnay/rust-toolchain@1.73
-      - run: cargo build
+      - uses: dtolnay/rust-toolchain@1.92
+      - run: cargo build ${{ matrix.cargo-args }}
 
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test ${{ matrix.cargo-args }}

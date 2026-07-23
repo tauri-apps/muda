@@ -201,7 +201,7 @@ impl Menu {
         Ok(())
     }
 
-    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+    pub fn remove_at(&mut self, _position: usize) -> Option<MenuItemKind> {
         // TODO: implement this and make .remove() remove all occurances to match other backends
         None
     }
@@ -633,7 +633,7 @@ impl MenuChild {
         self.remove_inner(item, true, None)
     }
 
-    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+    pub fn remove_at(&mut self, _position: usize) -> Option<MenuItemKind> {
         // TODO: implement this and make .remove() remove all occurances to match other backends
         None
     }

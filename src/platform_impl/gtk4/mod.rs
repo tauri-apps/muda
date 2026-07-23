@@ -557,7 +557,7 @@ impl MenuChild {
         let item = gio_submenu(&self.text, &detailed_action, &menu, id);
 
         if self.action.is_none() {
-            let action_group = action_group_from_app(&app);
+            let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
             action.connect_activate(|_, _| ());
