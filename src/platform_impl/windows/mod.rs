@@ -325,7 +325,8 @@ impl Menu {
             }
         }
 
-        Some(child.borrow().kind(child.clone()))
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
@@ -983,7 +984,8 @@ impl MenuChild {
             }
         }
 
-        Some(child.borrow().kind(child.clone()))
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {

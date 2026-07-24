@@ -21,10 +21,10 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-latest
-            backend: gtk3
+            backend: (gtk3)
             cargo-args: --all-targets --features serde,common-controls-v6
           - platform: ubuntu-latest
-            backend: gtk4
+            backend: (gtk4)
             cargo-args: --all-targets --no-default-features --features gtk4,serde,common-controls-v6
           - platform: macos-latest
             cargo-args: --all-targets --features serde,common-controls-v6
@@ -33,7 +33,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    name: clippy (${{ matrix.platform }} (${{ matrix.backend }}))
+    name: clippy ${{ matrix.platform }} ${{ matrix.backend }}
 
     steps:
       - uses: actions/checkout@v4
