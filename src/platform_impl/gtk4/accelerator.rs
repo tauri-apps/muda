@@ -9,10 +9,10 @@ use crate::accelerator::KeyAccelerator;
 impl KeyAccelerator {
     /// Builds a GTK accelerator string (e.g. `<Shift><Control>a`) that can be
     /// passed to `gtk::Application::set_accels_for_action`.
-    pub fn to_gtk(&self) -> String {
+    pub fn to_gtk(&self) -> Option<String> {
         let mut gtk = modifiers_to_gtk(self.mods);
-        gtk.push_str(&key_to_gtk(&self.key));
-        gtk
+        gtk.push_str(&key_to_gtk(&self.key)?);
+        Some(gtk)
     }
 }
 
@@ -36,11 +36,10 @@ fn modifiers_to_gtk(mods: Modifiers) -> String {
 }
 
 /// Maps a logical [`Key`] to the matching GDK keysym name understood by
-/// `gtk_accelerator_parse`. Printable characters are used verbatim.
-fn key_to_gtk(key: &Key) -> String {
+/// `gtk_accelerator_parse`.
+fn key_to_gtk(key: &Key) -> Option<String> {
     let name = match key {
-        Key::Character(c) if c == " " => "space",
-        Key::Character(c) => return c.clone(),
+        Key::Character(c) => return character_to_gtk(c),
         Key::Escape => "Escape",
         Key::Backspace => "BackSpace",
         Key::Tab => "Tab",
@@ -86,7 +85,54 @@ fn key_to_gtk(key: &Key) -> String {
         Key::ArrowRight => "Right",
         Key::ContextMenu => "Menu",
         Key::WakeUp => "WakeUp",
-        _ => return String::new(),
+        _ => return None,
     };
-    name.to_string()
+    Some(name.to_string())
+}
+
+fn character_to_gtk(character: &str) -> Option<String> {
+    let mut chars = character.chars();
+    let character = chars.next()?;
+    if chars.next().is_some() {
+        return None;
+    }
+
+    let name = match character {
+        ' ' => "space",
+        '!' => "exclam",
+        '"' => "quotedbl",
+        '#' => "numbersign",
+        '$' => "dollar",
+        '%' => "percent",
+        '&' => "ampersand",
+        '\'' => "apostrophe",
+        '(' => "parenleft",
+        ')' => "parenright",
+        '*' => "asterisk",
+        '+' => "plus",
+        ',' => "comma",
+        '-' => "minus",
+        '.' => "period",
+        '/' => "slash",
+        ':' => "colon",
+        ';' => "semicolon",
+        '<' => "less",
+        '=' => "equal",
+        '>' => "greater",
+        '?' => "question",
+        '@' => "at",
+        '[' => "bracketleft",
+        '\\' => "backslash",
+        ']' => "bracketright",
+        '^' => "asciicircum",
+        '_' => "underscore",
+        '`' => "grave",
+        '{' => "braceleft",
+        '|' => "bar",
+        '}' => "braceright",
+        '~' => "asciitilde",
+        _ => return Some(character.to_string()),
+    };
+
+    Some(name.to_string())
 }

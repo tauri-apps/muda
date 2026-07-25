@@ -771,8 +771,8 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = &self.key_accelerator {
-            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+            app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
         if self.action.is_none() {
@@ -843,11 +843,13 @@ impl MenuChild {
         key_accelerator: Option<KeyAccelerator>,
     ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
-        let accelerator = key_accelerator.as_ref().map(|a| a.to_gtk());
-        let accelerator = accelerator.as_deref().map(|a| [a]).unwrap_or_default();
+        let accelerator = key_accelerator.as_ref().and_then(|a| a.to_gtk());
+
         for item in self.instances.values().flat_map(|v| v.iter()) {
-            let app = item.application();
-            app.set_accels_for_action(&detailed_action, accelerator.as_slice());
+            if let Some(accelerator) = accelerator.as_ref() {
+                let app = item.application();
+                app.set_accels_for_action(&detailed_action, &[&accelerator]);
+            }
         }
 
         self.key_accelerator = key_accelerator;
@@ -1035,8 +1037,8 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = &self.key_accelerator {
-            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+            app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
         if self.action.is_none() {
@@ -1139,8 +1141,8 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = &self.key_accelerator {
-            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+            app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
         if self.action.is_none() {
@@ -1259,8 +1261,8 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_custom_item(Some(&self.text), Some(&detailed_action), id);
 
-        if let Some(accelerator) = &self.key_accelerator {
-            app.set_accels_for_action(&detailed_action, &[&accelerator.to_gtk()]);
+        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+            app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
         if self.action.is_none() {

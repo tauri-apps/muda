@@ -130,7 +130,7 @@ impl IconMenuItem {
         };
 
         let accelerator = key_accelerator.and_then(|accelerator| {
-            let (key, mods) = gtk::accelerator_parse(accelerator.to_gtk())?;
+            let (key, mods) = gtk::accelerator_parse(accelerator.to_gtk()?)?;
             let label = gtk::accelerator_get_label(key, mods);
             (!label.is_empty()).then_some(label)
         });
