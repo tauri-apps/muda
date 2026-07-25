@@ -771,7 +771,7 @@ impl MenuChild {
 
                 (info.fState & MFS_CHECKED) != 0
             })
-            .unwrap_or(self.enabled)
+            .unwrap_or(self.checked)
     }
 
     pub fn set_checked(&mut self, checked: bool) {
