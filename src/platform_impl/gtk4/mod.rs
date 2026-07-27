@@ -360,7 +360,7 @@ impl Menu {
         position: Option<Position>,
     ) -> bool {
         let Some(app) = window.application() else {
-            return false; // TODO: better error
+            return false;
         };
 
         self.ensure_context_menu(app);
@@ -707,7 +707,7 @@ impl MenuChild {
         position: Option<Position>,
     ) -> bool {
         let Some(app) = window.application() else {
-            return false; // TODO: better error
+            return false;
         };
 
         self.ensure_context_menu(app);
