@@ -162,44 +162,38 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        // get child
-        let child = {
-            let index = self
-                .children
-                .iter()
-                .position(|e| e.borrow().id == item.id())
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            self.children.remove(index)
-        };
+        let child = item.child();
+        let positions = self
+            .children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
 
-        let mut child_ = child.borrow_mut();
-
-        if child_.item_type == MenuItemType::Submenu {
-            let menu_id = &self.ns_menu.0;
-            let menus = child_.ns_menus.as_ref().unwrap().get(menu_id).cloned();
-            if let Some(menus) = menus {
-                for menu in menus {
-                    for item in child_.items() {
-                        child_.remove_inner(item.as_ref(), false, Some(menu.0))?;
-                    }
-                }
-            }
-            child_.ns_menus.as_mut().unwrap().remove(menu_id);
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
         }
 
-        // remove each NSMenuItem from the NSMenu
-        if let Some(ns_menu_items) = child_.ns_menu_items.remove(&self.ns_menu.0) {
-            for item in ns_menu_items {
-                self.ns_menu.1.removeItem(&item);
-            }
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
         }
 
         Ok(())
     }
 
-    pub fn remove_at(&mut self, _position: usize) -> Option<MenuItemKind> {
-        // TODO: implement this and make .remove() remove all occurances to match other backends
-        None
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        if position >= self.children.len() {
+            return None;
+        }
+
+        let child = self.children.remove(position);
+        let item = child.borrow_mut().kind(child.clone());
+
+        child
+            .borrow_mut()
+            .remove_instance_for_parent_at_position(&self.ns_menu, position);
+
+        Some(item)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
@@ -616,83 +610,113 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        self.remove_inner(item, true, None)
-    }
+        let child = item.child();
+        let children = self.children.as_ref().unwrap();
+        let positions = children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
 
-    pub fn remove_at(&mut self, _position: usize) -> Option<MenuItemKind> {
-        // TODO: implement this and make .remove() remove all occurances to match other backends
-        None
-    }
-
-    pub fn remove_inner(
-        &mut self,
-        item: &dyn crate::IsMenuItem,
-        remove_from_cache: bool,
-        id: Option<u32>,
-    ) -> crate::Result<()> {
-        // get child
-        let child = {
-            let index = self
-                .children
-                .as_ref()
-                .unwrap()
-                .iter()
-                .position(|e| e.borrow().id == item.id())
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            if remove_from_cache {
-                self.children.as_mut().unwrap().remove(index)
-            } else {
-                self.children.as_ref().unwrap().get(index).cloned().unwrap()
-            }
-        };
-
-        for menus in self.ns_menus.as_ref().unwrap().values() {
-            for menu in menus {
-                // check if we are removing this item from all ns_menus
-                //      which is usually when this is the item the user is actually removing
-                // or if we are removing from a specific menu (id)
-                //      which is when the actual item being removed is a submenu
-                //      and we are iterating through its children and removing
-                //      each child ns menu item that are related to this submenu.
-                if id.map(|i| i == menu.0).unwrap_or(true) {
-                    let mut child_ = child.borrow_mut();
-
-                    if child_.item_type == MenuItemType::Submenu {
-                        let menus = child_.ns_menus.as_ref().unwrap().get(&menu.0).cloned();
-                        if let Some(menus) = menus {
-                            for menu in menus {
-                                // iterate through children and only remove the ns menu items
-                                // related to this submenu
-                                for item in child_.items() {
-                                    child_.remove_inner(item.as_ref(), false, Some(menu.0))?;
-                                }
-                            }
-                        }
-                        child_.ns_menus.as_mut().unwrap().remove(&menu.0);
-                    }
-
-                    if let Some(items) = child_.ns_menu_items.remove(&menu.0) {
-                        for item in items {
-                            menu.1.removeItem(&item);
-                        }
-                    }
-                }
-            }
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
         }
 
-        if remove_from_cache {
-            if let Some(ns_menu_items) = child
-                .borrow_mut()
-                .ns_menu_items
-                .remove(&self.ns_menu.as_ref().unwrap().0)
-            {
-                for item in ns_menu_items {
-                    self.ns_menu.as_ref().unwrap().1.removeItem(&item);
-                }
-            }
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
         }
 
         Ok(())
+    }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        let children = self.children.as_mut().unwrap();
+        if position >= children.len() {
+            return None;
+        }
+
+        let child = children.remove(position);
+        let item = child.borrow().kind(child.clone());
+
+        //  Join the ns_menus and ns_menu into a single iterator of parent menus to remove the child from
+        let ns_menus = self.ns_menus.as_ref().unwrap();
+        let ns_menus = ns_menus.values().flatten().cloned();
+        let parent_menus = ns_menus.chain(self.ns_menu.iter().cloned());
+
+        for parent_menu in parent_menus {
+            let mut child = child.borrow_mut();
+            child.remove_instance_for_parent_at_position(&parent_menu, position);
+        }
+
+        Some(item)
+    }
+
+    fn remove_instance_for_parent_at_position(&mut self, parent_menu: &NsMenuRef, position: usize) {
+        let Some(ns_item) = parent_menu.1.itemAtIndex(position as NSInteger) else {
+            return;
+        };
+
+        if self.item_type == MenuItemType::Submenu {
+            self.remove_ns_menu_for_parent_item(parent_menu.0, &ns_item);
+        }
+
+        self.remove_ns_menu_item_for_parent(parent_menu.0, &ns_item);
+        parent_menu.1.removeItemAtIndex(position as NSInteger);
+    }
+
+    fn remove_ns_menu_for_parent_item(&mut self, parent_id: u32, ns_item: &NSMenuItem) {
+        let Some(ns_submenu) = ns_item.submenu() else {
+            return;
+        };
+        let Some(menus) = self.ns_menus.as_mut().unwrap().get_mut(&parent_id) else {
+            return;
+        };
+        let Some(index) = menus.iter().position(|menu| {
+            std::ptr::eq(Retained::as_ptr(&menu.1), Retained::as_ptr(&ns_submenu))
+        }) else {
+            return;
+        };
+
+        let removed = menus.remove(index);
+
+        if menus.is_empty() {
+            self.ns_menus.as_mut().unwrap().remove(&parent_id);
+        }
+
+        self.remove_ns_instances_for_parent(removed.0);
+    }
+
+    fn remove_ns_instances_for_parent(&mut self, parent_id: u32) {
+        self.ns_menu_items.remove(&parent_id);
+
+        if self.item_type != MenuItemType::Submenu {
+            return;
+        }
+
+        if let Some(menus) = self.ns_menus.as_mut().unwrap().remove(&parent_id) {
+            for menu in menus {
+                for child in self.children.as_mut().unwrap() {
+                    child.borrow_mut().remove_ns_instances_for_parent(menu.0);
+                }
+            }
+        }
+    }
+
+    fn remove_ns_menu_item_for_parent(&mut self, parent_id: u32, ns_item: &NSMenuItem) {
+        let Some(items) = self.ns_menu_items.get_mut(&parent_id) else {
+            return;
+        };
+
+        if let Some(index) = items
+            .iter()
+            .position(|item| std::ptr::eq(Retained::as_ptr(item), ns_item))
+        {
+            items.remove(index);
+        }
+
+        if items.is_empty() {
+            self.ns_menu_items.remove(&parent_id);
+        }
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
