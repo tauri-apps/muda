@@ -222,6 +222,10 @@ impl Submenu {
     }
 
     /// Change this menu item icon or remove it.
+    ///
+    /// Platform-specific:
+    ///
+    /// - GTK 4: Unsupported.
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.inner.borrow_mut().set_icon(icon)
     }
