@@ -363,27 +363,14 @@ impl Menu {
             return false; // TODO: better error
         };
 
-        if !self.instances.contains_key(&self.ctx_menu_id) {
-            let action_group = action_group_from_app(&app);
-
-            let menu = GtkMenuBar::new_context(app);
-
-            let widget = menu.context_menu();
-            widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
-
-            self.instances.insert(self.ctx_menu_id, menu);
-
-            for item in self.items() {
-                let _ = self.add_existing_item_to_instance(item.as_ref(), self.ctx_menu_id);
-            }
-        }
+        self.ensure_context_menu(app);
 
         let (x, y) = match position {
             Some(p) => p.to_logical::<i32>(scale_factor(window)).into(),
             None => get_cursor_pos(window),
         };
 
-        // SAFETY: it is guaranteed to exist due to the check above
+        // SAFETY: it is guaranteed to exist due to ensure_context_menu.
         let menu = self.instances.get(&self.ctx_menu_id).unwrap();
         let context_menu = menu.context_menu();
 
@@ -393,8 +380,38 @@ impl Menu {
         run_context_menu(context_menu, &items, x, y)
     }
 
-    pub fn gtk_context_menu(&self) -> gtk::PopoverMenu {
-        todo!()
+    pub fn gtk_context_menu(&mut self) -> gtk::PopoverMenu {
+        self.ensure_context_menu(self.context_menu_application());
+
+        // SAFETY: it is guaranteed to exist due to ensure_context_menu.
+        self.instances[&self.ctx_menu_id].context_menu().clone()
+    }
+
+    fn ensure_context_menu(&mut self, app: gtk::Application) {
+        if self.instances.contains_key(&self.ctx_menu_id) {
+            return;
+        }
+
+        let action_group = action_group_from_app(&app);
+
+        let menu = GtkMenuBar::new_context(app);
+
+        let widget = menu.context_menu();
+        widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
+
+        self.instances.insert(self.ctx_menu_id, menu);
+
+        for item in self.items() {
+            let _ = self.add_existing_item_to_instance(item.as_ref(), self.ctx_menu_id);
+        }
+    }
+
+    fn context_menu_application(&self) -> gtk::Application {
+        self.instances
+            .values()
+            .next()
+            .map(|menu| menu.applicaiton().clone())
+            .unwrap_or_else(default_gtk_application)
     }
 }
 
@@ -693,28 +710,9 @@ impl MenuChild {
             return false; // TODO: better error
         };
 
-        if !self.instances.contains_key(&self.ctx_menu_id) {
-            let menu = gio::Menu::new();
-            let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
+        self.ensure_context_menu(app);
 
-            let action_group = action_group_from_app(&app);
-            widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
-
-            let menu = GtkMenuChild::ContextMenu {
-                id: self.ctx_menu_id,
-                widget,
-                menu,
-                app,
-            };
-
-            self.instances.insert(self.ctx_menu_id, vec![menu]);
-
-            for item in self.items() {
-                let _ = self.add_existing_item_to_instance(item.as_ref(), self.ctx_menu_id);
-            }
-        }
-
-        // SAFETY: it is guaranteed to exist due to the check above
+        // SAFETY: it is guaranteed to exist due to ensure_context_menu.
         let menus = self.instances.get(&self.ctx_menu_id).unwrap();
         let menu = menus.first().unwrap();
 
@@ -731,8 +729,49 @@ impl MenuChild {
         run_context_menu(context_menu, &items, x, y)
     }
 
-    pub fn gtk_context_menu(&self) -> gtk::PopoverMenu {
-        todo!()
+    pub fn gtk_context_menu(&mut self) -> gtk::PopoverMenu {
+        self.ensure_context_menu(self.context_menu_application());
+
+        // SAFETY: it is guaranteed to exist due to ensure_context_menu.
+        self.instances[&self.ctx_menu_id]
+            .first()
+            .unwrap()
+            .context_menu()
+            .clone()
+    }
+
+    fn ensure_context_menu(&mut self, app: gtk::Application) {
+        if self.instances.contains_key(&self.ctx_menu_id) {
+            return;
+        }
+
+        let menu = gio::Menu::new();
+        let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
+
+        let action_group = action_group_from_app(&app);
+        widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
+
+        let menu = GtkMenuChild::ContextMenu {
+            id: self.ctx_menu_id,
+            widget,
+            menu,
+            app,
+        };
+
+        self.instances.insert(self.ctx_menu_id, vec![menu]);
+
+        for item in self.items() {
+            let _ = self.add_existing_item_to_instance(item.as_ref(), self.ctx_menu_id);
+        }
+    }
+
+    fn context_menu_application(&self) -> gtk::Application {
+        self.instances
+            .values()
+            .flatten()
+            .next()
+            .map(|menu| menu.application().clone())
+            .unwrap_or_else(default_gtk_application)
     }
 }
 
@@ -848,7 +887,7 @@ impl MenuChild {
         for item in self.instances.values().flat_map(|v| v.iter()) {
             if let Some(accelerator) = accelerator.as_ref() {
                 let app = item.application();
-                app.set_accels_for_action(&detailed_action, &[&accelerator]);
+                app.set_accels_for_action(&detailed_action, &[accelerator]);
             }
         }
 
@@ -1532,6 +1571,12 @@ fn show_about_dialog(
     }
 
     dialog.present();
+}
+
+fn default_gtk_application() -> gtk::Application {
+    gio::Application::default()
+        .and_then(|app| app.downcast::<gtk::Application>().ok())
+        .unwrap_or_default()
 }
 
 /// Returns and creates the action group on this application if necessary.
