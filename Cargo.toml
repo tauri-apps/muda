@@ -89,8 +89,8 @@ png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
-tao = "0.33"
-wry = "0.45"
+tao = "0.35"
+wry = "0.55"
 image = { version = "0.25", default-features = false, features = ["png"] }
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",
