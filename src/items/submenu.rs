@@ -135,21 +135,14 @@ impl Submenu {
         Ok(())
     }
 
-    /// Remove a menu item from this submenu.
+    /// Remove all occurrences of a menu item from this submenu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner.borrow_mut().remove(item)
     }
 
     /// Remove the menu item at the specified position from this submenu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
-        let mut items = self.items();
-        if items.len() > position {
-            let item = items.remove(position);
-            let _ = self.remove(item.as_ref());
-            Some(item)
-        } else {
-            None
-        }
+        self.inner.borrow_mut().remove_at(position)
     }
 
     /// Returns a list of menu items that has been added to this submenu.
@@ -229,6 +222,10 @@ impl Submenu {
     }
 
     /// Change this menu item icon or remove it.
+    ///
+    /// Platform-specific:
+    ///
+    /// - GTK 4: Unsupported.
     pub fn set_icon(&self, icon: Option<Icon>) {
         self.inner.borrow_mut().set_icon(icon)
     }
@@ -237,7 +234,7 @@ impl Submenu {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
     pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
         #[cfg(target_os = "macos")]
         self.inner.borrow_mut().set_native_icon(_icon)
@@ -275,7 +272,7 @@ impl ContextMenu for Submenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -298,6 +295,20 @@ impl ContextMenu for Submenu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
+        self.inner.borrow_mut().gtk_context_menu()
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         self.inner.borrow_mut().gtk_context_menu()
     }
 

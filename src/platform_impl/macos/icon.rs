@@ -57,7 +57,7 @@ impl PlatformIcon {
 
         let nsimage = NSImage::initWithData(NSImage::alloc(), &nsdata).unwrap();
         let new_size = NSSize::new(icon_width, icon_height);
-        unsafe { nsimage.setSize(new_size) };
+        nsimage.setSize(new_size);
 
         nsimage
     }

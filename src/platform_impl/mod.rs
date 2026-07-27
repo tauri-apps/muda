@@ -13,6 +13,18 @@ mod platform;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
+    feature = "gtk4"
+))]
+#[path = "gtk4/mod.rs"]
+mod platform;
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
     feature = "gtk"
 ))]
 #[path = "gtk/mod.rs"]
@@ -47,35 +59,35 @@ impl MenuChild {
     fn kind(&self, c: Rc<RefCell<MenuChild>>) -> MenuItemKind {
         match self.item_type() {
             MenuItemType::Submenu => {
-                let id = c.borrow().id().clone();
+                let id = self.id().clone();
                 MenuItemKind::Submenu(Submenu {
                     id: Rc::new(id),
                     inner: c,
                 })
             }
             MenuItemType::MenuItem => {
-                let id = c.borrow().id().clone();
+                let id = self.id().clone();
                 MenuItemKind::MenuItem(MenuItem {
                     id: Rc::new(id),
                     inner: c,
                 })
             }
             MenuItemType::Predefined => {
-                let id = c.borrow().id().clone();
+                let id = self.id().clone();
                 MenuItemKind::Predefined(PredefinedMenuItem {
                     id: Rc::new(id),
                     inner: c,
                 })
             }
             MenuItemType::Check => {
-                let id = c.borrow().id().clone();
+                let id = self.id().clone();
                 MenuItemKind::Check(CheckMenuItem {
                     id: Rc::new(id),
                     inner: c,
                 })
             }
             MenuItemType::Icon => {
-                let id = c.borrow().id().clone();
+                let id = self.id().clone();
                 MenuItemKind::Icon(IconMenuItem {
                     id: Rc::new(id),
                     inner: c,

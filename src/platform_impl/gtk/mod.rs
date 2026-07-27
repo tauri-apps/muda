@@ -156,6 +156,19 @@ impl Menu {
         self.remove_inner(item, true, None)
     }
 
+    pub fn remove_at(&mut self, index: usize) -> Option<MenuItemKind> {
+        if index >= self.children.len() {
+            return None;
+        }
+
+        let child = self.children.get(index).cloned().unwrap();
+        let item = child.borrow().kind(child.clone());
+
+        self.remove_inner(item.as_ref(), true, None).ok()?;
+
+        Some(item)
+    }
+
     fn remove_inner(
         &mut self,
         item: &dyn crate::IsMenuItem,
@@ -253,8 +266,8 @@ impl Menu {
     ) -> crate::Result<()>
     where
         W: IsA<gtk::Window>,
-        W: IsA<gtk::Container>,
-        C: IsA<gtk::Container>,
+        W: IsA<gtk::Widget>,
+        C: IsA<gtk::Widget>,
     {
         let id = window.as_ptr() as u32;
 
@@ -280,18 +293,7 @@ impl Menu {
             self.add_menu_item_with_id(item.as_ref(), id)?;
         }
 
-        // add the menubar to the specified widget, otherwise to the window
-        if let Some(container) = container {
-            if container.type_().name() == "GtkBox" {
-                let gtk_box = container.dynamic_cast_ref::<gtk::Box>().unwrap();
-                gtk_box.pack_start(menu_bar, false, false, 0);
-                gtk_box.reorder_child(menu_bar, 0);
-            } else {
-                container.add(menu_bar);
-            }
-        } else {
-            window.add(menu_bar);
-        }
+        Self::attach_menubar_to_window(window, container, menu_bar)?;
 
         // Show the menubar
         menu_bar.show();
@@ -299,9 +301,41 @@ impl Menu {
         Ok(())
     }
 
+    fn attach_menubar_to_window<W, C>(
+        window: &W,
+        container: Option<&C>,
+        menu_bar: &gtk::MenuBar,
+    ) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+        C: gtk::prelude::IsA<gtk::Widget>,
+    {
+        if let Some(container) = container {
+            if let Some(gtk_box) = container.dynamic_cast_ref::<gtk::Box>() {
+                gtk_box.pack_start(menu_bar, false, false, 0);
+                gtk_box.reorder_child(menu_bar, 0);
+            } else if let Some(gtk_fixed) = container.dynamic_cast_ref::<gtk::Fixed>() {
+                gtk_fixed.add(menu_bar);
+            } else if let Some(gtk_stack) = container.dynamic_cast_ref::<gtk::Stack>() {
+                gtk_stack.add(menu_bar);
+            } else {
+                return Err(crate::Error::UnsupportedGtkContainer);
+            }
+        } else {
+            if let Some(w) = window.dynamic_cast_ref::<gtk::Window>() {
+                w.set_child(Some(menu_bar));
+            } else {
+                return Err(crate::Error::UnsupportedGtkContainer);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn remove_for_gtk_window<W>(&mut self, window: &W) -> crate::Result<()>
     where
         W: IsA<gtk::Window>,
+        W: IsA<gtk::Widget>,
     {
         let id = window.as_ptr() as u32;
 
@@ -867,6 +901,19 @@ impl MenuChild {
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
         self.remove_inner(item, true, None)
+    }
+
+    pub fn remove_at(&mut self, index: usize) -> Option<MenuItemKind> {
+        if index >= self.children.as_ref().unwrap().len() {
+            return None;
+        }
+
+        let child = self.children.as_ref().unwrap().get(index).cloned().unwrap();
+        let item = child.borrow().kind(child.clone());
+
+        self.remove_inner(item.as_ref(), true, None).ok()?;
+
+        Some(item)
     }
 
     fn remove_inner(

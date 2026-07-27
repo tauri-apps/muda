@@ -68,7 +68,6 @@ macro_rules! inner_menu_child_and_flags {
                 let child = i.inner;
                 let child_ = child.borrow();
                 match child_.predefined_item_type.as_ref().unwrap() {
-                    PredefinedMenuItemType::None => return Ok(()),
                     PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
@@ -271,7 +270,33 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        let id = item.child().borrow().internal_id();
+        let child = item.child();
+        let positions = self
+            .children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        if position >= self.children.len() {
+            return None;
+        }
+
+        let child = self.children.remove(position);
+        let id = child.borrow().internal_id();
+
         unsafe {
             RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
@@ -282,32 +307,26 @@ impl Menu {
             }
         }
 
-        let child = item.child();
-
         {
             let mut child = child.borrow_mut();
-            let index = child
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
-            let index = child
+            {
+                child.parents_hemnu.remove(index);
+            }
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hpopupmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
+            {
+                child.parents_hemnu.remove(index);
+            }
         }
 
-        let index = self
-            .children
-            .iter()
-            .position(|e| e.borrow().internal_id() == id)
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        self.children.remove(index);
-
-        Ok(())
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
@@ -914,38 +933,59 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        let id = item.child().borrow().internal_id();
+        let child = item.child();
+        let children = self.children.as_ref().unwrap();
+        let positions = children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        let children = self.children.as_mut().unwrap();
+        if position >= children.len() {
+            return None;
+        }
+
+        let child = children.remove(position);
+        let id = child.borrow().internal_id();
+
         unsafe {
             RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
         }
 
-        let child = item.child();
-
         {
             let mut child = child.borrow_mut();
-            let index = child
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
-            let index = child
+            {
+                child.parents_hemnu.remove(index);
+            }
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hpopupmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
+            {
+                child.parents_hemnu.remove(index);
+            }
         }
 
-        let children = self.children.as_mut().unwrap();
-        let index = children
-            .iter()
-            .position(|e| e.borrow().internal_id() == id)
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        children.remove(index);
-
-        Ok(())
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {

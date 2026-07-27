@@ -10,7 +10,8 @@
 //!
 //! - Windows
 //! - macOS
-//! - Linux (gtk Only)
+//! - Linux/BSD with GTK 3
+//! - Linux/BSD with GTK 4
 //!
 //! # Platform-specific notes:
 //!
@@ -21,20 +22,52 @@
 //!   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
 //!   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
 //!
-//! # Dependencies (Linux Only)
+//! # Cargo features
 //!
-//! `gtk` is used for menus and `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+//! - `gtk`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
+//! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
+//!   enabling this feature because the defaults include `gtk`.
+//! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
+//!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
+//!   by GTK 4.
+//!
+//! The `gtk` and `gtk4` features are mutually exclusive.
+//!
+//! # Dependencies (Linux/BSD)
+//!
+//! The `gtk` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
+//! only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll`
+//! menu items work when the `libxdo` feature is enabled. Be sure to install the packages for the
+//! GTK backend you enabled before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
+//! # GTK 3 backend
 //! pacman -S gtk3 xdotool
+//!
+//! # GTK 4 backend
+//! pacman -S gtk4
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
+//! # GTK 3 backend
 //! sudo apt install libgtk-3-dev libxdo-dev
+//!
+//! # GTK 4 backend
+//! sudo apt install libgtk-4-dev
+//! ```
+//!
+//! #### FreeBSD:
+//!
+//! ```sh
+//! # GTK 3 backend
+//! pkg install -y rust glib pkgconf gtk3 xdotool
+//!
+//! # GTK 4 backend
+//! pkg install -y rust glib pkgconf gtk4
 //! ```
 //!
 //! # Example
@@ -71,10 +104,12 @@
 //! );
 //! ```
 //!
-//! Then add your root menu to a Window on Windows and Linux
+//! Then add your root menu to a window on Windows, GTK 3, or GTK 4
 //! or use it as your global app menu on macOS
 //!
 //! ```no_run
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
 //! # #[cfg(any(
@@ -110,9 +145,11 @@
 //!
 //! # Context menus (Popup menus)
 //!
-//! You can also use a [`Menu`] or a [`Submenu`] show a context menu.
+//! You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
 //!
 //! ```no_run
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
@@ -182,6 +219,21 @@
 //! [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
+
+#[cfg(all(feature = "gtk", feature = "gtk4"))]
+compile_error!("features `gtk` and `gtk4` cannot be enabled together");
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+extern crate gtk4 as gtk;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
@@ -393,7 +445,7 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk::Window`]
+    /// Shows this menu as a context menu inside a [`gtk::Window`].
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     ///
@@ -408,7 +460,7 @@ pub trait ContextMenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -416,7 +468,7 @@ pub trait ContextMenu {
         position: Option<dpi::Position>,
     ) -> bool;
 
-    /// Get the underlying gtk menu reserved for context menus.
+    /// Get the underlying GTK 3 menu reserved for context menus.
     ///
     /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
     #[cfg(all(
@@ -430,6 +482,21 @@ pub trait ContextMenu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu;
+
+    /// Get the underlying GTK 4 popover menu reserved for context menus.
+    ///
+    /// The returned [`gtk::PopoverMenu`] is valid as long as the `ContextMenu` is.
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
     /// Shows this menu as a context menu for the specified `NSView`.
     ///

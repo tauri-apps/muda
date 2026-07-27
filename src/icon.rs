@@ -80,7 +80,7 @@ mod constructors {
 
     impl RgbaIcon {
         pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-            if rgba.len() % PIXEL_SIZE != 0 {
+            if !rgba.len().is_multiple_of(PIXEL_SIZE) {
                 return Err(BadIcon::ByteCountNotDivisibleBy4 {
                     byte_count: rgba.len(),
                 });
@@ -169,7 +169,7 @@ impl Icon {
 ///
 /// ## Platform-specific:
 ///
-/// - **Windows / Linux**: Unsupported.
+/// - **Windows / GTK 3 / GTK 4**: Unsupported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NativeIcon {
