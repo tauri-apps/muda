@@ -344,6 +344,7 @@ impl MenuChild {
     }
 
     pub(crate) fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+        let enabled = item_type.is_supported_on_macos();
         let text = strip_mnemonic(text.unwrap_or_else(|| {
             // Gets the app's name from `NSRunningApplication::localizedName`.
             let app_name = || {
@@ -364,7 +365,7 @@ impl MenuChild {
         Self {
             item_type: MenuItemType::Predefined,
             text,
-            enabled: true,
+            enabled,
             id: MenuId(COUNTER.next().to_string()),
             key_accelerator: item_type.accelerator().map(KeyAccelerator::from),
             predefined_item_type: Some(item_type),
@@ -992,6 +993,30 @@ impl MenuChild {
 }
 
 impl PredefinedMenuItemType {
+    fn is_supported_on_macos(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::HideOthers
+                | PredefinedMenuItemType::ShowAll
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+                | PredefinedMenuItemType::Services
+                | PredefinedMenuItemType::BringAllToFront
+        )
+    }
+
     pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
             PredefinedMenuItemType::Separator => None,

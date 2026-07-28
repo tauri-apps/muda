@@ -34,36 +34,6 @@ const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";
 
 type GtkId = usize;
 
-macro_rules! is_item_supported {
-    ($item:expr) => {{
-        let child = $item.child();
-        let child = child.borrow();
-        if let Some(predefined_item_type) = &child.predefined_item_type {
-            matches!(
-                predefined_item_type,
-                PredefinedMenuItemType::Separator
-                    | PredefinedMenuItemType::Minimize
-                    | PredefinedMenuItemType::Maximize
-                    | PredefinedMenuItemType::Fullscreen
-                    | PredefinedMenuItemType::Hide
-                    | PredefinedMenuItemType::CloseWindow
-                    | PredefinedMenuItemType::Quit
-                    | PredefinedMenuItemType::About(_)
-            )
-        } else {
-            true
-        }
-    }};
-}
-
-macro_rules! return_if_item_not_supported {
-    ($item:expr) => {
-        if !is_item_supported!($item) {
-            return Ok(());
-        }
-    };
-}
-
 enum GtkMenuBar {
     MenuBar {
         widget: gtk::PopoverMenuBar,
@@ -153,8 +123,6 @@ impl Menu {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
-        return_if_item_not_supported!(item);
-
         for (menu_id, menu_bar) in &self.instances {
             let host = menu_bar.widget();
             let app = menu_bar.applicaiton();
@@ -170,8 +138,6 @@ impl Menu {
         item: &dyn IsMenuItem,
         id: GtkId,
     ) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         if let Some(menu_bar) = self.instances.get(&id) {
             let host = menu_bar.widget();
             let app = menu_bar.applicaiton();
@@ -617,8 +583,6 @@ impl MenuChild {
             AddOp::Insert(i) => self.children.insert(i, item.child()),
         }
 
-        return_if_item_not_supported!(item);
-
         for menus in self.instances.values() {
             for gtk_child in menus {
                 let app = gtk_child.application();
@@ -638,8 +602,6 @@ impl MenuChild {
         item: &dyn IsMenuItem,
         id: GtkId,
     ) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         for menus in self.instances.values() {
             for gtk_child in menus.iter().filter(|m| m.id() == id) {
                 let app = gtk_child.application();
@@ -1036,12 +998,13 @@ impl MenuChild {
 impl MenuChild {
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         let key_accelerator = item_type.accelerator().map(Into::into);
+        let enabled = item_type.is_supported_on_gtk4();
 
         Self {
             id: MenuId(COUNTER.next().to_string()),
             action_name: format!("item-{}", COUNTER.next()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
-            enabled: true,
+            enabled,
             key_accelerator,
             icon: None,
             native_icon: None,
@@ -1088,10 +1051,13 @@ impl MenuChild {
             let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
-            let app = app.clone();
-            action.connect_activate(move |_, _| {
-                activate_predefined_action(&app, &predefined_item_type)
-            });
+            if predefined_item_type.is_supported_on_gtk4() {
+                let app = app.clone();
+                action.connect_activate(move |_, _| {
+                    activate_predefined_action(&app, &predefined_item_type)
+                });
+            }
+
             action.set_enabled(self.enabled);
             action_group.add_action(&action);
 
@@ -1491,6 +1457,22 @@ fn remove_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>) {
         menu_bar.remove_child(child);
     } else if let Some(menu) = host.downcast_ref::<gtk::PopoverMenu>() {
         menu.remove_child(child);
+    }
+}
+
+impl PredefinedMenuItemType {
+    fn is_supported_on_gtk4(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
     }
 }
 

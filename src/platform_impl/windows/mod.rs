@@ -567,10 +567,11 @@ impl MenuChild {
 
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         let internal_id = COUNTER.next();
+        let enabled = item_type.is_supported_on_windows();
         Self {
             item_type: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
-            enabled: true,
+            enabled,
             parents_hemnu: Vec::new(),
             internal_id,
             id: MenuId::new(internal_id.to_string()),
@@ -1587,5 +1588,26 @@ fn show_about_dialog(hwnd: Hwnd, metadata: &AboutMetadata) {
                 &mut pf_verification_flag_checked,
             )
         });
+    }
+}
+
+impl PredefinedMenuItemType {
+    fn is_supported_on_windows(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
     }
 }
