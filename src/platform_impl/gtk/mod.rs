@@ -189,7 +189,7 @@ impl Menu {
                         }
                         unsafe { item.destroy() };
                     }
-                }
+                };
             }
         }
 
@@ -962,7 +962,7 @@ impl MenuChild {
                             }
                             unsafe { item.destroy() };
                         }
-                    }
+                    };
                 }
             }
         }
