@@ -6,7 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
-    MenuItemKind, NativeIcon,
+    MenuItemKind,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -232,12 +232,27 @@ impl Submenu {
 
     /// Change this menu item icon to a native image or remove it.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
-    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
-        #[cfg(target_os = "macos")]
-        self.inner.borrow_mut().set_native_icon(_icon)
+    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
+    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
+    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
+    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
+    ///   before calling [`SHGetStockIconInfo`].
+    /// - **GTK 3**: Pass an icon theme name resolved by [`GtkIconTheme`], such as names from the
+    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
+    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
+    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
+    ///   assets.
+    /// - **GTK 4**: Unsupported.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    pub fn set_native_icon(&self, icon: Option<String>) {
+        self.inner.borrow_mut().set_native_icon(icon)
     }
 }
 

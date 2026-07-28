@@ -180,6 +180,19 @@ impl AppMenu {
             Some(icon),
             Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
         );
+        #[cfg(target_os = "macos")]
+        let native_icon = "NSFolder".to_string();
+        #[cfg(target_os = "windows")]
+        let native_icon = "SIID_FOLDER".to_string();
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        let native_icon = "folder-symbolic".to_string();
+        let native_icon_item = IconMenuItem::with_id_and_native_icon(
+            "native-icon-1",
+            "Native icon",
+            true,
+            Some(native_icon),
+            None,
+        );
 
         let check_custom_i_1 =
             CheckMenuItem::with_id("check-custom-1", "Check Custom 1", true, true, None);
@@ -201,6 +214,7 @@ impl AppMenu {
             .append_items(&[
                 &custom_i_1,
                 &image_item,
+                &native_icon_item,
                 &window_menu,
                 &PredefinedMenuItem::separator(),
                 &check_custom_i_1,

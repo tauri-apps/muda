@@ -253,7 +253,7 @@ pub use about_metadata::AboutMetadata;
 pub use builders::*;
 pub use dpi;
 pub use error::*;
-pub use icon::{BadIcon, Icon, NativeIcon};
+pub use icon::{BadIcon, Icon};
 pub use items::*;
 pub use menu::*;
 pub use menu_id::MenuId;

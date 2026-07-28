@@ -22,7 +22,7 @@ use mnemonic::to_gtk_mnemonic;
 use crate::{
     accelerator::KeyAccelerator,
     util::{AddOp, Counter},
-    AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
+    AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
     PredefinedMenuItemType,
 };
 
@@ -530,6 +530,7 @@ pub struct MenuChild {
     checked: bool,
 
     icon: Option<Icon>,
+    native_icon: Option<String>,
 
     type_: MenuItemType,
     predefined_item_type: Option<PredefinedMenuItemType>,
@@ -550,6 +551,7 @@ impl MenuChild {
             enabled,
             checked: false,
             icon: None,
+            native_icon: None,
             key_accelerator: None,
             type_: MenuItemType::Submenu,
             predefined_item_type: None,
@@ -789,6 +791,7 @@ impl MenuChild {
             enabled,
             key_accelerator,
             icon: None,
+            native_icon: None,
             checked: false,
             type_: MenuItemType::MenuItem,
             predefined_item_type: None,
@@ -1041,6 +1044,7 @@ impl MenuChild {
             enabled: true,
             key_accelerator,
             icon: None,
+            native_icon: None,
             checked: false,
             type_: MenuItemType::Predefined,
             predefined_item_type: Some(item_type),
@@ -1159,6 +1163,7 @@ impl MenuChild {
             enabled,
             key_accelerator,
             icon: None,
+            native_icon: None,
             checked,
             type_: MenuItemType::Check,
             predefined_item_type: None,
@@ -1254,6 +1259,7 @@ impl MenuChild {
             enabled,
             key_accelerator,
             icon,
+            native_icon: None,
             checked: false,
             type_: MenuItemType::Icon,
             predefined_item_type: None,
@@ -1267,7 +1273,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        _icon: Option<NativeIcon>,
+        native_icon: Option<String>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -1278,6 +1284,7 @@ impl MenuChild {
             enabled,
             key_accelerator,
             icon: None,
+            native_icon,
             checked: false,
             type_: MenuItemType::Icon,
             predefined_item_type: None,
@@ -1320,6 +1327,7 @@ impl MenuChild {
             &self.text,
             &detailed_action,
             self.icon.as_ref(),
+            self.native_icon.as_deref(),
             self.key_accelerator.as_ref(),
         );
 
@@ -1358,7 +1366,14 @@ impl MenuChild {
 
     pub fn set_icon(&mut self, icon: Option<Icon>) {
         self.icon = icon;
+        self.native_icon = None;
         self.for_each_icon_item(|widget| widget.set_icon(self.icon.as_ref()));
+    }
+
+    pub fn set_native_icon(&mut self, icon: Option<String>) {
+        self.native_icon = icon;
+        self.icon = None;
+        self.for_each_icon_item(|widget| widget.set_native_icon(self.native_icon.as_deref()));
     }
 }
 
