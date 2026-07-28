@@ -50,6 +50,7 @@ impl IconMenuItem {
         text: &str,
         detailed_action: &str,
         icon: Option<&Icon>,
+        native_icon: Option<&str>,
         key_accelerator: Option<&KeyAccelerator>,
     ) -> Self {
         let item: Self = glib::Object::new();
@@ -96,7 +97,11 @@ impl IconMenuItem {
 
         item.add_menu_item_controllers();
         item.set_label(text);
-        item.set_icon(icon);
+        if icon.is_some() {
+            item.set_icon(icon);
+        } else {
+            item.set_native_icon(native_icon);
+        }
         item.set_key_accelerator(key_accelerator);
 
         item
@@ -116,12 +121,23 @@ impl IconMenuItem {
             return;
         };
 
+        image.set_icon_name(None);
+
         if let Some(icon) = icon {
             let texture = icon.inner.texture();
             image.set_paintable(Some(&texture));
         } else {
             image.set_paintable(gtk::gdk::Paintable::NONE);
         }
+    }
+
+    pub fn set_native_icon(&self, icon: Option<&str>) {
+        let Some(image) = self.imp().image.get() else {
+            return;
+        };
+
+        image.set_paintable(gtk::gdk::Paintable::NONE);
+        image.set_icon_name(icon);
     }
 
     pub fn set_key_accelerator(&self, key_accelerator: Option<&KeyAccelerator>) {

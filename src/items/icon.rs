@@ -6,7 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator},
-    icon::{Icon, NativeIcon},
+    icon::Icon,
     sealed::IsMenuItemBase,
     IsMenuItem, MenuId, MenuItemKind,
 };
@@ -89,13 +89,30 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
+    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
+    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
+    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
+    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
+    ///   before calling [`SHGetStockIconInfo`].
+    /// - **GTK 3 / GTK 4**: Pass an icon theme name resolved by `GtkIconTheme`
+    ///   ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]), such as names from the
+    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
+    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
+    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
+    ///   assets.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_native_icon<S: AsRef<str>>(
         text: S,
         enabled: bool,
-        native_icon: Option<NativeIcon>,
+        native_icon: Option<String>,
         accelerator: Option<Accelerator>,
     ) -> Self {
         let item = crate::platform_impl::MenuChild::new_native_icon(
@@ -115,14 +132,31 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
+    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
+    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
+    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
+    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
+    ///   before calling [`SHGetStockIconInfo`].
+    /// - **GTK 3 / GTK 4**: Pass an icon theme name resolved by `GtkIconTheme`
+    ///   ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]), such as names from the
+    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
+    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
+    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
+    ///   assets.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
         id: I,
         text: S,
         enabled: bool,
-        native_icon: Option<NativeIcon>,
+        native_icon: Option<String>,
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
@@ -190,12 +224,28 @@ impl IconMenuItem {
 
     /// Change this menu item icon to a native image or remove it.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / GTK 3 / GTK 4**: Unsupported.
-    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
-        #[cfg(target_os = "macos")]
-        self.inner.borrow_mut().set_native_icon(_icon)
+    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
+    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
+    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
+    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
+    ///   before calling [`SHGetStockIconInfo`].
+    /// - **GTK 3 / GTK 4**: Pass an icon theme name resolved by `GtkIconTheme`
+    ///   ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]), such as names from the
+    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
+    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
+    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
+    ///   assets.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    pub fn set_native_icon(&self, icon: Option<String>) {
+        self.inner.borrow_mut().set_native_icon(icon)
     }
 
     /// Convert this menu item into its menu ID.

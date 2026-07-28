@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu};
+use crate::{Icon, IsMenuItem, MenuId, Submenu};
 
 /// A builder type for [`Submenu`]
 #[derive(Clone, Default)]
@@ -12,7 +12,7 @@ pub struct SubmenuBuilder<'a> {
     id: Option<MenuId>,
     items: Vec<&'a dyn IsMenuItem>,
     icon: Option<Icon>,
-    native_icon: Option<NativeIcon>,
+    native_icon: Option<String>,
 }
 
 impl std::fmt::Debug for SubmenuBuilder<'_> {
@@ -68,7 +68,27 @@ impl<'a> SubmenuBuilder<'a> {
     }
 
     /// Set a native icon for this submenu.
-    pub fn native_icon(mut self, icon: NativeIcon) -> Self {
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
+    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
+    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
+    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
+    ///   before calling [`SHGetStockIconInfo`].
+    /// - **GTK 3**: Pass an icon theme name resolved by [`GtkIconTheme`], such as names from the
+    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
+    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
+    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
+    ///   assets.
+    /// - **GTK 4**: Unsupported.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    pub fn native_icon(mut self, icon: String) -> Self {
         self.native_icon = Some(icon);
         self
     }

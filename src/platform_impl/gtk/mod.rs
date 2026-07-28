@@ -10,7 +10,7 @@ pub(crate) use icon::PlatformIcon;
 use crate::{
     accelerator::KeyAccelerator,
     dpi::Position,
-    icon::{Icon, NativeIcon},
+    icon::Icon,
     items::*,
     util::{AddOp, Counter},
     IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
@@ -447,6 +447,7 @@ pub struct MenuChild {
 
     // icon menu item fields
     icon: Option<Icon>,
+    native_icon: Option<String>,
 
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
@@ -540,6 +541,7 @@ impl MenuChild {
             gtk_menu: None,
             gtk_menus: None,
             icon: None,
+            native_icon: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
         }
@@ -558,6 +560,7 @@ impl MenuChild {
             accel_group: None,
             gtk_accelerator: None,
             icon: None,
+            native_icon: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
             accelerator: None,
@@ -581,6 +584,7 @@ impl MenuChild {
             gtk_menu: None,
             gtk_menus: None,
             icon: None,
+            native_icon: None,
             is_syncing_checked_state: None,
         }
     }
@@ -607,6 +611,7 @@ impl MenuChild {
             gtk_menu: None,
             gtk_menus: None,
             icon: None,
+            native_icon: None,
             predefined_item_type: None,
         }
     }
@@ -634,13 +639,14 @@ impl MenuChild {
             gtk_menus: None,
             is_syncing_checked_state: None,
             predefined_item_type: None,
+            native_icon: None,
         }
     }
 
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        _native_icon: Option<NativeIcon>,
+        native_icon: Option<String>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -658,6 +664,7 @@ impl MenuChild {
             gtk_menu: None,
             gtk_menus: None,
             icon: None,
+            native_icon,
             is_syncing_checked_state: None,
             predefined_item_type: None,
         }
@@ -798,10 +805,24 @@ impl MenuChild {
 
 /// IconMenuItem methods
 impl MenuChild {
-    pub fn set_icon(&mut self, icon: Option<Icon>) {
-        self.icon.clone_from(&icon);
+    fn has_icon(&self) -> bool {
+        self.icon.is_some() || self.native_icon.is_some()
+    }
 
-        let pixbuf = icon.as_ref().map(|i| i.inner.to_pixbuf_scale(16, 16));
+    fn icon_image(&self) -> Option<gtk::Image> {
+        if let Some(icon) = self.icon.as_ref() {
+            let icon = icon.inner.to_pixbuf_scale(16, 16);
+            Some(gtk::Image::from_pixbuf(Some(&icon)))
+        } else {
+            self.native_icon
+                .as_deref()
+                .map(|icon| gtk::Image::from_icon_name(Some(icon), gtk::IconSize::Menu))
+        }
+    }
+
+    fn update_menu_image_widgets(&self) {
+        let pixbuf = self.icon.as_ref().map(|i| i.inner.to_pixbuf_scale(16, 16));
+
         for items in self.gtk_menu_items.borrow().values() {
             for i in items {
                 let box_container = i.child().unwrap().downcast::<gtk::Box>().unwrap();
@@ -813,22 +834,33 @@ impl MenuChild {
                     .first()
                     .and_then(|c| c.downcast_ref::<gtk::Image>())
                 {
-                    if icon.is_some() {
-                        // Image exists and we're setting an icon, update it
-                        image.set_pixbuf(pixbuf.as_ref());
+                    if let Some(pixbuf) = pixbuf.as_ref() {
+                        image.set_pixbuf(Some(pixbuf));
+                    } else if let Some(native_icon) = self.native_icon.as_deref() {
+                        image.set_from_icon_name(Some(native_icon), gtk::IconSize::Menu);
                     } else {
-                        // Image exists but we're removing the icon, remove the widget to avoid padding
                         box_container.remove(image);
                     }
-                } else if icon.is_some() {
+                } else if let Some(image) = self.icon_image() {
                     // No image widget exists yet, but we're setting an icon, so create one
-                    let image = gtk::Image::from_pixbuf(pixbuf.as_ref());
                     box_container.pack_start(&image, false, false, 0);
                     box_container.reorder_child(&image, 0);
                     image.show();
                 }
             }
         }
+    }
+
+    pub fn set_icon(&mut self, icon: Option<Icon>) {
+        self.icon.clone_from(&icon);
+        self.native_icon = None;
+        self.update_menu_image_widgets();
+    }
+
+    pub fn set_native_icon(&mut self, icon: Option<String>) {
+        self.native_icon = icon;
+        self.icon = None;
+        self.update_menu_image_widgets();
     }
 }
 
@@ -1074,11 +1106,7 @@ impl MenuChild {
     ) -> crate::Result<gtk::MenuItem> {
         let submenu = gtk::Menu::new();
 
-        let image = self
-            .icon
-            .as_ref()
-            .map(|icon| gtk::Image::from_pixbuf(Some(&icon.inner.to_pixbuf_scale(16, 16))))
-            .unwrap_or_default();
+        let image = self.icon_image().unwrap_or_default();
 
         let label = gtk::AccelLabel::builder()
             .label(to_gtk_mnemonic(&self.text))
@@ -1098,7 +1126,7 @@ impl MenuChild {
             let _ = css_provider.load_from_data(theme.as_bytes());
             style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
-        if !for_menu_bar || self.icon.is_some() {
+        if !for_menu_bar || self.has_icon() {
             box_container.pack_start(&image, false, false, 0);
         }
         box_container.pack_start(&label, true, true, 0);
@@ -1359,11 +1387,7 @@ impl MenuChild {
         add_to_cache: bool,
         for_menu_bar: bool,
     ) -> crate::Result<gtk::MenuItem> {
-        let image = self
-            .icon
-            .as_ref()
-            .map(|i| gtk::Image::from_pixbuf(Some(&i.inner.to_pixbuf_scale(16, 16))))
-            .unwrap_or_default();
+        let image = self.icon_image().unwrap_or_default();
 
         self.accel_group = accel_group.cloned();
 
@@ -1385,7 +1409,7 @@ impl MenuChild {
             let _ = css_provider.load_from_data(theme.as_bytes());
             style_context.add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
-        if !for_menu_bar || self.icon.is_some() {
+        if !for_menu_bar || self.has_icon() {
             box_container.pack_start(&image, false, false, 0);
         }
         box_container.pack_start(&label, true, true, 0);
