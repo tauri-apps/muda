@@ -27,36 +27,6 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
-macro_rules! is_item_supported {
-    ($item:tt) => {{
-        let child = $item.child();
-        let child_ = child.borrow();
-        let supported = if let Some(predefined_item_type) = &child_.predefined_item_type {
-            matches!(
-                predefined_item_type,
-                PredefinedMenuItemType::Separator
-                    | PredefinedMenuItemType::Copy
-                    | PredefinedMenuItemType::Cut
-                    | PredefinedMenuItemType::Paste
-                    | PredefinedMenuItemType::SelectAll
-                    | PredefinedMenuItemType::About(_)
-            )
-        } else {
-            true
-        };
-        drop(child_);
-        supported
-    }};
-}
-
-macro_rules! return_if_item_not_supported {
-    ($item:tt) => {
-        if !is_item_supported!($item) {
-            return Ok(());
-        }
-    };
-}
-
 pub struct Menu {
     id: MenuId,
     children: Vec<Rc<RefCell<MenuChild>>>,
@@ -96,26 +66,24 @@ impl Menu {
     }
 
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        if is_item_supported!(item) {
-            for (menu_id, menu_bar) in &self.gtk_menubars {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, true)?;
-                match op {
-                    AddOp::Append => menu_bar.append(&gtk_item),
-                    AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
-                }
-                gtk_item.show();
+        for (menu_id, menu_bar) in &self.gtk_menubars {
+            let gtk_item =
+                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, true)?;
+            match op {
+                AddOp::Append => menu_bar.append(&gtk_item),
+                AddOp::Insert(position) => menu_bar.insert(&gtk_item, position as i32),
             }
+            gtk_item.show();
+        }
 
-            if let (menu_id, Some(menu)) = &self.gtk_menu {
-                let gtk_item =
-                    item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                match op {
-                    AddOp::Append => menu.append(&gtk_item),
-                    AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                }
-                gtk_item.show();
+        if let (menu_id, Some(menu)) = &self.gtk_menu {
+            let gtk_item =
+                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+            match op {
+                AddOp::Append => menu.append(&gtk_item),
+                AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
             }
+            gtk_item.show();
         }
 
         match op {
@@ -127,8 +95,6 @@ impl Menu {
     }
 
     fn add_menu_item_with_id(&self, item: &dyn crate::IsMenuItem, id: u32) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         for (menu_id, menu_bar) in self.gtk_menubars.iter().filter(|m| *m.0 == id) {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, true)?;
@@ -140,8 +106,6 @@ impl Menu {
     }
 
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         if let (menu_id, Some(menu)) = &self.gtk_menu {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
@@ -197,38 +161,35 @@ impl Menu {
             //      and we are iterating through its children and removing
             //      each child gtk items that are related to this submenu.
             if id.map(|i| i == *menu_id).unwrap_or(true) {
-                // bail this is not a supported item like a close_window predefined menu item
-                if is_item_supported!(item) {
-                    let mut child_ = child.borrow_mut();
+                let mut child_ = child.borrow_mut();
 
-                    if child_.item_type == MenuItemType::Submenu {
-                        let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
-                        if let Some(menus) = menus {
-                            for (id, menu) in menus {
-                                // iterate through children and only remove the gtk items
-                                // related to this submenu
-                                for item in child_.items() {
-                                    child_.remove_inner(item.as_ref(), false, Some(id))?;
-                                }
-                                unsafe { menu.destroy() };
+                if child_.item_type == MenuItemType::Submenu {
+                    let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
+                    if let Some(menus) = menus {
+                        for (id, menu) in menus {
+                            // iterate through children and only remove the gtk items
+                            // related to this submenu
+                            for item in child_.items() {
+                                child_.remove_inner(item.as_ref(), false, Some(id))?;
                             }
+                            unsafe { menu.destroy() };
                         }
-                        child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                     }
-
-                    // remove all the gtk items that are related to this gtk menubar and destroy it
-                    if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
-                        for item in items {
-                            menu_bar.remove(&item);
-                            if let Some(accel_group) = &child_.accel_group {
-                                if let Some((mods, key)) = child_.gtk_accelerator {
-                                    item.remove_accelerator(accel_group, key, mods);
-                                }
-                            }
-                            unsafe { item.destroy() };
-                        }
-                    };
+                    child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                 }
+
+                // remove all the gtk items that are related to this gtk menubar and destroy it
+                if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
+                    for item in items {
+                        menu_bar.remove(&item);
+                        if let Some(accel_group) = &child_.accel_group {
+                            if let Some((mods, key)) = child_.gtk_accelerator {
+                                item.remove_accelerator(accel_group, key, mods);
+                            }
+                        }
+                        unsafe { item.destroy() };
+                    }
+                };
             }
         }
 
@@ -867,20 +828,8 @@ impl MenuChild {
 /// Submenu methods
 impl MenuChild {
     pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        if is_item_supported!(item) {
-            for menus in self.gtk_menus.as_ref().unwrap().values() {
-                for (menu_id, menu) in menus {
-                    let gtk_item =
-                        item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
-                    match op {
-                        AddOp::Append => menu.append(&gtk_item),
-                        AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
-                    }
-                    gtk_item.show();
-                }
-            }
-
-            if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
+        for menus in self.gtk_menus.as_ref().unwrap().values() {
+            for (menu_id, menu) in menus {
                 let gtk_item =
                     item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
                 match op {
@@ -889,6 +838,16 @@ impl MenuChild {
                 }
                 gtk_item.show();
             }
+        }
+
+        if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
+            let gtk_item =
+                item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
+            match op {
+                AddOp::Append => menu.append(&gtk_item),
+                AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
+            }
+            gtk_item.show();
         }
 
         match op {
@@ -904,8 +863,6 @@ impl MenuChild {
     }
 
     fn add_menu_item_with_id(&self, item: &dyn crate::IsMenuItem, id: u32) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         for menus in self.gtk_menus.as_ref().unwrap().values() {
             for (menu_id, menu) in menus.iter().filter(|m| m.0 == id) {
                 let gtk_item =
@@ -919,8 +876,6 @@ impl MenuChild {
     }
 
     fn add_menu_item_to_context_menu(&self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        return_if_item_not_supported!(item);
-
         if let Some((menu_id, Some(menu))) = self.gtk_menu.as_ref() {
             let gtk_item =
                 item.make_gtk_menu_item(*menu_id, self.accel_group.as_ref(), true, false)?;
@@ -979,38 +934,35 @@ impl MenuChild {
                 //      and we are iterating through its children and removing
                 //      each child gtk items that are related to this submenu.
                 if id.map(|i| i == *menu_id).unwrap_or(true) {
-                    // bail this is not a supported item like a close_window predefined menu item
-                    if is_item_supported!(item) {
-                        let mut child_ = child.borrow_mut();
+                    let mut child_ = child.borrow_mut();
 
-                        if child_.item_type == MenuItemType::Submenu {
-                            let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
-                            if let Some(menus) = menus {
-                                for (id, menu) in menus {
-                                    // iterate through children and only remove the gtk items
-                                    // related to this submenu
-                                    for item in child_.items() {
-                                        child_.remove_inner(item.as_ref(), false, Some(id))?;
-                                    }
-                                    unsafe { menu.destroy() };
+                    if child_.item_type == MenuItemType::Submenu {
+                        let menus = child_.gtk_menus.as_ref().unwrap().get(menu_id).cloned();
+                        if let Some(menus) = menus {
+                            for (id, menu) in menus {
+                                // iterate through children and only remove the gtk items
+                                // related to this submenu
+                                for item in child_.items() {
+                                    child_.remove_inner(item.as_ref(), false, Some(id))?;
                                 }
+                                unsafe { menu.destroy() };
                             }
-                            child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                         }
-
-                        // remove all the gtk items that are related to this gtk menu and destroy it
-                        if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
-                            for item in items {
-                                menu.remove(&item);
-                                if let Some(accel_group) = &child_.accel_group {
-                                    if let Some((mods, key)) = child_.gtk_accelerator {
-                                        item.remove_accelerator(accel_group, key, mods);
-                                    }
-                                }
-                                unsafe { item.destroy() };
-                            }
-                        };
+                        child_.gtk_menus.as_mut().unwrap().remove(menu_id);
                     }
+
+                    // remove all the gtk items that are related to this gtk menu and destroy it
+                    if let Some(items) = child_.gtk_menu_items.borrow_mut().remove(menu_id) {
+                        for item in items {
+                            menu.remove(&item);
+                            if let Some(accel_group) = &child_.accel_group {
+                                if let Some((mods, key)) = child_.gtk_accelerator {
+                                    item.remove_accelerator(accel_group, key, mods);
+                                }
+                            }
+                            unsafe { item.destroy() };
+                        }
+                    };
                 }
             }
         }
@@ -1238,79 +1190,87 @@ impl MenuChild {
             }
         };
 
-        let item = match predefined_item_type {
-            PredefinedMenuItemType::Separator => {
-                gtk::SeparatorMenuItem::new().upcast::<gtk::MenuItem>()
-            }
-            PredefinedMenuItemType::Copy
-            | PredefinedMenuItemType::Cut
-            | PredefinedMenuItemType::Paste
-            | PredefinedMenuItemType::SelectAll => {
-                let item = make_item();
-                let (mods, key) = {
-                    let key_accel: crate::accelerator::KeyAccelerator =
-                        predefined_item_type.accelerator().unwrap().into();
-                    parse_key_accelerator(&key_accel).unwrap()
-                };
-                item.child()
-                    .unwrap()
-                    .downcast::<gtk::AccelLabel>()
-                    .unwrap()
-                    .set_accel(key, mods);
-                item.connect_activate(move |_| {
-                    // TODO: wayland
-                    #[cfg(feature = "libxdo")]
-                    if let Ok(xdo) = libxdo::XDo::new(None) {
-                        let _ = xdo.send_keysequence(predefined_item_type.xdo_keys(), 0);
-                    }
-                });
-                item
-            }
-            PredefinedMenuItemType::About(metadata) => {
-                let item = make_item();
-                register_accel(&item);
-                item.connect_activate(move |_| {
-                    if let Some(metadata) = &metadata {
-                        let mut builder = AboutDialog::builder().modal(true).resizable(false);
+        let item = if predefined_item_type.is_supported_on_gtk() {
+            match predefined_item_type {
+                PredefinedMenuItemType::Separator => {
+                    gtk::SeparatorMenuItem::new().upcast::<gtk::MenuItem>()
+                }
+                PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll => {
+                    let item = make_item();
+                    let (mods, key) = {
+                        let key_accel: crate::accelerator::KeyAccelerator =
+                            predefined_item_type.accelerator().unwrap().into();
+                        parse_key_accelerator(&key_accel).unwrap()
+                    };
+                    item.child()
+                        .unwrap()
+                        .downcast::<gtk::AccelLabel>()
+                        .unwrap()
+                        .set_accel(key, mods);
+                    item.connect_activate(move |_| {
+                        // TODO: wayland
+                        #[cfg(feature = "libxdo")]
+                        if let Ok(xdo) = libxdo::XDo::new(None) {
+                            let _ = xdo.send_keysequence(predefined_item_type.xdo_keys(), 0);
+                        }
+                    });
+                    item
+                }
+                PredefinedMenuItemType::About(metadata) => {
+                    let item = make_item();
+                    register_accel(&item);
+                    item.connect_activate(move |_| {
+                        if let Some(metadata) = &metadata {
+                            let mut builder = AboutDialog::builder().modal(true).resizable(false);
 
-                        if let Some(name) = &metadata.name {
-                            builder = builder.program_name(name);
-                        }
-                        if let Some(version) = &metadata.full_version() {
-                            builder = builder.version(version);
-                        }
-                        if let Some(authors) = &metadata.authors {
-                            builder = builder.authors(authors.clone());
-                        }
-                        if let Some(comments) = &metadata.comments {
-                            builder = builder.comments(comments);
-                        }
-                        if let Some(copyright) = &metadata.copyright {
-                            builder = builder.copyright(copyright);
-                        }
-                        if let Some(license) = &metadata.license {
-                            builder = builder.license(license);
-                        }
-                        if let Some(website) = &metadata.website {
-                            builder = builder.website(website);
-                        }
-                        if let Some(website_label) = &metadata.website_label {
-                            builder = builder.website_label(website_label);
-                        }
-                        if let Some(icon) = &metadata.icon {
-                            builder = builder.logo(&icon.inner.to_pixbuf());
-                        }
+                            if let Some(name) = &metadata.name {
+                                builder = builder.program_name(name);
+                            }
+                            if let Some(version) = &metadata.full_version() {
+                                builder = builder.version(version);
+                            }
+                            if let Some(authors) = &metadata.authors {
+                                builder = builder.authors(authors.clone());
+                            }
+                            if let Some(comments) = &metadata.comments {
+                                builder = builder.comments(comments);
+                            }
+                            if let Some(copyright) = &metadata.copyright {
+                                builder = builder.copyright(copyright);
+                            }
+                            if let Some(license) = &metadata.license {
+                                builder = builder.license(license);
+                            }
+                            if let Some(website) = &metadata.website {
+                                builder = builder.website(website);
+                            }
+                            if let Some(website_label) = &metadata.website_label {
+                                builder = builder.website_label(website_label);
+                            }
+                            if let Some(icon) = &metadata.icon {
+                                builder = builder.logo(&icon.inner.to_pixbuf());
+                            }
 
-                        let about = builder.build();
-                        about.run();
-                        unsafe {
-                            about.destroy();
+                            let about = builder.build();
+                            about.run();
+                            unsafe {
+                                about.destroy();
+                            }
                         }
-                    }
-                });
-                item
+                    });
+                    item
+                }
+                _ => unreachable!(),
             }
-            _ => unreachable!(),
+        } else {
+            // Render unsupported predefined menu items as disabled menu items
+            let item = make_item();
+            register_accel(&item);
+            item.set_sensitive(false);
+            item
         };
 
         if add_to_cache {
@@ -1571,6 +1531,18 @@ fn show_context_menu(
 }
 
 impl PredefinedMenuItemType {
+    fn is_supported_on_gtk(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
     #[cfg(feature = "libxdo")]
     fn xdo_keys(&self) -> &str {
         match self {
