@@ -117,7 +117,23 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        self.remove_inner(item, true, None)
+        let child = item.child();
+        let positions = self
+            .children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
     }
 
     pub fn remove_at(&mut self, index: usize) -> Option<MenuItemKind> {
@@ -125,10 +141,20 @@ impl Menu {
             return None;
         }
 
-        let child = self.children.get(index).cloned().unwrap();
+        let child = self.children.remove(index);
         let item = child.borrow().kind(child.clone());
 
-        self.remove_inner(item.as_ref(), true, None).ok()?;
+        for (menu_id, menu_bar) in &self.gtk_menubars {
+            child
+                .borrow_mut()
+                .remove_instance_for_parent_at_position(*menu_id, menu_bar, index);
+        }
+
+        if let (menu_id, Some(menu)) = &self.gtk_menu {
+            child
+                .borrow_mut()
+                .remove_instance_for_parent_at_position(*menu_id, menu, index);
+        }
 
         Some(item)
     }
@@ -887,7 +913,23 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        self.remove_inner(item, true, None)
+        let child = item.child();
+        let children = self.children.as_ref().unwrap();
+        let positions = children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
     }
 
     pub fn remove_at(&mut self, index: usize) -> Option<MenuItemKind> {
@@ -895,10 +937,23 @@ impl MenuChild {
             return None;
         }
 
-        let child = self.children.as_ref().unwrap().get(index).cloned().unwrap();
+        let children = self.children.as_mut().unwrap();
+        let child = children.remove(index);
         let item = child.borrow().kind(child.clone());
 
-        self.remove_inner(item.as_ref(), true, None).ok()?;
+        for menus in self.gtk_menus.as_ref().unwrap().values() {
+            for (menu_id, menu) in menus {
+                child
+                    .borrow_mut()
+                    .remove_instance_for_parent_at_position(*menu_id, menu, index);
+            }
+        }
+
+        if let (id, Some(menu)) = self.gtk_menu.as_ref().unwrap() {
+            child
+                .borrow_mut()
+                .remove_instance_for_parent_at_position(*id, menu, index);
+        }
 
         Some(item)
     }
@@ -1022,6 +1077,76 @@ impl MenuChild {
         }
 
         self.gtk_menu.as_ref().unwrap().1.as_ref().unwrap().clone()
+    }
+
+    fn remove_instance_for_parent_at_position(
+        &mut self,
+        parent_id: u32,
+        parent_menu: &impl IsA<Container>,
+        position: usize,
+    ) {
+        let item = parent_menu
+            .children()
+            .get(position)
+            .and_then(|item| item.clone().downcast::<gtk::MenuItem>().ok());
+
+        let Some(item) = item else {
+            return;
+        };
+
+        let Some(occurrence_index) = self.remove_gtk_menu_item(parent_id, &item) else {
+            return;
+        };
+
+        if self.item_type == MenuItemType::Submenu {
+            let removed_menu = {
+                let gtk_menus = self.gtk_menus.as_mut().unwrap();
+                let mut remove_parent_entry = false;
+                let removed_menu = gtk_menus.get_mut(&parent_id).and_then(|menus| {
+                    let removed_menu =
+                        (occurrence_index < menus.len()).then(|| menus.remove(occurrence_index));
+                    remove_parent_entry = menus.is_empty();
+                    removed_menu
+                });
+
+                if remove_parent_entry {
+                    gtk_menus.remove(&parent_id);
+                }
+                removed_menu
+            };
+
+            if let Some((menu_id, menu)) = removed_menu {
+                for item in self.items() {
+                    let _ = self.remove_inner(item.as_ref(), false, Some(menu_id));
+                }
+                unsafe { menu.destroy() };
+            }
+        }
+
+        parent_menu.remove(&item);
+        if let Some(accel_group) = &self.accel_group {
+            if let Some((mods, key)) = self.gtk_accelerator {
+                item.remove_accelerator(accel_group, key, mods);
+            }
+        }
+        unsafe { item.destroy() };
+    }
+
+    fn remove_gtk_menu_item(&mut self, parent_id: u32, item: &gtk::MenuItem) -> Option<usize> {
+        let mut removed = None;
+        let mut gtk_menu_items = self.gtk_menu_items.borrow_mut();
+        if let Some(items) = gtk_menu_items.get_mut(&parent_id) {
+            if let Some(occurrence_index) = items.iter().position(|current| current == item) {
+                items.remove(occurrence_index);
+                removed = Some(occurrence_index);
+
+                if items.is_empty() {
+                    gtk_menu_items.remove(&parent_id);
+                }
+            }
+        }
+
+        removed
     }
 }
 
