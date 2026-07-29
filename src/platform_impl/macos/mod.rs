@@ -26,7 +26,7 @@ use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
     NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSImage, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
+    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
@@ -40,7 +40,7 @@ use crate::{
     icon::Icon,
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
+    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -251,7 +251,7 @@ pub struct MenuChild {
 
     // icon menu item fields
     icon: Option<Icon>,
-    native_icon: Option<String>,
+    native_icon: Option<NativeIcon>,
 
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
@@ -430,7 +430,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        native_icon: Option<String>,
+        native_icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -556,12 +556,12 @@ impl MenuChild {
         }
     }
 
-    pub fn set_native_icon(&mut self, icon: Option<String>) {
+    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
         self.native_icon = icon;
         self.icon = None;
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                menuitem_set_native_icon(ns_item, self.native_icon.as_deref());
+                menuitem_set_native_icon(ns_item, self.native_icon.as_ref());
             }
         }
     }
@@ -815,7 +815,7 @@ impl MenuChild {
             ns_menu_item.setEnabled(self.enabled);
 
             if self.native_icon.is_some() {
-                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_deref());
+                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_ref());
             }
 
             if let Some(icon) = self.icon.as_ref() {
@@ -969,7 +969,7 @@ impl MenuChild {
             if self.icon.is_some() {
                 menuitem_set_icon(&ns_menu_item, self.icon.as_ref());
             } else if self.native_icon.is_some() {
-                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_deref());
+                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_ref());
             }
         }
 
@@ -1205,19 +1205,95 @@ fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>) {
     }
 }
 
-fn menuitem_set_native_icon(menuitem: &NSMenuItem, icon: Option<&str>) {
+fn menuitem_set_native_icon(menuitem: &NSMenuItem, icon: Option<&NativeIcon>) {
     let Some(icon) = icon else {
         menuitem.setImage(None);
         return;
     };
 
-    let named_img = NSString::from_str(icon);
-    if let Some(nsimage) = NSImage::imageNamed(&named_img) {
+    let nsimage = match icon {
+        NativeIcon::Raw(name) => {
+            let named_img = NSString::from_str(name);
+            NSImage::imageNamed(&named_img)
+        }
+        _ => unsafe { NSImage::imageNamed(icon.named_img()) },
+    };
+
+    if let Some(nsimage) = nsimage {
         let size = NSSize::new(18.0, 18.0);
         nsimage.setSize(size);
         menuitem.setImage(Some(&nsimage));
     } else {
         menuitem.setImage(None);
+    }
+}
+
+impl NativeIcon {
+    unsafe fn named_img(&self) -> &'static NSImageName {
+        use objc2_app_kit as appkit;
+        match self {
+            NativeIcon::Add => appkit::NSImageNameAddTemplate,
+            NativeIcon::StatusAvailable => appkit::NSImageNameStatusAvailable,
+            NativeIcon::StatusUnavailable => appkit::NSImageNameStatusUnavailable,
+            NativeIcon::StatusPartiallyAvailable => appkit::NSImageNameStatusPartiallyAvailable,
+            NativeIcon::Advanced => appkit::NSImageNameAdvanced,
+            NativeIcon::Bluetooth => appkit::NSImageNameBluetoothTemplate,
+            NativeIcon::Bookmarks => appkit::NSImageNameBookmarksTemplate,
+            NativeIcon::Caution => appkit::NSImageNameCaution,
+            NativeIcon::ColorPanel => appkit::NSImageNameColorPanel,
+            NativeIcon::ColumnView => appkit::NSImageNameColumnViewTemplate,
+            NativeIcon::Computer => appkit::NSImageNameComputer,
+            NativeIcon::EnterFullScreen => appkit::NSImageNameEnterFullScreenTemplate,
+            NativeIcon::Everyone => appkit::NSImageNameEveryone,
+            NativeIcon::ExitFullScreen => appkit::NSImageNameExitFullScreenTemplate,
+            NativeIcon::FlowView => appkit::NSImageNameFlowViewTemplate,
+            NativeIcon::Folder => appkit::NSImageNameFolder,
+            NativeIcon::FolderBurnable => appkit::NSImageNameFolderBurnable,
+            NativeIcon::FolderSmart => appkit::NSImageNameFolderSmart,
+            NativeIcon::FollowLinkFreestanding => appkit::NSImageNameFollowLinkFreestandingTemplate,
+            NativeIcon::FontPanel => appkit::NSImageNameFontPanel,
+            NativeIcon::GoLeft => appkit::NSImageNameGoLeftTemplate,
+            NativeIcon::GoRight => appkit::NSImageNameGoRightTemplate,
+            NativeIcon::Home => appkit::NSImageNameHomeTemplate,
+            NativeIcon::IChatTheater => appkit::NSImageNameIChatTheaterTemplate,
+            NativeIcon::IconView => appkit::NSImageNameIconViewTemplate,
+            NativeIcon::Info => appkit::NSImageNameInfo,
+            NativeIcon::InvalidDataFreestanding => {
+                appkit::NSImageNameInvalidDataFreestandingTemplate
+            }
+            NativeIcon::LeftFacingTriangle => appkit::NSImageNameLeftFacingTriangleTemplate,
+            NativeIcon::ListView => appkit::NSImageNameListViewTemplate,
+            NativeIcon::LockLocked => appkit::NSImageNameLockLockedTemplate,
+            NativeIcon::LockUnlocked => appkit::NSImageNameLockUnlockedTemplate,
+            NativeIcon::MenuMixedState => appkit::NSImageNameMenuMixedStateTemplate,
+            NativeIcon::MenuOnState => appkit::NSImageNameMenuOnStateTemplate,
+            NativeIcon::MobileMe => appkit::NSImageNameMobileMe,
+            NativeIcon::MultipleDocuments => appkit::NSImageNameMultipleDocuments,
+            NativeIcon::Network => appkit::NSImageNameNetwork,
+            NativeIcon::Path => appkit::NSImageNamePathTemplate,
+            NativeIcon::PreferencesGeneral => appkit::NSImageNamePreferencesGeneral,
+            NativeIcon::QuickLook => appkit::NSImageNameQuickLookTemplate,
+            NativeIcon::RefreshFreestanding => appkit::NSImageNameRefreshFreestandingTemplate,
+            NativeIcon::Refresh => appkit::NSImageNameRefreshTemplate,
+            NativeIcon::Remove => appkit::NSImageNameRemoveTemplate,
+            NativeIcon::RevealFreestanding => appkit::NSImageNameRevealFreestandingTemplate,
+            NativeIcon::RightFacingTriangle => appkit::NSImageNameRightFacingTriangleTemplate,
+            NativeIcon::Share => appkit::NSImageNameShareTemplate,
+            NativeIcon::Slideshow => appkit::NSImageNameSlideshowTemplate,
+            NativeIcon::SmartBadge => appkit::NSImageNameSmartBadgeTemplate,
+            NativeIcon::StatusNone => appkit::NSImageNameStatusNone,
+            NativeIcon::StopProgressFreestanding => {
+                appkit::NSImageNameStopProgressFreestandingTemplate
+            }
+            NativeIcon::StopProgress => appkit::NSImageNameStopProgressTemplate,
+            NativeIcon::TrashEmpty => appkit::NSImageNameTrashEmpty,
+            NativeIcon::TrashFull => appkit::NSImageNameTrashFull,
+            NativeIcon::User => appkit::NSImageNameUser,
+            NativeIcon::UserAccounts => appkit::NSImageNameUserAccounts,
+            NativeIcon::UserGroup => appkit::NSImageNameUserGroup,
+            NativeIcon::UserGuest => appkit::NSImageNameUserGuest,
+            NativeIcon::Raw(_) => unreachable!("raw native icons are handled before named_img"),
+        }
     }
 }
 

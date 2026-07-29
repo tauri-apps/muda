@@ -22,7 +22,7 @@ use mnemonic::to_gtk_mnemonic;
 use crate::{
     accelerator::KeyAccelerator,
     util::{AddOp, Counter},
-    AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
+    AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
     PredefinedMenuItemType,
 };
 
@@ -496,7 +496,7 @@ pub struct MenuChild {
     checked: bool,
 
     icon: Option<Icon>,
-    native_icon: Option<String>,
+    native_icon: Option<NativeIcon>,
 
     type_: MenuItemType,
     predefined_item_type: Option<PredefinedMenuItemType>,
@@ -1239,7 +1239,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        native_icon: Option<String>,
+        native_icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -1293,7 +1293,7 @@ impl MenuChild {
             &self.text,
             &detailed_action,
             self.icon.as_ref(),
-            self.native_icon.as_deref(),
+            self.native_icon.as_ref().map(NativeIcon::gtk_icon_name),
             self.key_accelerator.as_ref(),
         );
 
@@ -1336,10 +1336,11 @@ impl MenuChild {
         self.for_each_icon_item(|widget| widget.set_icon(self.icon.as_ref()));
     }
 
-    pub fn set_native_icon(&mut self, icon: Option<String>) {
+    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
         self.native_icon = icon;
         self.icon = None;
-        self.for_each_icon_item(|widget| widget.set_native_icon(self.native_icon.as_deref()));
+        let icon = self.native_icon.as_ref().map(NativeIcon::gtk_icon_name);
+        self.for_each_icon_item(|widget| widget.set_native_icon(icon));
     }
 }
 

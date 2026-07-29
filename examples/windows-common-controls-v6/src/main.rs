@@ -6,7 +6,7 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -89,18 +89,9 @@ fn main() {
     let icon = load_icon(std::path::Path::new(path));
 
     let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
-    #[cfg(target_os = "macos")]
-    let native_icon = "NSFolder".to_string();
-    #[cfg(target_os = "windows")]
-    let native_icon = "SIID_FOLDER".to_string();
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let native_icon = "folder-symbolic".to_string();
-    let native_icon_item = IconMenuItem::with_native_icon(
-        "Native Icon",
-        true,
-        Some(native_icon),
-        None,
-    );
+
+    let native_icon_item =
+        IconMenuItem::with_native_icon("Native Icon", true, Some(NativeIcon::Folder), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);

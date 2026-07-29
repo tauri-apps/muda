@@ -13,7 +13,7 @@ use crate::{
     icon::Icon,
     items::*,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType,
+    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
 };
 use accelerator::{from_gtk_mnemonic, parse_key_accelerator, to_gtk_mnemonic};
 use glib::translate::ToGlibPtr;
@@ -434,7 +434,7 @@ pub struct MenuChild {
 
     // icon menu item fields
     icon: Option<Icon>,
-    native_icon: Option<String>,
+    native_icon: Option<NativeIcon>,
 
     // submenu fields
     pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
@@ -633,7 +633,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        native_icon: Option<String>,
+        native_icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -801,9 +801,9 @@ impl MenuChild {
             let icon = icon.inner.to_pixbuf_scale(16, 16);
             Some(gtk::Image::from_pixbuf(Some(&icon)))
         } else {
-            self.native_icon
-                .as_deref()
-                .map(|icon| gtk::Image::from_icon_name(Some(icon), gtk::IconSize::Menu))
+            let icon = self.native_icon.as_ref()?;
+            let image = gtk::Image::from_icon_name(Some(icon.gtk_icon_name()), gtk::IconSize::Menu);
+            Some(image)
         }
     }
 
@@ -823,7 +823,8 @@ impl MenuChild {
                 {
                     if let Some(pixbuf) = pixbuf.as_ref() {
                         image.set_pixbuf(Some(pixbuf));
-                    } else if let Some(native_icon) = self.native_icon.as_deref() {
+                    } else if let Some(native_icon) = self.native_icon.as_ref() {
+                        let native_icon = native_icon.gtk_icon_name();
                         image.set_from_icon_name(Some(native_icon), gtk::IconSize::Menu);
                     } else {
                         box_container.remove(image);
@@ -844,7 +845,7 @@ impl MenuChild {
         self.update_menu_image_widgets();
     }
 
-    pub fn set_native_icon(&mut self, icon: Option<String>) {
+    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
         self.native_icon = icon;
         self.icon = None;
         self.update_menu_image_widgets();

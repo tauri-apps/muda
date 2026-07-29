@@ -6,7 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
-    MenuItemKind,
+    MenuItemKind, NativeIcon,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -234,16 +234,13 @@ impl Submenu {
     ///
     /// ## Platform-specific
     ///
-    /// - **macOS**: Pass an AppKit [`NSImage.Name`] string, such as `NSFolder` or
-    ///   `NSStatusAvailable`. The value is resolved with `NSImage::imageNamed`.
-    /// - **Windows**: Pass an exact [`SHSTOCKICONID`] constant name such as `SIID_APPLICATION`,
-    ///   or a raw numeric `SHSTOCKICONID` value. Names are case-sensitive and are not normalized
-    ///   before calling [`SHGetStockIconInfo`].
-    /// - **GTK 3**: Pass an icon theme name resolved by [`GtkIconTheme`], such as names from the
-    ///   freedesktop.org [Icon Naming Specification] or names provided by the current icon theme.
-    ///   For menu icons, prefer symbolic names like `folder-symbolic`; GTK can recolor symbolic
-    ///   icons for the active menu theme, while non-symbolic icons are rendered as theme-provided
-    ///   assets.
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   [`GtkIconTheme`].
     /// - **GTK 4**: Unsupported.
     ///
     /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
@@ -251,7 +248,7 @@ impl Submenu {
     /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
     /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
     /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
-    pub fn set_native_icon(&self, icon: Option<String>) {
+    pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
         self.inner.borrow_mut().set_native_icon(icon)
     }
 }
