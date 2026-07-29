@@ -38,7 +38,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType};
+use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType, NativeIcon};
 
 pub(crate) use self::platform::*;
 
@@ -126,6 +126,77 @@ impl MenuItemKind {
             MenuItemKind::Predefined(i) => i.inner.borrow_mut(),
             MenuItemKind::Check(i) => i.inner.borrow_mut(),
             MenuItemKind::Icon(i) => i.inner.borrow_mut(),
+        }
+    }
+}
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    any(feature = "gtk", feature = "gtk4")
+))]
+impl NativeIcon {
+    pub(crate) fn gtk_icon_name(&self) -> &str {
+        match self {
+            Self::Add => "list-add-symbolic",
+            Self::Advanced => "preferences-system-symbolic",
+            Self::Bluetooth => "bluetooth-symbolic",
+            Self::Bookmarks => "user-bookmarks-symbolic",
+            Self::Caution => "dialog-warning-symbolic",
+            Self::ColorPanel => "applications-graphics-symbolic",
+            Self::ColumnView => "view-list-symbolic",
+            Self::Computer => "computer-symbolic",
+            Self::EnterFullScreen => "view-fullscreen-symbolic",
+            Self::Everyone => "system-users-symbolic",
+            Self::ExitFullScreen => "view-restore-symbolic",
+            Self::FlowView => "view-grid-symbolic",
+            Self::Folder => "folder-symbolic",
+            Self::FolderBurnable => "media-optical-symbolic",
+            Self::FolderSmart => "folder-saved-search-symbolic",
+            Self::FollowLinkFreestanding => "insert-link-symbolic",
+            Self::FontPanel => "preferences-desktop-font-symbolic",
+            Self::GoLeft => "go-previous-symbolic",
+            Self::GoRight => "go-next-symbolic",
+            Self::Home => "user-home-symbolic",
+            Self::IChatTheater => "camera-video-symbolic",
+            Self::IconView => "view-grid-symbolic",
+            Self::Info => "dialog-information-symbolic",
+            Self::InvalidDataFreestanding => "dialog-error-symbolic",
+            Self::LeftFacingTriangle => "pan-start-symbolic",
+            Self::ListView => "view-list-symbolic",
+            Self::LockLocked => "changes-prevent-symbolic",
+            Self::LockUnlocked => "changes-allow-symbolic",
+            Self::MenuMixedState => "list-remove-symbolic",
+            Self::MenuOnState => "object-select-symbolic",
+            Self::MobileMe => "network-server-symbolic",
+            Self::MultipleDocuments => "edit-copy-symbolic",
+            Self::Network => "network-workgroup-symbolic",
+            Self::Path => "document-open-recent-symbolic",
+            Self::PreferencesGeneral => "preferences-system-symbolic",
+            Self::QuickLook => "document-preview-symbolic",
+            Self::RefreshFreestanding | Self::Refresh => "view-refresh-symbolic",
+            Self::Remove => "list-remove-symbolic",
+            Self::RevealFreestanding => "folder-open-symbolic",
+            Self::RightFacingTriangle => "pan-end-symbolic",
+            Self::Share => "emblem-shared-symbolic",
+            Self::Slideshow => "view-presentation-symbolic",
+            Self::SmartBadge => "emblem-favorite-symbolic",
+            Self::StatusAvailable => "user-available-symbolic",
+            Self::StatusNone => "user-offline-symbolic",
+            Self::StatusPartiallyAvailable => "user-idle-symbolic",
+            Self::StatusUnavailable => "user-busy-symbolic",
+            Self::StopProgressFreestanding | Self::StopProgress => "process-stop-symbolic",
+            Self::TrashEmpty => "user-trash-symbolic",
+            Self::TrashFull => "user-trash-full-symbolic",
+            Self::User => "avatar-default-symbolic",
+            Self::UserAccounts | Self::UserGroup => "system-users-symbolic",
+            Self::UserGuest => "avatar-default-symbolic",
+            Self::Raw(name) => name,
         }
     }
 }

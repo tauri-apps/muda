@@ -164,3 +164,171 @@ impl Icon {
         Ok(Icon { inner: win_icon })
     }
 }
+
+/// A native icon to be used for menu items.
+///
+/// Known variants use platform-native icon names or identifiers where an equivalent exists.
+/// Use [`NativeIcon::Raw`] for a platform-specific value:
+///
+/// - **macOS / GTK 3 / GTK 4**: a native icon name string.
+/// - **Windows**: a [`SHSTOCKICONID`] value.
+///
+/// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(windows, derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum NativeIcon {
+    /// An add item template image.
+    Add,
+    /// Advanced preferences toolbar icon for the preferences window.
+    Advanced,
+    /// A Bluetooth template image.
+    Bluetooth,
+    /// Bookmarks image suitable for a template.
+    Bookmarks,
+    /// A caution image.
+    Caution,
+    /// A color panel toolbar icon.
+    ColorPanel,
+    /// A column view mode template image.
+    ColumnView,
+    /// A computer icon.
+    Computer,
+    /// An enter full-screen mode template image.
+    EnterFullScreen,
+    /// Permissions for all users.
+    Everyone,
+    /// An exit full-screen mode template image.
+    ExitFullScreen,
+    /// A cover flow view mode template image.
+    FlowView,
+    /// A folder image.
+    Folder,
+    /// A burnable folder icon.
+    FolderBurnable,
+    /// A smart folder icon.
+    FolderSmart,
+    /// A link template image.
+    FollowLinkFreestanding,
+    /// A font panel toolbar icon.
+    FontPanel,
+    /// A `go back` template image.
+    GoLeft,
+    /// A `go forward` template image.
+    GoRight,
+    /// Home image suitable for a template.
+    Home,
+    /// An iChat Theater template image.
+    IChatTheater,
+    /// An icon view mode template image.
+    IconView,
+    /// An information toolbar icon.
+    Info,
+    /// A template image used to denote invalid data.
+    InvalidDataFreestanding,
+    /// A generic left-facing triangle template image.
+    LeftFacingTriangle,
+    /// A list view mode template image.
+    ListView,
+    /// A locked padlock template image.
+    LockLocked,
+    /// An unlocked padlock template image.
+    LockUnlocked,
+    /// A horizontal dash, for use in menus.
+    MenuMixedState,
+    /// A check mark template image, for use in menus.
+    MenuOnState,
+    /// A MobileMe icon.
+    MobileMe,
+    /// A drag image for multiple items.
+    MultipleDocuments,
+    /// A network icon.
+    Network,
+    /// A path button template image.
+    Path,
+    /// General preferences toolbar icon for the preferences window.
+    PreferencesGeneral,
+    /// A Quick Look template image.
+    QuickLook,
+    /// A refresh template image.
+    RefreshFreestanding,
+    /// A refresh template image.
+    Refresh,
+    /// A remove item template image.
+    Remove,
+    /// A reveal contents template image.
+    RevealFreestanding,
+    /// A generic right-facing triangle template image.
+    RightFacingTriangle,
+    /// A share view template image.
+    Share,
+    /// A slideshow template image.
+    Slideshow,
+    /// A badge for a `smart` item.
+    SmartBadge,
+    /// Small green indicator, similar to iChat's available image.
+    StatusAvailable,
+    /// Small clear indicator.
+    StatusNone,
+    /// Small yellow indicator, similar to iChat's idle image.
+    StatusPartiallyAvailable,
+    /// Small red indicator, similar to iChat's unavailable image.
+    StatusUnavailable,
+    /// A stop progress template image.
+    StopProgressFreestanding,
+    /// A stop progress button template image.
+    StopProgress,
+    /// An image of the empty trash can.
+    TrashEmpty,
+    /// An image of the full trash can.
+    TrashFull,
+    /// Permissions for a single user.
+    User,
+    /// User account toolbar icon for the preferences window.
+    UserAccounts,
+    /// Permissions for a group of users.
+    UserGroup,
+    /// Permissions for guests.
+    UserGuest,
+    /// A platform-specific native icon value.
+    #[cfg(windows)]
+    Raw(windows_sys::Win32::UI::Shell::SHSTOCKICONID),
+    /// A platform-specific native icon name.
+    #[cfg(not(windows))]
+    Raw(String),
+}
+
+impl NativeIcon {
+    /// Creates a native icon from a Windows `SHSTOCKICONID`.
+    #[cfg(windows)]
+    pub fn from_id(id: windows_sys::Win32::UI::Shell::SHSTOCKICONID) -> Self {
+        Self::Raw(id)
+    }
+
+    /// Creates a native icon from a platform icon name.
+    #[cfg(not(windows))]
+    pub fn from_name<S: Into<String>>(icon: S) -> Self {
+        Self::Raw(icon.into())
+    }
+}
+
+#[cfg(windows)]
+impl From<windows_sys::Win32::UI::Shell::SHSTOCKICONID> for NativeIcon {
+    fn from(id: windows_sys::Win32::UI::Shell::SHSTOCKICONID) -> Self {
+        Self::from_id(id)
+    }
+}
+
+#[cfg(not(windows))]
+impl From<String> for NativeIcon {
+    fn from(icon: String) -> Self {
+        Self::from_name(icon)
+    }
+}
+
+#[cfg(not(windows))]
+impl From<&str> for NativeIcon {
+    fn from(icon: &str) -> Self {
+        Self::from_name(icon)
+    }
+}

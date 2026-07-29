@@ -10,7 +10,7 @@ use gtk4::prelude::*;
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 use winit_gtk4::{
@@ -180,17 +180,11 @@ impl AppMenu {
             Some(icon),
             Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
         );
-        #[cfg(target_os = "macos")]
-        let native_icon = "NSFolder".to_string();
-        #[cfg(target_os = "windows")]
-        let native_icon = "SIID_FOLDER".to_string();
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let native_icon = "folder-symbolic".to_string();
         let native_icon_item = IconMenuItem::with_id_and_native_icon(
             "native-icon-1",
             "Native icon",
             true,
-            Some(native_icon),
+            Some(NativeIcon::Folder),
             None,
         );
 

@@ -17,6 +17,7 @@ use crate::{
     items::PredefinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, MenuTheme,
+    NativeIcon,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -491,7 +492,7 @@ pub(crate) struct MenuChild {
 
     // icon menu item fields
     icon: Option<Icon>,
-    native_icon: Option<String>,
+    native_icon: Option<NativeIcon>,
 
     // submenu fields
     hmenu: HMENU,
@@ -644,7 +645,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        native_icon: Option<String>,
+        native_icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -823,7 +824,7 @@ impl MenuChild {
             unsafe { icon.inner.to_hbitmap() }
         } else {
             self.native_icon
-                .as_deref()
+                .as_ref()
                 .map(native_icon_hbitmap)
                 .unwrap_or(std::ptr::null_mut())
         }
@@ -850,7 +851,7 @@ impl MenuChild {
         self.update_icon();
     }
 
-    pub fn set_native_icon(&mut self, icon: Option<String>) {
+    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
         self.native_icon = icon;
         self.icon = None;
         self.update_icon();
@@ -1146,9 +1147,9 @@ fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
     info
 }
 
-fn native_icon_hbitmap(icon: &str) -> HBITMAP {
-    // Translate the public native icon string to the shell stock icon ID expected by
-    // SHGetStockIconInfo. Unknown names deliberately render as no icon.
+fn native_icon_hbitmap(icon: &NativeIcon) -> HBITMAP {
+    // Translate the public native icon to the shell stock icon ID expected by
+    // SHGetStockIconInfo. Unsupported variants deliberately render as no icon.
     let Some(icon_id) = stock_icon_id(icon) else {
         return std::ptr::null_mut();
     };
@@ -1169,114 +1170,39 @@ fn native_icon_hbitmap(icon: &str) -> HBITMAP {
     unsafe { icon.to_hbitmap() }
 }
 
-fn stock_icon_id(icon: &str) -> Option<SHSTOCKICONID> {
-    let icon = icon.trim();
-    if icon.is_empty() {
-        return None;
-    }
-
-    // Accept raw SHSTOCKICONID values for callers that already know the Windows ID, but
-    // keep them inside the range documented by SIID_MAX_ICONS.
-    if let Ok(id) = icon.parse::<SHSTOCKICONID>() {
-        return (0..shell::SIID_MAX_ICONS).contains(&id).then_some(id);
-    }
-
-    Some(match icon {
-        "SIID_APPLICATION" => shell::SIID_APPLICATION,
-        "SIID_AUDIOFILES" => shell::SIID_AUDIOFILES,
-        "SIID_AUTOLIST" => shell::SIID_AUTOLIST,
-        "SIID_CLUSTEREDDRIVE" => shell::SIID_CLUSTEREDDRIVE,
-        "SIID_DELETE" => shell::SIID_DELETE,
-        "SIID_DESKTOPPC" => shell::SIID_DESKTOPPC,
-        "SIID_DEVICEAUDIOPLAYER" => shell::SIID_DEVICEAUDIOPLAYER,
-        "SIID_DEVICECAMERA" => shell::SIID_DEVICECAMERA,
-        "SIID_DEVICECELLPHONE" => shell::SIID_DEVICECELLPHONE,
-        "SIID_DEVICEVIDEOCAMERA" => shell::SIID_DEVICEVIDEOCAMERA,
-        "SIID_DOCASSOC" => shell::SIID_DOCASSOC,
-        "SIID_DOCNOASSOC" => shell::SIID_DOCNOASSOC,
-        "SIID_DRIVE35" => shell::SIID_DRIVE35,
-        "SIID_DRIVE525" => shell::SIID_DRIVE525,
-        "SIID_DRIVEBD" => shell::SIID_DRIVEBD,
-        "SIID_DRIVECD" => shell::SIID_DRIVECD,
-        "SIID_DRIVEDVD" => shell::SIID_DRIVEDVD,
-        "SIID_DRIVEFIXED" => shell::SIID_DRIVEFIXED,
-        "SIID_DRIVEHDDVD" => shell::SIID_DRIVEHDDVD,
-        "SIID_DRIVENET" => shell::SIID_DRIVENET,
-        "SIID_DRIVENETDISABLED" => shell::SIID_DRIVENETDISABLED,
-        "SIID_DRIVERAM" => shell::SIID_DRIVERAM,
-        "SIID_DRIVEREMOVE" => shell::SIID_DRIVEREMOVE,
-        "SIID_DRIVEUNKNOWN" => shell::SIID_DRIVEUNKNOWN,
-        "SIID_ERROR" => shell::SIID_ERROR,
-        "SIID_FIND" => shell::SIID_FIND,
-        "SIID_FOLDER" => shell::SIID_FOLDER,
-        "SIID_FOLDERBACK" => shell::SIID_FOLDERBACK,
-        "SIID_FOLDERFRONT" => shell::SIID_FOLDERFRONT,
-        "SIID_FOLDEROPEN" => shell::SIID_FOLDEROPEN,
-        "SIID_HELP" => shell::SIID_HELP,
-        "SIID_IMAGEFILES" => shell::SIID_IMAGEFILES,
-        "SIID_INFO" => shell::SIID_INFO,
-        "SIID_INTERNET" => shell::SIID_INTERNET,
-        "SIID_KEY" => shell::SIID_KEY,
-        "SIID_LINK" => shell::SIID_LINK,
-        "SIID_LOCK" => shell::SIID_LOCK,
-        "SIID_MEDIAAUDIODVD" => shell::SIID_MEDIAAUDIODVD,
-        "SIID_MEDIABDR" => shell::SIID_MEDIABDR,
-        "SIID_MEDIABDRE" => shell::SIID_MEDIABDRE,
-        "SIID_MEDIABDROM" => shell::SIID_MEDIABDROM,
-        "SIID_MEDIABLANKCD" => shell::SIID_MEDIABLANKCD,
-        "SIID_MEDIABLURAY" => shell::SIID_MEDIABLURAY,
-        "SIID_MEDIACDAUDIO" => shell::SIID_MEDIACDAUDIO,
-        "SIID_MEDIACDAUDIOPLUS" => shell::SIID_MEDIACDAUDIOPLUS,
-        "SIID_MEDIACDBURN" => shell::SIID_MEDIACDBURN,
-        "SIID_MEDIACDR" => shell::SIID_MEDIACDR,
-        "SIID_MEDIACDROM" => shell::SIID_MEDIACDROM,
-        "SIID_MEDIACDRW" => shell::SIID_MEDIACDRW,
-        "SIID_MEDIACOMPACTFLASH" => shell::SIID_MEDIACOMPACTFLASH,
-        "SIID_MEDIADVD" => shell::SIID_MEDIADVD,
-        "SIID_MEDIADVDPLUSR" => shell::SIID_MEDIADVDPLUSR,
-        "SIID_MEDIADVDPLUSRW" => shell::SIID_MEDIADVDPLUSRW,
-        "SIID_MEDIADVDR" => shell::SIID_MEDIADVDR,
-        "SIID_MEDIADVDRAM" => shell::SIID_MEDIADVDRAM,
-        "SIID_MEDIADVDROM" => shell::SIID_MEDIADVDROM,
-        "SIID_MEDIADVDRW" => shell::SIID_MEDIADVDRW,
-        "SIID_MEDIAENHANCEDCD" => shell::SIID_MEDIAENHANCEDCD,
-        "SIID_MEDIAENHANCEDDVD" => shell::SIID_MEDIAENHANCEDDVD,
-        "SIID_MEDIAHDDVD" => shell::SIID_MEDIAHDDVD,
-        "SIID_MEDIAHDDVDR" => shell::SIID_MEDIAHDDVDR,
-        "SIID_MEDIAHDDVDRAM" => shell::SIID_MEDIAHDDVDRAM,
-        "SIID_MEDIAHDDVDROM" => shell::SIID_MEDIAHDDVDROM,
-        "SIID_MEDIAMOVIEDVD" => shell::SIID_MEDIAMOVIEDVD,
-        "SIID_MEDIASMARTMEDIA" => shell::SIID_MEDIASMARTMEDIA,
-        "SIID_MEDIASVCD" => shell::SIID_MEDIASVCD,
-        "SIID_MEDIAVCD" => shell::SIID_MEDIAVCD,
-        "SIID_MIXEDFILES" => shell::SIID_MIXEDFILES,
-        "SIID_MOBILEPC" => shell::SIID_MOBILEPC,
-        "SIID_MYNETWORK" => shell::SIID_MYNETWORK,
-        "SIID_NETWORKCONNECT" => shell::SIID_NETWORKCONNECT,
-        "SIID_PRINTER" => shell::SIID_PRINTER,
-        "SIID_PRINTERFAX" => shell::SIID_PRINTERFAX,
-        "SIID_PRINTERFAXNET" => shell::SIID_PRINTERFAXNET,
-        "SIID_PRINTERFILE" => shell::SIID_PRINTERFILE,
-        "SIID_PRINTERNET" => shell::SIID_PRINTERNET,
-        "SIID_RECYCLER" => shell::SIID_RECYCLER,
-        "SIID_RECYCLERFULL" => shell::SIID_RECYCLERFULL,
-        "SIID_RENAME" => shell::SIID_RENAME,
-        "SIID_SERVER" => shell::SIID_SERVER,
-        "SIID_SERVERSHARE" => shell::SIID_SERVERSHARE,
-        "SIID_SETTINGS" => shell::SIID_SETTINGS,
-        "SIID_SHARE" => shell::SIID_SHARE,
-        "SIID_SHIELD" => shell::SIID_SHIELD,
-        "SIID_SLOWFILE" => shell::SIID_SLOWFILE,
-        "SIID_SOFTWARE" => shell::SIID_SOFTWARE,
-        "SIID_STACK" => shell::SIID_STACK,
-        "SIID_STUFFEDFOLDER" => shell::SIID_STUFFEDFOLDER,
-        "SIID_USERS" => shell::SIID_USERS,
-        "SIID_VIDEOFILES" => shell::SIID_VIDEOFILES,
-        "SIID_WARNING" => shell::SIID_WARNING,
-        "SIID_WORLD" => shell::SIID_WORLD,
-        "SIID_ZIPFILE" => shell::SIID_ZIPFILE,
+fn stock_icon_id(icon: &NativeIcon) -> Option<SHSTOCKICONID> {
+    let id = match icon {
+        NativeIcon::Advanced | NativeIcon::PreferencesGeneral => shell::SIID_SETTINGS,
+        NativeIcon::Caution => shell::SIID_WARNING,
+        NativeIcon::Computer => shell::SIID_DESKTOPPC,
+        NativeIcon::Everyone
+        | NativeIcon::User
+        | NativeIcon::UserAccounts
+        | NativeIcon::UserGroup
+        | NativeIcon::UserGuest => shell::SIID_USERS,
+        NativeIcon::Folder => shell::SIID_FOLDER,
+        NativeIcon::FolderBurnable => shell::SIID_STUFFEDFOLDER,
+        NativeIcon::FolderSmart => shell::SIID_FOLDER,
+        NativeIcon::FollowLinkFreestanding => shell::SIID_LINK,
+        NativeIcon::Home => shell::SIID_FOLDER,
+        NativeIcon::Info => shell::SIID_INFO,
+        NativeIcon::InvalidDataFreestanding => shell::SIID_ERROR,
+        NativeIcon::LockLocked => shell::SIID_LOCK,
+        NativeIcon::LockUnlocked => shell::SIID_KEY,
+        NativeIcon::MobileMe => shell::SIID_WORLD,
+        NativeIcon::MultipleDocuments => shell::SIID_MIXEDFILES,
+        NativeIcon::Network => shell::SIID_MYNETWORK,
+        NativeIcon::QuickLook => shell::SIID_FIND,
+        NativeIcon::Remove => shell::SIID_DELETE,
+        NativeIcon::RevealFreestanding => shell::SIID_FOLDEROPEN,
+        NativeIcon::Share => shell::SIID_SHARE,
+        NativeIcon::TrashEmpty => shell::SIID_RECYCLER,
+        NativeIcon::TrashFull => shell::SIID_RECYCLERFULL,
+        NativeIcon::Raw(id) => *id,
         _ => return None,
-    })
+    };
+
+    (0..shell::SIID_MAX_ICONS).contains(&id).then_some(id)
 }
 
 fn dwrefdata_from_obj<T>(obj: &T) -> usize {
