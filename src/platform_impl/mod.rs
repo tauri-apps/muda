@@ -38,7 +38,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType, NativeIcon};
+use crate::{items::*, IsMenuItem, MenuItemKind, MenuItemType};
 
 pub(crate) use self::platform::*;
 
@@ -140,7 +140,7 @@ impl MenuItemKind {
     ),
     any(feature = "gtk", feature = "gtk4")
 ))]
-impl NativeIcon {
+impl crate::NativeIcon {
     pub(crate) fn gtk_icon_name(&self) -> &str {
         match self {
             Self::Add => "list-add-symbolic",
