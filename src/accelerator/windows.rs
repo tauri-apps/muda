@@ -7,7 +7,7 @@ use std::fmt;
 use keyboard_types::{Code, Key, Modifiers};
 use windows_sys::Win32::UI::{
     Input::KeyboardAndMouse::*,
-    WindowsAndMessaging::{ACCEL, ACCEL_VIRT_FLAGS, FALT, FCONTROL, FSHIFT, FVIRTKEY},
+    WindowsAndMessaging::{ACCEL, FALT, FCONTROL, FSHIFT, FVIRTKEY},
 };
 
 use crate::accelerator::{Accelerator, AcceleratorParseError, KeyAccelerator, MenuAccelerator};
@@ -29,7 +29,7 @@ impl MenuAccelerator {
 }
 
 impl Accelerator {
-    pub fn to_accel(&self, menu_id: u16) -> crate::Result<ACCEL> {
+    pub fn to_accel(self, menu_id: u16) -> crate::Result<ACCEL> {
         let vk = code_to_vk(&self.key)?;
         accelerator_to_accel(self.mods, vk, menu_id)
     }

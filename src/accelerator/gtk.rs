@@ -17,7 +17,7 @@ impl MenuAccelerator {
 }
 
 impl Accelerator {
-    pub(crate) fn to_gtk(&self) -> Result<(gdk::ModifierType, u32), AcceleratorParseError> {
+    pub(crate) fn to_gtk(self) -> Result<(gdk::ModifierType, u32), AcceleratorParseError> {
         let mods = modifiers_to_gdk_modifier_type(self.mods);
         let key = code_to_gdk_key(&self.key)?;
         Ok((mods, key))
