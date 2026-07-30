@@ -8,7 +8,7 @@ use std::rc::Rc;
 use muda::{
     accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
     dpi::Position,
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -36,7 +36,7 @@ use tao::{
     target_os = "openbsd"
 ))]
 use wry::WebViewBuilderExtUnix;
-use wry::{http::Request, WebViewBuilder};
+use wry::{http::Request, WebView, WebViewBuilder};
 
 enum UserEvent {
     MenuEvent(muda::MenuEvent),
@@ -123,6 +123,8 @@ fn main() -> wry::Result<()> {
         Some(icon),
         Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
     );
+    let native_icon_item =
+        IconMenuItem::with_native_icon("Native icon", true, Some(NativeIcon::Folder), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -141,6 +143,7 @@ fn main() -> wry::Result<()> {
         .append_items(&[
             &custom_i_1,
             &image_item,
+            &native_icon_item,
             &window_m,
             &PredefinedMenuItem::separator(),
             &check_custom_i_1,
@@ -298,7 +301,7 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
+    fn build_webview(builder: WebViewBuilder, window: &Window) -> wry::Result<WebView> {
         #[cfg(not(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -306,7 +309,7 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         )))]
-        return WebViewBuilder::new(window);
+        return builder.build(window);
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -314,17 +317,21 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         ))]
-        WebViewBuilder::new_gtk(window.default_vbox().unwrap())
+        builder.build_gtk(window.default_vbox().unwrap())
     };
 
-    let webview = create_webview(&window)
-        .with_html(&html)
-        .with_ipc_handler(create_ipc_handler(&window))
-        .build()?;
-    let webview2 = create_webview(&window2)
-        .with_html(html)
-        .with_ipc_handler(create_ipc_handler(&window2))
-        .build()?;
+    let webview = build_webview(
+        WebViewBuilder::new()
+            .with_html(&html)
+            .with_ipc_handler(create_ipc_handler(&window)),
+        &window,
+    )?;
+    let webview2 = build_webview(
+        WebViewBuilder::new()
+            .with_html(html)
+            .with_ipc_handler(create_ipc_handler(&window2)),
+        &window,
+    )?;
 
     let menu_channel = MenuEvent::receiver();
 

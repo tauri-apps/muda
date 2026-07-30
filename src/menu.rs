@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{dpi::Position, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind};
 
-/// A root menu that can be added to a Window on Windows and Linux
+/// A root menu that can be added to a window on Windows, GTK 3, or GTK 4
 /// and used as the app global menu on macOS.
 #[derive(Clone)]
 pub struct Menu {
@@ -63,7 +63,7 @@ impl Menu {
 
     /// Add a menu item to the end of this menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -74,7 +74,7 @@ impl Menu {
 
     /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -89,7 +89,7 @@ impl Menu {
 
     /// Add a menu item to the beginning of this menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -102,7 +102,7 @@ impl Menu {
 
     /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -111,9 +111,9 @@ impl Menu {
         self.insert_items(items, 0)
     }
 
-    /// Insert a menu item at the specified `postion` in the menu.
+    /// Insert a menu item at the specified `position` in the menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -124,9 +124,9 @@ impl Menu {
             .add_menu_item(item, AddOp::Insert(position))
     }
 
-    /// Insert menu items at the specified `postion` in the menu.
+    /// Insert menu items at the specified `position` in the menu.
     ///
-    /// ## Platform-spcific:
+    /// ## Platform-specific:
     ///
     /// - **macOS:** Only [`Submenu`] can be added to the menu
     ///
@@ -140,20 +140,14 @@ impl Menu {
     }
 
     /// Remove a menu item from this menu.
+    /// Remove all occurrences of a menu item from this menu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
         self.inner.borrow_mut().remove(item)
     }
 
     /// Remove the menu item at the specified position from this menu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
-        let mut items = self.items();
-        if items.len() > position {
-            let item = items.remove(position);
-            let _ = self.remove(item.as_ref());
-            Some(item)
-        } else {
-            None
-        }
+        self.inner.borrow_mut().remove_at(position)
     }
 
     /// Returns a list of menu items that has been added to this menu.
@@ -161,16 +155,22 @@ impl Menu {
         self.inner.borrow().items()
     }
 
-    /// Adds this menu to a [`gtk::Window`]
+    /// Adds this menu to a [`gtk::Window`].
     ///
-    /// - `container`: this is an optional paramter to specify a container for the [`gtk::MenuBar`],
-    ///   it is highly recommended to pass a container, otherwise the menubar will be added directly to the window,
-    ///   which is usually not the desired behavior.
-    ///   If using a [`gtk::Box`] as a container, it is added using [`Box::pack_start(menubar, false, false, 0)`](gtk::prelude::BoxExt::pack_start) then
-    ///   reordered to be the first child of [`gtk::Box`] using [`Box::reorder_child(menubar, 0)`](gtk::prelude::BoxExt::reorder_child).
+    /// With the `gtk` feature this creates a `gtk::MenuBar`. With the `gtk4` feature this
+    /// creates a `gtk::PopoverMenuBar`.
+    ///
+    /// - `container`: this optional parameter specifies the container that receives the menu bar.
+    ///   Passing a container is highly recommended; otherwise the menu bar is added directly to the
+    ///   window, which is usually not the desired behavior. Supported containers are [`gtk::Box`],
+    ///   [`gtk::Fixed`], and [`gtk::Stack`].
+    ///
+    /// With the `gtk4` feature, the window must belong to a [`gtk::Application`].
     ///
     /// ## Example:
     /// ```no_run
+    /// # #[cfg(feature = "gtk4")]
+    /// # use gtk4 as gtk;
     /// let window = gtk::Window::builder().build();
     /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
     /// let menu = muda::Menu::new();
@@ -190,13 +190,13 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Container>,
-        C: gtk::prelude::IsA<gtk::Container>,
+        W: gtk::prelude::IsA<gtk::Widget>,
+        C: gtk::prelude::IsA<gtk::Widget>,
     {
         self.inner
             .borrow_mut()
@@ -287,11 +287,12 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk::prelude::IsA<gtk::Widget>,
     {
         self.inner.borrow_mut().remove_for_gtk_window(window)
     }
@@ -315,7 +316,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -343,7 +344,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -371,7 +372,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
@@ -393,6 +394,25 @@ impl Menu {
     /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
     /// This is useful to get information about the menubar for example its height.
     pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        self.inner.borrow().gtk_menubar_for_gtk_window(window)
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    /// Returns the [`gtk::PopoverMenuBar`] that is associated with this window if it exists.
+    /// This is useful to get information about the menubar for example its height.
+    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::PopoverMenuBar>
     where
         W: gtk::prelude::IsA<gtk::Window>,
     {
@@ -453,7 +473,7 @@ impl ContextMenu for Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -476,6 +496,20 @@ impl ContextMenu for Menu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
+        self.inner.borrow_mut().gtk_context_menu()
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         self.inner.borrow_mut().gtk_context_menu()
     }
 

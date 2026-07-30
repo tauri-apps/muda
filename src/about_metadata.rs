@@ -13,7 +13,7 @@ pub struct AboutMetadata {
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** Appended to the end of `version` in parentheses.
+    /// - **Windows / GTK 3 / GTK 4:** Appended to the end of `version` in parentheses.
     pub short_version: Option<String>,
     /// The authors of the application.
     ///
@@ -51,7 +51,7 @@ pub struct AboutMetadata {
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub credits: Option<String>,
     /// The application icon.
     ///
@@ -157,7 +157,7 @@ impl AboutMetadataBuilder {
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** Appended to the end of `version` in parentheses.
+    /// - **Windows / GTK 3 / GTK 4:** Appended to the end of `version` in parentheses.
     pub fn short_version<S: Into<String>>(mut self, short_version: Option<S>) -> Self {
         self.0.short_version = short_version.map(|s| s.into());
         self
@@ -216,7 +216,7 @@ impl AboutMetadataBuilder {
     ///
     /// ## Platform-specific
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn credits<S: Into<String>>(mut self, credits: Option<S>) -> Self {
         self.0.credits = credits.map(|s| s.into());
         self

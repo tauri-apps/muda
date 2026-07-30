@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -206,6 +206,8 @@ impl AppMenu {
         );
 
         let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+        let native_icon_item =
+            IconMenuItem::with_native_icon("Native Icon", true, Some(NativeIcon::Folder), None);
 
         let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
         let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -223,6 +225,7 @@ impl AppMenu {
         file_menu.append_items(&[
             &custom_i_1,
             &image_item,
+            &native_icon_item,
             &window_menu,
             &PredefinedMenuItem::separator(),
             &check_custom_i_1,

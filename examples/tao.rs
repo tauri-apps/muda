@@ -6,7 +6,7 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
@@ -110,6 +110,13 @@ fn main() {
         Some(icon),
         Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
     );
+    let native_icon_item = IconMenuItem::with_id_and_native_icon(
+        "native-icon-1",
+        "Native icon",
+        true,
+        Some(NativeIcon::Folder),
+        None,
+    );
 
     let check_custom_i_1 =
         CheckMenuItem::with_id("check-custom-1", "Check Custom 1", true, true, None);
@@ -130,6 +137,7 @@ fn main() {
     file_m.append_items(&[
         &custom_i_1,
         &image_item,
+        &native_icon_item,
         &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,

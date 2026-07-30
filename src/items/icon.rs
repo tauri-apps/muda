@@ -89,9 +89,22 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_native_icon<S: AsRef<str>>(
         text: S,
         enabled: bool,
@@ -115,9 +128,22 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
         id: I,
         text: S,
@@ -190,12 +216,24 @@ impl IconMenuItem {
 
     /// Change this menu item icon to a native image or remove it.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
-    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
-        #[cfg(target_os = "macos")]
-        self.inner.borrow_mut().set_native_icon(_icon)
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
+        self.inner.borrow_mut().set_native_icon(icon)
     }
 
     /// Convert this menu item into its menu ID.

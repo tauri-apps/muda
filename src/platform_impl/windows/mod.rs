@@ -13,10 +13,11 @@ pub(crate) use self::icon::WinIcon as PlatformIcon;
 use crate::{
     accelerator::KeyAccelerator,
     dpi::Position,
-    icon::{Icon, NativeIcon},
+    icon::Icon,
     items::PredefinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, MenuTheme,
+    NativeIcon,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -32,7 +33,10 @@ use windows_sys::Win32::{
         Input::KeyboardAndMouse::{
             GetActiveWindow, SendInput, INPUT, INPUT_KEYBOARD, KEYEVENTF_KEYUP, VK_CONTROL,
         },
-        Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
+        Shell::{
+            self as shell, DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass, SHGSI_ICON,
+            SHGSI_SMALLICON, SHSTOCKICONID,
+        },
         WindowsAndMessaging::{
             AppendMenuW, CreateAcceleratorTableW, CreateMenu, CreatePopupMenu,
             DestroyAcceleratorTable, DestroyMenu, DrawMenuBar, EnableMenuItem, GetCursorPos,
@@ -68,7 +72,6 @@ macro_rules! inner_menu_child_and_flags {
                 let child = i.inner;
                 let child_ = child.borrow();
                 match child_.predefined_item_type.as_ref().unwrap() {
-                    PredefinedMenuItemType::None => return Ok(()),
                     PredefinedMenuItemType::Separator => {
                         flags |= MF_SEPARATOR;
                     }
@@ -112,9 +115,8 @@ pub(crate) struct Menu {
 
 impl Drop for Menu {
     fn drop(&mut self) {
-        let hwnds = self.hwnds.borrow().keys().copied().collect::<Vec<_>>();
-        for hwnd in &hwnds {
-            let _ = unsafe { self.remove_for_hwnd(*hwnd) };
+        for (hwnd, _) in self.hwnds.borrow_mut().drain() {
+            unsafe { Self::remove_from_hwnd(hwnd) };
         }
 
         fn remove_from_children_stores(internal_id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
@@ -143,10 +145,6 @@ impl Drop for Menu {
         }
 
         unsafe {
-            for hwnd in &hwnds {
-                SetMenu(*hwnd as _, std::ptr::null_mut());
-                RemoveWindowSubclass(*hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
-            }
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
         }
@@ -237,12 +235,7 @@ impl Menu {
 
             // Set icons for both regular menu items and submenus
             if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
-                let hbitmap = child_
-                    .icon
-                    .as_ref()
-                    .map(|i| unsafe { i.inner.to_hbitmap() })
-                    .unwrap_or(std::ptr::null_mut());
-
+                let hbitmap = child_.hbitmap();
                 let info = create_icon_item_info(hbitmap);
 
                 unsafe {
@@ -276,7 +269,33 @@ impl Menu {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        let id = item.child().borrow().internal_id();
+        let child = item.child();
+        let positions = self
+            .children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        if position >= self.children.len() {
+            return None;
+        }
+
+        let child = self.children.remove(position);
+        let id = child.borrow().internal_id();
+
         unsafe {
             RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
@@ -287,32 +306,26 @@ impl Menu {
             }
         }
 
-        let child = item.child();
-
         {
             let mut child = child.borrow_mut();
-            let index = child
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
-            let index = child
+            {
+                child.parents_hemnu.remove(index);
+            }
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hpopupmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
+            {
+                child.parents_hemnu.remove(index);
+            }
         }
 
-        let index = self
-            .children
-            .iter()
-            .position(|e| e.borrow().internal_id() == id)
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        self.children.remove(index);
-
-        Ok(())
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
@@ -346,13 +359,13 @@ impl Menu {
         self.hwnds.borrow_mut().insert(hwnd, theme);
 
         // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, self.hmenu);
         SetWindowSubclass(
             hwnd as _,
             Some(menu_subclass_proc),
             MENU_SUBCLASS_ID,
             dwrefdata_from_obj(self),
         );
+        SetMenu(hwnd as _, self.hmenu);
         DrawMenuBar(hwnd as _);
 
         Ok(())
@@ -367,12 +380,16 @@ impl Menu {
             .borrow_mut()
             .remove(&hwnd)
             .ok_or(crate::Error::NotInitialized)?;
-
-        // SAFETY: HWND validity is upheld by caller
-        SetMenu(hwnd as _, std::ptr::null_mut());
-        DrawMenuBar(hwnd as _);
-
+        Self::remove_from_hwnd(hwnd);
         Ok(())
+    }
+
+    unsafe fn remove_from_hwnd(hwnd: isize) {
+        let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
+        // SAFETY: HWND validity is upheld by caller
+        RemoveWindowSubclass(hwnd, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+        SetMenu(hwnd, std::ptr::null_mut());
+        DrawMenuBar(hwnd);
     }
 
     pub unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
@@ -475,6 +492,7 @@ pub(crate) struct MenuChild {
 
     // icon menu item fields
     icon: Option<Icon>,
+    native_icon: Option<NativeIcon>,
 
     // submenu fields
     hmenu: HMENU,
@@ -519,6 +537,7 @@ impl MenuChild {
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
+            native_icon: None,
             checked: false,
             children: None,
             hmenu: std::ptr::null_mut(),
@@ -541,6 +560,7 @@ impl MenuChild {
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
+            native_icon: None,
             checked: false,
             accelerator: None,
         }
@@ -548,10 +568,11 @@ impl MenuChild {
 
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
         let internal_id = COUNTER.next();
+        let enabled = item_type.is_supported_on_windows();
         Self {
             item_type: MenuItemType::Predefined,
             text: text.unwrap_or_else(|| item_type.text().to_string()),
-            enabled: true,
+            enabled,
             parents_hemnu: Vec::new(),
             internal_id,
             id: MenuId::new(internal_id.to_string()),
@@ -559,6 +580,7 @@ impl MenuChild {
             predefined_item_type: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
             icon: None,
+            native_icon: None,
             checked: false,
             children: None,
             hmenu: std::ptr::null_mut(),
@@ -586,6 +608,7 @@ impl MenuChild {
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
+            native_icon: None,
             children: None,
             hmenu: std::ptr::null_mut(),
             hpopupmenu: std::ptr::null_mut(),
@@ -609,6 +632,7 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator: key_accelerator,
             icon,
+            native_icon: None,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             checked: false,
@@ -621,7 +645,7 @@ impl MenuChild {
     pub fn new_native_icon(
         text: &str,
         enabled: bool,
-        _native_icon: Option<NativeIcon>,
+        native_icon: Option<NativeIcon>,
         key_accelerator: Option<KeyAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
@@ -637,6 +661,7 @@ impl MenuChild {
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
+            native_icon,
             checked: false,
             children: None,
             hmenu: std::ptr::null_mut(),
@@ -772,7 +797,7 @@ impl MenuChild {
 
                 (info.fState & MFS_CHECKED) != 0
             })
-            .unwrap_or(self.enabled)
+            .unwrap_or(self.checked)
     }
 
     pub fn set_checked(&mut self, checked: bool) {
@@ -794,13 +819,19 @@ impl MenuChild {
 
 /// IconMenuItem methods
 impl MenuChild {
-    pub fn set_icon(&mut self, icon: Option<Icon>) {
-        self.icon.clone_from(&icon);
+    fn hbitmap(&self) -> HBITMAP {
+        if let Some(icon) = self.icon.as_ref() {
+            unsafe { icon.inner.to_hbitmap() }
+        } else {
+            self.native_icon
+                .as_ref()
+                .map(native_icon_hbitmap)
+                .unwrap_or(std::ptr::null_mut())
+        }
+    }
 
-        let hbitmap = icon
-            .map(|i| unsafe { i.inner.to_hbitmap() })
-            .unwrap_or(std::ptr::null_mut());
-
+    fn update_icon(&self) {
+        let hbitmap = self.hbitmap();
         let info = create_icon_item_info(hbitmap);
 
         for (parent, menu_bars) in &self.parents_hemnu {
@@ -812,6 +843,18 @@ impl MenuChild {
                 }
             };
         }
+    }
+
+    pub fn set_icon(&mut self, icon: Option<Icon>) {
+        self.icon.clone_from(&icon);
+        self.native_icon = None;
+        self.update_icon();
+    }
+
+    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
+        self.native_icon = icon;
+        self.icon = None;
+        self.update_icon();
     }
 }
 
@@ -884,11 +927,7 @@ impl MenuChild {
             let item_type = child_.item_type();
 
             if matches!(item_type, MenuItemType::Icon | MenuItemType::Submenu) {
-                let hbitmap = child_
-                    .icon
-                    .as_ref()
-                    .map(|i| unsafe { i.inner.to_hbitmap() })
-                    .unwrap_or(std::ptr::null_mut());
+                let hbitmap = child_.hbitmap();
                 let info = create_icon_item_info(hbitmap);
                 unsafe {
                     SetMenuItemInfoW(self.hmenu, child_.internal_id(), FALSE, &info);
@@ -915,38 +954,59 @@ impl MenuChild {
     }
 
     pub fn remove(&mut self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        let id = item.child().borrow().internal_id();
+        let child = item.child();
+        let children = self.children.as_ref().unwrap();
+        let positions = children
+            .iter()
+            .enumerate()
+            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
+            .collect::<Vec<_>>();
+
+        if positions.is_empty() {
+            return Err(crate::Error::NotAChildOfThisMenu);
+        }
+
+        for position in positions.into_iter().rev() {
+            self.remove_at(position);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
+        let children = self.children.as_mut().unwrap();
+        if position >= children.len() {
+            return None;
+        }
+
+        let child = children.remove(position);
+        let id = child.borrow().internal_id();
+
         unsafe {
             RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
         }
 
-        let child = item.child();
-
         {
             let mut child = child.borrow_mut();
-            let index = child
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
-            let index = child
+            {
+                child.parents_hemnu.remove(index);
+            }
+            if let Some(index) = child
                 .parents_hemnu
                 .iter()
                 .position(|&(h, _)| h == self.hpopupmenu)
-                .ok_or(crate::Error::NotAChildOfThisMenu)?;
-            child.parents_hemnu.remove(index);
+            {
+                child.parents_hemnu.remove(index);
+            }
         }
 
-        let children = self.children.as_mut().unwrap();
-        let index = children
-            .iter()
-            .position(|e| e.borrow().internal_id() == id)
-            .ok_or(crate::Error::NotAChildOfThisMenu)?;
-        children.remove(index);
-
-        Ok(())
+        let kind = child.borrow().kind(child.clone());
+        Some(kind)
     }
 
     pub fn items(&self) -> Vec<MenuItemKind> {
@@ -989,7 +1049,7 @@ impl MenuChild {
     }
 }
 
-/// Internal Utilitles
+/// Internal Utilities
 impl MenuChild {
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<MenuChild>>> {
         let children = self.children.as_ref().unwrap();
@@ -1085,6 +1145,64 @@ fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
     info.fMask = MIIM_BITMAP;
     info.hbmpItem = hbitmap;
     info
+}
+
+fn native_icon_hbitmap(icon: &NativeIcon) -> HBITMAP {
+    // Translate the public native icon to the shell stock icon ID expected by
+    // SHGetStockIconInfo. Unsupported variants deliberately render as no icon.
+    let Some(icon_id) = stock_icon_id(icon) else {
+        return std::ptr::null_mut();
+    };
+
+    let mut info = shell::SHSTOCKICONINFO {
+        cbSize: std::mem::size_of::<shell::SHSTOCKICONINFO>() as _,
+        ..Default::default()
+    };
+
+    let result =
+        unsafe { shell::SHGetStockIconInfo(icon_id, SHGSI_ICON | SHGSI_SMALLICON, &mut info) };
+
+    if result < 0 || info.hIcon.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    let icon = PlatformIcon::from_handle(info.hIcon);
+    unsafe { icon.to_hbitmap() }
+}
+
+fn stock_icon_id(icon: &NativeIcon) -> Option<SHSTOCKICONID> {
+    let id = match icon {
+        NativeIcon::Advanced | NativeIcon::PreferencesGeneral => shell::SIID_SETTINGS,
+        NativeIcon::Caution => shell::SIID_WARNING,
+        NativeIcon::Computer => shell::SIID_DESKTOPPC,
+        NativeIcon::Everyone
+        | NativeIcon::User
+        | NativeIcon::UserAccounts
+        | NativeIcon::UserGroup
+        | NativeIcon::UserGuest => shell::SIID_USERS,
+        NativeIcon::Folder => shell::SIID_FOLDER,
+        NativeIcon::FolderBurnable => shell::SIID_STUFFEDFOLDER,
+        NativeIcon::FolderSmart => shell::SIID_FOLDER,
+        NativeIcon::FollowLinkFreestanding => shell::SIID_LINK,
+        NativeIcon::Home => shell::SIID_FOLDER,
+        NativeIcon::Info => shell::SIID_INFO,
+        NativeIcon::InvalidDataFreestanding => shell::SIID_ERROR,
+        NativeIcon::LockLocked => shell::SIID_LOCK,
+        NativeIcon::LockUnlocked => shell::SIID_KEY,
+        NativeIcon::MobileMe => shell::SIID_WORLD,
+        NativeIcon::MultipleDocuments => shell::SIID_MIXEDFILES,
+        NativeIcon::Network => shell::SIID_MYNETWORK,
+        NativeIcon::QuickLook => shell::SIID_FIND,
+        NativeIcon::Remove => shell::SIID_DELETE,
+        NativeIcon::RevealFreestanding => shell::SIID_FOLDEROPEN,
+        NativeIcon::Share => shell::SIID_SHARE,
+        NativeIcon::TrashEmpty => shell::SIID_RECYCLER,
+        NativeIcon::TrashFull => shell::SIID_RECYCLERFULL,
+        NativeIcon::Raw(id) => *id,
+        _ => return None,
+    };
+
+    (0..shell::SIID_MAX_ICONS).contains(&id).then_some(id)
 }
 
 fn dwrefdata_from_obj<T>(obj: &T) -> usize {
@@ -1396,5 +1514,26 @@ fn show_about_dialog(hwnd: Hwnd, metadata: &AboutMetadata) {
                 &mut pf_verification_flag_checked,
             )
         });
+    }
+}
+
+impl PredefinedMenuItemType {
+    fn is_supported_on_windows(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
     }
 }

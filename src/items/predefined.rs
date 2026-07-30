@@ -11,7 +11,7 @@ use crate::{
 };
 use keyboard_types::{Code, Modifiers};
 
-/// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+/// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
@@ -40,21 +40,41 @@ impl PredefinedMenuItem {
     }
 
     /// Copy menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Requires the `libxdo` feature.
+    /// - **GTK 4:** Unsupported.
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Copy, text)
     }
 
     /// Cut menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Requires the `libxdo` feature.
+    /// - **GTK 4:** Unsupported.
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Cut, text)
     }
 
     /// Paste menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Requires the `libxdo` feature.
+    /// - **GTK 4:** Unsupported.
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
 
     /// SelectAll menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Requires the `libxdo` feature.
+    /// - **GTK 4:** Unsupported.
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::SelectAll, text)
     }
@@ -63,7 +83,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3 / GTK 4:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
@@ -71,7 +91,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3 / GTK 4:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
@@ -80,7 +100,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3:** Unsupported.
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Minimize, text)
     }
@@ -89,7 +109,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Maximize, text)
     }
@@ -98,7 +118,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3:** Unsupported.
     pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Fullscreen, text)
     }
@@ -107,7 +127,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3:** Unsupported.
     pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Hide, text)
     }
@@ -116,7 +136,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn hide_others(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::HideOthers, text)
     }
@@ -125,7 +145,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn show_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::ShowAll, text)
     }
@@ -134,7 +154,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3:** Unsupported.
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::CloseWindow, text)
     }
@@ -143,7 +163,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Linux:** Unsupported.
+    /// - **GTK 3:** Unsupported.
     pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Quit, text)
     }
@@ -157,7 +177,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn services(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Services, text)
     }
@@ -166,7 +186,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux:** Unsupported.
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn bring_all_to_front(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::BringAllToFront, text)
     }
@@ -238,7 +258,7 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PredefinedMenuItemType {
@@ -260,8 +280,6 @@ pub(crate) enum PredefinedMenuItemType {
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
-    #[default]
-    None,
 }
 
 impl PredefinedMenuItemType {
@@ -294,7 +312,6 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::About(_) => "&About",
             PredefinedMenuItemType::Services => "Services",
             PredefinedMenuItemType::BringAllToFront => "Bring All to Front",
-            PredefinedMenuItemType::None => "",
         }
     }
 
