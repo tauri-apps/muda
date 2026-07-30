@@ -887,9 +887,7 @@ impl MenuChild {
 
                 if let PredefinedMenuItemType::About(_) = item_type {
                     unsafe { ns_menu_item.setTarget(Some(&ns_menu_item)) };
-
-                    // Store a raw pointer to the `MenuChild` as an instance variable on the native menu item
-                    ns_menu_item.ivars().set(&*self);
+                    ns_menu_item.ivars().set(Some(owner));
                 }
 
                 Retained::into_super(ns_menu_item)
@@ -1073,7 +1071,7 @@ define_class!(
     #[unsafe(super(NSMenuItem))]
     #[name = "MudaMenuItem"]
     #[thread_kind = MainThreadOnly]
-    #[ivars = RefCell<Option<Rc<RefCell<MenuChild>>>>]
+    #[ivars = Cell<Option<Rc<RefCell<MenuChild>>>>]
     struct MenuItem;
 
     impl MenuItem {
@@ -1091,7 +1089,7 @@ impl MenuItem {
         action: Option<Sel>,
         key_equivalent: &NSString,
     ) -> Retained<Self> {
-        let this = mtm.alloc().set_ivars(RefCell::new(None));
+        let this = mtm.alloc().set_ivars(Cell::new(None));
         unsafe {
             msg_send![super(this), initWithTitle: title, action: action, keyEquivalent: key_equivalent]
         }
@@ -1099,11 +1097,11 @@ impl MenuItem {
 
     fn fire_menu_item_click(&self) {
         let mtm = MainThreadMarker::from(self);
-        let item = self.ivars().borrow();
-        let item = item
-            .as_ref()
-            .expect("MenuItem's MenuChild pointer was unset")
-            .borrow();
+        // SAFETY: The ivar is initialized before the menu item is exposed and is
+        // never mutated afterward.
+        let item = unsafe { &*self.ivars().as_ptr() };
+        let item = item.as_ref().expect("MenuChild pointer was unset");
+        let item = item.borrow();
 
         if let Some(PredefinedMenuItemType::About(about_meta)) = &item.predefined_item_type {
             match about_meta {
