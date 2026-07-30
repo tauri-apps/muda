@@ -68,6 +68,24 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
 
+    /// Paste and Match Style menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn paste_and_match_style(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::PasteAndMatchStyle, text)
+    }
+
+    /// Delete menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn delete(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::Delete, text)
+    }
+
     /// SelectAll menu item
     ///
     /// ## Platform-specific:
@@ -111,6 +129,41 @@ impl PredefinedMenuItem {
     /// - **GTK 3:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Maximize, text)
+    }
+
+    /// Zoom window menu item
+    ///
+    /// This is an alias for [`Self::maximize`]. On macOS, the native maximize
+    /// window action is conventionally named "Zoom".
+    pub fn zoom(text: Option<&str>) -> PredefinedMenuItem {
+        Self::maximize(text)
+    }
+
+    /// Actual Size menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn actual_size(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::ActualSize, text)
+    }
+
+    /// Zoom In menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn zoom_in(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::ZoomIn, text)
+    }
+
+    /// Zoom Out menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn zoom_out(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::ZoomOut, text)
     }
 
     /// Fullscreen menu item
@@ -190,6 +243,42 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::BringAllToFront, text)
     }
 
+    /// Start Speaking menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn start_speaking(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::StartSpeaking, text)
+    }
+
+    /// Stop Speaking menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn stop_speaking(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::StopSpeaking, text)
+    }
+
+    /// Start Dictation menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn start_dictation(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::StartDictation, text)
+    }
+
+    /// Emoji & Symbols menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / GTK 3 / GTK 4:** Unsupported.
+    pub fn emoji_and_symbols(text: Option<&str>) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::EmojiAndSymbols, text)
+    }
+
     fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
         let item = crate::platform_impl::MenuChild::new_predefined(
             item,
@@ -265,11 +354,16 @@ pub(crate) enum PredefinedMenuItemType {
     Copy,
     Cut,
     Paste,
+    PasteAndMatchStyle,
+    Delete,
     SelectAll,
     Undo,
     Redo,
     Minimize,
     Maximize,
+    ActualSize,
+    ZoomIn,
+    ZoomOut,
     Fullscreen,
     Hide,
     HideOthers,
@@ -279,6 +373,10 @@ pub(crate) enum PredefinedMenuItemType {
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
+    StartSpeaking,
+    StopSpeaking,
+    StartDictation,
+    EmojiAndSymbols,
 }
 
 impl PredefinedMenuItemType {
@@ -288,6 +386,8 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Copy => "&Copy",
             PredefinedMenuItemType::Cut => "Cu&t",
             PredefinedMenuItemType::Paste => "&Paste",
+            PredefinedMenuItemType::PasteAndMatchStyle => "Paste and Match Style",
+            PredefinedMenuItemType::Delete => "&Delete",
             PredefinedMenuItemType::SelectAll => "Select &All",
             PredefinedMenuItemType::Undo => "Undo",
             PredefinedMenuItemType::Redo => "Redo",
@@ -296,6 +396,9 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Maximize => "Zoom",
             #[cfg(not(target_os = "macos"))]
             PredefinedMenuItemType::Maximize => "Ma&ximize",
+            PredefinedMenuItemType::ActualSize => "Actual Size",
+            PredefinedMenuItemType::ZoomIn => "Zoom In",
+            PredefinedMenuItemType::ZoomOut => "Zoom Out",
             PredefinedMenuItemType::Fullscreen => "Toggle Full Screen",
             PredefinedMenuItemType::Hide => "&Hide",
             PredefinedMenuItemType::HideOthers => "Hide Others",
@@ -311,6 +414,10 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::About(_) => "&About",
             PredefinedMenuItemType::Services => "Services",
             PredefinedMenuItemType::BringAllToFront => "Bring All to Front",
+            PredefinedMenuItemType::StartSpeaking => "Start Speaking",
+            PredefinedMenuItemType::StopSpeaking => "Stop Speaking",
+            PredefinedMenuItemType::StartDictation => "Start Dictation…",
+            PredefinedMenuItemType::EmojiAndSymbols => "Emoji & Symbols",
         }
     }
 
@@ -319,6 +426,11 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
             PredefinedMenuItemType::Cut => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyX)),
             PredefinedMenuItemType::Paste => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyV)),
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::PasteAndMatchStyle => Some(physical_accelerator(
+                CMD_OR_CTRL | Modifiers::ALT | Modifiers::SHIFT,
+                Code::KeyV,
+            )),
             PredefinedMenuItemType::Undo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyZ)),
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::Redo => Some(physical_accelerator(
@@ -331,6 +443,17 @@ impl PredefinedMenuItemType {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::KeyA))
             }
             PredefinedMenuItemType::Minimize => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyM)),
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::ActualSize => {
+                Some(physical_accelerator(CMD_OR_CTRL, Code::Digit0))
+            }
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::ZoomIn => Some(physical_accelerator(
+                CMD_OR_CTRL | Modifiers::SHIFT,
+                Code::Equal,
+            )),
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::ZoomOut => Some(physical_accelerator(CMD_OR_CTRL, Code::Minus)),
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::Fullscreen => Some(physical_accelerator(
                 Modifiers::META | Modifiers::CONTROL,
@@ -351,6 +474,11 @@ impl PredefinedMenuItemType {
             }
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::Quit => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyQ)),
+            #[cfg(target_os = "macos")]
+            PredefinedMenuItemType::EmojiAndSymbols => Some(physical_accelerator(
+                Modifiers::META | Modifiers::CONTROL,
+                Code::Space,
+            )),
             _ => None,
         }
     }

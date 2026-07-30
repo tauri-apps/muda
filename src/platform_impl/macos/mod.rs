@@ -997,11 +997,16 @@ impl PredefinedMenuItemType {
                 | PredefinedMenuItemType::Copy
                 | PredefinedMenuItemType::Cut
                 | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::PasteAndMatchStyle
+                | PredefinedMenuItemType::Delete
                 | PredefinedMenuItemType::SelectAll
                 | PredefinedMenuItemType::Undo
                 | PredefinedMenuItemType::Redo
                 | PredefinedMenuItemType::Minimize
                 | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::ActualSize
+                | PredefinedMenuItemType::ZoomIn
+                | PredefinedMenuItemType::ZoomOut
                 | PredefinedMenuItemType::Fullscreen
                 | PredefinedMenuItemType::Hide
                 | PredefinedMenuItemType::HideOthers
@@ -1011,6 +1016,10 @@ impl PredefinedMenuItemType {
                 | PredefinedMenuItemType::About(_)
                 | PredefinedMenuItemType::Services
                 | PredefinedMenuItemType::BringAllToFront
+                | PredefinedMenuItemType::StartSpeaking
+                | PredefinedMenuItemType::StopSpeaking
+                | PredefinedMenuItemType::StartDictation
+                | PredefinedMenuItemType::EmojiAndSymbols
         )
     }
 
@@ -1020,11 +1029,16 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Copy => Some(sel!(copy:)),
             PredefinedMenuItemType::Cut => Some(sel!(cut:)),
             PredefinedMenuItemType::Paste => Some(sel!(paste:)),
+            PredefinedMenuItemType::PasteAndMatchStyle => Some(sel!(pasteAsPlainText:)),
+            PredefinedMenuItemType::Delete => Some(sel!(delete:)),
             PredefinedMenuItemType::SelectAll => Some(sel!(selectAll:)),
             PredefinedMenuItemType::Undo => Some(sel!(undo:)),
             PredefinedMenuItemType::Redo => Some(sel!(redo:)),
             PredefinedMenuItemType::Minimize => Some(sel!(performMiniaturize:)),
             PredefinedMenuItemType::Maximize => Some(sel!(performZoom:)),
+            PredefinedMenuItemType::ActualSize => Some(sel!(actualSize:)),
+            PredefinedMenuItemType::ZoomIn => Some(sel!(zoomIn:)),
+            PredefinedMenuItemType::ZoomOut => Some(sel!(zoomOut:)),
             PredefinedMenuItemType::Fullscreen => Some(sel!(toggleFullScreen:)),
             PredefinedMenuItemType::Hide => Some(sel!(hide:)),
             PredefinedMenuItemType::HideOthers => Some(sel!(hideOtherApplications:)),
@@ -1035,6 +1049,10 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::About(_) => Some(sel!(fireMenuItemAction:)),
             PredefinedMenuItemType::Services => None,
             PredefinedMenuItemType::BringAllToFront => Some(sel!(arrangeInFront:)),
+            PredefinedMenuItemType::StartSpeaking => Some(sel!(startSpeaking:)),
+            PredefinedMenuItemType::StopSpeaking => Some(sel!(stopSpeaking:)),
+            PredefinedMenuItemType::StartDictation => Some(sel!(startDictation:)),
+            PredefinedMenuItemType::EmojiAndSymbols => Some(sel!(orderFrontCharacterPalette:)),
         }
     }
 }
