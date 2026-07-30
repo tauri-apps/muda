@@ -5,7 +5,7 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    accelerator::{Accelerator, KeyAccelerator},
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     sealed::IsMenuItemBase,
     IsMenuItem, MenuId, MenuItemKind,
@@ -52,7 +52,7 @@ impl IconMenuItem {
             text.as_ref(),
             enabled,
             icon,
-            accelerator.map(KeyAccelerator::from),
+            accelerator.map(MenuAccelerator::Physical),
             None,
         );
         Self {
@@ -79,7 +79,7 @@ impl IconMenuItem {
                 text.as_ref(),
                 enabled,
                 icon,
-                accelerator.map(KeyAccelerator::from),
+                accelerator.map(MenuAccelerator::Physical),
                 Some(id),
             ))),
         }
@@ -115,7 +115,7 @@ impl IconMenuItem {
             text.as_ref(),
             enabled,
             native_icon,
-            accelerator.map(KeyAccelerator::from),
+            accelerator.map(MenuAccelerator::Physical),
             None,
         );
         Self {
@@ -159,7 +159,7 @@ impl IconMenuItem {
                     text.as_ref(),
                     enabled,
                     native_icon,
-                    accelerator.map(KeyAccelerator::from),
+                    accelerator.map(MenuAccelerator::Physical),
                     Some(id),
                 ),
             )),
@@ -199,14 +199,16 @@ impl IconMenuItem {
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
         self.inner
             .borrow_mut()
-            .set_key_accelerator(accelerator.map(KeyAccelerator::from))
+            .set_accelerator(accelerator.map(MenuAccelerator::Physical))
     }
 
     /// Set this icon menu item accelerator using a [`KeyAccelerator`].
     ///
     /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
     pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_key_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_accelerator(accelerator.map(MenuAccelerator::Logical))
     }
 
     /// Change this menu item icon or remove it.

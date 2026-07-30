@@ -73,7 +73,7 @@ Create the menu and add your items
 let menu = Menu::new();
 let menu_item2 = MenuItem::new("Menu item #2", false, None);
 let submenu = Submenu::with_items("Submenu Outer", true,&[
-  &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD))),
+  &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Modifiers::ALT, Code::KeyD))),
   &PredefinedMenuItem::separator(),
   &menu_item2,
   &MenuItem::new("Menu item #3", true, None),

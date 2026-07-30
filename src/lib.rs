@@ -85,7 +85,7 @@
 //!         &MenuItem::new(
 //!             "Menu item #1",
 //!             true,
-//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
+//!             Some(Accelerator::new(Modifiers::ALT, Code::KeyD)),
 //!         ),
 //!         &PredefinedMenuItem::separator(),
 //!         &menu_item2,

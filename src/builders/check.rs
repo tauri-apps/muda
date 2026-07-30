@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    accelerator::{Accelerator, KeyAccelerator},
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     CheckMenuItem, MenuId,
 };
 
@@ -13,7 +13,7 @@ pub struct CheckMenuItemBuilder {
     text: String,
     enabled: bool,
     checked: bool,
-    key_accelerator: Option<KeyAccelerator>,
+    accelerator: Option<MenuAccelerator>,
     id: Option<MenuId>,
 }
 
@@ -58,10 +58,9 @@ impl CheckMenuItemBuilder {
     where
         crate::Error: From<<A as TryInto<Accelerator>>::Error>,
     {
-        self.key_accelerator = accelerator
-            .map(|a| a.try_into())
-            .transpose()?
-            .map(KeyAccelerator::from);
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Physical))
+            .transpose()?;
         Ok(self)
     }
 
@@ -75,7 +74,9 @@ impl CheckMenuItemBuilder {
     where
         crate::Error: From<<A as TryInto<KeyAccelerator>>::Error>,
     {
-        self.key_accelerator = accelerator.map(|a| a.try_into()).transpose()?;
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Logical))
+            .transpose()?;
         Ok(self)
     }
 
@@ -86,8 +87,13 @@ impl CheckMenuItemBuilder {
         } else {
             CheckMenuItem::new(self.text, self.enabled, self.checked, None)
         };
-        if let Some(key_accel) = self.key_accelerator {
-            let _ = item.set_key_accelerator(Some(key_accel));
+        if let Some(accelerator) = self.accelerator {
+            let _ = match accelerator {
+                MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
+                MenuAccelerator::Logical(accelerator) => {
+                    item.set_key_accelerator(Some(accelerator))
+                }
+            };
         }
         item
     }

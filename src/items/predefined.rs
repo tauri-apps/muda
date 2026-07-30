@@ -5,11 +5,10 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    accelerator::{Accelerator, CMD_OR_CTRL},
+    accelerator::{Accelerator, Code, MenuAccelerator, Modifiers, CMD_OR_CTRL},
     sealed::IsMenuItemBase,
     AboutMetadata, IsMenuItem, MenuId, MenuItemKind,
 };
-use keyboard_types::{Code, Modifiers};
 
 /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
@@ -315,46 +314,48 @@ impl PredefinedMenuItemType {
         }
     }
 
-    pub(crate) fn accelerator(&self) -> Option<Accelerator> {
+    pub(crate) fn accelerator(&self) -> Option<MenuAccelerator> {
         match self {
-            PredefinedMenuItemType::Copy => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyC)),
-            PredefinedMenuItemType::Cut => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyX)),
-            PredefinedMenuItemType::Paste => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyV)),
-            PredefinedMenuItemType::Undo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyZ)),
+            PredefinedMenuItemType::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
+            PredefinedMenuItemType::Cut => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyX)),
+            PredefinedMenuItemType::Paste => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyV)),
+            PredefinedMenuItemType::Undo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyZ)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemType::Redo => Some(Accelerator::new(
-                Some(CMD_OR_CTRL | Modifiers::SHIFT),
+            PredefinedMenuItemType::Redo => Some(physical_accelerator(
+                CMD_OR_CTRL | Modifiers::SHIFT,
                 Code::KeyZ,
             )),
             #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemType::Redo => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyY)),
+            PredefinedMenuItemType::Redo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyY)),
             PredefinedMenuItemType::SelectAll => {
-                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyA))
+                Some(physical_accelerator(CMD_OR_CTRL, Code::KeyA))
             }
-            PredefinedMenuItemType::Minimize => {
-                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyM))
-            }
+            PredefinedMenuItemType::Minimize => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyM)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemType::Fullscreen => Some(Accelerator::new(
-                Some(Modifiers::META | Modifiers::CONTROL),
+            PredefinedMenuItemType::Fullscreen => Some(physical_accelerator(
+                Modifiers::META | Modifiers::CONTROL,
                 Code::KeyF,
             )),
-            PredefinedMenuItemType::Hide => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyH)),
-            PredefinedMenuItemType::HideOthers => Some(Accelerator::new(
-                Some(CMD_OR_CTRL | Modifiers::ALT),
+            PredefinedMenuItemType::Hide => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyH)),
+            PredefinedMenuItemType::HideOthers => Some(physical_accelerator(
+                CMD_OR_CTRL | Modifiers::ALT,
                 Code::KeyH,
             )),
             #[cfg(target_os = "macos")]
             PredefinedMenuItemType::CloseWindow => {
-                Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyW))
+                Some(physical_accelerator(CMD_OR_CTRL, Code::KeyW))
             }
             #[cfg(not(target_os = "macos"))]
             PredefinedMenuItemType::CloseWindow => {
-                Some(Accelerator::new(Some(Modifiers::ALT), Code::F4))
+                Some(physical_accelerator(Modifiers::ALT, Code::F4))
             }
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemType::Quit => Some(Accelerator::new(Some(CMD_OR_CTRL), Code::KeyQ)),
+            PredefinedMenuItemType::Quit => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyQ)),
             _ => None,
         }
     }
+}
+
+fn physical_accelerator(modifiers: Modifiers, key: Code) -> MenuAccelerator {
+    MenuAccelerator::Physical(Accelerator::new(modifiers, key))
 }

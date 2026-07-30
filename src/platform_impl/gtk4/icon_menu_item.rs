@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{accelerator::KeyAccelerator, Icon};
+use crate::{accelerator::MenuAccelerator, Icon};
 
 use super::mnemonic::to_gtk_mnemonic;
 
@@ -46,12 +46,12 @@ glib::wrapper! {
 }
 
 impl IconMenuItem {
-    pub fn new(
+    pub(super) fn new(
         text: &str,
         detailed_action: &str,
         icon: Option<&Icon>,
         native_icon: Option<&str>,
-        key_accelerator: Option<&KeyAccelerator>,
+        accelerator: Option<&MenuAccelerator>,
     ) -> Self {
         let item: Self = glib::Object::new();
         item.set_has_frame(false);
@@ -102,7 +102,7 @@ impl IconMenuItem {
         } else {
             item.set_native_icon(native_icon);
         }
-        item.set_key_accelerator(key_accelerator);
+        item.set_accelerator(accelerator);
 
         item
     }
@@ -140,12 +140,12 @@ impl IconMenuItem {
         image.set_icon_name(icon);
     }
 
-    pub fn set_key_accelerator(&self, key_accelerator: Option<&KeyAccelerator>) {
+    pub(super) fn set_accelerator(&self, accelerator: Option<&MenuAccelerator>) {
         let Some(accelerator_label) = self.imp().accelerator_label.get() else {
             return;
         };
 
-        let accelerator = key_accelerator.and_then(|accelerator| {
+        let accelerator = accelerator.and_then(|accelerator| {
             let (key, mods) = gtk::accelerator_parse(accelerator.to_gtk()?)?;
             let label = gtk::accelerator_get_label(key, mods);
             (!label.is_empty()).then_some(label)
