@@ -100,7 +100,7 @@ fn main() {
         "custom-i-1",
         "C&ustom 1",
         true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
     );
 
     let image_item = IconMenuItem::with_id(
@@ -108,7 +108,7 @@ fn main() {
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
     );
     let native_icon_item = IconMenuItem::with_id_and_native_icon(
         "native-icon-1",
@@ -127,7 +127,7 @@ fn main() {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);

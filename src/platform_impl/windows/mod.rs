@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod accelerator;
 mod dark_menu_bar;
 mod icon;
 mod util;
@@ -11,7 +10,7 @@ use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 
 use crate::{
-    accelerator::KeyAccelerator,
+    accelerator::MenuAccelerator,
     dpi::Position,
     icon::Icon,
     items::PredefinedMenuItemType,
@@ -482,7 +481,7 @@ pub(crate) struct MenuChild {
     // menu item fields
     internal_id: u32,
     id: MenuId,
-    accelerator: Option<KeyAccelerator>,
+    accelerator: Option<MenuAccelerator>,
 
     // predefined menu item fields
     predefined_item_type: Option<PredefinedMenuItemType>,
@@ -522,7 +521,7 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -533,7 +532,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator: key_accelerator,
+            accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -576,7 +575,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: MenuId::new(internal_id.to_string()),
-            accelerator: item_type.accelerator().map(Into::into),
+            accelerator: item_type.accelerator(),
             predefined_item_type: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
             icon: None,
@@ -592,7 +591,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -603,7 +602,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator: key_accelerator,
+            accelerator,
             checked,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
@@ -619,7 +618,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -630,7 +629,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator: key_accelerator,
+            accelerator,
             icon,
             native_icon: None,
             root_menu_haccel_stores: HashMap::new(),
@@ -646,7 +645,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         native_icon: Option<NativeIcon>,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         let internal_id = COUNTER.next();
@@ -657,7 +656,7 @@ impl MenuChild {
             parents_hemnu: Vec::new(),
             internal_id,
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
-            accelerator: key_accelerator,
+            accelerator,
             root_menu_haccel_stores: HashMap::new(),
             predefined_item_type: None,
             icon: None,
@@ -763,10 +762,7 @@ impl MenuChild {
         }
     }
 
-    pub fn set_key_accelerator(
-        &mut self,
-        accelerator: Option<KeyAccelerator>,
-    ) -> crate::Result<()> {
+    pub fn set_accelerator(&mut self, accelerator: Option<MenuAccelerator>) -> crate::Result<()> {
         self.accelerator = accelerator;
         self.set_text(&self.text.clone());
 
@@ -1116,7 +1112,7 @@ impl AccelAction {
     fn add(
         haccel_store: &mut RefMut<AccelWrapper>,
         id: u32,
-        accelerator: &KeyAccelerator,
+        accelerator: &MenuAccelerator,
     ) -> crate::Result<()> {
         let accel = accelerator.to_accel(id as _)?;
         haccel_store.1.insert(id, Accel(accel));

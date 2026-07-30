@@ -113,7 +113,7 @@ fn main() -> wry::Result<()> {
 
     let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
     custom_i_1.set_key_accelerator(Some(KeyAccelerator::new(
-        Some(Modifiers::CONTROL),
+        Modifiers::CONTROL,
         Key::Character("+".into()),
     )));
 
@@ -121,7 +121,7 @@ fn main() -> wry::Result<()> {
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
     );
     let native_icon_item =
         IconMenuItem::with_native_icon("Native icon", true, Some(NativeIcon::Folder), None);
@@ -132,7 +132,7 @@ fn main() -> wry::Result<()> {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);

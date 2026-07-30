@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    accelerator::{Accelerator, KeyAccelerator},
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     IconMenuItem, MenuId,
 };
@@ -14,7 +14,7 @@ pub struct IconMenuItemBuilder {
     text: String,
     enabled: bool,
     id: Option<MenuId>,
-    key_accelerator: Option<KeyAccelerator>,
+    accelerator: Option<MenuAccelerator>,
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
 }
@@ -85,10 +85,9 @@ impl IconMenuItemBuilder {
     where
         crate::Error: From<<A as TryInto<Accelerator>>::Error>,
     {
-        self.key_accelerator = accelerator
-            .map(|a| a.try_into())
-            .transpose()?
-            .map(KeyAccelerator::from);
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Physical))
+            .transpose()?;
         Ok(self)
     }
 
@@ -102,7 +101,9 @@ impl IconMenuItemBuilder {
     where
         crate::Error: From<<A as TryInto<KeyAccelerator>>::Error>,
     {
-        self.key_accelerator = accelerator.map(|a| a.try_into()).transpose()?;
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Logical))
+            .transpose()?;
         Ok(self)
     }
 
@@ -125,8 +126,13 @@ impl IconMenuItemBuilder {
         } else {
             IconMenuItem::with_native_icon(self.text, self.enabled, self.native_icon, None)
         };
-        if let Some(key_accel) = self.key_accelerator {
-            let _ = item.set_key_accelerator(Some(key_accel));
+        if let Some(accelerator) = self.accelerator {
+            let _ = match accelerator {
+                MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
+                MenuAccelerator::Logical(accelerator) => {
+                    item.set_key_accelerator(Some(accelerator))
+                }
+            };
         }
         item
     }

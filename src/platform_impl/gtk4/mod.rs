@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-mod accelerator;
 mod icon;
 mod icon_menu_item;
 mod mnemonic;
@@ -20,7 +19,7 @@ use icon_menu_item::IconMenuItem;
 use mnemonic::to_gtk_mnemonic;
 
 use crate::{
-    accelerator::KeyAccelerator,
+    accelerator::MenuAccelerator,
     util::{AddOp, Counter},
     AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
     PredefinedMenuItemType,
@@ -491,7 +490,7 @@ pub struct MenuChild {
     action_name: String,
     text: String,
     enabled: bool,
-    key_accelerator: Option<KeyAccelerator>,
+    accelerator: Option<MenuAccelerator>,
 
     checked: bool,
 
@@ -518,7 +517,7 @@ impl MenuChild {
             checked: false,
             icon: None,
             native_icon: None,
-            key_accelerator: None,
+            accelerator: None,
             type_: MenuItemType::Submenu,
             predefined_item_type: None,
             ctx_menu_id: COUNTER.next() as GtkId,
@@ -743,7 +742,7 @@ impl MenuChild {
     pub fn new(
         text: &str,
         enabled: bool,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -751,7 +750,7 @@ impl MenuChild {
             action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
-            key_accelerator,
+            accelerator,
             icon: None,
             native_icon: None,
             checked: false,
@@ -775,7 +774,7 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+        if let Some(accelerator) = self.accelerator.as_ref().and_then(|a| a.to_gtk()) {
             app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
@@ -842,25 +841,22 @@ impl MenuChild {
         }
     }
 
-    pub fn set_key_accelerator(
-        &mut self,
-        key_accelerator: Option<KeyAccelerator>,
-    ) -> crate::Result<()> {
+    pub fn set_accelerator(&mut self, accelerator: Option<MenuAccelerator>) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
-        let accelerator = key_accelerator.as_ref().and_then(|a| a.to_gtk());
+        let gtk_accelerator = accelerator.as_ref().and_then(|a| a.to_gtk());
 
         for item in self.instances.values().flat_map(|v| v.iter()) {
-            if let Some(accelerator) = accelerator.as_ref() {
+            if let Some(accelerator) = gtk_accelerator.as_ref() {
                 let app = item.application();
                 app.set_accels_for_action(&detailed_action, &[accelerator]);
             }
         }
 
-        self.key_accelerator = key_accelerator;
+        self.accelerator = accelerator;
 
         if self.type_ == MenuItemType::Icon {
-            let key_accelerator = self.key_accelerator.as_ref();
-            self.for_each_icon_item(|widget| widget.set_key_accelerator(key_accelerator));
+            let accelerator = self.accelerator.as_ref();
+            self.for_each_icon_item(|widget| widget.set_accelerator(accelerator));
         }
 
         Ok(())
@@ -997,7 +993,7 @@ impl MenuChild {
 
 impl MenuChild {
     pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
-        let key_accelerator = item_type.accelerator().map(Into::into);
+        let accelerator = item_type.accelerator();
         let enabled = item_type.is_supported_on_gtk4();
 
         Self {
@@ -1005,7 +1001,7 @@ impl MenuChild {
             action_name: format!("item-{}", COUNTER.next()),
             text: text.unwrap_or_else(|| item_type.text().to_string()),
             enabled,
-            key_accelerator,
+            accelerator,
             icon: None,
             native_icon: None,
             checked: false,
@@ -1043,7 +1039,7 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+        if let Some(accelerator) = self.accelerator.as_ref().and_then(|a| a.to_gtk()) {
             app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
@@ -1119,7 +1115,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         checked: bool,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -1127,7 +1123,7 @@ impl MenuChild {
             action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
-            key_accelerator,
+            accelerator,
             icon: None,
             native_icon: None,
             checked,
@@ -1151,7 +1147,7 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_item(&self.text, &detailed_action, id);
 
-        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+        if let Some(accelerator) = self.accelerator.as_ref().and_then(|a| a.to_gtk()) {
             app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
@@ -1215,7 +1211,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         icon: Option<Icon>,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -1223,7 +1219,7 @@ impl MenuChild {
             action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
-            key_accelerator,
+            accelerator,
             icon,
             native_icon: None,
             checked: false,
@@ -1240,7 +1236,7 @@ impl MenuChild {
         text: &str,
         enabled: bool,
         native_icon: Option<NativeIcon>,
-        key_accelerator: Option<KeyAccelerator>,
+        accelerator: Option<MenuAccelerator>,
         id: Option<MenuId>,
     ) -> Self {
         Self {
@@ -1248,7 +1244,7 @@ impl MenuChild {
             action_name: format!("item-{}", COUNTER.next()),
             text: text.to_string(),
             enabled,
-            key_accelerator,
+            accelerator,
             icon: None,
             native_icon,
             checked: false,
@@ -1273,7 +1269,7 @@ impl MenuChild {
         let id = COUNTER.next() as GtkId;
         let item = gio_custom_item(Some(&self.text), Some(&detailed_action), id);
 
-        if let Some(accelerator) = self.key_accelerator.as_ref().and_then(|a| a.to_gtk()) {
+        if let Some(accelerator) = self.accelerator.as_ref().and_then(|a| a.to_gtk()) {
             app.set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
@@ -1294,7 +1290,7 @@ impl MenuChild {
             &detailed_action,
             self.icon.as_ref(),
             self.native_icon.as_ref().map(NativeIcon::gtk_icon_name),
-            self.key_accelerator.as_ref(),
+            self.accelerator.as_ref(),
         );
 
         let widget = GtkCustomWidget::new(widget.clone(), parent_widget);
