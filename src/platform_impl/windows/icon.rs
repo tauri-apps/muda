@@ -131,7 +131,7 @@ impl WinIcon {
         rgba_icon.into_windows_icon()
     }
 
-    fn from_handle(handle: HICON) -> Self {
+    pub(crate) fn from_handle(handle: HICON) -> Self {
         Self {
             #[allow(clippy::arc_with_non_send_sync)]
             inner: Arc::new(RaiiIcon { handle }),

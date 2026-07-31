@@ -19,13 +19,13 @@ jobs:
       successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN  }}
-        
+
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
@@ -42,9 +42,13 @@ jobs:
           createRelease: true
           recognizeContributors: true
 
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
+
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: tauri-apps/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: Apply Version Updates From Current Changes
@@ -52,3 +56,4 @@ jobs:
           labels: 'version updates'
           branch: 'release'
           body: ${{ steps.covector.outputs.change }}
+          sign-commits: true

@@ -80,7 +80,7 @@ mod constructors {
 
     impl RgbaIcon {
         pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-            if rgba.len() % PIXEL_SIZE != 0 {
+            if !rgba.len().is_multiple_of(PIXEL_SIZE) {
                 return Err(BadIcon::ByteCountNotDivisibleBy4 {
                     byte_count: rgba.len(),
                 });
@@ -171,12 +171,17 @@ impl Icon {
     }
 }
 
-/// A native Icon to be used for the menu item
+/// A native icon to be used for menu items.
 ///
-/// ## Platform-specific:
+/// Known variants use platform-native icon names or identifiers where an equivalent exists.
+/// Use [`NativeIcon::Raw`] for a platform-specific value:
 ///
-/// - **Windows / Linux**: Unsupported.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// - **macOS / GTK 3 / GTK 4**: a native icon name string.
+/// - **Windows**: a [`SHSTOCKICONID`] value.
+///
+/// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(windows, derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NativeIcon {
     /// An add item template image.
@@ -267,13 +272,13 @@ pub enum NativeIcon {
     Slideshow,
     /// A badge for a `smart` item.
     SmartBadge,
-    /// Small green indicator, similar to iChat’s available image.
+    /// Small green indicator, similar to iChat's available image.
     StatusAvailable,
     /// Small clear indicator.
     StatusNone,
-    /// Small yellow indicator, similar to iChat’s idle image.
+    /// Small yellow indicator, similar to iChat's idle image.
     StatusPartiallyAvailable,
-    /// Small red indicator, similar to iChat’s unavailable image.
+    /// Small red indicator, similar to iChat's unavailable image.
     StatusUnavailable,
     /// A stop progress template image.
     StopProgressFreestanding,
@@ -291,4 +296,45 @@ pub enum NativeIcon {
     UserGroup,
     /// Permissions for guests.
     UserGuest,
+    /// A platform-specific native icon value.
+    #[cfg(windows)]
+    Raw(windows_sys::Win32::UI::Shell::SHSTOCKICONID),
+    /// A platform-specific native icon name.
+    #[cfg(not(windows))]
+    Raw(String),
+}
+
+impl NativeIcon {
+    /// Creates a native icon from a Windows `SHSTOCKICONID`.
+    #[cfg(windows)]
+    pub fn from_id(id: windows_sys::Win32::UI::Shell::SHSTOCKICONID) -> Self {
+        Self::Raw(id)
+    }
+
+    /// Creates a native icon from a platform icon name.
+    #[cfg(not(windows))]
+    pub fn from_name<S: Into<String>>(icon: S) -> Self {
+        Self::Raw(icon.into())
+    }
+}
+
+#[cfg(windows)]
+impl From<windows_sys::Win32::UI::Shell::SHSTOCKICONID> for NativeIcon {
+    fn from(id: windows_sys::Win32::UI::Shell::SHSTOCKICONID) -> Self {
+        Self::from_id(id)
+    }
+}
+
+#[cfg(not(windows))]
+impl From<String> for NativeIcon {
+    fn from(icon: String) -> Self {
+        Self::from_name(icon)
+    }
+}
+
+#[cfg(not(windows))]
+impl From<&str> for NativeIcon {
+    fn from(icon: &str) -> Self {
+        Self::from_name(icon)
+    }
 }

@@ -6,11 +6,19 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
-use tao::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
+use tao::platform::macos::WindowExtMacOS;
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
@@ -36,8 +44,6 @@ fn main() {
             }
         });
     }
-    #[cfg(target_os = "macos")]
-    event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build();
 
@@ -76,12 +82,16 @@ fn main() {
     let custom_i_1 = MenuItem::new(
         "C&ustom 1",
         true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "../../icon.png");
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
     let icon = load_icon(std::path::Path::new(path));
+
     let image_item = IconMenuItem::new("Image Custom 1", true, Some(icon), None);
+
+    let native_icon_item =
+        IconMenuItem::with_native_icon("Native Icon", true, Some(NativeIcon::Folder), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -89,7 +99,7 @@ fn main() {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);
@@ -99,6 +109,7 @@ fn main() {
     file_m.append_items(&[
         &custom_i_1,
         &image_item,
+        &native_icon_item,
         &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
@@ -128,13 +139,13 @@ fn main() {
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
-    {
+    unsafe {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
         if let RawWindowHandle::Win32(handle) = window2.window_handle().unwrap().as_raw() {
-            menu_bar.init_for_hwnd(handle.hwnd.get());
+            menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
     }
     #[cfg(target_os = "macos")]
@@ -206,15 +217,27 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
-            menu.show_context_menu_for_hwnd(handle.hwnd.get(), position);
+            unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
+
     #[cfg(target_os = "macos")]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };
         }
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     }
 }
 

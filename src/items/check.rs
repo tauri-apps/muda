@@ -10,7 +10,11 @@ use std::sync::Arc;
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
 use arc_swap::ArcSwap;
 
-use crate::{accelerator::Accelerator, sealed::IsMenuItemBase, IsMenuItem, MenuId, MenuItemKind};
+use crate::{
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
+    sealed::IsMenuItemBase,
+    IsMenuItem, MenuId, MenuItemKind,
+};
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
 /// and usually contains a text and a check mark or a similar toggle
@@ -65,20 +69,20 @@ impl CheckMenuItem {
         checked: bool,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let inner = crate::platform_impl::MenuChild::new_check(
+        let item = crate::platform_impl::MenuChild::new_check(
             text.as_ref(),
             enabled,
             checked,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             None,
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
-            id: Rc::new(inner.id().clone()),
-            inner: Rc::new(RefCell::new(inner)),
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -96,20 +100,20 @@ impl CheckMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
-        let inner = crate::platform_impl::MenuChild::new_check(
+        let item = crate::platform_impl::MenuChild::new_check(
             text.as_ref(),
             enabled,
             checked,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             Some(id.clone()),
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
             id: Rc::new(id),
-            inner: Rc::new(RefCell::new(inner)),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -157,8 +161,21 @@ impl CheckMenuItem {
     }
 
     /// Set this check menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_accelerator(accelerator.map(MenuAccelerator::Physical))
+    }
+
+    /// Set this check menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner
+            .borrow_mut()
+            .set_accelerator(accelerator.map(MenuAccelerator::Logical))
     }
 
     /// Get whether this check menu item is checked or not.
@@ -168,23 +185,14 @@ impl CheckMenuItem {
 
     /// Check or Uncheck this check menu item.
     pub fn set_checked(&self, checked: bool) {
-        #[cfg(target_os = "macos")]
-        {
-            let inner = self.inner.borrow();
-            inner.set_checked(checked);
-        }
+        let mut inner = self.inner.borrow_mut();
+        inner.set_checked(checked);
 
-        #[cfg(not(target_os = "macos"))]
-        {
-            let mut inner = self.inner.borrow_mut();
-            inner.set_checked(checked);
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
 
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            {
-                self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
-                crate::send_menu_update();
-            }
-        }
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 
     /// Convert this menu item into its menu ID.

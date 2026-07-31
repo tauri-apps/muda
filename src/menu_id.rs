@@ -20,7 +20,7 @@ impl AsRef<str> for MenuId {
 
 impl<T: ToString> From<T> for MenuId {
     fn from(value: T) -> Self {
-        Self::new(value.to_string())
+        Self(value.to_string())
     }
 }
 

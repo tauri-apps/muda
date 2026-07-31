@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{accelerator::Accelerator, CheckMenuItem, MenuId};
+use crate::{
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
+    CheckMenuItem, MenuId,
+};
 
 /// A builder type for [`CheckMenuItem`]
 #[derive(Clone, Debug, Default)]
@@ -10,7 +13,7 @@ pub struct CheckMenuItemBuilder {
     text: String,
     enabled: bool,
     checked: bool,
-    accelerator: Option<Accelerator>,
+    accelerator: Option<MenuAccelerator>,
     id: Option<MenuId>,
 }
 
@@ -46,6 +49,8 @@ impl CheckMenuItemBuilder {
     }
 
     /// Set this check menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.key_accelerator()](Self::key_accelerator))
     pub fn accelerator<A: TryInto<Accelerator>>(
         mut self,
         accelerator: Option<A>,
@@ -53,16 +58,43 @@ impl CheckMenuItemBuilder {
     where
         crate::Error: From<<A as TryInto<Accelerator>>::Error>,
     {
-        self.accelerator = accelerator.map(|a| a.try_into()).transpose()?;
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Physical))
+            .transpose()?;
+        Ok(self)
+    }
+
+    /// Set this check menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.accelerator()](Self::accelerator))
+    pub fn key_accelerator<A: TryInto<KeyAccelerator>>(
+        mut self,
+        accelerator: Option<A>,
+    ) -> crate::Result<Self>
+    where
+        crate::Error: From<<A as TryInto<KeyAccelerator>>::Error>,
+    {
+        self.accelerator = accelerator
+            .map(|a| a.try_into().map(MenuAccelerator::Logical))
+            .transpose()?;
         Ok(self)
     }
 
     /// Build this check menu item.
     pub fn build(self) -> CheckMenuItem {
-        if let Some(id) = self.id {
-            CheckMenuItem::with_id(id, self.text, self.enabled, self.checked, self.accelerator)
+        let item = if let Some(id) = self.id {
+            CheckMenuItem::with_id(id, self.text, self.enabled, self.checked, None)
         } else {
-            CheckMenuItem::new(self.text, self.enabled, self.checked, self.accelerator)
+            CheckMenuItem::new(self.text, self.enabled, self.checked, None)
+        };
+        if let Some(accelerator) = self.accelerator {
+            let _ = match accelerator {
+                MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
+                MenuAccelerator::Logical(accelerator) => {
+                    item.set_key_accelerator(Some(accelerator))
+                }
+            };
         }
+        item
     }
 }

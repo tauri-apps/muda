@@ -10,7 +10,8 @@
 //!
 //! - Windows
 //! - macOS
-//! - Linux (gtk Only)
+//! - Linux/BSD with GTK 3
+//! - Linux/BSD with GTK 4
 //!
 //! # Platform-specific notes:
 //!
@@ -21,20 +22,52 @@
 //!   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
 //!   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
 //!
-//! # Dependencies (Linux Only)
+//! # Cargo features
 //!
-//! `gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+//! - `gtk`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
+//! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
+//!   enabling this feature because the defaults include `gtk`.
+//! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
+//!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
+//!   by GTK 4.
+//!
+//! The `gtk` and `gtk4` features are mutually exclusive.
+//!
+//! # Dependencies (Linux/BSD)
+//!
+//! The `gtk` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
+//! only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll`
+//! menu items work when the `libxdo` feature is enabled. Be sure to install the packages for the
+//! GTK backend you enabled before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
+//! # GTK 3 backend
 //! pacman -S gtk3 xdotool
+//!
+//! # GTK 4 backend
+//! pacman -S gtk4
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
+//! # GTK 3 backend
 //! sudo apt install libgtk-3-dev libxdo-dev
+//!
+//! # GTK 4 backend
+//! sudo apt install libgtk-4-dev
+//! ```
+//!
+//! #### FreeBSD:
+//!
+//! ```sh
+//! # GTK 3 backend
+//! pkg install -y rust glib pkgconf gtk3 xdotool
+//!
+//! # GTK 4 backend
+//! pkg install -y rust glib pkgconf gtk4
 //! ```
 //!
 //! # Example
@@ -52,7 +85,7 @@
 //!         &MenuItem::new(
 //!             "Menu item #1",
 //!             true,
-//!             Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD)),
+//!             Some(Accelerator::new(Modifiers::ALT, Code::KeyD)),
 //!         ),
 //!         &PredefinedMenuItem::separator(),
 //!         &menu_item2,
@@ -71,20 +104,40 @@
 //! );
 //! ```
 //!
-//! Then add your root menu to a Window on Windows and Linux
+//! Then add your root menu to a window on Windows, GTK 3, or GTK 4
 //! or use it as your global app menu on macOS
 //!
 //! ```no_run
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(target_os = "linux")]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
@@ -92,13 +145,21 @@
 //!
 //! # Context menus (Popup menus)
 //!
-//! You can also use a [`Menu`] or a [`Submenu`] show a context menu.
+//! You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
 //!
 //! ```no_run
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(target_os = "linux")]
+//! # #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
@@ -106,7 +167,13 @@
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(target_os = "linux")]
+//! #[cfg(any(
+//!     target_os = "linux",
+//!     target_os = "dragonfly",
+//!     target_os = "freebsd",
+//!     target_os = "netbsd",
+//!     target_os = "openbsd"
+//! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
@@ -153,6 +220,21 @@
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
 
+#[cfg(all(feature = "gtk", feature = "gtk4"))]
+compile_error!("features `gtk` and `gtk4` cannot be enabled together");
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+extern crate gtk4 as gtk;
+
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
@@ -184,7 +266,7 @@ pub use items::*;
 pub use menu::*;
 pub use menu_id::MenuId;
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "gtk"))]
 pub use platform_impl::AboutDialog;
 
 use platform_impl::MenuChild;
@@ -303,7 +385,8 @@ impl MenuItemKind {
         }
     }
 
-    /// Get the menu items inner value
+    /// Get the menu item's inner value.
+    #[allow(dead_code)]
     pub(crate) fn inner(&self) -> Rc<RefCell<MenuChild>> {
         match self {
             MenuItemKind::MenuItem(i) => i.inner.clone(),
@@ -329,20 +412,15 @@ mod sealed {
     pub trait IsMenuItemBase {}
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum MenuItemType {
+    #[default]
     MenuItem,
     Submenu,
     Predefined,
     Check,
     Icon,
-}
-
-impl Default for MenuItemType {
-    fn default() -> Self {
-        Self::MenuItem
-    }
 }
 
 /// A helper trait with methods to help creating a context menu.
@@ -372,7 +450,7 @@ pub trait ContextMenu {
     ) -> bool;
 
     /// Attach the menu subclass handler to the given hwnd
-    /// so you can recieve events from that window using [MenuEvent::receiver]
+    /// so you can receive events from that window using [MenuEvent::receiver]
     ///
     /// This can be used along with [`ContextMenu::hpopupmenu`] when implementing a tray icon menu.
     ///
@@ -392,25 +470,58 @@ pub trait ContextMenu {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
-    /// Shows this menu as a context menu inside a [`gtk::Window`]
+    /// Shows this menu as a context menu inside a [`gtk::Window`].
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
     ///
     /// Returns `true` if menu tracking ended because an item was selected or clicked outside the menu to dismiss it.
     ///
     /// Returns `false` if menu tracking was cancelled for any reason.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        any(feature = "gtk", feature = "gtk4")
+    ))]
     fn show_context_menu_for_gtk_window(
         &self,
         w: &gtk::Window,
         position: Option<dpi::Position>,
     ) -> bool;
 
-    /// Get the underlying gtk menu reserved for context menus.
+    /// Get the underlying GTK 3 menu reserved for context menus.
     ///
     /// The returned [`gtk::Menu`] is valid as long as the `ContextMenu` is.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
     fn gtk_context_menu(&self) -> gtk::Menu;
+
+    /// Get the underlying GTK 4 popover menu reserved for context menus.
+    ///
+    /// The returned [`gtk::PopoverMenu`] is valid as long as the `ContextMenu` is.
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
     /// Get all menu items within this context menu.
     #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
@@ -438,6 +549,26 @@ pub trait ContextMenu {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
+    fn as_menu(&self) -> Option<&Menu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Menu`], and panics if it wasn't.
+    fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Cast this context menu to a [`Submenu`], and returns `None` if it wasn't.
+    fn as_submenu(&self) -> Option<&Submenu> {
+        None
+    }
+
+    /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
+    fn as_submenu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Submenu")
+    }
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -448,7 +579,7 @@ pub struct MenuEvent {
     pub id: MenuId,
 }
 
-/// A reciever that could be used to listen to menu events.
+/// A receiver that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 

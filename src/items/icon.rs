@@ -11,7 +11,7 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 
 use crate::{
-    accelerator::Accelerator,
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     sealed::IsMenuItemBase,
     IsMenuItem, MenuId, MenuItemKind,
@@ -73,20 +73,20 @@ impl IconMenuItem {
         icon: Option<Icon>,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let inner = crate::platform_impl::MenuChild::new_icon(
+        let item = crate::platform_impl::MenuChild::new_icon(
             text.as_ref(),
             enabled,
             icon,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             None,
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
-            id: Rc::new(inner.id().clone()),
-            inner: Rc::new(RefCell::new(inner)),
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -104,20 +104,20 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
-        let inner = crate::platform_impl::MenuChild::new_icon(
+        let item = crate::platform_impl::MenuChild::new_icon(
             text.as_ref(),
             enabled,
             icon,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             Some(id.clone()),
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
             id: Rc::new(id),
-            inner: Rc::new(RefCell::new(inner)),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -127,29 +127,42 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_native_icon<S: AsRef<str>>(
         text: S,
         enabled: bool,
         native_icon: Option<NativeIcon>,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let inner = crate::platform_impl::MenuChild::new_native_icon(
+        let item = crate::platform_impl::MenuChild::new_native_icon(
             text.as_ref(),
             enabled,
             native_icon,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             None,
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
-            id: Rc::new(inner.id().clone()),
-            inner: Rc::new(RefCell::new(inner)),
+            id: Rc::new(item.id().clone()),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -159,9 +172,22 @@ impl IconMenuItem {
     ///
     /// See [`IconMenuItem::new`] for more info.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn with_id_and_native_icon<I: Into<MenuId>, S: AsRef<str>>(
         id: I,
         text: S,
@@ -170,20 +196,20 @@ impl IconMenuItem {
         accelerator: Option<Accelerator>,
     ) -> Self {
         let id = id.into();
-        let inner = crate::platform_impl::MenuChild::new_native_icon(
+        let item = crate::platform_impl::MenuChild::new_native_icon(
             text.as_ref(),
             enabled,
             native_icon,
-            accelerator,
+            accelerator.map(MenuAccelerator::Physical),
             Some(id.clone()),
         );
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&inner);
+        let compat = Self::compat_menu_item(&item);
 
         Self {
             id: Rc::new(id),
-            inner: Rc::new(RefCell::new(inner)),
+            inner: Rc::new(RefCell::new(item)),
             #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
             compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
@@ -194,14 +220,14 @@ impl IconMenuItem {
         &self.id
     }
 
-    /// Get the text for this icon menu item.
+    /// Get the text for this check menu item.
     pub fn text(&self) -> String {
         self.inner.borrow().text()
     }
 
-    /// Set the text for this icon menu item. `text` could optionally contain
+    /// Set the text for this check menu item. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
-    /// for this icon menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+    /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         let mut inner = self.inner.borrow_mut();
         inner.set_text(text.as_ref());
@@ -213,12 +239,12 @@ impl IconMenuItem {
         crate::send_menu_update();
     }
 
-    /// Get whether this icon menu item is enabled or not.
+    /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
         self.inner.borrow().is_enabled()
     }
 
-    /// Enable or disable this icon menu item.
+    /// Enable or disable this check menu item.
     pub fn set_enabled(&self, enabled: bool) {
         let mut inner = self.inner.borrow_mut();
         inner.set_enabled(enabled);
@@ -231,8 +257,21 @@ impl IconMenuItem {
     }
 
     /// Set this icon menu item accelerator.
+    ///
+    /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner.borrow_mut().set_accelerator(accelerator)
+        self.inner
+            .borrow_mut()
+            .set_accelerator(accelerator.map(MenuAccelerator::Physical))
+    }
+
+    /// Set this icon menu item accelerator using a [`KeyAccelerator`].
+    ///
+    /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
+    pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
+        self.inner
+            .borrow_mut()
+            .set_accelerator(accelerator.map(MenuAccelerator::Logical))
     }
 
     /// Get the icon for this icon menu item.
@@ -254,12 +293,31 @@ impl IconMenuItem {
 
     /// Change this menu item icon to a native image or remove it.
     ///
-    /// ## Platform-specific:
+    /// ## Platform-specific
     ///
-    /// - **Windows / Linux**: Unsupported.
-    pub fn set_native_icon(&self, _icon: Option<NativeIcon>) {
-        #[cfg(target_os = "macos")]
-        self.inner.borrow_mut().set_native_icon(_icon);
+    /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
+    ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
+    /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an icon theme name resolved by
+    ///   `GtkIconTheme` ([GTK 3][gtk3-icon-theme], [GTK 4][gtk4-icon-theme]).
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name-swift.typealias
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
+    /// [gtk3-icon-theme]: https://docs.gtk.org/gtk3/class.IconTheme.html
+    /// [gtk4-icon-theme]: https://docs.gtk.org/gtk4/class.IconTheme.html
+    /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
+        let mut inner = self.inner.borrow_mut();
+        inner.set_native_icon(icon);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 
     /// Convert this menu item into its menu ID.

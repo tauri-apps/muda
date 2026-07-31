@@ -6,14 +6,20 @@
 use std::rc::Rc;
 
 use muda::{
-    accelerator::{Accelerator, Code, Modifiers},
+    accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
     dpi::Position,
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -22,9 +28,15 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use wry::WebViewBuilderExtUnix;
-use wry::{http::Request, WebViewBuilder};
+use wry::{http::Request, WebView, WebViewBuilder};
 
 enum UserEvent {
     MenuEvent(muda::MenuEvent),
@@ -86,28 +98,33 @@ fn main() -> wry::Result<()> {
             .unwrap();
     }
 
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+
+    window_m.set_icon(Some(icon.clone()));
 
     menu_bar
         .append_items(&[&file_m, &edit_m, &window_m])
         .unwrap();
 
-    let custom_i_1 = MenuItem::new(
-        "C&ustom 1",
-        true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
-    );
+    let custom_i_1 = MenuItem::new("C&ustom 1", true, None);
+    custom_i_1.set_key_accelerator(Some(KeyAccelerator::new(
+        Modifiers::CONTROL,
+        Key::Character("+".into()),
+    )));
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-    let icon = load_icon(std::path::Path::new(path));
     let image_item = IconMenuItem::new(
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
     );
+    let native_icon_item =
+        IconMenuItem::with_native_icon("Native icon", true, Some(NativeIcon::Folder), None);
 
     let check_custom_i_1 = CheckMenuItem::new("Check Custom 1", true, true, None);
     let check_custom_i_2 = CheckMenuItem::new("Check Custom 2", false, true, None);
@@ -115,7 +132,7 @@ fn main() -> wry::Result<()> {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);
@@ -126,6 +143,7 @@ fn main() -> wry::Result<()> {
         .append_items(&[
             &custom_i_1,
             &image_item,
+            &native_icon_item,
             &window_m,
             &PredefinedMenuItem::separator(),
             &check_custom_i_1,
@@ -170,7 +188,13 @@ fn main() -> wry::Result<()> {
         menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
         menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         menu_bar
             .init_for_gtk_window(window.gtk_window(), window.default_vbox())
@@ -257,7 +281,13 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                #[cfg(target_os = "linux")]
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
                 if let Some(menu_bar) = menu_bar
                     .clone()
                     .gtk_menubar_for_gtk_window(window.gtk_window())
@@ -271,21 +301,37 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
-        #[cfg(not(target_os = "linux"))]
-        return WebViewBuilder::new(window);
-        #[cfg(target_os = "linux")]
-        WebViewBuilder::new_gtk(window.default_vbox().unwrap())
+    fn build_webview(builder: WebViewBuilder, window: &Window) -> wry::Result<WebView> {
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )))]
+        return builder.build(window);
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        builder.build_gtk(window.default_vbox().unwrap())
     };
 
-    let webview = create_webview(&window)
-        .with_html(&html)
-        .with_ipc_handler(create_ipc_handler(&window))
-        .build()?;
-    let webview2 = create_webview(&window2)
-        .with_html(html)
-        .with_ipc_handler(create_ipc_handler(&window2))
-        .build()?;
+    let webview = build_webview(
+        WebViewBuilder::new()
+            .with_html(&html)
+            .with_ipc_handler(create_ipc_handler(&window)),
+        &window,
+    )?;
+    let webview2 = build_webview(
+        WebViewBuilder::new()
+            .with_html(html)
+            .with_ipc_handler(create_ipc_handler(&window2)),
+        &window,
+    )?;
 
     let menu_channel = MenuEvent::receiver();
 
@@ -315,7 +361,13 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {

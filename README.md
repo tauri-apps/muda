@@ -8,7 +8,8 @@ Menu Utilities library for Desktop Applications.
 
 - Windows
 - macOS
-- Linux (gtk Only)
+- Linux/BSD with GTK 3
+- Linux/BSD with GTK 4
 
 ## Platform-specific notes:
 
@@ -19,23 +20,49 @@ Menu Utilities library for Desktop Applications.
 ### Cargo Features
 
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
-- `libxdo`: Enables linking to `libxdo` on Linux which is used for the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu item.
+- `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used by GTK 4.
 - `serde`: Enables de/serializing the dpi types.
+- `gtk`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
+- `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk`.
 
-## Dependencies (Linux Only)
+The `gtk` and `gtk4` features are mutually exclusive.
 
-`gtk` is used for menus and `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work. Be sure to install following packages before building:
+## Dependencies (Linux/BSD)
+
+The `gtk` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work when the `libxdo` feature is enabled.
+
+Be sure to install the packages for the GTK backend you enabled before building:
 
 #### Arch Linux / Manjaro:
 
 ```sh
+# GTK 3 backend
 pacman -S gtk3 xdotool
+
+# GTK 4 backend
+pacman -S gtk4
 ```
 
 #### Debian / Ubuntu:
 
 ```sh
+# GTK 3 backend
 sudo apt install libgtk-3-dev libxdo-dev
+
+# GTK 4 backend
+sudo apt install libgtk-4-dev
+```
+
+## Dependencies in FreeBSD
+
+Install these dependencies in order to compile `muda`. Instructions using `pkg`:
+
+```sh
+# GTK 3 backend
+pkg install -y rust glib pkgconf gtk3 xdotool
+
+# GTK 4 backend
+pkg install -y rust glib pkgconf gtk4
 ```
 
 ## Example
@@ -46,7 +73,7 @@ Create the menu and add your items
 let menu = Menu::new();
 let menu_item2 = MenuItem::new("Menu item #2", false, None);
 let submenu = Submenu::with_items("Submenu Outer", true,&[
-  &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyD))),
+  &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Modifiers::ALT, Code::KeyD))),
   &PredefinedMenuItem::separator(),
   &menu_item2,
   &MenuItem::new("Menu item #3", true, None),
@@ -60,7 +87,7 @@ let submenu = Submenu::with_items("Submenu Outer", true,&[
 
 ```
 
-Then add your root menu to a Window on Windows and Linux
+Then add your root menu to a window on Windows, GTK 3, or GTK 4
 or use it as your global app menu on macOS
 
 ```rs
@@ -75,11 +102,11 @@ menu.init_for_nsapp();
 
 ## Context menus (Popup menus)
 
-You can also use a [`Menu`] or a [`Submenu`] show a context menu.
+You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
 
 ```rs
 // --snip--
-let position = muda::PhysicalPosition { x: 100., y: 120. };
+let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 #[cfg(target_os = "windows")]
 unsafe { menu.show_context_menu_for_hwnd(window.hwnd() as isize, Some(position.into())) };
 #[cfg(target_os = "linux")]

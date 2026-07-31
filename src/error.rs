@@ -12,20 +12,62 @@ pub use crate::accelerator::AcceleratorParseError;
 pub enum Error {
     #[error("This menu item is not a child of this `Menu` or `Submenu`")]
     NotAChildOfThisMenu,
-    #[cfg(windows)]
-    #[error("This menu has not been initialized for this hwnd`")]
+    #[cfg(any(
+        windows,
+        all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "gtk", feature = "gtk4")
+        )
+    ))]
+    #[error("This menu has not been initialized")]
     NotInitialized,
-    #[cfg(target_os = "linux")]
-    #[error("This menu has not been initialized for this gtk window`")]
-    NotInitialized,
-    #[cfg(windows)]
-    #[error("This menu has already been initialized for this hwnd`")]
-    AlreadyInitialized,
-    #[cfg(target_os = "linux")]
-    #[error("This menu has already been initialized for this gtk window`")]
+    #[cfg(any(
+        windows,
+        all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "gtk", feature = "gtk4")
+        )
+    ))]
+    #[error("This menu has already been initialized")]
     AlreadyInitialized,
     #[error(transparent)]
     AcceleratorParseError(#[from] AcceleratorParseError),
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        any(feature = "gtk", feature = "gtk4")
+    ))]
+    #[error("Gtk Window doesn't have an application")]
+    GtkWindowWithoutApplication,
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        any(feature = "gtk", feature = "gtk4")
+    ))]
+    #[error("Unsupported GTK container type")]
+    UnsupportedGtkContainer,
 }
 
 /// Convenient type alias of Result type for muda.

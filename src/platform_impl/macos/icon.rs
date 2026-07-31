@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use objc2::{rc::Retained, ClassType};
+use objc2::{rc::Retained, AllocAnyThread};
 use objc2_app_kit::NSImage;
-use objc2_foundation::{CGFloat, NSData, NSSize};
+use objc2_core_foundation::CGFloat;
+use objc2_foundation::{NSData, NSSize};
 
 use crate::icon::{BadIcon, RgbaIcon};
 use std::io::Cursor;
@@ -56,7 +57,7 @@ impl PlatformIcon {
 
         let nsimage = NSImage::initWithData(NSImage::alloc(), &nsdata).unwrap();
         let new_size = NSSize::new(icon_width, icon_height);
-        unsafe { nsimage.setSize(new_size) };
+        nsimage.setSize(new_size);
 
         nsimage
     }

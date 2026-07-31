@@ -6,12 +6,18 @@
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
@@ -78,27 +84,38 @@ fn main() {
         ]);
     }
 
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+    let icon = load_icon(std::path::Path::new(path));
+
     let file_m = Submenu::new("&File", true);
     let edit_m = Submenu::new("&Edit", true);
     let window_m = Submenu::new("&Window", true);
+    let help_m = Submenu::new("&Custom Help", true);
 
-    menu_bar.append_items(&[&file_m, &edit_m, &window_m]);
+    window_m.set_icon(Some(icon.clone()));
+
+    menu_bar.append_items(&[&file_m, &edit_m, &window_m, &help_m]);
 
     let custom_i_1 = MenuItem::with_id(
         "custom-i-1",
         "C&ustom 1",
         true,
-        Some(Accelerator::new(Some(Modifiers::ALT), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::ALT, Code::KeyC)),
     );
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
-    let icon = load_icon(std::path::Path::new(path));
     let image_item = IconMenuItem::with_id(
         "image-custom-1",
         "Image custom 1",
         true,
         Some(icon),
-        Some(Accelerator::new(Some(Modifiers::CONTROL), Code::KeyC)),
+        Some(Accelerator::new(Modifiers::CONTROL, Code::KeyC)),
+    );
+    let native_icon_item = IconMenuItem::with_id_and_native_icon(
+        "native-icon-1",
+        "Native icon",
+        true,
+        Some(NativeIcon::Folder),
+        None,
     );
 
     let check_custom_i_1 =
@@ -110,7 +127,7 @@ fn main() {
         "Check Custom 3",
         true,
         true,
-        Some(Accelerator::new(Some(Modifiers::SHIFT), Code::KeyD)),
+        Some(Accelerator::new(Modifiers::SHIFT, Code::KeyD)),
     );
 
     let copy_i = PredefinedMenuItem::copy(None);
@@ -120,6 +137,7 @@ fn main() {
     file_m.append_items(&[
         &custom_i_1,
         &image_item,
+        &native_icon_item,
         &window_m,
         &PredefinedMenuItem::separator(),
         &check_custom_i_1,
@@ -146,6 +164,8 @@ fn main() {
         &custom_i_1,
     ]);
 
+    help_m.append_items(&[&MenuItem::new("Supposed to show search", true, None)]);
+
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
     #[cfg(target_os = "windows")]
@@ -153,7 +173,13 @@ fn main() {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
         menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
@@ -162,6 +188,7 @@ fn main() {
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
+        help_m.set_as_help_menu_for_nsapp();
     }
 
     let menu_channel = MenuEvent::receiver();
@@ -230,7 +257,13 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
     #[cfg(target_os = "macos")]
     unsafe {
