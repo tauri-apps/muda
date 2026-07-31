@@ -46,7 +46,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: dtolnay/rust-toolchain@1.90
+        if: matrix.platform != 'ubuntu-latest'
       - uses: dtolnay/rust-toolchain@1.92
+        if: matrix.platform == 'ubuntu-latest'
+
       - run: cargo build ${{ matrix.cargo-args }}
 
       - uses: dtolnay/rust-toolchain@stable
