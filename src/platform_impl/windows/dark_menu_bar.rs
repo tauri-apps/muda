@@ -6,7 +6,7 @@
 
 #![allow(non_snake_case, clippy::upper_case_acronyms)]
 
-use std::cell::OnceCell;
+use std::cell::Cell;
 
 use once_cell::sync::Lazy;
 use windows_sys::{
@@ -94,10 +94,7 @@ fn background_brush() -> HBRUSH {
         static BACKGROUND_BRUSH: Win32Brush = const { Win32Brush::null() };
     }
     const BACKGROUND_COLOR: u32 = 2829099;
-    static BACKGROUND_BRUSH: OnceCell<HBrush> = OnceCell::new();
-
-    let hbrush = BACKGROUND_BRUSH.get_or_init(|| HBrush(CreateSolidBrush(BACKGROUND_COLOR)));
-    hbrush.as_ref().unwrap().0
+    BACKGROUND_BRUSH.with(|brush| brush.get_or_set(BACKGROUND_COLOR))
 }
 
 fn selected_background_brush() -> HBRUSH {
@@ -105,11 +102,7 @@ fn selected_background_brush() -> HBRUSH {
         static SELECTED_BACKGROUND_BRUSH: Win32Brush = const { Win32Brush::null() };
     }
     const SELECTED_BACKGROUND_COLOR: u32 = 4276545;
-    static SELECTED_BACKGROUND_BRUSH: OnceCell<HBrush> = OnceCell::new();
-
-    let hbrush = SELECTED_BACKGROUND_BRUSH
-        .get_or_init(|| HBrush(CreateSolidBrush(SELECTED_BACKGROUND_COLOR)));
-    hbrush.as_ref().unwrap().0
+    SELECTED_BACKGROUND_BRUSH.with(|brush| brush.get_or_set(SELECTED_BACKGROUND_COLOR))
 }
 
 /// Draws a dark menu bar if needed and returns whether it draws it or not
