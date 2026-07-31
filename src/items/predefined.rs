@@ -397,7 +397,7 @@ fn test_about_metadata() {
     );
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
 pub enum PredefinedMenuItemKind {
@@ -428,13 +428,8 @@ pub enum PredefinedMenuItemKind {
     StopSpeaking,
     StartDictation,
     EmojiAndSymbols,
+    #[default]
     None,
-}
-
-impl Default for PredefinedMenuItemKind {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl PredefinedMenuItemKind {
