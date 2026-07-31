@@ -185,7 +185,11 @@ impl CheckMenuItem {
 
     /// Check or Uncheck this check menu item.
     pub fn set_checked(&self, checked: bool) {
+        #[cfg(target_os = "macos")]
+        let inner = self.inner.borrow();
+        #[cfg(not(target_os = "macos"))]
         let mut inner = self.inner.borrow_mut();
+
         inner.set_checked(checked);
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
