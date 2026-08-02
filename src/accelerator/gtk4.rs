@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use gtk4::gdk;
-use keyboard_types::{Code, Key, Modifiers};
+use keyboard_types::{Code, Key, Modifiers, NamedKey};
 
 use crate::accelerator::{Accelerator, KeyAccelerator, MenuAccelerator};
 
@@ -70,7 +70,7 @@ fn code_to_gtk(code: &Code) -> Option<String> {
 fn key_to_gtk(key: &Key) -> Option<String> {
     match key {
         Key::Character(character) => character_to_gtk(character),
-        key => gdk_key_name_to_gtk(key_to_gdk_key_name(key)?),
+        Key::Named(key) => gdk_key_name_to_gtk(key_to_gdk_named_key_name(key)?),
     }
 }
 
@@ -332,11 +332,10 @@ fn code_to_gdk_key_name(code: &Code) -> Option<&'static str> {
     Some(name)
 }
 
-fn key_to_gdk_key_name(key: &Key) -> Option<&'static str> {
-    use Key::*;
+fn key_to_gdk_named_key_name(key: &NamedKey) -> Option<&'static str> {
+    use NamedKey::*;
 
     let name = match key {
-        Character(_) | Unidentified => return None,
         Alt => "Alt_L",
         AltGraph => "ISO_Level3_Shift",
         CapsLock => "Caps_Lock",
