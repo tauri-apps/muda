@@ -587,7 +587,12 @@ impl MenuEvent {
         }
     }
 
-    pub(crate) fn send(event: MenuEvent) {
+    /// Dispatches a menu event to the handler, or to the channel returned by
+    /// [`MenuEvent::receiver`] when no handler is set.
+    ///
+    /// Menus rendered by something other than muda, such as a tray serving its
+    /// own menu over StatusNotifierItem, have to report activation themselves.
+    pub fn send(event: MenuEvent) {
         if let Some(handler) = MENU_EVENT_HANDLER.get_or_init(|| None) {
             handler(event);
         } else {
