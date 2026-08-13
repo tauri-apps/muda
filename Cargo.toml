@@ -90,7 +90,7 @@ png = "0.18"
 [dev-dependencies]
 winit = "0.30"
 tao = "0.36"
-wry = "0.55"
+wry = "0.56"
 image = { version = "0.25", default-features = false, features = ["png"] }
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",
