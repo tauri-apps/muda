@@ -2,8 +2,9 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
+    platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    IsMenuItem, MenuId, MenuItemKind,
+    util, ClickAction, IsMenuItem, MenuId, MenuItemKind,
 };
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -13,7 +14,16 @@ use crate::{
 #[derive(Clone)]
 pub struct MenuItem {
     pub(crate) id: Rc<MenuId>,
-    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    pub(crate) state: Rc<RefCell<MenuItemState>>,
+    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
+}
+
+/// Shared state of a [`MenuItem`].
+#[derive(Debug, Clone)]
+pub(crate) struct MenuItemState {
+    pub text: String,
+    pub enabled: bool,
+    pub accelerator: Option<MenuAccelerator>,
 }
 
 impl IsMenuItemBase for MenuItem {}
@@ -37,16 +47,12 @@ impl MenuItem {
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool, accelerator: Option<Accelerator>) -> Self {
-        let item = crate::platform_impl::MenuChild::new(
+        Self::new_inner(
+            None,
             text.as_ref(),
             enabled,
             accelerator.map(MenuAccelerator::Physical),
-            None,
-        );
-        Self {
-            id: Rc::new(item.id().clone()),
-            inner: Rc::new(RefCell::new(item)),
-        }
+        )
     }
 
     /// Create a new menu item with the specified id.
@@ -59,15 +65,32 @@ impl MenuItem {
         enabled: bool,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let id = id.into();
+        Self::new_inner(
+            Some(id.into()),
+            text.as_ref(),
+            enabled,
+            accelerator.map(MenuAccelerator::Physical),
+        )
+    }
+
+    fn new_inner(
+        id: Option<MenuId>,
+        text: &str,
+        enabled: bool,
+        accelerator: Option<MenuAccelerator>,
+    ) -> Self {
+        let id = util::next_id(id);
+        let state = MenuItemState {
+            text: text.to_string(),
+            enabled,
+            accelerator,
+        };
+        let platform = PlatformMenuItem::new(ClickAction::Emit(id.clone()));
+
         Self {
-            id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new(
-                text.as_ref(),
-                enabled,
-                accelerator.map(MenuAccelerator::Physical),
-                Some(id),
-            ))),
+            id: Rc::new(id),
+            state: Rc::new(RefCell::new(state)),
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 
@@ -76,44 +99,69 @@ impl MenuItem {
         &self.id
     }
 
-    /// Set the text for this menu item.
+    /// Get the text for this menu item.
     pub fn text(&self) -> String {
-        self.inner.borrow().text()
+        self.platform
+            .borrow()
+            .text()
+            .unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this menu item. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
     /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        // Shared state is written first and its guard released before the platform is called:
+        // the platform may reach back into state, and holding both at once is what B1 forbids.
+        let accelerator = {
+            let mut state = self.state.borrow_mut();
+            state.text = text.as_ref().to_string();
+            state.accelerator.clone()
+        };
+
+        self.platform
+            .borrow_mut()
+            .set_text(text.as_ref(), accelerator.as_ref())
     }
 
     /// Get whether this menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.inner.borrow().is_enabled()
+        self.platform
+            .borrow()
+            .is_enabled()
+            .unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this menu item.
     pub fn set_enabled(&self, enabled: bool) {
-        self.inner.borrow_mut().set_enabled(enabled)
+        self.state.borrow_mut().enabled = enabled;
+        self.platform.borrow_mut().set_enabled(enabled)
     }
 
     /// Set this menu item accelerator.
     ///
     /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner
-            .borrow_mut()
-            .set_accelerator(accelerator.map(MenuAccelerator::Physical))
+        self.set_accelerator_inner(accelerator.map(MenuAccelerator::Physical))
     }
 
     /// Set this menu item accelerator using a [`KeyAccelerator`].
     ///
     /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
     pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
-        self.inner
+        self.set_accelerator_inner(accelerator.map(MenuAccelerator::Logical))
+    }
+
+    fn set_accelerator_inner(&self, accelerator: Option<MenuAccelerator>) -> crate::Result<()> {
+        let text = {
+            let mut state = self.state.borrow_mut();
+            state.accelerator = accelerator.clone();
+            state.text.clone()
+        };
+
+        self.platform
             .borrow_mut()
-            .set_accelerator(accelerator.map(MenuAccelerator::Logical))
+            .set_accelerator(&text, accelerator.as_ref())
     }
 
     /// Convert this menu item into its menu ID.

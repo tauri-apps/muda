@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ops::{Deref, DerefMut};
-
 use once_cell::sync::Lazy;
 use windows_sys::{
     core::HRESULT,
@@ -15,7 +13,7 @@ use windows_sys::{
         System::LibraryLoader::{GetProcAddress, LoadLibraryW},
         UI::{
             HiDpi::{MDT_EFFECTIVE_DPI, MONITOR_DPI_TYPE},
-            WindowsAndMessaging::{IsProcessDPIAware, ACCEL},
+            WindowsAndMessaging::IsProcessDPIAware,
         },
     },
 };
@@ -35,35 +33,6 @@ pub fn decode_wide(w_str: *mut u16) -> String {
     let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(w_str) } as usize;
     let w_str_slice = unsafe { std::slice::from_raw_parts(w_str, len) };
     String::from_utf16_lossy(w_str_slice)
-}
-
-/// ACCEL wrapper to implement Debug
-#[derive(Clone)]
-#[repr(transparent)]
-pub struct Accel(pub ACCEL);
-
-impl std::fmt::Debug for Accel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ACCEL")
-            .field("key", &self.0.key)
-            .field("cmd", &self.0.cmd)
-            .field("fVirt", &self.0.fVirt)
-            .finish()
-    }
-}
-
-impl Deref for Accel {
-    type Target = ACCEL;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Accel {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 // taken from winit's code base
@@ -166,4 +135,8 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
             BASE_DPI
         }
     }
+}
+
+pub unsafe fn cast_mut<'a, T>(data: usize) -> &'a mut T {
+    unsafe { &mut *(data as *mut T) }
 }
