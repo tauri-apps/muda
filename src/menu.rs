@@ -25,6 +25,25 @@ pub(crate) struct MenuState {
     pub children: Vec<MenuItemKind>,
 }
 
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk"
+))]
+impl Drop for Menu {
+    fn drop(&mut self) {
+        if Rc::strong_count(&self.state) == 1 {
+            let state = self.state.borrow();
+            self.platform.borrow_mut().destroy(&state.children);
+        }
+    }
+}
+
 impl Default for Menu {
     fn default() -> Self {
         Self::new()
@@ -149,13 +168,11 @@ impl Menu {
     }
 
     fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
-        let child = item.platform();
-        let args = item.platform_attach_args();
         let kind = item.kind();
 
         {
             let mut platform = self.platform.borrow_mut();
-            platform.attach(&args, child, op)?;
+            platform.attach(&kind, op)?;
         }
 
         let mut state = self.state.borrow_mut();
@@ -194,7 +211,7 @@ impl Menu {
             state.children.remove(position)
         };
 
-        self.platform.borrow_mut().remove_at(position);
+        self.platform.borrow_mut().remove_at(position, &kind);
 
         Some(kind)
     }
@@ -247,10 +264,10 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::Widget>,
         C: gtk::prelude::IsA<gtk::Widget>,
     {
-        let children = self.state.borrow().children.clone();
+        let state = self.state.borrow();
         self.platform
             .borrow_mut()
-            .init_for_gtk_window(window, container, &children)
+            .init_for_gtk_window(&state.children, window, container)
     }
 
     /// Adds this menu to a win32 window.
@@ -344,7 +361,10 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::Window>,
         W: gtk::prelude::IsA<gtk::Widget>,
     {
-        self.platform.borrow_mut().remove_for_gtk_window(window)
+        let state = self.state.borrow();
+        self.platform
+            .borrow_mut()
+            .remove_for_gtk_window(&state.children, window)
     }
 
     /// Removes this menu from a win32 window
@@ -529,9 +549,12 @@ impl ContextMenu for Menu {
         window: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
-        self.platform
-            .borrow_mut()
-            .show_context_menu_for_gtk_window(window, position)
+        let state = self.state.borrow();
+        self.platform.borrow_mut().show_context_menu_for_gtk_window(
+            &state.children,
+            window,
+            position,
+        )
     }
 
     #[cfg(all(
@@ -545,7 +568,8 @@ impl ContextMenu for Menu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        self.platform.borrow_mut().gtk_context_menu()
+        let state = self.state.borrow();
+        self.platform.borrow_mut().gtk_context_menu(&state.children)
     }
 
     #[cfg(all(

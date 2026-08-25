@@ -38,34 +38,36 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     accelerator::MenuAccelerator,
     items::{IconType, PredefinedMenuItemType},
-    IsMenuItem, MenuItemKind,
+    MenuItemKind,
 };
 
 pub(crate) use self::platform::*;
 
+impl MenuItemKind {
+    pub(crate) fn platform(&self) -> Rc<RefCell<PlatformMenuItem>> {
+        match self {
+            Self::MenuItem(item) => item.platform.clone(),
+            Self::Submenu(item) => item.platform.clone(),
+            Self::Predefined(item) => item.platform.clone(),
+            Self::Check(item) => item.platform.clone(),
+            Self::Icon(item) => item.platform.clone(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct PlatformAttachArgs {
     pub text: String,
     pub enabled: bool,
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
-    pub submenu: bool,
-    pub separator: bool,
+    pub item_type: crate::MenuItemType,
     pub icon: Option<IconType>,
 }
 
-impl dyn IsMenuItem + '_ {
-    pub(crate) fn platform(&self) -> Rc<RefCell<PlatformMenuItem>> {
-        match self.kind() {
-            MenuItemKind::MenuItem(i) => i.platform,
-            MenuItemKind::Submenu(i) => i.platform,
-            MenuItemKind::Predefined(i) => i.platform,
-            MenuItemKind::Check(i) => i.platform,
-            MenuItemKind::Icon(i) => i.platform,
-        }
-    }
-
+impl MenuItemKind {
     pub(crate) fn platform_attach_args(&self) -> PlatformAttachArgs {
-        match self.kind() {
+        match self {
             MenuItemKind::MenuItem(item) => {
                 let state = item.state.borrow();
                 PlatformAttachArgs {
@@ -73,8 +75,7 @@ impl dyn IsMenuItem + '_ {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.accelerator.clone(),
-                    submenu: false,
-                    separator: false,
+                    item_type: crate::MenuItemType::MenuItem,
                     icon: None,
                 }
             }
@@ -85,8 +86,7 @@ impl dyn IsMenuItem + '_ {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: None,
-                    submenu: true,
-                    separator: false,
+                    item_type: crate::MenuItemType::Submenu,
                     icon: state.icon.clone(),
                 }
             }
@@ -97,11 +97,14 @@ impl dyn IsMenuItem + '_ {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.predefined_item_type.accelerator(),
-                    submenu: false,
-                    separator: matches!(
+                    item_type: if matches!(
                         state.predefined_item_type,
                         PredefinedMenuItemType::Separator
-                    ),
+                    ) {
+                        crate::MenuItemType::Separator
+                    } else {
+                        crate::MenuItemType::Predefined
+                    },
                     icon: None,
                 }
             }
@@ -112,8 +115,7 @@ impl dyn IsMenuItem + '_ {
                     enabled: state.enabled,
                     checked: state.checked,
                     accelerator: state.accelerator.clone(),
-                    submenu: false,
-                    separator: false,
+                    item_type: crate::MenuItemType::Check,
                     icon: None,
                 }
             }
@@ -124,11 +126,31 @@ impl dyn IsMenuItem + '_ {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.accelerator.clone(),
-                    submenu: false,
-                    separator: false,
+                    item_type: crate::MenuItemType::Icon,
                     icon: state.icon.clone(),
                 }
             }
+        }
+    }
+
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn click_action(&self) -> crate::ClickAction {
+        match self {
+            Self::MenuItem(item) => crate::ClickAction::Emit((*item.id).clone()),
+            Self::Submenu(item) => crate::ClickAction::Emit((*item.id).clone()),
+            Self::Predefined(item) => crate::ClickAction::Predefined(Rc::downgrade(&item.state)),
+            Self::Check(item) => {
+                crate::ClickAction::Toggle((*item.id).clone(), Rc::downgrade(&item.state))
+            }
+            Self::Icon(item) => crate::ClickAction::Emit((*item.id).clone()),
+        }
+    }
+
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn children(&self) -> Vec<MenuItemKind> {
+        match self {
+            Self::Submenu(item) => item.state.borrow().children.clone(),
+            _ => Vec::new(),
         }
     }
 }

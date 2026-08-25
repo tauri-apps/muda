@@ -107,11 +107,12 @@ impl CheckMenuItem {
         // which it has no way to reach. It is weak so that state does not own the platform that
         // owns it back (O4).
         let click = ClickAction::Toggle(id.clone(), Rc::downgrade(&state));
+        let platform = PlatformMenuItem::new(click, crate::MenuItemType::Check);
 
         Self {
             id: Rc::new(id),
             state,
-            platform: Rc::new(RefCell::new(PlatformMenuItem::new(click))),
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 

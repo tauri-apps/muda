@@ -58,10 +58,24 @@ impl AcceleratorTable {
 
     fn rebuild(&mut self) {
         unsafe {
-            DestroyAcceleratorTable(self.handle);
-            let len = self.entries.len();
-            let accels = self.entries.values().collect::<Vec<_>>();
-            self.handle = CreateAcceleratorTableW(*accels.as_ptr(), len as _);
+            if !self.handle.is_null() {
+                DestroyAcceleratorTable(self.handle);
+            }
+
+            let accels = self.entries.values().copied().collect::<Vec<_>>();
+            self.handle = if accels.is_empty() {
+                std::ptr::null_mut()
+            } else {
+                CreateAcceleratorTableW(accels.as_ptr(), accels.len() as _)
+            };
+        }
+    }
+}
+
+impl Drop for AcceleratorTable {
+    fn drop(&mut self) {
+        if !self.handle.is_null() {
+            unsafe { DestroyAcceleratorTable(self.handle) };
         }
     }
 }
@@ -97,15 +111,13 @@ impl Drop for PlatformMenu {
             unsafe { self.remove_from_hwnd(hwnd) };
         }
 
-        // 3. Remove the menu from children's accelerator tables, recursively.
+        // 2. Remove the menu from children's accelerator tables, recursively.
         fn remove_accelerator_table_from_children(
             id: u32,
             children: &[Rc<RefCell<PlatformMenuItem>>],
         ) {
             for child in children {
-                let Ok(mut child) = child.try_borrow_mut() else {
-                    continue;
-                };
+                let mut child = child.borrow_mut();
                 child.accelerator_tables.remove(&id);
                 if let Some(children) = &child.children {
                     remove_accelerator_table_from_children(id, children);
@@ -114,11 +126,9 @@ impl Drop for PlatformMenu {
         }
         remove_accelerator_table_from_children(self.id, &self.children);
 
-        // 4. Remove the menu items from the menu and popup menu.
+        // 3. Remove the menu items from the menu and popup menu.
         for child in &self.children {
-            let Ok(child) = child.try_borrow() else {
-                continue;
-            };
+            let child = child.borrow();
             let id = child.id();
             unsafe {
                 RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
@@ -126,11 +136,11 @@ impl Drop for PlatformMenu {
             }
         }
 
-        // 7. Forget the menu and popup menu handles from the children's parent lists.
+        // 4. Forget the menu and popup menu handles from the children's parent lists.
         forget_container(self.hmenu, &self.children);
         forget_container(self.hpopupmenu, &self.children);
 
-        // 6. Destroy the menu and popup menu handles.
+        // 5. Destroy the menu and popup menu handles.
         unsafe {
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
@@ -154,22 +164,31 @@ pub(crate) struct PlatformMenuItem {
 impl Drop for PlatformMenuItem {
     fn drop(&mut self) {
         if let Some(children) = &self.children {
-            // 1. Forget the menu and popup menu handles from the children's parent lists.
+            // 1. Detach the children so destroying this item's containers does not recursively
+            // destroy submenu containers still owned by surviving child handles.
+            for child in children {
+                let child = child.borrow();
+                let id = child.id();
+                unsafe {
+                    RemoveMenu(self.hmenu, id, MF_BYCOMMAND);
+                    RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
+                }
+            }
+
+            // 2. Forget the menu and popup menu handles from the children's parent lists.
             forget_container(self.hmenu, children);
             forget_container(self.hpopupmenu, children);
 
-            // 2. Destroy the menu and popup menu handles.
+            // 3. Destroy the menu and popup menu handles.
             unsafe {
                 DestroyMenu(self.hmenu);
                 DestroyMenu(self.hpopupmenu);
             }
         }
 
-        // 3. Remove the item from all accelerator tables it is in.
+        // 4. Remove the item from all accelerator tables it is in.
         for store in self.accelerator_tables.values() {
-            if let Ok(mut store) = store.try_borrow_mut() {
-                store.remove(self.id())
-            }
+            store.borrow_mut().remove(self.id())
         }
     }
 }
@@ -302,35 +321,26 @@ impl PlatformMenu {
         Ok(())
     }
 
-    pub fn attach(
-        &mut self,
-        args: &PlatformAttachArgs,
-        child: Rc<RefCell<PlatformMenuItem>>,
-        op: AddOp,
-    ) -> crate::Result<()> {
+    pub fn attach(&mut self, child: &crate::MenuItemKind, op: AddOp) -> crate::Result<()> {
         attach_item(
             self.hmenu,
             self.hpopupmenu,
             Some(self.windows.clone()),
             [(self.id, self.accelerator_table.clone())],
-            args,
-            &child,
+            &child.platform_attach_args(),
+            &child.platform(),
             op,
         )?;
 
         match op {
-            AddOp::Append => self.children.push(child),
-            AddOp::Insert(position) => self.children.insert(position, child),
+            AddOp::Append => self.children.push(child.platform()),
+            AddOp::Insert(position) => self.children.insert(position, child.platform()),
         }
 
         Ok(())
     }
 
-    pub fn remove_at(&mut self, position: usize) {
-        if position >= self.children.len() {
-            return;
-        }
-
+    pub fn remove_at(&mut self, position: usize, _child: &crate::MenuItemKind) {
         let child = self.children.remove(position);
         let mut child = child.borrow_mut();
         let id = child.id();
@@ -359,7 +369,7 @@ impl PlatformMenu {
 }
 
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction) -> Self {
+    pub fn new(click: ClickAction, _item_type: crate::MenuItemType) -> Self {
         Self {
             id: COUNTER.next(),
             click,
@@ -541,12 +551,7 @@ impl PlatformMenuItem {
 }
 
 impl PlatformMenuItem {
-    pub fn attach(
-        &mut self,
-        args: &PlatformAttachArgs,
-        child: Rc<RefCell<PlatformMenuItem>>,
-        op: AddOp,
-    ) -> crate::Result<()> {
+    pub fn attach(&mut self, child: &crate::MenuItemKind, op: AddOp) -> crate::Result<()> {
         attach_item(
             self.hmenu,
             self.hpopupmenu,
@@ -554,28 +559,25 @@ impl PlatformMenuItem {
             self.accelerator_tables
                 .iter()
                 .map(|(&id, table)| (id, table.clone())),
-            args,
-            &child,
+            &child.platform_attach_args(),
+            &child.platform(),
             op,
         )?;
 
         // SAFETY: this method is only called from Submenu item
         let children = self.children.as_mut().unwrap();
         match op {
-            AddOp::Append => children.push(child),
-            AddOp::Insert(position) => children.insert(position, child),
+            AddOp::Append => children.push(child.platform()),
+            AddOp::Insert(position) => children.insert(position, child.platform()),
         }
 
         Ok(())
     }
 
-    pub fn remove_at(&mut self, position: usize) {
+    pub fn remove_at(&mut self, position: usize, _child: &crate::MenuItemKind) {
         let Some(children) = self.children.as_mut() else {
             return;
         };
-        if position >= children.len() {
-            return;
-        }
 
         let child = children.remove(position);
         let mut child = child.borrow_mut();
@@ -640,12 +642,10 @@ fn attach_item(
         .extend(accelerator_tables.iter().cloned());
 
     let id = child.id();
-    let mut flags = if args.submenu {
-        MF_POPUP
-    } else if args.separator {
-        MF_SEPARATOR
-    } else {
-        MF_STRING
+    let mut flags = match args.item_type {
+        crate::MenuItemType::Submenu => MF_POPUP,
+        crate::MenuItemType::Separator => MF_SEPARATOR,
+        _ => MF_STRING,
     };
     if !args.enabled {
         flags |= MF_GRAYED;
@@ -714,9 +714,10 @@ unsafe fn insert_into(hmenu: HMENU, op: AddOp, flags: u32, id: u32, text: &[u16]
 /// Forgets the specified menu handle from the parent lists of the specified children.
 fn forget_container(hmenu: HMENU, children: &[Rc<RefCell<PlatformMenuItem>>]) {
     for child in children {
-        if let Ok(mut child) = child.try_borrow_mut() {
-            child.parents.retain(|parent| parent.hmenu != hmenu);
-        }
+        child
+            .borrow_mut()
+            .parents
+            .retain(|parent| parent.hmenu != hmenu);
     }
 }
 

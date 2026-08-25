@@ -31,6 +31,25 @@ pub(crate) struct SubmenuState {
     pub children: Vec<MenuItemKind>,
 }
 
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk"
+))]
+impl Drop for Submenu {
+    fn drop(&mut self) {
+        if Rc::strong_count(&self.state) == 1 {
+            let state = self.state.borrow();
+            self.platform.borrow_mut().destroy(&state.children);
+        }
+    }
+}
+
 impl IsMenuItemBase for Submenu {}
 impl IsMenuItem for Submenu {
     fn kind(&self) -> MenuItemKind {
@@ -66,17 +85,19 @@ impl Submenu {
     fn new_inner(id: Option<MenuId>, text: &str, enabled: bool) -> Self {
         let id = util::next_id(id);
 
+        let state = SubmenuState {
+            text: text.to_string(),
+            enabled,
+            icon: None,
+            children: Vec::new(),
+        };
+        let click = ClickAction::Emit(id.clone());
+        let platform = PlatformMenuItem::new_submenu(click);
+
         Self {
             id: Rc::new(id.clone()),
-            state: Rc::new(RefCell::new(SubmenuState {
-                text: text.to_string(),
-                enabled,
-                icon: None,
-                children: Vec::new(),
-            })),
-            platform: Rc::new(RefCell::new(PlatformMenuItem::new_submenu(
-                ClickAction::Emit(id),
-            ))),
+            state: Rc::new(RefCell::new(state)),
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 
@@ -149,13 +170,11 @@ impl Submenu {
     }
 
     fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
-        let child = item.platform();
-        let args = item.platform_attach_args();
         let kind = item.kind();
 
         {
             let mut platform = self.platform.borrow_mut();
-            platform.attach(&args, child, op)?;
+            platform.attach(&kind, op)?;
         }
 
         let mut state = self.state.borrow_mut();
@@ -193,7 +212,7 @@ impl Submenu {
             state.children.remove(position)
         };
 
-        self.platform.borrow_mut().remove_at(position);
+        self.platform.borrow_mut().remove_at(position, &kind);
 
         Some(kind)
     }
@@ -361,9 +380,10 @@ impl ContextMenu for Submenu {
         w: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
+        let state = self.state.borrow();
         self.platform
             .borrow_mut()
-            .show_context_menu_for_gtk_window(w, position)
+            .show_context_menu_for_gtk_window(&state.children, w, position)
     }
 
     #[cfg(all(
@@ -377,7 +397,8 @@ impl ContextMenu for Submenu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        self.platform.borrow_mut().gtk_context_menu()
+        let state = self.state.borrow();
+        self.platform.borrow_mut().gtk_context_menu(&state.children)
     }
 
     #[cfg(all(

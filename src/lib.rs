@@ -394,6 +394,7 @@ pub(crate) enum MenuItemType {
     MenuItem,
     Submenu,
     Predefined,
+    Separator,
     Check,
     Icon,
 }
