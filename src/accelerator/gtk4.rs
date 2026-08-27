@@ -53,9 +53,11 @@ fn modifiers_to_gtk(mods: Modifiers) -> String {
     if mods.meta() {
         gtk.push_str("<Meta>");
     }
+    #[allow(deprecated)]
     if mods.contains(Modifiers::SUPER) {
         gtk.push_str("<Super>");
     }
+    #[allow(deprecated)]
     if mods.contains(Modifiers::HYPER) {
         gtk.push_str("<Hyper>");
     }
@@ -275,7 +277,9 @@ fn code_to_gdk_key_name(code: &Code) -> Option<&'static str> {
         AudioVolumeMute => "AudioMute",
         AudioVolumeUp => "AudioRaiseVolume",
         WakeUp => "WakeUp",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Copy => "Copy",
         Cut => "Cut",
@@ -344,7 +348,9 @@ fn key_to_gdk_named_key_name(key: &NamedKey) -> Option<&'static str> {
         NumLock => "Num_Lock",
         ScrollLock => "Scroll_Lock",
         Shift => "Shift_L",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Enter => "Return",
         Tab => "Tab",

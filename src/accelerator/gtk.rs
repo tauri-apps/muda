@@ -51,10 +51,12 @@ fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
         gdk::ModifierType::META_MASK,
         modifiers.contains(Modifiers::META),
     );
+    #[allow(deprecated)]
     result.set(
         gdk::ModifierType::SUPER_MASK,
         modifiers.contains(Modifiers::SUPER),
     );
+    #[allow(deprecated)]
     result.set(
         gdk::ModifierType::HYPER_MASK,
         modifiers.contains(Modifiers::HYPER),
@@ -243,7 +245,9 @@ fn code_to_gdk_key_name(code: &Code) -> Result<&'static str, AcceleratorParseErr
         AudioVolumeMute => "AudioMute",
         AudioVolumeUp => "AudioRaiseVolume",
         WakeUp => "WakeUp",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Copy => "Copy",
         Cut => "Cut",
@@ -312,7 +316,9 @@ fn key_to_gdk_named_key_name(key: &NamedKey) -> Result<&'static str, Accelerator
         NumLock => "Num_Lock",
         ScrollLock => "Scroll_Lock",
         Shift => "Shift_L",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Enter => "Return",
         Tab => "Tab",

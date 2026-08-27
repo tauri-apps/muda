@@ -262,6 +262,7 @@ fn named_key_to_vk(key: &NamedKey) -> Result<VIRTUAL_KEY, AcceleratorParseError>
         AltGraph => VK_RMENU,
         CapsLock => VK_CAPITAL,
         Control => VK_CONTROL,
+        #[allow(deprecated)]
         Meta | Super => VK_LWIN,
         NumLock => VK_NUMLOCK,
         ScrollLock => VK_SCROLL,
@@ -421,9 +422,11 @@ fn write_modifiers(f: &mut fmt::Formatter<'_>, modifiers: Modifiers) -> fmt::Res
     if modifiers.contains(Modifiers::META) {
         f.write_str("Meta+")?;
     }
+    #[allow(deprecated)]
     if modifiers.contains(Modifiers::SUPER) {
         f.write_str("Super+")?;
     }
+    #[allow(deprecated)]
     if modifiers.contains(Modifiers::HYPER) {
         f.write_str("Hyper+")?;
     }
@@ -582,6 +585,7 @@ fn named_key_display(key: &NamedKey) -> Option<String> {
         AltGraph => Some("AltGr".into()),
         CapsLock => Some("CapsLock".into()),
         Control => Some("Ctrl".into()),
+        #[allow(deprecated)]
         Meta | Super => Some("Win".into()),
         NumLock => Some("NumLock".into()),
         ScrollLock => Some("ScrollLock".into()),
