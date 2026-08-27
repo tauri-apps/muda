@@ -25,10 +25,11 @@ use objc2_app_kit::{
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
     NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
     NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
+    NSWindow,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
-    NSSize, NSString,
+    NSRect, NSSize, NSString,
 };
 
 use self::util::strip_mnemonic;
@@ -1315,6 +1316,9 @@ impl NativeIcon {
     }
 }
 
+/// How far off the screen edge a nudged-up menu is kept, in points.
+const SCREEN_EDGE_MARGIN: f64 = 4.0;
+
 unsafe fn show_context_menu(
     ns_menu: &NSMenu,
     view: *const c_void,
@@ -1339,5 +1343,151 @@ unsafe fn show_context_menu(
         (location, None)
     };
 
+    // `location` is in the space `in_view` implies: the view's own when popping up inside
+    // a view, the screen's when not. Round-trip through screen space to do the fitting.
+    // Convert rather than offset, so a flipped or transformed view stays correct.
+    let location = match in_view {
+        Some(view) => {
+            let anchor = window.convertPointToScreen(view.convertPoint_toView(location, None));
+            let anchor = fit_menu_on_screen(ns_menu, &window, anchor);
+            view.convertPoint_fromView(window.convertPointFromScreen(anchor), None)
+        }
+        None => fit_menu_on_screen(ns_menu, &window, location),
+    };
+
     ns_menu.popUpMenuPositioningItem_atLocation_inView(None, location, in_view)
+}
+
+/// Nudges a popup anchor so the menu it opens fits inside the screen's visible frame.
+///
+/// `anchor` and the returned point are both in screen coordinates.
+fn fit_menu_on_screen(ns_menu: &NSMenu, window: &NSWindow, anchor: NSPoint) -> NSPoint {
+    // No screen means the window is off-screen or hidden; nothing sensible to fit against.
+    let Some(screen) = window.screen() else {
+        return anchor;
+    };
+    fit_anchor(anchor, ns_menu.size(), screen.visibleFrame())
+}
+
+/// Where to actually anchor the popup so a `menu_size` menu lands inside `visible`.
+///
+/// `popUpMenuPositioningItem:atLocation:inView:` hangs the menu below and to the right of
+/// the anchor and doesn't reposition it when that runs off-screen: it shows scroll arrows
+/// instead, leaving most of the screen empty. So do the fitting up front, the way Electron
+/// does in `electron_api_menu_mac.mm`.
+///
+/// All three arguments are in screen coordinates (bottom-left origin), and `visible` is the
+/// screen's visible frame, so the menu bar and Dock are already excluded.
+fn fit_anchor(mut anchor: NSPoint, menu_size: NSSize, visible: NSRect) -> NSPoint {
+    // The menu hangs below the anchor, so its bottom edge sits `height` below it. Push the
+    // whole thing up by however much it overflows, and keep it off the screen edge.
+    let overflow_below = visible.origin.y - (anchor.y - menu_size.height);
+    if overflow_below > 0.0 {
+        anchor.y += overflow_below + SCREEN_EDGE_MARGIN;
+    }
+    // A menu taller than the screen can't fit either way; keep the anchor on-screen so it
+    // opens where the user clicked instead of somewhere above the display.
+    anchor.y = anchor.y.min(visible.origin.y + visible.size.height);
+
+    // The menu extends to the right of the anchor. When it doesn't fit, flip it to the
+    // left of the anchor, which is what AppKit's own menus do.
+    if anchor.x + menu_size.width > visible.origin.x + visible.size.width {
+        anchor.x -= menu_size.width;
+    }
+
+    anchor
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A 1440x900 screen whose visible frame starts 50pt up (Dock) and stops 25pt short of
+    /// the top (menu bar), like a real single-display setup.
+    fn visible_frame() -> NSRect {
+        NSRect::new(NSPoint::new(0.0, 50.0), NSSize::new(1440.0, 825.0))
+    }
+
+    #[test]
+    fn a_menu_that_already_fits_is_left_alone() {
+        let anchor = NSPoint::new(200.0, 700.0);
+        assert_eq!(
+            fit_anchor(anchor, NSSize::new(180.0, 300.0), visible_frame()),
+            anchor
+        );
+    }
+
+    #[test]
+    fn a_menu_overflowing_the_bottom_is_pushed_up_to_clear_the_dock() {
+        // Anchored 100pt above the Dock with a 300pt menu: 200pt hangs below the visible
+        // frame, so the anchor rises by that much plus the edge margin.
+        let fitted = fit_anchor(
+            NSPoint::new(200.0, 150.0),
+            NSSize::new(180.0, 300.0),
+            visible_frame(),
+        );
+        assert_eq!(fitted.y, 150.0 + 200.0 + SCREEN_EDGE_MARGIN);
+        assert_eq!(
+            fitted.x, 200.0,
+            "a vertical fit must not move the menu sideways"
+        );
+
+        // The whole menu now sits inside the visible frame.
+        assert!(fitted.y - 300.0 >= visible_frame().origin.y);
+    }
+
+    #[test]
+    fn a_menu_taller_than_the_screen_keeps_its_anchor_on_screen() {
+        // Nothing can make an oversized menu fit, but the anchor must still land on-screen
+        // rather than somewhere far above it.
+        let visible = visible_frame();
+        let fitted = fit_anchor(
+            NSPoint::new(200.0, 400.0),
+            NSSize::new(180.0, 2000.0),
+            visible,
+        );
+        assert!(fitted.y <= visible.origin.y + visible.size.height);
+    }
+
+    #[test]
+    fn a_menu_overflowing_the_right_edge_flips_to_the_left_of_the_anchor() {
+        let fitted = fit_anchor(
+            NSPoint::new(1400.0, 700.0),
+            NSSize::new(180.0, 300.0),
+            visible_frame(),
+        );
+        assert_eq!(fitted.x, 1400.0 - 180.0);
+        assert_eq!(
+            fitted.y, 700.0,
+            "a horizontal flip must not move the menu vertically"
+        );
+    }
+
+    #[test]
+    fn a_corner_overflow_is_fixed_on_both_axes_at_once() {
+        let fitted = fit_anchor(
+            NSPoint::new(1400.0, 150.0),
+            NSSize::new(180.0, 300.0),
+            visible_frame(),
+        );
+        assert_eq!(fitted.x, 1400.0 - 180.0);
+        assert_eq!(fitted.y, 150.0 + 200.0 + SCREEN_EDGE_MARGIN);
+    }
+
+    #[test]
+    fn fitting_is_relative_to_the_screen_the_window_is_on() {
+        // A second display to the right of the primary one, with its own origin.
+        let visible = NSRect::new(NSPoint::new(1440.0, 0.0), NSSize::new(1920.0, 1080.0));
+        let fitted = fit_anchor(
+            NSPoint::new(3300.0, 100.0),
+            NSSize::new(180.0, 300.0),
+            visible,
+        );
+        assert_eq!(
+            fitted.x,
+            3300.0 - 180.0,
+            "flips against that screen's right edge"
+        );
+        assert_eq!(fitted.y, 100.0 + 200.0 + SCREEN_EDGE_MARGIN);
+    }
 }
