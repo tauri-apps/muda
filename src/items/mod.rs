@@ -19,7 +19,8 @@ pub use submenu::*;
 #[cfg(test)]
 mod test {
     use crate::{
-        CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu, TextStyle,
+        CheckMenuItem, CheckMenuItemBuilder, IconMenuItem, IconMenuItemBuilder, MenuId, MenuItem,
+        MenuItemBuilder, PredefinedMenuItem, Submenu, SubmenuBuilder, TextStyle,
     };
 
     #[test]
@@ -113,11 +114,104 @@ mod test {
         item.set_styled_text([("Preview", TextStyle::Normal)]);
         assert_eq!(item.text(), "Preview");
 
-        let icon_item = IconMenuItem::new("Preview", true, None, None);
-        icon_item.set_styled_text([
+        // `set_text` reverts to a plain label.
+        item.set_styled_text([
+            ("Preview", TextStyle::Normal),
+            (" (default)", TextStyle::Secondary),
+        ]);
+        item.set_text("Plain again");
+        assert_eq!(item.text(), "Plain again");
+    }
+
+    #[test]
+    #[cfg_attr(
+        all(
+            miri,
+            not(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ))
+        ),
+        ignore
+    )]
+    fn every_item_type_takes_styled_text() {
+        let parts = [
             ("Speakers", TextStyle::Normal),
             (" (current)", TextStyle::Secondary),
-        ]);
+        ];
+
+        let item = MenuItem::new("placeholder", true, None);
+        item.set_styled_text(parts);
+        assert_eq!(item.text(), "Speakers (current)");
+
+        let icon_item = IconMenuItem::new("placeholder", true, None, None);
+        icon_item.set_styled_text(parts);
         assert_eq!(icon_item.text(), "Speakers (current)");
+
+        let check_item = CheckMenuItem::new("placeholder", true, true, None);
+        check_item.set_styled_text(parts);
+        assert_eq!(check_item.text(), "Speakers (current)");
+
+        let submenu = Submenu::new("placeholder", true);
+        submenu.set_styled_text(parts);
+        assert_eq!(submenu.text(), "Speakers (current)");
+    }
+
+    #[test]
+    #[cfg_attr(
+        all(
+            miri,
+            not(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ))
+        ),
+        ignore
+    )]
+    fn every_builder_takes_styled_text() {
+        let parts = [
+            ("Preview", TextStyle::Normal),
+            (" (default)", TextStyle::Secondary),
+        ];
+
+        assert_eq!(
+            MenuItemBuilder::new().styled_text(parts).build().text(),
+            "Preview (default)"
+        );
+        assert_eq!(
+            IconMenuItemBuilder::new().styled_text(parts).build().text(),
+            "Preview (default)"
+        );
+        assert_eq!(
+            CheckMenuItemBuilder::new()
+                .styled_text(parts)
+                .build()
+                .text(),
+            "Preview (default)"
+        );
+        assert_eq!(
+            SubmenuBuilder::new()
+                .styled_text(parts)
+                .build()
+                .unwrap()
+                .text(),
+            "Preview (default)"
+        );
+
+        // `styled_text` wins over a plain `text` set on the same builder.
+        assert_eq!(
+            MenuItemBuilder::new()
+                .text("Ignored")
+                .styled_text(parts)
+                .build()
+                .text(),
+            "Preview (default)"
+        );
     }
 }

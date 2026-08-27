@@ -7,7 +7,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     sealed::IsMenuItemBase,
-    IsMenuItem, MenuId, MenuItemKind,
+    IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -100,6 +100,31 @@ impl CheckMenuItem {
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.inner.borrow_mut().set_text(text.as_ref())
+    }
+
+    /// Set the item's label as a sequence of styled text, so one part of the label can be
+    /// de-emphasized relative to the rest. Finder uses this for entries like
+    /// `Preview (default)` in its "Open with" submenu.
+    ///
+    /// ```
+    /// # use muda::{CheckMenuItem, TextStyle};
+    /// # fn example(item: &CheckMenuItem) {
+    /// item.set_styled_text([
+    ///     ("Preview", TextStyle::Normal),
+    ///     (" (default)", TextStyle::Secondary),
+    /// ]);
+    /// # }
+    /// ```
+    ///
+    /// [`CheckMenuItem::text`] returns the concatenation of the parts, which is what the item
+    /// actually draws. [`CheckMenuItem::set_text`] clears the styling.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: the parts are concatenated and set as plain text; styles are
+    ///   not visually distinguished.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        crate::items::styled_text::apply_styled_text(&mut self.inner.borrow_mut(), parts)
     }
 
     /// Get whether this check menu item is enabled or not.

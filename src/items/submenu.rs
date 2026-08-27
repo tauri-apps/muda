@@ -6,7 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
-    MenuItemKind, NativeIcon,
+    MenuItemKind, NativeIcon, TextStyle,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -160,6 +160,31 @@ impl Submenu {
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.inner.borrow_mut().set_text(text.as_ref())
+    }
+
+    /// Set the item's label as a sequence of styled text, so one part of the label can be
+    /// de-emphasized relative to the rest. Finder uses this for entries like
+    /// `Preview (default)` in its "Open with" submenu.
+    ///
+    /// ```
+    /// # use muda::{Submenu, TextStyle};
+    /// # fn example(item: &Submenu) {
+    /// item.set_styled_text([
+    ///     ("Preview", TextStyle::Normal),
+    ///     (" (default)", TextStyle::Secondary),
+    /// ]);
+    /// # }
+    /// ```
+    ///
+    /// [`Submenu::text`] returns the concatenation of the parts, which is what the item
+    /// actually draws. [`Submenu::set_text`] clears the styling.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: the parts are concatenated and set as plain text; styles are
+    ///   not visually distinguished.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        crate::items::styled_text::apply_styled_text(&mut self.inner.borrow_mut(), parts)
     }
 
     /// Get whether this submenu is enabled or not.

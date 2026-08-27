@@ -240,7 +240,7 @@ pub struct MenuChild {
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
 
     /// Set by `set_styled_text`. muda creates one `NSMenuItem` per menu an item is
-    /// attached to, lazily, so the runs are kept here and re-applied at creation time.
+    /// attached to, lazily, so the parts are kept here and re-applied at creation time.
     styled_text: Option<Vec<(String, TextStyle)>>,
 
     // menu item fields
@@ -490,19 +490,19 @@ impl MenuChild {
         }
     }
 
-    pub fn set_styled_text(&mut self, runs: &[(String, TextStyle)]) {
-        let runs: Vec<(String, TextStyle)> = runs
+    pub fn set_styled_text(&mut self, parts: &[(String, TextStyle)]) {
+        let parts: Vec<(String, TextStyle)> = parts
             .iter()
             .map(|(text, style)| (strip_mnemonic(text), *style))
             .collect();
 
-        self.text = runs.iter().map(|(text, _)| text.as_str()).collect();
+        self.text = parts.iter().map(|(text, _)| text.as_str()).collect();
         // An all-`Normal` label draws identically to a plain title, so don't pay for an
         // attributed one (and don't leave a stale one behind on items created later).
-        self.styled_text = runs
+        self.styled_text = parts
             .iter()
             .any(|(_, style)| *style != TextStyle::Normal)
-            .then_some(runs);
+            .then_some(parts);
 
         let title = NSString::from_str(&self.text);
         let attributed = self.styled_text.as_deref().map(build_attributed_title);
@@ -518,8 +518,8 @@ impl MenuChild {
     }
 
     fn apply_styled_text_if_any(&self, ns_menu_item: &NSMenuItem) {
-        if let Some(runs) = self.styled_text.as_deref() {
-            ns_menu_item.setAttributedTitle(Some(&build_attributed_title(runs)));
+        if let Some(parts) = self.styled_text.as_deref() {
+            ns_menu_item.setAttributedTitle(Some(&build_attributed_title(parts)));
         }
     }
 
@@ -1264,10 +1264,10 @@ impl MenuItem {
     }
 }
 
-/// Builds an attributed title from the runs: every run at the standard menu font, and each
+/// Builds an attributed title from the parts: every part at the standard menu font, and each
 /// non-[`TextStyle::Normal`] run additionally carrying its style's color.
-fn build_attributed_title(runs: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
-    let combined: String = runs.iter().map(|(text, _)| text.as_str()).collect();
+fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
+    let combined: String = parts.iter().map(|(text, _)| text.as_str()).collect();
     let ns_combined = NSString::from_str(&combined);
     let attributed =
         NSMutableAttributedString::initWithString(NSMutableAttributedString::alloc(), &ns_combined);
@@ -1283,7 +1283,7 @@ fn build_attributed_title(runs: &[(String, TextStyle)]) -> Retained<NSAttributed
 
     // `NSRange` counts UTF-16 code units, which is exactly what `NSString` stores.
     let mut offset = 0usize;
-    for (text, style) in runs {
+    for (text, style) in parts {
         let len = text.encode_utf16().count();
         if len > 0 {
             if let Some(color) = style.ns_color() {
@@ -1461,7 +1461,7 @@ mod tests {
             child
                 .styled_text
                 .as_ref()
-                .map(|runs| runs.iter().map(|(t, s)| (t.as_str(), *s)).collect()),
+                .map(|parts| parts.iter().map(|(t, s)| (t.as_str(), *s)).collect()),
             Some(vec![
                 ("Preview", TextStyle::Normal),
                 (" (default)", TextStyle::Secondary),
@@ -1474,7 +1474,7 @@ mod tests {
         assert!(child.styled_text.is_none());
         assert_eq!(child.text, "Preview");
 
-        // `set_text` clears the runs, so a later append doesn't re-style a plain title.
+        // `set_text` clears the parts, so a later append doesn't re-style a plain title.
         child.set_styled_text(&[
             ("Preview".to_owned(), TextStyle::Normal),
             (" (default)".to_owned(), TextStyle::Secondary),
@@ -1487,12 +1487,12 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
-    fn build_attributed_title_colors_only_the_non_normal_runs() {
-        let runs = [
+    fn build_attributed_title_colors_only_the_non_normal_parts() {
+        let parts = [
             ("Preview".to_owned(), TextStyle::Normal),
             (" (default)".to_owned(), TextStyle::Secondary),
         ];
-        let attributed = build_attributed_title(&runs);
+        let attributed = build_attributed_title(&parts);
         assert_eq!(attributed.string().to_string(), "Preview (default)");
 
         let color_at = |index: usize| unsafe {
