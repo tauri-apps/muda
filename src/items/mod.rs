@@ -6,17 +6,21 @@ mod check;
 mod icon;
 mod normal;
 mod predefined;
+mod styled_text;
 mod submenu;
 
 pub use check::*;
 pub use icon::*;
 pub use normal::*;
 pub use predefined::*;
+pub use styled_text::*;
 pub use submenu::*;
 
 #[cfg(test)]
 mod test {
-    use crate::{CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu};
+    use crate::{
+        CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu, TextStyle,
+    };
 
     #[test]
     #[cfg_attr(
@@ -98,16 +102,22 @@ mod test {
         ),
         ignore
     )]
-    fn set_text_with_secondary_concatenates_label() {
+    fn set_styled_text_concatenates_label() {
         let item = MenuItem::new("Preview", true, None);
-        item.set_text_with_secondary("Preview", Some(" (default)"));
+        item.set_styled_text([
+            ("Preview", TextStyle::Normal),
+            (" (default)", TextStyle::Secondary),
+        ]);
         assert_eq!(item.text(), "Preview (default)");
 
-        item.set_text_with_secondary("Preview", None);
+        item.set_styled_text([("Preview", TextStyle::Normal)]);
         assert_eq!(item.text(), "Preview");
 
         let icon_item = IconMenuItem::new("Preview", true, None, None);
-        icon_item.set_text_with_secondary("Speakers", Some(" (current)"));
+        icon_item.set_styled_text([
+            ("Speakers", TextStyle::Normal),
+            (" (current)", TextStyle::Secondary),
+        ]);
         assert_eq!(icon_item.text(), "Speakers (current)");
     }
 }

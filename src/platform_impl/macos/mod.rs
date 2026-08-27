@@ -239,8 +239,9 @@ pub struct MenuChild {
 
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
 
-    /// Set by `set_text_with_secondary`; reapplied at lazy `NSMenuItem` creation.
-    attributed_title_parts: Option<(String, String)>,
+    /// Set by `set_styled_text`. muda creates one `NSMenuItem` per menu an item is
+    /// attached to, lazily, so the runs are kept here and re-applied at creation time.
+    styled_text: Option<Vec<(String, TextStyle)>>,
 
     // menu item fields
     accelerator: Option<MenuAccelerator>,
@@ -312,7 +313,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -341,7 +342,7 @@ impl MenuChild {
             icon: None,
             native_icon: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: Some(HashMap::new()),
             predefined_item_type: None,
         }
@@ -379,7 +380,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: None,
         }
     }
@@ -403,7 +404,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -428,7 +429,7 @@ impl MenuChild {
             native_icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -453,7 +454,7 @@ impl MenuChild {
             icon: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
-            attributed_title_parts: None,
+            styled_text: None,
             ns_menus: None,
             predefined_item_type: None,
         }
@@ -476,7 +477,7 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = strip_mnemonic(text);
-        self.attributed_title_parts = None;
+        self.styled_text = None;
         let title = NSString::from_str(&self.text);
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
@@ -489,26 +490,22 @@ impl MenuChild {
         }
     }
 
-    pub fn set_text_with_secondary(&mut self, primary: &str, secondary: Option<&str>) {
-        let primary = strip_mnemonic(primary);
-        let secondary = secondary.map(strip_mnemonic);
-        let combined = match &secondary {
-            Some(sec) => {
-                let mut s = String::with_capacity(primary.len() + sec.len());
-                s.push_str(&primary);
-                s.push_str(sec);
-                s
-            }
-            None => primary.clone(),
-        };
-        self.text = combined;
+    pub fn set_styled_text(&mut self, runs: &[(String, TextStyle)]) {
+        let runs: Vec<(String, TextStyle)> = runs
+            .iter()
+            .map(|(text, style)| (strip_mnemonic(text), *style))
+            .collect();
 
-        self.attributed_title_parts = secondary.as_ref().map(|sec| (primary.clone(), sec.clone()));
+        self.text = runs.iter().map(|(text, _)| text.as_str()).collect();
+        // An all-`Normal` label draws identically to a plain title, so don't pay for an
+        // attributed one (and don't leave a stale one behind on items created later).
+        self.styled_text = runs
+            .iter()
+            .any(|(_, style)| *style != TextStyle::Normal)
+            .then_some(runs);
 
         let title = NSString::from_str(&self.text);
-        let attributed = secondary
-            .as_ref()
-            .map(|sec| build_attributed_secondary_title(&primary, sec));
+        let attributed = self.styled_text.as_deref().map(build_attributed_title);
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setAttributedTitle(attributed.as_deref());
@@ -520,10 +517,9 @@ impl MenuChild {
         }
     }
 
-    fn apply_attributed_title_if_any(&self, ns_menu_item: &NSMenuItem) {
-        if let Some((primary, secondary)) = &self.attributed_title_parts {
-            let attributed = build_attributed_secondary_title(primary, secondary);
-            ns_menu_item.setAttributedTitle(Some(&attributed));
+    fn apply_styled_text_if_any(&self, ns_menu_item: &NSMenuItem) {
+        if let Some(runs) = self.styled_text.as_deref() {
+            ns_menu_item.setAttributedTitle(Some(&build_attributed_title(runs)));
         }
     }
 
@@ -910,7 +906,7 @@ impl MenuChild {
 
         ns_menu_item.ivars().replace(Some(owner));
 
-        self.apply_attributed_title_if_any(&ns_menu_item);
+        self.apply_styled_text_if_any(&ns_menu_item);
 
         self.ns_menu_items
             .entry(menu_id)
@@ -1016,7 +1012,7 @@ impl MenuChild {
 
         ns_menu_item.ivars().replace(Some(owner));
 
-        self.apply_attributed_title_if_any(&ns_menu_item);
+        self.apply_styled_text_if_any(&ns_menu_item);
 
         self.ns_menu_items
             .entry(menu_id)
@@ -1268,35 +1264,52 @@ impl MenuItem {
     }
 }
 
-/// Builds a two-run attributed title: primary in default color, secondary in `NSColor.secondaryLabelColor`.
-fn build_attributed_secondary_title(
-    primary: &str,
-    secondary: &str,
-) -> Retained<NSAttributedString> {
+/// Builds an attributed title from the runs: every run at the standard menu font, and each
+/// non-[`TextStyle::Normal`] run additionally carrying its style's color.
+fn build_attributed_title(runs: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
+    let combined: String = runs.iter().map(|(text, _)| text.as_str()).collect();
+    let ns_combined = NSString::from_str(&combined);
+    let attributed =
+        NSMutableAttributedString::initWithString(NSMutableAttributedString::alloc(), &ns_combined);
+
+    let font = NSFont::menuFontOfSize(0.0);
     unsafe {
-        let combined = NSString::from_str(&format!("{primary}{secondary}"));
-        let attributed = NSMutableAttributedString::initWithString(
-            NSMutableAttributedString::alloc(),
-            &combined,
+        attributed.addAttribute_value_range(
+            NSFontAttributeName,
+            &font,
+            NSRange::new(0, ns_combined.length()),
         );
+    }
 
-        let font = NSFont::menuFontOfSize(0.0);
-        let full_range = NSRange::new(0, combined.length());
-        attributed.addAttribute_value_range(NSFontAttributeName, &font, full_range);
-
-        let primary_utf16_len = NSString::from_str(primary).length();
-        let secondary_utf16_len = combined.length().saturating_sub(primary_utf16_len);
-        if secondary_utf16_len > 0 {
-            let secondary_range = NSRange::new(primary_utf16_len, secondary_utf16_len);
-            let color = NSColor::secondaryLabelColor();
-            attributed.addAttribute_value_range(
-                NSForegroundColorAttributeName,
-                &color,
-                secondary_range,
-            );
+    // `NSRange` counts UTF-16 code units, which is exactly what `NSString` stores.
+    let mut offset = 0usize;
+    for (text, style) in runs {
+        let len = text.encode_utf16().count();
+        if len > 0 {
+            if let Some(color) = style.ns_color() {
+                unsafe {
+                    attributed.addAttribute_value_range(
+                        NSForegroundColorAttributeName,
+                        &color,
+                        NSRange::new(offset, len),
+                    );
+                }
+            }
         }
+        offset += len;
+    }
 
-        Retained::cast_unchecked::<NSAttributedString>(attributed)
+    // SAFETY: `NSMutableAttributedString` is a subclass of `NSAttributedString`.
+    unsafe { Retained::cast_unchecked::<NSAttributedString>(attributed) }
+}
+
+impl TextStyle {
+    /// The color this style draws in, or `None` to leave the platform default in place.
+    fn ns_color(self) -> Option<Retained<NSColor>> {
+        match self {
+            TextStyle::Normal => None,
+            TextStyle::Secondary => Some(NSColor::secondaryLabelColor()),
+        }
     }
 }
 
@@ -1430,35 +1443,75 @@ unsafe fn show_context_menu(
 
 #[cfg(test)]
 mod tests {
+    use std::ptr::null_mut;
+
     use super::*;
 
     #[test]
     #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
-    fn attributed_title_parts_round_trip() {
+    fn styled_text_round_trip() {
         let mut child = MenuChild::new("placeholder", true, None, None);
-        assert!(child.attributed_title_parts.is_none());
+        assert!(child.styled_text.is_none());
 
-        child.set_text_with_secondary("Preview", Some(" (default)"));
+        child.set_styled_text(&[
+            ("Preview".to_owned(), TextStyle::Normal),
+            (" (default)".to_owned(), TextStyle::Secondary),
+        ]);
         assert_eq!(
             child
-                .attributed_title_parts
+                .styled_text
                 .as_ref()
-                .map(|(p, s)| (p.as_str(), s.as_str())),
-            Some(("Preview", " (default)"))
+                .map(|runs| runs.iter().map(|(t, s)| (t.as_str(), *s)).collect()),
+            Some(vec![
+                ("Preview", TextStyle::Normal),
+                (" (default)", TextStyle::Secondary),
+            ])
         );
         assert_eq!(child.text, "Preview (default)");
 
-        // Calling with `None` reverts to plain text and clears the remembered pair.
-        child.set_text_with_secondary("Preview", None);
-        assert!(child.attributed_title_parts.is_none());
+        // An all-`Normal` label needs no attributed title, so nothing is remembered.
+        child.set_styled_text(&[("Preview".to_owned(), TextStyle::Normal)]);
+        assert!(child.styled_text.is_none());
         assert_eq!(child.text, "Preview");
 
-        // Setting it again, then `set_text` should also clear it (so a later append doesn't
-        // re-attribute a plain title).
-        child.set_text_with_secondary("Preview", Some(" (default)"));
-        assert!(child.attributed_title_parts.is_some());
+        // `set_text` clears the runs, so a later append doesn't re-style a plain title.
+        child.set_styled_text(&[
+            ("Preview".to_owned(), TextStyle::Normal),
+            (" (default)".to_owned(), TextStyle::Secondary),
+        ]);
+        assert!(child.styled_text.is_some());
         child.set_text("Plain again");
-        assert!(child.attributed_title_parts.is_none());
+        assert!(child.styled_text.is_none());
         assert_eq!(child.text, "Plain again");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
+    fn build_attributed_title_colors_only_the_non_normal_runs() {
+        let runs = [
+            ("Preview".to_owned(), TextStyle::Normal),
+            (" (default)".to_owned(), TextStyle::Secondary),
+        ];
+        let attributed = build_attributed_title(&runs);
+        assert_eq!(attributed.string().to_string(), "Preview (default)");
+
+        let color_at = |index: usize| unsafe {
+            attributed
+                .attribute_atIndex_effectiveRange(NSForegroundColorAttributeName, index, null_mut())
+                .map(|value| Retained::cast_unchecked::<NSColor>(value))
+        };
+
+        // The primary run keeps the platform default, so it carries no color attribute.
+        assert!(color_at(0).is_none());
+        assert_eq!(color_at(8), Some(NSColor::secondaryLabelColor()));
+
+        // Every run gets the menu font, so the two halves line up.
+        let font_at = |index: usize| unsafe {
+            attributed
+                .attribute_atIndex_effectiveRange(NSFontAttributeName, index, null_mut())
+                .map(|value| Retained::cast_unchecked::<NSFont>(value))
+        };
+        assert_eq!(font_at(0), font_at(8));
+        assert_eq!(font_at(0), Some(NSFont::menuFontOfSize(0.0)));
     }
 }

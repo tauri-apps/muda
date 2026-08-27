@@ -3,7 +3,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     sealed::IsMenuItemBase,
-    IsMenuItem, MenuId, MenuItemKind,
+    IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -88,31 +88,42 @@ impl MenuItem {
         self.inner.borrow_mut().set_text(text.as_ref())
     }
 
-    /// Set the item's label as a Finder-style two-part string: `primary` rendered in the
-    /// default menu label color, optionally followed by `secondary` rendered in
-    /// `NSColor.secondaryLabelColor`. Both parts use the standard menu font.
-    /// Pass `None` for `secondary` to clear back to plain `setTitle:` styling.
+    /// Set the item's label as a sequence of styled runs, so one part of the label can be
+    /// de-emphasized relative to the rest. Finder uses this for entries like
+    /// `Preview (default)` in its "Open with" submenu.
     ///
-    /// Useful for labels like `Preview (default)`, `Speakers (current)`, or
-    /// `Folder (3 items selected)`.
+    /// ```
+    /// # use muda::{MenuItem, TextStyle};
+    /// # fn example(item: &MenuItem) {
+    /// item.set_styled_text([
+    ///     ("Preview", TextStyle::Normal),
+    ///     (" (default)", TextStyle::Secondary),
+    /// ]);
+    /// # }
+    /// ```
+    ///
+    /// [`MenuItem::text`] returns the concatenation of the runs, which is what the item
+    /// actually draws. [`MenuItem::set_text`] clears the styling.
     ///
     /// ## Platform-specific:
     ///
-    /// - **Windows / Linux**: Concatenates `primary` and `secondary` and falls back to
-    ///   [`MenuItem::set_text`]; the secondary part is not visually distinguished.
-    pub fn set_text_with_secondary(&self, primary: &str, secondary: Option<&str>) {
+    /// - **Windows / Linux**: the runs are concatenated and set as plain text; styles are
+    ///   not visually distinguished.
+    pub fn set_styled_text<S: AsRef<str>>(&self, runs: impl IntoIterator<Item = (S, TextStyle)>) {
         #[cfg(target_os = "macos")]
         {
-            self.inner
-                .borrow_mut()
-                .set_text_with_secondary(primary, secondary);
+            let runs: Vec<(String, TextStyle)> = runs
+                .into_iter()
+                .map(|(text, style)| (text.as_ref().to_string(), style))
+                .collect();
+            self.inner.borrow_mut().set_styled_text(&runs);
         }
         #[cfg(not(target_os = "macos"))]
         {
-            let combined = match secondary {
-                Some(sec) => format!("{primary}{sec}"),
-                None => primary.to_string(),
-            };
+            let combined: String = runs
+                .into_iter()
+                .map(|(text, _)| text.as_ref().to_string())
+                .collect();
             self.inner.borrow_mut().set_text(&combined);
         }
     }
