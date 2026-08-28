@@ -583,7 +583,8 @@ impl ContextMenu for Menu {
         feature = "gtk4"
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
-        self.platform.borrow_mut().gtk_context_menu()
+        let state = self.state.borrow();
+        self.platform.borrow_mut().gtk_context_menu(&state.children)
     }
 
     #[cfg(target_os = "macos")]
