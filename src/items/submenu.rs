@@ -31,15 +31,18 @@ pub(crate) struct SubmenuState {
     pub children: Vec<MenuItemKind>,
 }
 
-#[cfg(all(
-    any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ),
-    feature = "gtk"
+#[cfg(any(
+    target_os = "macos",
+    all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    )
 ))]
 impl Drop for Submenu {
     fn drop(&mut self) {

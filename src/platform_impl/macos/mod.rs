@@ -3,16 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 mod icon;
+mod ns_menu_item;
 mod util;
 
 pub(crate) use icon::PlatformIcon;
+pub(crate) use util::app_name;
 
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-    ffi::c_void,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, ffi::c_void, rc::Rc};
 
 use objc2::{
     define_class, msg_send,
@@ -24,21 +21,22 @@ use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
     NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView,
+    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSView,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
     NSSize, NSString,
 };
 
-use self::util::strip_mnemonic;
+use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
 use crate::{
     accelerator::MenuAccelerator,
     dpi::{LogicalPosition, Position},
     icon::Icon,
     items::*,
+    platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
+    ClickAction, MenuEvent, MenuItemKind, MenuItemType, NativeIcon,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -103,102 +101,45 @@ impl Drop for NsMenuRef {
     }
 }
 
-#[derive(Debug)]
-pub struct Menu {
-    id: MenuId,
+pub struct PlatformMenu {
     ns_menu: NsMenuRef,
-    children: Vec<Rc<RefCell<MenuChild>>>,
 }
 
-impl Drop for Menu {
-    fn drop(&mut self) {
-        for child in &self.children {
-            let mut child_ = child.borrow_mut();
-            child_.ns_menu_items.remove(&self.ns_menu.0);
-            if child_.item_type == MenuItemType::Submenu {
-                child_.ns_menus.as_mut().unwrap().remove(&self.ns_menu.0);
-            }
-        }
-    }
-}
-
-impl Menu {
-    pub fn new(id: Option<MenuId>) -> Self {
+impl PlatformMenu {
+    pub fn new() -> Self {
         let mtm =
             MainThreadMarker::new().expect("`muda::Menu` can only be created on the main thread");
         let ns_menu = NSMenu::new(mtm);
         ns_menu.setAutoenablesItems(false);
         Self {
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
             ns_menu: NsMenuRef::new(mtm, COUNTER.next(), ns_menu),
-            children: Vec::new(),
         }
     }
 
-    pub fn id(&self) -> &MenuId {
-        &self.id
-    }
-
-    pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        let ns_menu_item = item.make_ns_item_for_menu(self.ns_menu.0)?;
-        let child = item.child();
+    pub fn attach(&mut self, item: &MenuItemKind, op: AddOp) -> crate::Result<()> {
+        let ns_menu_item = item.create_ns(self.ns_menu.0)?;
 
         match op {
-            AddOp::Append => {
-                self.ns_menu.1.addItem(&ns_menu_item);
-                self.children.push(child);
-            }
+            AddOp::Append => self.ns_menu.1.addItem(&ns_menu_item),
             AddOp::Insert(position) => {
                 self.ns_menu
                     .1
                     .insertItem_atIndex(&ns_menu_item, position as NSInteger);
-                self.children.insert(position, child);
             }
         }
 
         Ok(())
     }
 
-    pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        let child = item.child();
-        let positions = self
-            .children
-            .iter()
-            .enumerate()
-            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
-            .collect::<Vec<_>>();
-
-        if positions.is_empty() {
-            return Err(crate::Error::NotAChildOfThisMenu);
-        }
-
-        for position in positions.into_iter().rev() {
-            self.remove_at(position);
-        }
-
-        Ok(())
-    }
-
-    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
-        if position >= self.children.len() {
-            return None;
-        }
-
-        let child = self.children.remove(position);
-        let item = child.borrow_mut().kind(child.clone());
-
-        child
+    pub fn remove_at(&mut self, position: usize, item: &MenuItemKind) {
+        let children = item.children();
+        item.platform()
             .borrow_mut()
-            .remove_instance_for_parent_at_position(&self.ns_menu, position);
-
-        Some(item)
+            .remove_instance_for_parent_at_position(&self.ns_menu, position, &children);
     }
 
-    pub fn items(&self) -> Vec<MenuItemKind> {
-        self.children
-            .iter()
-            .map(|c| c.borrow().kind(c.clone()))
-            .collect()
+    pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        remove_children_instances_for_parent(self.ns_menu.0, children);
     }
 
     pub fn init_for_nsapp(&self) {
@@ -228,245 +169,80 @@ impl Menu {
 }
 
 /// A generic child in a menu
-#[derive(Debug, Default)]
-pub struct MenuChild {
-    // shared fields between submenus and menu items
-    item_type: MenuItemType,
-    id: MenuId,
-    text: String,
-    enabled: bool,
-
+pub struct PlatformMenuItem {
+    click: ClickAction,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
-
-    // menu item fields
-    accelerator: Option<MenuAccelerator>,
-
-    // predefined menu item fields
-    predefined_item_type: Option<PredefinedMenuItemType>,
-
-    // check menu item fields
-    checked: Cell<bool>,
-
-    // icon menu item fields
-    icon: Option<Icon>,
-    native_icon: Option<NativeIcon>,
-
-    // submenu fields
-    pub children: Option<Vec<Rc<RefCell<MenuChild>>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
     ns_menu: Option<NsMenuRef>,
 }
 
-impl Drop for MenuChild {
-    fn drop(&mut self) {
-        fn drop_children(id: u32, children: &Vec<Rc<RefCell<MenuChild>>>) {
-            for child in children {
-                let mut child_ = child.borrow_mut();
-                child_.ns_menu_items.remove(&id);
-
-                if child_.item_type == MenuItemType::Submenu {
-                    if let Some(menus) = child_.ns_menus.as_mut().unwrap().remove(&id) {
-                        for menu in menus {
-                            drop_children(menu.0, child_.children.as_ref().unwrap());
-                        }
-                    }
-                }
-            }
-        }
-
-        if self.item_type == MenuItemType::Submenu {
-            for menus in self.ns_menus.as_ref().unwrap().values() {
-                for menu in menus {
-                    drop_children(menu.0, self.children.as_ref().unwrap())
-                }
-            }
-
-            if let Some(menu) = &self.ns_menu {
-                drop_children(menu.0, self.children.as_ref().unwrap());
-            }
-        }
-    }
-}
-
 /// Constructors
-impl MenuChild {
-    pub fn new(
-        text: &str,
-        enabled: bool,
-        accelerator: Option<MenuAccelerator>,
-        id: Option<MenuId>,
-    ) -> Self {
+impl PlatformMenuItem {
+    pub fn new(click: ClickAction, _item_type: MenuItemType) -> Self {
         Self {
-            item_type: MenuItemType::MenuItem,
-            text: strip_mnemonic(text),
-            enabled,
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            accelerator,
-            checked: Cell::new(false),
-            children: None,
-            icon: None,
-            native_icon: None,
+            click,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
             ns_menus: None,
-            predefined_item_type: None,
         }
     }
 
-    pub fn new_submenu(text: &str, enabled: bool, id: Option<MenuId>) -> Self {
+    pub fn new_submenu(click: ClickAction) -> Self {
         let mtm = if cfg!(test) {
             unsafe { MainThreadMarker::new_unchecked() }
         } else {
             MainThreadMarker::new()
-                .expect("`muda::MenuChild` can only be created on the main thread")
+                .expect("`muda::PlatformMenuItem` can only be created on the main thread")
         };
         Self {
-            item_type: MenuItemType::Submenu,
-            text: strip_mnemonic(text),
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            enabled,
-            children: Some(Vec::new()),
+            click,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
                 menu.setAutoenablesItems(false);
                 NsMenuRef::new(mtm, COUNTER.next(), menu)
             }),
-            accelerator: None,
-            checked: Cell::new(false),
-            icon: None,
-            native_icon: None,
             ns_menu_items: HashMap::new(),
             ns_menus: Some(HashMap::new()),
-            predefined_item_type: None,
         }
     }
 
-    pub(crate) fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
-        let enabled = item_type.is_supported_on_macos();
-        let text = strip_mnemonic(text.unwrap_or_else(|| {
-            // Gets the app's name from `NSRunningApplication::localizedName`.
-            let app_name = || {
-                let app = NSRunningApplication::currentApplication();
-                app.localizedName().unwrap_or_default()
-            };
-
-            match item_type {
-                PredefinedMenuItemType::About(_) => {
-                    format!("About {}", app_name()).trim().to_string()
-                }
-                PredefinedMenuItemType::Hide => format!("Hide {}", app_name()).trim().to_string(),
-                PredefinedMenuItemType::Quit => format!("Quit {}", app_name()).trim().to_string(),
-                _ => item_type.text().to_string(),
-            }
-        }));
-
-        Self {
-            item_type: MenuItemType::Predefined,
-            text,
-            enabled,
-            id: MenuId(COUNTER.next().to_string()),
-            accelerator: item_type.accelerator(),
-            predefined_item_type: Some(item_type),
-            checked: Cell::new(false),
-            children: None,
-            icon: None,
-            native_icon: None,
-            ns_menu: None,
-            ns_menu_items: HashMap::new(),
-            ns_menus: None,
-        }
+    fn is_submenu(&self) -> bool {
+        self.ns_menu.is_some()
     }
 
-    pub fn new_check(
-        text: &str,
-        enabled: bool,
-        checked: bool,
-        accelerator: Option<MenuAccelerator>,
-        id: Option<MenuId>,
-    ) -> Self {
-        Self {
-            item_type: MenuItemType::Check,
-            text: text.to_string(),
-            enabled,
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            accelerator,
-            checked: Cell::new(checked),
-            children: None,
-            icon: None,
-            native_icon: None,
-            ns_menu: None,
-            ns_menu_items: HashMap::new(),
-            ns_menus: None,
-            predefined_item_type: None,
+    pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        if !self.is_submenu() {
+            return;
         }
-    }
 
-    pub fn new_icon(
-        text: &str,
-        enabled: bool,
-        icon: Option<Icon>,
-        accelerator: Option<MenuAccelerator>,
-        id: Option<MenuId>,
-    ) -> Self {
-        Self {
-            item_type: MenuItemType::Icon,
-            text: text.to_string(),
-            enabled,
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            icon,
-            accelerator,
-            checked: Cell::new(false),
-            children: None,
-            native_icon: None,
-            ns_menu: None,
-            ns_menu_items: HashMap::new(),
-            ns_menus: None,
-            predefined_item_type: None,
-        }
-    }
+        let menu_ids = self
+            .ns_menus
+            .as_ref()
+            .unwrap()
+            .values()
+            .flatten()
+            .map(|menu| menu.0)
+            .chain(self.ns_menu.iter().map(|menu| menu.0))
+            .collect::<Vec<_>>();
 
-    pub fn new_native_icon(
-        text: &str,
-        enabled: bool,
-        native_icon: Option<NativeIcon>,
-        accelerator: Option<MenuAccelerator>,
-        id: Option<MenuId>,
-    ) -> Self {
-        Self {
-            item_type: MenuItemType::Icon,
-            text: text.to_string(),
-            enabled,
-            id: id.unwrap_or_else(|| MenuId(COUNTER.next().to_string())),
-            native_icon,
-            accelerator,
-            checked: Cell::new(false),
-            children: None,
-            icon: None,
-            ns_menu: None,
-            ns_menu_items: HashMap::new(),
-            ns_menus: None,
-            predefined_item_type: None,
+        for menu_id in menu_ids {
+            remove_children_instances_for_parent(menu_id, children);
         }
     }
 }
 
 /// Shared methods
-impl MenuChild {
-    pub(crate) fn item_type(&self) -> MenuItemType {
-        self.item_type
+impl PlatformMenuItem {
+    pub fn text(&self) -> Option<String> {
+        self.ns_menu_items
+            .values()
+            .flat_map(|items| items.iter())
+            .next()
+            .map(|item| item.title().to_string())
     }
 
-    pub fn id(&self) -> &MenuId {
-        &self.id
-    }
-
-    pub fn text(&self) -> String {
-        self.text.clone()
-    }
-
-    pub fn set_text(&mut self, text: &str) {
-        self.text = strip_mnemonic(text);
-        let title = NSString::from_str(&self.text);
+    pub fn set_text(&mut self, text: &str, _accelerator: Option<&MenuAccelerator>) {
+        let title = NSString::from_str(&strip_mnemonic(text));
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setTitle(&title);
@@ -477,12 +253,15 @@ impl MenuChild {
         }
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
+    pub fn is_enabled(&self) -> Option<bool> {
+        self.ns_menu_items
+            .values()
+            .flat_map(|items| items.iter())
+            .next()
+            .map(|item| item.isEnabled())
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setEnabled(enabled);
@@ -490,17 +269,18 @@ impl MenuChild {
         }
     }
 
-    pub fn set_accelerator(&mut self, accelerator: Option<MenuAccelerator>) -> crate::Result<()> {
+    pub fn set_accelerator(
+        &mut self,
+        _text: &str,
+        accelerator: Option<&MenuAccelerator>,
+    ) -> crate::Result<()> {
         let key_equivalent = accelerator
-            .as_ref()
             .map(MenuAccelerator::key_equivalent)
             .transpose()?;
 
         if let Some(key_equivalent) = key_equivalent {
             let key_equivalent = NSString::from_str(key_equivalent.as_str());
-
             let modifier_mask = accelerator
-                .as_ref()
                 .map(MenuAccelerator::modifier_mask)
                 .unwrap_or_else(NSEventModifierFlags::empty);
 
@@ -512,20 +292,21 @@ impl MenuChild {
             }
         }
 
-        self.accelerator = accelerator;
-
         Ok(())
     }
 }
 
 /// CheckMenuItem methods
-impl MenuChild {
-    pub fn is_checked(&self) -> bool {
-        self.checked.get()
+impl PlatformMenuItem {
+    pub fn is_checked(&self) -> Option<bool> {
+        self.ns_menu_items
+            .values()
+            .flat_map(|items| items.iter())
+            .next()
+            .map(|item| item.state() == NSControlStateValueOn)
     }
 
-    pub fn set_checked(&self, checked: bool) {
-        self.checked.set(checked);
+    pub fn set_checked(&mut self, checked: bool) {
         let state = if checked {
             NSControlStateValueOn
         } else {
@@ -540,99 +321,66 @@ impl MenuChild {
 }
 
 /// IconMenuItem methods
-impl MenuChild {
-    pub fn set_icon(&mut self, icon: Option<Icon>) {
-        self.icon.clone_from(&icon);
-        self.native_icon = None;
+impl PlatformMenuItem {
+    pub fn set_icon(&mut self, icon: Option<&IconType>) {
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                menuitem_set_icon(ns_item, icon.as_ref());
-            }
-        }
-    }
-
-    pub fn set_native_icon(&mut self, icon: Option<NativeIcon>) {
-        self.native_icon = icon;
-        self.icon = None;
-        for ns_items in self.ns_menu_items.values() {
-            for ns_item in ns_items {
-                menuitem_set_native_icon(ns_item, self.native_icon.as_ref());
+                menuitem_set_icon_type(ns_item, icon);
             }
         }
     }
 }
 
-/// Submenu methods
-impl MenuChild {
-    pub fn add_menu_item(&mut self, item: &dyn crate::IsMenuItem, op: AddOp) -> crate::Result<()> {
-        let child = item.child();
+fn remove_children_instances_for_parent(parent_id: u32, children: &[MenuItemKind]) {
+    for child in children {
+        let descendants = child.children();
+        child
+            .platform()
+            .borrow_mut()
+            .remove_instances_for_parent(parent_id, &descendants);
+    }
+}
 
+/// Submenu methods
+impl PlatformMenuItem {
+    pub fn attach(&mut self, item: &MenuItemKind, op: AddOp) -> crate::Result<()> {
         match op {
             AddOp::Append => {
                 for menus in self.ns_menus.as_ref().unwrap().values() {
                     for ns_menu in menus {
-                        let ns_menu_item = item.make_ns_item_for_menu(ns_menu.0)?;
+                        let ns_menu_item = item.create_ns(ns_menu.0)?;
                         ns_menu.1.addItem(&ns_menu_item);
                     }
                 }
 
-                let ns_menu_item = item.make_ns_item_for_menu(self.ns_menu.as_ref().unwrap().0)?;
+                let ns_menu_item = item.create_ns(self.ns_menu.as_ref().unwrap().0)?;
                 self.ns_menu.as_ref().unwrap().1.addItem(&ns_menu_item);
-
-                self.children.as_mut().unwrap().push(child);
             }
             AddOp::Insert(position) => {
                 for menus in self.ns_menus.as_ref().unwrap().values() {
                     for ns_menu in menus {
-                        let ns_menu_item = item.make_ns_item_for_menu(ns_menu.0)?;
+                        let ns_menu_item = item.create_ns(ns_menu.0)?;
                         ns_menu
                             .1
                             .insertItem_atIndex(&ns_menu_item, position as NSInteger);
                     }
                 }
 
-                let ns_menu_item = item.make_ns_item_for_menu(self.ns_menu.as_ref().unwrap().0)?;
+                let ns_menu_item = item.create_ns(self.ns_menu.as_ref().unwrap().0)?;
                 self.ns_menu
                     .as_ref()
                     .unwrap()
                     .1
                     .insertItem_atIndex(&ns_menu_item, position as NSInteger);
-
-                self.children.as_mut().unwrap().insert(position, child);
             }
         }
 
         Ok(())
     }
 
-    pub fn remove(&mut self, item: &dyn crate::IsMenuItem) -> crate::Result<()> {
-        let child = item.child();
-        let children = self.children.as_ref().unwrap();
-        let positions = children
-            .iter()
-            .enumerate()
-            .filter_map(|(index, current)| Rc::ptr_eq(current, &child).then_some(index))
-            .collect::<Vec<_>>();
-
-        if positions.is_empty() {
-            return Err(crate::Error::NotAChildOfThisMenu);
-        }
-
-        for position in positions.into_iter().rev() {
-            self.remove_at(position);
-        }
-
-        Ok(())
-    }
-
-    pub fn remove_at(&mut self, position: usize) -> Option<MenuItemKind> {
-        let children = self.children.as_mut().unwrap();
-        if position >= children.len() {
-            return None;
-        }
-
-        let child = children.remove(position);
-        let item = child.borrow().kind(child.clone());
+    pub fn remove_at(&mut self, position: usize, item: &MenuItemKind) {
+        let children = item.children();
+        let child = item.platform();
 
         //  Join the ns_menus and ns_menu into a single iterator of parent menus to remove the child from
         let ns_menus = self.ns_menus.as_ref().unwrap();
@@ -641,26 +389,34 @@ impl MenuChild {
 
         for parent_menu in parent_menus {
             let mut child = child.borrow_mut();
-            child.remove_instance_for_parent_at_position(&parent_menu, position);
+            child.remove_instance_for_parent_at_position(&parent_menu, position, &children);
         }
-
-        Some(item)
     }
 
-    fn remove_instance_for_parent_at_position(&mut self, parent_menu: &NsMenuRef, position: usize) {
+    fn remove_instance_for_parent_at_position(
+        &mut self,
+        parent_menu: &NsMenuRef,
+        position: usize,
+        children: &[MenuItemKind],
+    ) {
         let Some(ns_item) = parent_menu.1.itemAtIndex(position as NSInteger) else {
             return;
         };
 
-        if self.item_type == MenuItemType::Submenu {
-            self.remove_ns_menu_for_parent_item(parent_menu.0, &ns_item);
+        if self.is_submenu() {
+            self.remove_ns_menu_for_parent_item(parent_menu.0, &ns_item, children);
         }
 
         self.remove_ns_menu_item_for_parent(parent_menu.0, &ns_item);
         parent_menu.1.removeItemAtIndex(position as NSInteger);
     }
 
-    fn remove_ns_menu_for_parent_item(&mut self, parent_id: u32, ns_item: &NSMenuItem) {
+    fn remove_ns_menu_for_parent_item(
+        &mut self,
+        parent_id: u32,
+        ns_item: &NSMenuItem,
+        children: &[MenuItemKind],
+    ) {
         let Some(ns_submenu) = ns_item.submenu() else {
             return;
         };
@@ -679,21 +435,19 @@ impl MenuChild {
             self.ns_menus.as_mut().unwrap().remove(&parent_id);
         }
 
-        self.remove_ns_instances_for_parent(removed.0);
+        remove_children_instances_for_parent(removed.0, children);
     }
 
-    fn remove_ns_instances_for_parent(&mut self, parent_id: u32) {
+    fn remove_instances_for_parent(&mut self, parent_id: u32, children: &[MenuItemKind]) {
         self.ns_menu_items.remove(&parent_id);
 
-        if self.item_type != MenuItemType::Submenu {
+        if !self.is_submenu() {
             return;
         }
 
         if let Some(menus) = self.ns_menus.as_mut().unwrap().remove(&parent_id) {
             for menu in menus {
-                for child in self.children.as_mut().unwrap() {
-                    child.borrow_mut().remove_ns_instances_for_parent(menu.0);
-                }
+                remove_children_instances_for_parent(menu.0, children);
             }
         }
     }
@@ -713,15 +467,6 @@ impl MenuChild {
         if items.is_empty() {
             self.ns_menu_items.remove(&parent_id);
         }
-    }
-
-    pub fn items(&self) -> Vec<MenuItemKind> {
-        self.children
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|c| c.borrow().kind(c.clone()))
-            .collect()
     }
 
     pub unsafe fn show_context_menu_for_nsview(
@@ -784,16 +529,18 @@ impl MenuChild {
 }
 
 /// NSMenuItem item creation methods
-impl MenuChild {
-    pub fn create_ns_item_for_submenu(
+impl PlatformMenuItem {
+    fn create_ns_submenu(
         &mut self,
+        args: &PlatformAttachArgs,
+        children: &[MenuItemKind],
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
         let ns_menu_item;
         let ns_submenu;
 
-        let title = NSString::from_str(&self.text);
+        let title = NSString::from_str(&strip_mnemonic(&args.text));
         unsafe {
             ns_menu_item = NSMenuItem::initWithTitle_action_keyEquivalent(
                 mtm.alloc(),
@@ -807,21 +554,14 @@ impl MenuChild {
             ns_menu_item.setSubmenu(Some(&ns_submenu));
             ns_submenu.setAutoenablesItems(false);
 
-            ns_menu_item.setEnabled(self.enabled);
-
-            if self.native_icon.is_some() {
-                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_ref());
-            }
-
-            if let Some(icon) = self.icon.as_ref() {
-                menuitem_set_icon(&ns_menu_item, Some(icon));
-            }
+            ns_menu_item.setEnabled(args.enabled);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
         }
 
         let id = COUNTER.next();
 
-        for item in self.children.as_ref().unwrap() {
-            let ns_item = item.borrow_mut().make_ns_item_for_menu(item.clone(), id)?;
+        for item in children {
+            let ns_item = item.create_ns(id)?;
             ns_submenu.addItem(&ns_item);
         }
 
@@ -840,22 +580,23 @@ impl MenuChild {
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_menu_item(
+    fn create_ns_item(
         &mut self,
-        owner: Rc<RefCell<MenuChild>>,
+        args: &PlatformAttachArgs,
+        owner: Rc<RefCell<PlatformMenuItem>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = MenuItem::create(
+        let ns_menu_item = NsMenuItem::create(
             mtm,
-            &self.text,
-            Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &args.text,
+            Some(sel!(customAction:)),
+            &args.accelerator,
         )?;
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-            ns_menu_item.setEnabled(self.enabled);
+            ns_menu_item.setEnabled(args.enabled);
         }
 
         ns_menu_item.ivars().replace(Some(owner));
@@ -868,20 +609,22 @@ impl MenuChild {
         Ok(Retained::into_super(ns_menu_item))
     }
 
-    pub fn create_ns_item_for_predefined_menu_item(
+    fn create_ns_predefined_item(
         &mut self,
-        owner: Rc<RefCell<MenuChild>>,
+        args: &PlatformAttachArgs,
+        predefined_item_type: PredefinedMenuItemType,
+        owner: Rc<RefCell<PlatformMenuItem>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let item_type = self.predefined_item_type.as_ref().unwrap();
-        let ns_menu_item = match item_type {
+        let ns_menu_item = match &predefined_item_type {
             PredefinedMenuItemType::Separator => NSMenuItem::separatorItem(mtm),
             _ => {
+                let selector = predefined_item_type.selector();
                 let ns_menu_item =
-                    MenuItem::create(mtm, &self.text, item_type.selector(), &self.accelerator)?;
+                    NsMenuItem::create(mtm, &args.text, selector, &args.accelerator)?;
 
-                if let PredefinedMenuItemType::About(_) = item_type {
+                if let PredefinedMenuItemType::About(_) = &predefined_item_type {
                     unsafe { ns_menu_item.setTarget(Some(&ns_menu_item)) };
                     ns_menu_item.ivars().set(Some(owner));
                 }
@@ -890,9 +633,9 @@ impl MenuChild {
             }
         };
 
-        ns_menu_item.setEnabled(self.enabled);
+        ns_menu_item.setEnabled(args.enabled);
 
-        if let PredefinedMenuItemType::Services = item_type {
+        if let PredefinedMenuItemType::Services = &predefined_item_type {
             // we have to assign an empty menu as the app's services menu, and macOS will populate it
             let services_menu = NSMenu::new(mtm);
             NSApplication::sharedApplication(mtm).setServicesMenu(Some(&services_menu));
@@ -907,23 +650,24 @@ impl MenuChild {
         Ok(ns_menu_item)
     }
 
-    pub fn create_ns_item_for_check_menu_item(
+    fn create_ns_check_item(
         &mut self,
-        owner: Rc<RefCell<MenuChild>>,
+        args: &PlatformAttachArgs,
+        owner: Rc<RefCell<PlatformMenuItem>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = MenuItem::create(
+        let ns_menu_item = NsMenuItem::create(
             mtm,
-            &self.text,
-            Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &args.text,
+            Some(sel!(customAction:)),
+            &args.accelerator,
         )?;
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-            ns_menu_item.setEnabled(self.enabled);
-            if self.checked.get() {
+            ns_menu_item.setEnabled(args.enabled);
+            if args.checked {
                 ns_menu_item.setState(NSControlStateValueOn);
             }
         }
@@ -938,28 +682,24 @@ impl MenuChild {
         Ok(Retained::into_super(ns_menu_item))
     }
 
-    pub fn create_ns_item_for_icon_menu_item(
+    fn create_ns_icon_item(
         &mut self,
-        owner: Rc<RefCell<MenuChild>>,
+        args: &PlatformAttachArgs,
+        owner: Rc<RefCell<PlatformMenuItem>>,
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = MenuItem::create(
+        let ns_menu_item = NsMenuItem::create(
             mtm,
-            &self.text,
-            Some(sel!(fireMenuItemAction:)),
-            &self.accelerator,
+            &args.text,
+            Some(sel!(customAction:)),
+            &args.accelerator,
         )?;
 
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
-            ns_menu_item.setEnabled(self.enabled);
-
-            if self.icon.is_some() {
-                menuitem_set_icon(&ns_menu_item, self.icon.as_ref());
-            } else if self.native_icon.is_some() {
-                menuitem_set_native_icon(&ns_menu_item, self.native_icon.as_ref());
-            }
+            ns_menu_item.setEnabled(args.enabled);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
         }
 
         ns_menu_item.ivars().replace(Some(owner));
@@ -971,58 +711,112 @@ impl MenuChild {
 
         Ok(Retained::into_super(ns_menu_item))
     }
+}
 
-    fn make_ns_item_for_menu(
-        &mut self,
-        owner: Rc<RefCell<MenuChild>>,
-        menu_id: u32,
-    ) -> crate::Result<Retained<NSMenuItem>> {
-        match self.item_type {
-            MenuItemType::Submenu => self.create_ns_item_for_submenu(menu_id),
-            MenuItemType::MenuItem => self.create_ns_item_for_menu_item(owner, menu_id),
-            MenuItemType::Predefined => {
-                self.create_ns_item_for_predefined_menu_item(owner, menu_id)
+impl NsMenuItem {
+    fn action(&self) {
+        // SAFETY: The ivar is initialized before the menu item is exposed and is
+        // never mutated afterward.
+        let item = unsafe { &*self.ivars().as_ptr() };
+        let item = item.as_ref().expect("PlatformMenuItem pointer was unset");
+        let click = item.borrow().click.clone();
+
+        match click {
+            ClickAction::Emit(id) => MenuEvent::send(MenuEvent { id }),
+            ClickAction::Toggle(id, state) => {
+                if let Some(state) = state.upgrade() {
+                    let checked = {
+                        let mut state = state.borrow_mut();
+                        state.checked = !state.checked;
+                        state.checked
+                    };
+                    item.borrow_mut().set_checked(checked);
+                }
+                MenuEvent::send(MenuEvent { id });
             }
-            MenuItemType::Check => self.create_ns_item_for_check_menu_item(owner, menu_id),
-            MenuItemType::Icon => self.create_ns_item_for_icon_menu_item(owner, menu_id),
+            ClickAction::Predefined(_) => {
+                unreachable!("predefined menu item used the generic click action")
+            }
         }
+    }
+
+    fn show_about_panel(&self) {
+        // SAFETY: The ivar is initialized before the menu item is exposed and is
+        // never mutated afterward.
+        let item = unsafe { &*self.ivars().as_ptr() };
+        let item = item.as_ref().expect("PlatformMenuItem pointer was unset");
+        let click = item.borrow().click.clone();
+
+        let ClickAction::Predefined(state) = click else {
+            unreachable!("About menu item without predefined action");
+        };
+        let item_type = state
+            .upgrade()
+            .map(|state| state.borrow().predefined_item_type.clone());
+        let Some(PredefinedMenuItemType::About(about_meta)) = item_type else {
+            return;
+        };
+
+        let mtm = MainThreadMarker::from(self);
+        let Some(about_meta) = about_meta else {
+            NSApplication::sharedApplication(mtm).orderFrontStandardAboutPanel(Some(self));
+            return;
+        };
+
+        let mut keys: Vec<&NSString> = Default::default();
+        let mut objects: Vec<Retained<AnyObject>> = Default::default();
+
+        if let Some(name) = &about_meta.name {
+            keys.push(unsafe { NSAboutPanelOptionApplicationName });
+            objects.push(Retained::into_super(Retained::into_super(
+                NSString::from_str(name),
+            )));
+        }
+
+        if let Some(version) = &about_meta.version {
+            keys.push(unsafe { NSAboutPanelOptionApplicationVersion });
+            objects.push(Retained::into_super(Retained::into_super(
+                NSString::from_str(version),
+            )));
+        }
+
+        if let Some(short_version) = &about_meta.short_version {
+            keys.push(unsafe { NSAboutPanelOptionVersion });
+            objects.push(Retained::into_super(Retained::into_super(
+                NSString::from_str(short_version),
+            )));
+        }
+
+        if let Some(copyright) = &about_meta.copyright {
+            keys.push(ns_string!(NSAboutPanelOptionCopyright));
+            objects.push(Retained::into_super(Retained::into_super(
+                NSString::from_str(copyright),
+            )));
+        }
+
+        if let Some(icon) = &about_meta.icon {
+            keys.push(unsafe { NSAboutPanelOptionApplicationIcon });
+            objects.push(Retained::into_super(Retained::into_super(
+                icon.inner.to_nsimage(None),
+            )));
+        }
+
+        if let Some(credits) = &about_meta.credits {
+            keys.push(unsafe { NSAboutPanelOptionCredits });
+            objects.push(Retained::into_super(Retained::into_super(
+                NSAttributedString::from_nsstring(&NSString::from_str(credits)),
+            )));
+        }
+
+        let dict = NSDictionary::from_retained_objects(&keys, &objects);
+
+        unsafe {
+            NSApplication::sharedApplication(mtm).orderFrontStandardAboutPanelWithOptions(&dict)
+        };
     }
 }
 
 impl PredefinedMenuItemType {
-    fn is_supported_on_macos(&self) -> bool {
-        matches!(
-            self,
-            PredefinedMenuItemType::Separator
-                | PredefinedMenuItemType::Copy
-                | PredefinedMenuItemType::Cut
-                | PredefinedMenuItemType::Paste
-                | PredefinedMenuItemType::PasteAndMatchStyle
-                | PredefinedMenuItemType::Delete
-                | PredefinedMenuItemType::SelectAll
-                | PredefinedMenuItemType::Undo
-                | PredefinedMenuItemType::Redo
-                | PredefinedMenuItemType::Minimize
-                | PredefinedMenuItemType::Maximize
-                | PredefinedMenuItemType::ActualSize
-                | PredefinedMenuItemType::ZoomIn
-                | PredefinedMenuItemType::ZoomOut
-                | PredefinedMenuItemType::Fullscreen
-                | PredefinedMenuItemType::Hide
-                | PredefinedMenuItemType::HideOthers
-                | PredefinedMenuItemType::ShowAll
-                | PredefinedMenuItemType::CloseWindow
-                | PredefinedMenuItemType::Quit
-                | PredefinedMenuItemType::About(_)
-                | PredefinedMenuItemType::Services
-                | PredefinedMenuItemType::BringAllToFront
-                | PredefinedMenuItemType::StartSpeaking
-                | PredefinedMenuItemType::StopSpeaking
-                | PredefinedMenuItemType::StartDictation
-                | PredefinedMenuItemType::EmojiAndSymbols
-        )
-    }
-
     pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
             PredefinedMenuItemType::Separator => None,
@@ -1045,8 +839,7 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::ShowAll => Some(sel!(unhideAllApplications:)),
             PredefinedMenuItemType::CloseWindow => Some(sel!(performClose:)),
             PredefinedMenuItemType::Quit => Some(sel!(terminate:)),
-            // manual implementation in `fire_menu_item_click`
-            PredefinedMenuItemType::About(_) => Some(sel!(fireMenuItemAction:)),
+            PredefinedMenuItemType::About(_) => Some(sel!(customShowAboutPanel:)),
             PredefinedMenuItemType::Services => None,
             PredefinedMenuItemType::BringAllToFront => Some(sel!(arrangeInFront:)),
             PredefinedMenuItemType::StartSpeaking => Some(sel!(startSpeaking:)),
@@ -1057,160 +850,35 @@ impl PredefinedMenuItemType {
     }
 }
 
-impl dyn IsMenuItem + '_ {
-    fn make_ns_item_for_menu(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
-        match self.kind() {
-            MenuItemKind::Submenu(i) => i.inner.borrow_mut().create_ns_item_for_submenu(menu_id),
-            MenuItemKind::MenuItem(i) => i
-                .inner
-                .borrow_mut()
-                .create_ns_item_for_menu_item(i.inner.clone(), menu_id),
-            MenuItemKind::Predefined(i) => i
-                .inner
-                .borrow_mut()
-                .create_ns_item_for_predefined_menu_item(i.inner.clone(), menu_id),
-            MenuItemKind::Check(i) => i
-                .inner
-                .borrow_mut()
-                .create_ns_item_for_check_menu_item(i.inner.clone(), menu_id),
-            MenuItemKind::Icon(i) => i
-                .inner
-                .borrow_mut()
-                .create_ns_item_for_icon_menu_item(i.inner.clone(), menu_id),
+impl MenuItemKind {
+    fn create_ns(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
+        let args = self.platform_attach_args();
+        let platform = self.platform();
+        let mut item = platform.borrow_mut();
+
+        match self {
+            MenuItemKind::Submenu(_) => item.create_ns_submenu(&args, &self.children(), menu_id),
+            MenuItemKind::MenuItem(_) => item.create_ns_item(&args, platform.clone(), menu_id),
+            MenuItemKind::Predefined(i) => {
+                let predefined_item_type = i.state.borrow().predefined_item_type.clone();
+                item.create_ns_predefined_item(
+                    &args,
+                    predefined_item_type,
+                    platform.clone(),
+                    menu_id,
+                )
+            }
+            MenuItemKind::Check(_) => item.create_ns_check_item(&args, platform.clone(), menu_id),
+            MenuItemKind::Icon(_) => item.create_ns_icon_item(&args, platform.clone(), menu_id),
         }
     }
 }
 
-define_class!(
-    #[unsafe(super(NSMenuItem))]
-    #[name = "MudaMenuItem"]
-    #[thread_kind = MainThreadOnly]
-    #[ivars = Cell<Option<Rc<RefCell<MenuChild>>>>]
-    struct MenuItem;
-
-    impl MenuItem {
-        #[unsafe(method(fireMenuItemAction:))]
-        fn fire_menu_item_action(&self, _sender: Option<&AnyObject>) {
-            self.fire_menu_item_click();
-        }
-    }
-);
-
-impl MenuItem {
-    fn new(
-        mtm: MainThreadMarker,
-        title: &NSString,
-        action: Option<Sel>,
-        key_equivalent: &NSString,
-    ) -> Retained<Self> {
-        let this = mtm.alloc().set_ivars(Cell::new(None));
-        unsafe {
-            msg_send![super(this), initWithTitle: title, action: action, keyEquivalent: key_equivalent]
-        }
-    }
-
-    fn fire_menu_item_click(&self) {
-        let mtm = MainThreadMarker::from(self);
-        // SAFETY: The ivar is initialized before the menu item is exposed and is
-        // never mutated afterward.
-        let item = unsafe { &*self.ivars().as_ptr() };
-        let item = item.as_ref().expect("MenuChild pointer was unset");
-        let item = item.borrow();
-
-        if let Some(PredefinedMenuItemType::About(about_meta)) = &item.predefined_item_type {
-            match about_meta {
-                Some(about_meta) => {
-                    let mut keys: Vec<&NSString> = Default::default();
-                    let mut objects: Vec<Retained<AnyObject>> = Default::default();
-
-                    if let Some(name) = &about_meta.name {
-                        keys.push(unsafe { NSAboutPanelOptionApplicationName });
-                        objects.push(Retained::into_super(Retained::into_super(
-                            NSString::from_str(name),
-                        )));
-                    }
-
-                    if let Some(version) = &about_meta.version {
-                        keys.push(unsafe { NSAboutPanelOptionApplicationVersion });
-                        objects.push(Retained::into_super(Retained::into_super(
-                            NSString::from_str(version),
-                        )));
-                    }
-
-                    if let Some(short_version) = &about_meta.short_version {
-                        keys.push(unsafe { NSAboutPanelOptionVersion });
-                        objects.push(Retained::into_super(Retained::into_super(
-                            NSString::from_str(short_version),
-                        )));
-                    }
-
-                    if let Some(copyright) = &about_meta.copyright {
-                        keys.push(ns_string!(NSAboutPanelOptionCopyright));
-                        objects.push(Retained::into_super(Retained::into_super(
-                            NSString::from_str(copyright),
-                        )));
-                    }
-
-                    if let Some(icon) = &about_meta.icon {
-                        keys.push(unsafe { NSAboutPanelOptionApplicationIcon });
-                        objects.push(Retained::into_super(Retained::into_super(
-                            icon.inner.to_nsimage(None),
-                        )));
-                    }
-
-                    if let Some(credits) = &about_meta.credits {
-                        keys.push(unsafe { NSAboutPanelOptionCredits });
-                        objects.push(Retained::into_super(Retained::into_super(
-                            NSAttributedString::from_nsstring(&NSString::from_str(credits)),
-                        )));
-                    }
-
-                    let dict = NSDictionary::from_retained_objects(&keys, &objects);
-
-                    unsafe {
-                        NSApplication::sharedApplication(mtm)
-                            .orderFrontStandardAboutPanelWithOptions(&dict)
-                    };
-                }
-
-                None => {
-                    NSApplication::sharedApplication(mtm).orderFrontStandardAboutPanel(Some(self));
-                }
-            }
-        } else {
-            if item.item_type == MenuItemType::Check {
-                item.set_checked(!item.is_checked());
-            }
-
-            let id = (*item).id().clone();
-            MenuEvent::send(crate::MenuEvent { id });
-        }
-    }
-
-    fn create(
-        mtm: MainThreadMarker,
-        title: &str,
-        selector: Option<Sel>,
-        accelerator: &Option<MenuAccelerator>,
-    ) -> crate::Result<Retained<MenuItem>> {
-        let title = NSString::from_str(title);
-
-        let key_equivalent = accelerator
-            .as_ref()
-            .map(|accel| accel.key_equivalent())
-            .transpose()?
-            .unwrap_or_default();
-        let key_equivalent = NSString::from_str(&key_equivalent);
-
-        let modifier_mask = accelerator
-            .as_ref()
-            .map(MenuAccelerator::modifier_mask)
-            .unwrap_or_else(NSEventModifierFlags::empty);
-
-        let item = MenuItem::new(mtm, &title, selector, &key_equivalent);
-        item.setKeyEquivalentModifierMask(modifier_mask);
-
-        Ok(item)
+fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>) {
+    match icon {
+        Some(IconType::Custom(icon)) => menuitem_set_icon(menuitem, Some(icon)),
+        Some(IconType::Native(icon)) => menuitem_set_native_icon(menuitem, Some(icon)),
+        None => menuitem.setImage(None),
     }
 }
 

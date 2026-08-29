@@ -61,6 +61,7 @@ pub(crate) struct PlatformAttachArgs {
     pub enabled: bool,
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     pub item_type: crate::MenuItemType,
     pub icon: Option<IconType>,
 }
@@ -133,7 +134,7 @@ impl MenuItemKind {
         }
     }
 
-    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    #[cfg_attr(any(target_os = "windows", target_os = "macos"), allow(dead_code))]
     pub(crate) fn click_action(&self) -> crate::ClickAction {
         match self {
             Self::MenuItem(item) => crate::ClickAction::Emit((*item.id).clone()),
