@@ -86,7 +86,7 @@ impl MenuItem {
             accelerator,
         };
         let click = ClickAction::Emit(id.clone());
-        let platform = PlatformMenuItem::new(click, crate::MenuItemType::MenuItem);
+        let platform = PlatformMenuItem::new(click);
 
         Self {
             id: Rc::new(id),

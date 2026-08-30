@@ -35,11 +35,7 @@ mod platform;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    accelerator::MenuAccelerator,
-    items::{IconType, PredefinedMenuItemType},
-    MenuItemKind,
-};
+use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
 
 pub(crate) use self::platform::*;
 
@@ -61,8 +57,6 @@ pub(crate) struct PlatformAttachArgs {
     pub enabled: bool,
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
-    #[cfg_attr(target_os = "macos", allow(dead_code))]
-    pub item_type: crate::MenuItemType,
     pub icon: Option<IconType>,
 }
 
@@ -76,7 +70,6 @@ impl MenuItemKind {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.accelerator.clone(),
-                    item_type: crate::MenuItemType::MenuItem,
                     icon: None,
                 }
             }
@@ -87,7 +80,6 @@ impl MenuItemKind {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: None,
-                    item_type: crate::MenuItemType::Submenu,
                     icon: state.icon.clone(),
                 }
             }
@@ -98,14 +90,6 @@ impl MenuItemKind {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.predefined_item_type.accelerator(),
-                    item_type: if matches!(
-                        state.predefined_item_type,
-                        PredefinedMenuItemType::Separator
-                    ) {
-                        crate::MenuItemType::Separator
-                    } else {
-                        crate::MenuItemType::Predefined
-                    },
                     icon: None,
                 }
             }
@@ -116,7 +100,6 @@ impl MenuItemKind {
                     enabled: state.enabled,
                     checked: state.checked,
                     accelerator: state.accelerator.clone(),
-                    item_type: crate::MenuItemType::Check,
                     icon: None,
                 }
             }
@@ -127,7 +110,6 @@ impl MenuItemKind {
                     enabled: state.enabled,
                     checked: false,
                     accelerator: state.accelerator.clone(),
-                    item_type: crate::MenuItemType::Icon,
                     icon: state.icon.clone(),
                 }
             }

@@ -36,7 +36,7 @@ use crate::{
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    ClickAction, MenuEvent, MenuItemKind, MenuItemType, NativeIcon,
+    ClickAction, MenuEvent, MenuItemKind, NativeIcon,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -178,7 +178,7 @@ pub struct PlatformMenuItem {
 
 /// Constructors
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction, _item_type: MenuItemType) -> Self {
+    pub fn new(click: ClickAction) -> Self {
         Self {
             click,
             ns_menu: None,

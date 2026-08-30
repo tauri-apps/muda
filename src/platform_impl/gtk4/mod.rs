@@ -19,7 +19,7 @@ use crate::{
     items::IconType,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    AboutMetadata, ClickAction, MenuEvent, MenuItemKind, MenuItemType, PredefinedMenuItemType,
+    AboutMetadata, ClickAction, MenuEvent, MenuItemKind, PredefinedMenuItemType,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -441,7 +441,7 @@ pub struct PlatformMenuItem {
 }
 
 impl PlatformMenuItem {
-    pub fn new(_click: ClickAction, _item_type: MenuItemType) -> Self {
+    pub fn new(_click: ClickAction) -> Self {
         Self {
             action_name: format!("item-{}", COUNTER.next()),
             ctx_menu_id: 0,
@@ -453,7 +453,7 @@ impl PlatformMenuItem {
     pub fn new_submenu(_click: ClickAction) -> Self {
         Self {
             ctx_menu_id: COUNTER.next() as GtkId,
-            ..Self::new(_click, MenuItemType::Submenu)
+            ..Self::new(_click)
         }
     }
 
@@ -461,7 +461,6 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         children: &[MenuItemKind],
-        click: &ClickAction,
         app: &gtk::Application,
         menu_id: GtkId,
         parent_menu: &gio::Menu,
@@ -473,7 +472,7 @@ impl PlatformMenuItem {
         let id = COUNTER.next() as GtkId;
         let item = gio_submenu(&args.text, &detailed_action, &menu, id);
 
-        self.ensure_action(app, args, click);
+        self.ensure_submenu_action(app, args);
 
         match op {
             AddOp::Append => parent_menu.append_item(&item),
@@ -712,16 +711,23 @@ impl PlatformMenuItem {
             }
             ClickAction::Emit(id) => {
                 let action = gio::SimpleAction::new(&self.action_name, None);
-                if !matches!(args.item_type, MenuItemType::Submenu) {
-                    let id = id.clone();
-                    action.connect_activate(move |_, _| {
-                        MenuEvent::send(MenuEvent { id: id.clone() })
-                    });
-                }
+                let id = id.clone();
+                action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
                 action
             }
         };
 
+        action.set_enabled(args.enabled);
+        action_group_from_app(app).add_action(&action);
+        self.action = Some(action);
+    }
+
+    fn ensure_submenu_action(&mut self, app: &gtk::Application, args: &PlatformAttachArgs) {
+        if self.action.is_some() {
+            return;
+        }
+
+        let action = gio::SimpleAction::new(&self.action_name, None);
         action.set_enabled(args.enabled);
         action_group_from_app(app).add_action(&action);
         self.action = Some(action);
@@ -1077,24 +1083,23 @@ impl MenuItemKind {
         let platform = self.platform();
         let mut child = platform.borrow_mut();
 
-        match args.item_type {
-            MenuItemType::Submenu => child.insert_gtk_submenu(
+        match self {
+            Self::Submenu(_) => child.insert_gtk_submenu(
                 &args,
                 &self.children(),
-                &click,
                 app,
                 menu_id,
                 parent_menu,
                 parent_widget,
                 op,
             ),
-            MenuItemType::MenuItem => {
+            Self::MenuItem(_) => {
                 child.insert_gtk_item(&args, &click, app, menu_id, parent_menu, op)
             }
-            MenuItemType::Check => {
+            Self::Check(_) => {
                 child.insert_gtk_check_item(&args, &click, app, menu_id, parent_menu, op)
             }
-            MenuItemType::Icon => child.insert_gtk_icon_item(
+            Self::Icon(_) => child.insert_gtk_icon_item(
                 &args,
                 &click,
                 app,
@@ -1103,11 +1108,16 @@ impl MenuItemKind {
                 parent_widget,
                 op,
             ),
-            MenuItemType::Predefined => {
-                child.insert_gtk_predefined_item(&args, &click, app, menu_id, parent_menu, op)
-            }
-            MenuItemType::Separator => {
+            Self::Predefined(item)
+                if matches!(
+                    item.state.borrow().predefined_item_type,
+                    PredefinedMenuItemType::Separator
+                ) =>
+            {
                 child.insert_gtk_separator(app, menu_id, parent_menu, parent_widget, op)
+            }
+            Self::Predefined(_) => {
+                child.insert_gtk_predefined_item(&args, &click, app, menu_id, parent_menu, op)
             }
         }
     }

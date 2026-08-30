@@ -13,7 +13,6 @@ use crate::{
     accelerator::MenuAccelerator,
     dpi::Position,
     items::{ClickAction, IconType, PredefinedMenuItemType},
-    platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
     AboutMetadata, MenuEvent, MenuTheme, NativeIcon,
 };
@@ -327,8 +326,7 @@ impl PlatformMenu {
             self.hpopupmenu,
             Some(self.windows.clone()),
             [(self.id, self.accelerator_table.clone())],
-            &child.platform_attach_args(),
-            &child.platform(),
+            child,
             op,
         )?;
 
@@ -369,7 +367,7 @@ impl PlatformMenu {
 }
 
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction, _item_type: crate::MenuItemType) -> Self {
+    pub fn new(click: ClickAction) -> Self {
         Self {
             id: COUNTER.next(),
             click,
@@ -559,8 +557,7 @@ impl PlatformMenuItem {
             self.accelerator_tables
                 .iter()
                 .map(|(&id, table)| (id, table.clone())),
-            &child.platform_attach_args(),
-            &child.platform(),
+            child,
             op,
         )?;
 
@@ -630,11 +627,12 @@ fn attach_item(
     hpopupmenu: HMENU,
     windows: Option<Rc<RefCell<HashMap<Hwnd, WindowState>>>>,
     accelerator_tables: impl IntoIterator<Item = (u32, Rc<RefCell<AcceleratorTable>>)>,
-    args: &PlatformAttachArgs,
-    child: &Rc<RefCell<PlatformMenuItem>>,
+    item: &crate::MenuItemKind,
     op: AddOp,
 ) -> crate::Result<()> {
     let accelerator_tables = accelerator_tables.into_iter().collect::<Vec<_>>();
+    let args = item.platform_attach_args();
+    let child = item.platform();
     let mut child = child.borrow_mut();
 
     child
@@ -642,9 +640,16 @@ fn attach_item(
         .extend(accelerator_tables.iter().cloned());
 
     let id = child.id();
-    let mut flags = match args.item_type {
-        crate::MenuItemType::Submenu => MF_POPUP,
-        crate::MenuItemType::Separator => MF_SEPARATOR,
+    let mut flags = match item {
+        crate::MenuItemKind::Submenu(_) => MF_POPUP,
+        crate::MenuItemKind::Predefined(item)
+            if matches!(
+                item.state.borrow().predefined_item_type,
+                PredefinedMenuItemType::Separator
+            ) =>
+        {
+            MF_SEPARATOR
+        }
         _ => MF_STRING,
     };
     if !args.enabled {

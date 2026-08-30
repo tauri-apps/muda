@@ -306,7 +306,7 @@ impl PredefinedMenuItem {
         // A predefined item emits no event; what it does instead is decided from its kind at
         // click time, which is why the action needs a handle to state rather than the id.
         let click = ClickAction::Predefined(Rc::downgrade(&state));
-        let platform = PlatformMenuItem::new(click, crate::MenuItemType::Predefined);
+        let platform = PlatformMenuItem::new(click);
 
         Self {
             id: Rc::new(id),

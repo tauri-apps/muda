@@ -176,7 +176,7 @@ impl IconMenuItem {
         };
 
         let click = ClickAction::Emit(id.clone());
-        let platform = PlatformMenuItem::new(click, crate::MenuItemType::Icon);
+        let platform = PlatformMenuItem::new(click);
 
         Self {
             id: Rc::new(id),

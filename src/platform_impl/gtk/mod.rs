@@ -13,7 +13,7 @@ use crate::{
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    ClickAction, MenuEvent, MenuItemKind, MenuItemType,
+    ClickAction, MenuEvent, MenuItemKind,
 };
 use glib::translate::ToGlibPtr;
 use gtk::{gdk, glib, prelude::*, AboutDialog, Container, Orientation};
@@ -318,19 +318,22 @@ fn drop_children_from_menu_and_destroy(
 
 /// Constructors
 impl PlatformMenuItem {
-    pub fn new(_click: ClickAction, item_type: MenuItemType) -> Self {
+    pub fn new(click: ClickAction) -> Self {
+        let needs_syncing = matches!(click, ClickAction::Toggle(..));
+        let is_syncing = needs_syncing.then(|| Rc::new(AtomicBool::new(false)));
+
         Self {
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
             accel_group: None,
             gtk_accelerator: None,
             gtk_menu: None,
             gtk_menus: None,
-            is_syncing: (item_type == MenuItemType::Check).then(|| Rc::new(AtomicBool::new(false))),
+            is_syncing,
         }
     }
 
     pub fn new_submenu(click: ClickAction) -> Self {
-        let mut item = Self::new(click, MenuItemType::Submenu);
+        let mut item = Self::new(click);
         item.gtk_menu = Some((COUNTER.next(), None));
         item.gtk_menus = Some(HashMap::new());
         item
@@ -1009,47 +1012,6 @@ impl PlatformMenuItem {
     }
 }
 
-impl PlatformMenuItem {
-    fn create_gtk(
-        &mut self,
-        args: &PlatformAttachArgs,
-        children: &[MenuItemKind],
-        click: &ClickAction,
-        menu_id: u32,
-        accel_group: Option<&gtk::AccelGroup>,
-        add_to_cache: bool,
-        for_menu_bar: bool,
-    ) -> crate::Result<gtk::MenuItem> {
-        match args.item_type {
-            MenuItemType::Submenu => self.create_gtk_submenu(
-                args,
-                children,
-                menu_id,
-                accel_group,
-                add_to_cache,
-                for_menu_bar,
-            ),
-            MenuItemType::MenuItem => {
-                self.create_gtk_item(args, click, menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Predefined | MenuItemType::Separator => {
-                self.create_gtk_predefined_item(args, click, menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Check => {
-                self.create_gtk_check_item(args, click, menu_id, accel_group, add_to_cache)
-            }
-            MenuItemType::Icon => self.create_gtk_icon_item(
-                args,
-                click,
-                menu_id,
-                accel_group,
-                add_to_cache,
-                for_menu_bar,
-            ),
-        }
-    }
-}
-
 impl MenuItemKind {
     fn create_gtk(
         &self,
@@ -1059,18 +1021,37 @@ impl MenuItemKind {
         for_menu_bar: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let args = self.platform_attach_args();
-        let children = self.children();
         let click = self.click_action();
+        let platform = self.platform();
+        let mut item = platform.borrow_mut();
 
-        self.platform().borrow_mut().create_gtk(
-            &args,
-            &children,
-            &click,
-            menu_id,
-            accel_group,
-            add_to_cache,
-            for_menu_bar,
-        )
+        match self {
+            Self::Submenu(_) => item.create_gtk_submenu(
+                &args,
+                &self.children(),
+                menu_id,
+                accel_group,
+                add_to_cache,
+                for_menu_bar,
+            ),
+            Self::MenuItem(_) => {
+                item.create_gtk_item(&args, &click, menu_id, accel_group, add_to_cache)
+            }
+            Self::Predefined(_) => {
+                item.create_gtk_predefined_item(&args, &click, menu_id, accel_group, add_to_cache)
+            }
+            Self::Check(_) => {
+                item.create_gtk_check_item(&args, &click, menu_id, accel_group, add_to_cache)
+            }
+            Self::Icon(_) => item.create_gtk_icon_item(
+                &args,
+                &click,
+                menu_id,
+                accel_group,
+                add_to_cache,
+                for_menu_bar,
+            ),
+        }
     }
 }
 
