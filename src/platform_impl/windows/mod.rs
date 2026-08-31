@@ -350,9 +350,8 @@ impl PlatformMenu {
 
         self.redraw_menu_bars();
 
-        child
-            .parents
-            .retain(|parent| parent.hmenu != self.hmenu && parent.hmenu != self.hpopupmenu);
+        forget_one_parent(self.hmenu, &mut child.parents);
+        forget_one_parent(self.hpopupmenu, &mut child.parents);
     }
 
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
@@ -585,9 +584,8 @@ impl PlatformMenuItem {
             RemoveMenu(self.hpopupmenu, id, MF_BYCOMMAND);
         }
 
-        child
-            .parents
-            .retain(|parent| parent.hmenu != self.hmenu && parent.hmenu != self.hpopupmenu);
+        forget_one_parent(self.hmenu, &mut child.parents);
+        forget_one_parent(self.hpopupmenu, &mut child.parents);
     }
 
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
@@ -723,6 +721,16 @@ fn forget_container(hmenu: HMENU, children: &[Rc<RefCell<PlatformMenuItem>>]) {
             .borrow_mut()
             .parents
             .retain(|parent| parent.hmenu != hmenu);
+    }
+}
+
+/// Forgets one occurrence of a parent menu from an item's parent list.
+///
+/// The same item may occur more than once in a menu, so removing one native row must preserve the
+/// parent records belonging to the remaining rows.
+fn forget_one_parent(hmenu: HMENU, parents: &mut Vec<ParentMenu>) {
+    if let Some(position) = parents.iter().position(|parent| parent.hmenu == hmenu) {
+        parents.remove(position);
     }
 }
 
