@@ -28,8 +28,8 @@ use std::{
 static COUNTER: Counter = Counter::new();
 
 pub struct PlatformMenu {
-    // TODO: maybe save a reference to the window?
     gtk_menubars: HashMap<u32, gtk::MenuBar>,
+    gtk_windows: HashMap<u32, glib::WeakRef<gtk::Window>>,
     accel_group: Option<gtk::AccelGroup>,
     /// dedicated menu for tray or context menus
     gtk_menu: (u32, Option<gtk::Menu>),
@@ -39,12 +39,21 @@ impl PlatformMenu {
     pub fn new() -> Self {
         Self {
             gtk_menubars: HashMap::new(),
+            gtk_windows: HashMap::new(),
             accel_group: None,
             gtk_menu: (COUNTER.next(), None),
         }
     }
 
     pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        if let Some(accel_group) = &self.accel_group {
+            for (_, window) in self.gtk_windows.drain() {
+                if let Some(window) = window.upgrade() {
+                    window.remove_accel_group(accel_group);
+                }
+            }
+        }
+
         for (id, menu) in self.gtk_menubars.drain() {
             drop_children_from_menu_and_destroy(id, &menu, children);
             unsafe { menu.destroy() };
@@ -116,6 +125,8 @@ impl PlatformMenu {
         if let Entry::Vacant(e) = self.gtk_menubars.entry(id) {
             let menu_bar = gtk::MenuBar::new();
             e.insert(menu_bar);
+            self.gtk_windows
+                .insert(id, window.upcast_ref::<gtk::Window>().downgrade());
         } else {
             return Err(crate::Error::AlreadyInitialized);
         }
@@ -186,6 +197,7 @@ impl PlatformMenu {
             .gtk_menubars
             .remove(&id)
             .ok_or(crate::Error::NotInitialized)?;
+        self.gtk_windows.remove(&id);
 
         drop_children_from_menu_and_destroy(id, &menu_bar, children);
 
