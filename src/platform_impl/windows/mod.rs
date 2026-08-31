@@ -49,11 +49,9 @@ struct AcceleratorTable {
 }
 
 impl AcceleratorTable {
-    fn add(&mut self, id: u32, accelerator: &MenuAccelerator) -> crate::Result<()> {
-        let accel = accelerator.to_accel(id as _)?;
+    fn insert(&mut self, id: u32, accel: ACCEL) {
         self.entries.insert(id, accel);
         self.rebuild();
-        Ok(())
     }
 
     fn remove(&mut self, id: u32) {
@@ -537,11 +535,15 @@ impl PlatformMenuItem {
     ) -> crate::Result<()> {
         self.set_text(text, accelerator);
 
+        let accel = accelerator
+            .map(|accelerator| accelerator.to_accel(self.id() as _))
+            .transpose()?;
+
         for store in self.accelerator_tables.values() {
             let mut store = store.borrow_mut();
 
-            match accelerator {
-                Some(accelerator) => store.add(self.id(), accelerator)?,
+            match accel {
+                Some(accel) => store.insert(self.id(), accel),
                 None => store.remove(self.id()),
             }
         }
@@ -675,10 +677,6 @@ fn attach_item(
     let child = item.platform();
     let mut child = child.borrow_mut();
 
-    child
-        .accelerator_tables
-        .extend(accelerator_tables.iter().cloned());
-
     let id = child.id();
     let mut flags = match item {
         crate::MenuItemKind::Submenu(_) => MF_POPUP,
@@ -704,11 +702,21 @@ fn attach_item(
         None => util::encode_wide(&args.text),
     };
 
-    if let Some(accelerator) = &args.accelerator {
+    let accel = args
+        .accelerator
+        .as_ref()
+        .map(|accelerator| accelerator.to_accel(id as _))
+        .transpose()?;
+
+    if let Some(accel) = accel {
         for (_, table) in &accelerator_tables {
-            table.borrow_mut().add(id, accelerator)?;
+            table.borrow_mut().insert(id, accel);
         }
     }
+
+    child
+        .accelerator_tables
+        .extend(accelerator_tables.iter().cloned());
 
     unsafe {
         insert_into(hmenu, op, flags, id, &text);
