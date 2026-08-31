@@ -20,7 +20,11 @@ use crate::{
     AboutMetadata, MenuEvent, MenuTheme, NativeIcon,
 };
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 use windows_sys::Win32::{
     Foundation::{FALSE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::Gdi::*,
@@ -101,6 +105,7 @@ pub(crate) struct PlatformMenu {
     hmenu: HMENU,
     hpopupmenu: HMENU,
     windows: Rc<RefCell<HashMap<Hwnd, WindowState>>>,
+    subclassed_windows: RefCell<HashSet<Hwnd>>,
     accelerator_table: Rc<RefCell<AcceleratorTable>>,
     children: Vec<Rc<RefCell<PlatformMenuItem>>>,
 }
@@ -113,7 +118,15 @@ impl Drop for PlatformMenu {
             unsafe { self.remove_from_hwnd(hwnd) };
         }
 
-        // 2. Remove the menu from children's accelerator tables, recursively.
+        // 2. Detach context-menu subclasses that were attached independently of menu-bar windows
+        // before their callbacks' pointer to this menu becomes invalid.
+        for hwnd in self.subclassed_windows.get_mut().drain() {
+            unsafe {
+                RemoveWindowSubclass(hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+            }
+        }
+
+        // 3. Remove the menu from children's accelerator tables, recursively.
         fn remove_accelerator_table_from_children(
             id: u32,
             children: &[Rc<RefCell<PlatformMenuItem>>],
@@ -128,7 +141,7 @@ impl Drop for PlatformMenu {
         }
         remove_accelerator_table_from_children(self.id, &self.children);
 
-        // 3. Remove the menu items from the menu and popup menu.
+        // 4. Remove the menu items from the menu and popup menu.
         for child in &self.children {
             let child = child.borrow();
             let id = child.id();
@@ -138,11 +151,11 @@ impl Drop for PlatformMenu {
             }
         }
 
-        // 4. Forget the menu and popup menu handles from the children's parent lists.
+        // 5. Forget the menu and popup menu handles from the children's parent lists.
         forget_container(self.hmenu, &self.children);
         forget_container(self.hpopupmenu, &self.children);
 
-        // 5. Destroy the menu and popup menu handles.
+        // 6. Destroy the menu and popup menu handles.
         unsafe {
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
@@ -158,6 +171,7 @@ pub(crate) struct PlatformMenuItem {
     parents: Vec<ParentMenu>,
     accelerator_tables: HashMap<u32, Rc<RefCell<AcceleratorTable>>>,
     hbitmap: Option<Owned<HBITMAP>>,
+    subclassed_windows: RefCell<HashSet<Hwnd>>,
     // submenu fields
     hmenu: HMENU,
     hpopupmenu: HMENU,
@@ -166,8 +180,16 @@ pub(crate) struct PlatformMenuItem {
 
 impl Drop for PlatformMenuItem {
     fn drop(&mut self) {
+        // 1. Detach every window subclass before its callback's pointer to this submenu becomes
+        // invalid.
+        for hwnd in self.subclassed_windows.get_mut().drain() {
+            unsafe {
+                RemoveWindowSubclass(hwnd as _, Some(menu_subclass_proc), SUBMENU_SUBCLASS_ID);
+            }
+        }
+
         if let Some(children) = &self.children {
-            // 1. Detach the children so destroying this item's containers does not recursively
+            // 2. Detach the children so destroying this item's containers does not recursively
             // destroy submenu containers still owned by surviving child handles.
             for child in children {
                 let child = child.borrow();
@@ -178,18 +200,18 @@ impl Drop for PlatformMenuItem {
                 }
             }
 
-            // 2. Forget the menu and popup menu handles from the children's parent lists.
+            // 3. Forget the menu and popup menu handles from the children's parent lists.
             forget_container(self.hmenu, children);
             forget_container(self.hpopupmenu, children);
 
-            // 3. Destroy the menu and popup menu handles.
+            // 4. Destroy the menu and popup menu handles.
             unsafe {
                 DestroyMenu(self.hmenu);
                 DestroyMenu(self.hpopupmenu);
             }
         }
 
-        // 4. Remove the item from all accelerator tables it is in.
+        // 5. Remove the item from all accelerator tables it is in.
         for store in self.accelerator_tables.values() {
             store.borrow_mut().remove(self.id())
         }
@@ -209,6 +231,7 @@ impl PlatformMenu {
             })),
             children: Vec::new(),
             windows: Rc::new(RefCell::new(HashMap::new())),
+            subclassed_windows: RefCell::new(HashSet::new()),
         }
     }
 
@@ -262,17 +285,21 @@ impl PlatformMenu {
 
     pub unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         // SAFETY: HWND validity is upheld by caller
-        SetWindowSubclass(
+        if SetWindowSubclass(
             hwnd as _,
             Some(menu_subclass_proc),
             MENU_SUBCLASS_ID,
             self as *const Self as usize,
-        );
+        ) != FALSE
+        {
+            self.subclassed_windows.borrow_mut().insert(hwnd);
+        }
     }
 
     pub unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         // SAFETY: HWND validity is upheld by caller
         RemoveWindowSubclass(hwnd as _, Some(menu_subclass_proc), MENU_SUBCLASS_ID);
+        self.subclassed_windows.borrow_mut().remove(&hwnd);
     }
 
     pub unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
@@ -377,6 +404,7 @@ impl PlatformMenuItem {
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
             hbitmap: None,
+            subclassed_windows: RefCell::new(HashSet::new()),
             hmenu: std::ptr::null_mut(),
             hpopupmenu: std::ptr::null_mut(),
             children: None,
@@ -390,6 +418,7 @@ impl PlatformMenuItem {
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
             hbitmap: None,
+            subclassed_windows: RefCell::new(HashSet::new()),
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
             children: Some(Vec::new()),
@@ -615,17 +644,21 @@ impl PlatformMenuItem {
 
     pub unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         // SAFETY: HWND validity is upheld by caller
-        SetWindowSubclass(
+        if SetWindowSubclass(
             hwnd as _,
             Some(menu_subclass_proc),
             SUBMENU_SUBCLASS_ID,
             self as *const Self as usize,
-        );
+        ) != FALSE
+        {
+            self.subclassed_windows.borrow_mut().insert(hwnd);
+        }
     }
 
     pub unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         // SAFETY: HWND validity is upheld by caller
         RemoveWindowSubclass(hwnd as _, Some(menu_subclass_proc), SUBMENU_SUBCLASS_ID);
+        self.subclassed_windows.borrow_mut().remove(&hwnd);
     }
 }
 
@@ -878,6 +911,22 @@ unsafe extern "system" fn menu_subclass_proc(
     dwrefdata: usize,
 ) -> LRESULT {
     match msg {
+        WM_NCDESTROY => {
+            match uidsubclass {
+                MENU_SUBCLASS_ID => {
+                    let menu = util::cast_mut::<PlatformMenu>(dwrefdata);
+                    menu.windows.borrow_mut().remove(&(hwnd as _));
+                    menu.subclassed_windows.borrow_mut().remove(&(hwnd as _));
+                }
+                SUBMENU_SUBCLASS_ID => {
+                    let menu = util::cast_mut::<PlatformMenuItem>(dwrefdata);
+                    menu.subclassed_windows.borrow_mut().remove(&(hwnd as _));
+                }
+                _ => {}
+            }
+
+            DefSubclassProc(hwnd, msg, wparam, lparam)
+        }
         MENU_UPDATE_THEME if uidsubclass == MENU_SUBCLASS_ID => {
             let menu = util::cast_mut::<PlatformMenu>(dwrefdata);
             let theme: MenuTheme = std::mem::transmute(lparam);
@@ -934,7 +983,7 @@ unsafe extern "system" fn menu_subclass_proc(
                 DefSubclassProc(hwnd as _, msg, wparam, lparam)
             }
         }
-        WM_NCACTIVATE | WM_NCPAINT => {
+        WM_NCACTIVATE | WM_NCPAINT if uidsubclass == MENU_SUBCLASS_ID => {
             // DefSubclassProc needs to be called before calling the
             // custom dark menu redraw
             let res = DefSubclassProc(hwnd as _, msg, wparam, lparam);
