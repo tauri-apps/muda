@@ -84,6 +84,16 @@ impl Drop for AcceleratorTable {
     }
 }
 
+/// A menu item's membership in a root menu's accelerator table.
+///
+/// `count` is the number of distinct attachment paths from that root menu to the item (an item
+/// can occur multiple times under one root, directly or through submenus). The item's ACCEL is
+/// inserted when the first path appears and removed only when the last path disappears.
+struct AcceleratorTableRef {
+    count: usize,
+    table: Rc<RefCell<AcceleratorTable>>,
+}
+
 /// The state of a window that has a menu attached.
 struct WindowState {
     theme: MenuTheme,
@@ -167,7 +177,8 @@ pub(crate) struct PlatformMenuItem {
     /// What a click does.
     click: ClickAction,
     parents: Vec<ParentMenu>,
-    accelerator_tables: HashMap<u32, Rc<RefCell<AcceleratorTable>>>,
+    accelerator_tables: HashMap<u32, AcceleratorTableRef>,
+    accel: Option<ACCEL>,
     hbitmap: Option<Owned<HBITMAP>>,
     subclassed_windows: RefCell<HashSet<Hwnd>>,
     // submenu fields
@@ -210,8 +221,9 @@ impl Drop for PlatformMenuItem {
         }
 
         // 5. Remove the item from all accelerator tables it is in.
-        for store in self.accelerator_tables.values() {
-            store.borrow_mut().remove(self.id())
+        let id = self.id();
+        for entry in self.accelerator_tables.values() {
+            entry.table.borrow_mut().remove(id)
         }
     }
 }
@@ -354,7 +366,7 @@ impl PlatformMenu {
             self.hmenu,
             self.hpopupmenu,
             Some(self.windows.clone()),
-            [(self.id, self.accelerator_table.clone())],
+            &self.accelerator_tables(),
             child,
             op,
         )?;
@@ -381,6 +393,18 @@ impl PlatformMenu {
 
         forget_one_parent(self.hmenu, &mut child.parents);
         forget_one_parent(self.hpopupmenu, &mut child.parents);
+
+        unregister_accelerator_tables_from_subtree(&mut child, &self.accelerator_tables());
+    }
+
+    fn accelerator_tables(&self) -> HashMap<u32, AcceleratorTableRef> {
+        HashMap::from([(
+            self.id,
+            AcceleratorTableRef {
+                count: 1,
+                table: self.accelerator_table.clone(),
+            },
+        )])
     }
 
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
@@ -401,6 +425,7 @@ impl PlatformMenuItem {
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
+            accel: None,
             hbitmap: None,
             subclassed_windows: RefCell::new(HashSet::new()),
             hmenu: std::ptr::null_mut(),
@@ -415,6 +440,7 @@ impl PlatformMenuItem {
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
+            accel: None,
             hbitmap: None,
             subclassed_windows: RefCell::new(HashSet::new()),
             hmenu: unsafe { CreateMenu() },
@@ -533,18 +559,21 @@ impl PlatformMenuItem {
         text: &str,
         accelerator: Option<&MenuAccelerator>,
     ) -> crate::Result<()> {
-        self.set_text(text, accelerator);
+        let id = self.id();
 
         let accel = accelerator
-            .map(|accelerator| accelerator.to_accel(self.id() as _))
+            .map(|accelerator| accelerator.to_accel(id as _))
             .transpose()?;
 
-        for store in self.accelerator_tables.values() {
-            let mut store = store.borrow_mut();
+        self.set_text(text, accelerator);
+        self.accel = accel;
+
+        for entry in self.accelerator_tables.values() {
+            let mut table = entry.table.borrow_mut();
 
             match accel {
-                Some(accel) => store.insert(self.id(), accel),
-                None => store.remove(self.id()),
+                Some(accel) => table.insert(id, accel),
+                None => table.remove(id),
             }
         }
 
@@ -593,9 +622,7 @@ impl PlatformMenuItem {
             self.hmenu,
             self.hpopupmenu,
             None,
-            self.accelerator_tables
-                .iter()
-                .map(|(&id, table)| (id, table.clone())),
+            &self.accelerator_tables,
             child,
             op,
         )?;
@@ -626,6 +653,8 @@ impl PlatformMenuItem {
 
         forget_one_parent(self.hmenu, &mut child.parents);
         forget_one_parent(self.hpopupmenu, &mut child.parents);
+
+        unregister_accelerator_tables_from_subtree(&mut child, &self.accelerator_tables);
     }
 
     fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
@@ -668,11 +697,10 @@ fn attach_item(
     hmenu: HMENU,
     hpopupmenu: HMENU,
     windows: Option<Rc<RefCell<HashMap<Hwnd, WindowState>>>>,
-    accelerator_tables: impl IntoIterator<Item = (u32, Rc<RefCell<AcceleratorTable>>)>,
+    accelerator_tables: &HashMap<u32, AcceleratorTableRef>,
     item: &crate::MenuItemKind,
     op: AddOp,
 ) -> crate::Result<()> {
-    let accelerator_tables = accelerator_tables.into_iter().collect::<Vec<_>>();
     let args = item.platform_attach_args();
     let child = item.platform();
     let mut child = child.borrow_mut();
@@ -708,15 +736,9 @@ fn attach_item(
         .map(|accelerator| accelerator.to_accel(id as _))
         .transpose()?;
 
-    if let Some(accel) = accel {
-        for (_, table) in &accelerator_tables {
-            table.borrow_mut().insert(id, accel);
-        }
-    }
+    child.accel = accel;
 
-    child
-        .accelerator_tables
-        .extend(accelerator_tables.iter().cloned());
+    register_accelerator_tables_for_subtree(&mut child, accelerator_tables);
 
     unsafe {
         insert_into(hmenu, op, flags, id, &text);
@@ -764,6 +786,60 @@ unsafe fn insert_into(hmenu: HMENU, op: AddOp, flags: u32, id: u32, text: &[u16]
                 id as usize,
                 text.as_ptr(),
             );
+        }
+    }
+}
+
+fn register_accelerator_tables_for_subtree(
+    child: &mut PlatformMenuItem,
+    tables: &HashMap<u32, AcceleratorTableRef>,
+) {
+    let id = child.id();
+    let accel = child.accel;
+
+    for (&menu_id, parent_entry) in tables {
+        let entry = child.accelerator_tables.entry(menu_id);
+        let entry = entry.or_insert_with(|| AcceleratorTableRef {
+            count: 0,
+            table: parent_entry.table.clone(),
+        });
+
+        if entry.count == 0 {
+            if let Some(accel) = accel {
+                parent_entry.table.borrow_mut().insert(id, accel);
+            }
+        }
+
+        entry.count += parent_entry.count;
+    }
+
+    if let Some(children) = &child.children {
+        for grandchild in children {
+            register_accelerator_tables_for_subtree(&mut grandchild.borrow_mut(), tables);
+        }
+    }
+}
+
+fn unregister_accelerator_tables_from_subtree(
+    child: &mut PlatformMenuItem,
+    tables: &HashMap<u32, AcceleratorTableRef>,
+) {
+    let id = child.id();
+
+    for (menu_id, parent_entry) in tables {
+        if let Some(entry) = child.accelerator_tables.get_mut(menu_id) {
+            entry.count = entry.count.saturating_sub(parent_entry.count);
+
+            if entry.count == 0 {
+                let entry = child.accelerator_tables.remove(menu_id).unwrap();
+                entry.table.borrow_mut().remove(id);
+            }
+        }
+    }
+
+    if let Some(children) = &child.children {
+        for grandchild in children {
+            unregister_accelerator_tables_from_subtree(&mut grandchild.borrow_mut(), tables);
         }
     }
 }
