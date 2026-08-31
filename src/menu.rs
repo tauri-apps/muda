@@ -35,7 +35,7 @@ pub(crate) struct MenuState {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     )
 ))]
 impl Drop for Menu {

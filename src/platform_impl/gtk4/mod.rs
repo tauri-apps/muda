@@ -35,6 +35,7 @@ enum GtkMenuBar {
         widget: gtk::PopoverMenuBar,
         menu: gio::Menu,
         app: gtk::Application,
+        window: glib::WeakRef<gtk::Window>,
     },
     ContextMenu {
         widget: gtk::PopoverMenu,
@@ -44,10 +45,15 @@ enum GtkMenuBar {
 }
 
 impl GtkMenuBar {
-    fn new(app: gtk::Application) -> Self {
+    fn new(app: gtk::Application, window: glib::WeakRef<gtk::Window>) -> Self {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenuBar::from_model(Some(&menu));
-        Self::MenuBar { widget, menu, app }
+        Self::MenuBar {
+            widget,
+            menu,
+            app,
+            window,
+        }
     }
 
     fn new_context(app: gtk::Application) -> Self {
@@ -90,6 +96,26 @@ impl GtkMenuBar {
             GtkMenuBar::ContextMenu { widget, .. } => widget.upcast_ref(),
         }
     }
+
+    fn destroy(self) {
+        match self {
+            GtkMenuBar::MenuBar { widget, window, .. } => {
+                if widget.parent().is_some() {
+                    widget.unparent();
+                }
+                if let Some(window) = window.upgrade() {
+                    window
+                        .insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+                }
+            }
+            GtkMenuBar::ContextMenu { widget, .. } => {
+                if widget.parent().is_some() {
+                    widget.unparent();
+                }
+                widget.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+            }
+        }
+    }
 }
 
 pub struct PlatformMenu {
@@ -114,6 +140,13 @@ impl PlatformMenu {
         }
 
         Ok(())
+    }
+
+    pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        for (id, instance) in self.instances.drain() {
+            remove_children_instances_for_parent(id, children);
+            instance.destroy();
+        }
     }
 
     fn add_existing_item_to_instance(&self, item: &MenuItemKind, id: GtkId) -> crate::Result<()> {
@@ -157,7 +190,8 @@ impl PlatformMenu {
             return Err(crate::Error::AlreadyInitialized);
         }
 
-        let menu_bar = GtkMenuBar::new(app.clone());
+        let window_ref = window.upcast_ref::<gtk::Window>().downgrade();
+        let menu_bar = GtkMenuBar::new(app.clone(), window_ref);
         Self::attach_menubar_to_window(window, container, menu_bar.menu_bar())?;
         self.instances.insert(id, menu_bar);
 
@@ -514,6 +548,12 @@ impl PlatformMenuItem {
         Ok(())
     }
 
+    pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        for parent_id in self.instances.keys().copied().collect::<Vec<_>>() {
+            self.remove_instances_for_parent(parent_id, children);
+        }
+    }
+
     fn add_existing_item_to_instance(&self, item: &MenuItemKind, id: GtkId) -> crate::Result<()> {
         for menus in self.instances.values() {
             for gtk_child in menus.iter().filter(|m| m.id() == id) {
@@ -866,14 +906,26 @@ impl PlatformMenuItem {
             .map(|instance| instance.application().clone());
 
         for instance in instances {
-            let parent_menu = instance.parent_menu();
-            instance.remove_custom_widget();
-            if let Some(index) = find_row_index(parent_menu, instance.id()) {
-                parent_menu.remove(index);
-            }
+            match &instance {
+                GtkMenuChild::ContextMenu { id, widget, .. } => {
+                    remove_children_instances_for_parent(*id, children);
+                    if widget.parent().is_some() {
+                        widget.unparent();
+                    }
+                    widget
+                        .insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+                }
+                GtkMenuChild::Item { .. } | GtkMenuChild::Submenu { .. } => {
+                    let parent_menu = instance.parent_menu();
+                    instance.remove_custom_widget();
+                    if let Some(index) = find_row_index(parent_menu, instance.id()) {
+                        parent_menu.remove(index);
+                    }
 
-            if let GtkMenuChild::Submenu { id, .. } = instance {
-                remove_children_instances_for_parent(id, children);
+                    if let GtkMenuChild::Submenu { id, .. } = &instance {
+                        remove_children_instances_for_parent(*id, children);
+                    }
+                }
             }
         }
 
@@ -1407,5 +1459,64 @@ fn connect_context_menu_action_handler(
             main_loop.quit();
         });
         handlers.push((action, handler));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accelerator::{Accelerator, Code, Modifiers};
+    use crate::ContextMenu;
+
+    #[test]
+    fn dropping_menu_destroys_native_tree_and_actions() {
+        gtk::init().unwrap();
+        let app = gtk::Application::new(None::<&str>, gio::ApplicationFlags::NON_UNIQUE);
+        app.register(None::<&gio::Cancellable>).unwrap();
+        let window = gtk::ApplicationWindow::new(&app);
+        let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        window.set_child(Some(&container));
+        let item = crate::MenuItem::new(
+            "item",
+            true,
+            Some(Accelerator::new(Modifiers::CONTROL, Code::KeyA)),
+        );
+        let menu = crate::Menu::with_items(&[&item]).unwrap();
+        menu.init_for_gtk_window(&window, Some(&container)).unwrap();
+        let menu_bar = menu.clone().gtk_menubar_for_gtk_window(&window).unwrap();
+        let action_name = item.platform.borrow().action_name.clone();
+        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{action_name}");
+        let action_group = action_group_from_app(&app);
+        assert!(menu_bar.parent().is_some());
+        assert!(action_group.has_action(&action_name));
+        assert!(!app.accels_for_action(&detailed_action).is_empty());
+
+        drop(menu);
+
+        assert!(menu_bar.parent().is_none());
+        assert!(item.platform.borrow().instances.is_empty());
+        assert!(!action_group.has_action(&action_name));
+        assert!(app.accels_for_action(&detailed_action).is_empty());
+
+        let child = crate::MenuItem::new(
+            "child",
+            true,
+            Some(Accelerator::new(Modifiers::CONTROL, Code::KeyB)),
+        );
+        let submenu = crate::Submenu::with_items("submenu", true, &[&child]).unwrap();
+        let context_menu = submenu.gtk_context_menu();
+        let child_action_name = child.platform.borrow().action_name.clone();
+        let child_detailed_action = format!("{DEFAULT_ACTION_GROUP}.{child_action_name}");
+        assert!(!submenu.platform.borrow().instances.is_empty());
+        assert!(!child.platform.borrow().instances.is_empty());
+        assert!(action_group.has_action(&child_action_name));
+        assert!(!app.accels_for_action(&child_detailed_action).is_empty());
+
+        drop(submenu);
+
+        assert!(context_menu.parent().is_none());
+        assert!(child.platform.borrow().instances.is_empty());
+        assert!(!action_group.has_action(&child_action_name));
+        assert!(app.accels_for_action(&child_detailed_action).is_empty());
     }
 }

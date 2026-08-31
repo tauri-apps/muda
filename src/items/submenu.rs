@@ -41,7 +41,7 @@ pub(crate) struct SubmenuState {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        any(feature = "gtk", feature = "gtk4")
     )
 ))]
 impl Drop for Submenu {
