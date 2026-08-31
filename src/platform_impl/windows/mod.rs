@@ -6,8 +6,11 @@ mod dark_menu_bar;
 mod icon;
 mod util;
 
-use self::dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM};
 pub(crate) use self::icon::WinIcon as PlatformIcon;
+use self::{
+    dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM},
+    util::Owned,
+};
 
 use crate::{
     accelerator::MenuAccelerator,
@@ -154,6 +157,7 @@ pub(crate) struct PlatformMenuItem {
     click: ClickAction,
     parents: Vec<ParentMenu>,
     accelerator_tables: HashMap<u32, Rc<RefCell<AcceleratorTable>>>,
+    hbitmap: Option<Owned<HBITMAP>>,
     // submenu fields
     hmenu: HMENU,
     hpopupmenu: HMENU,
@@ -372,6 +376,7 @@ impl PlatformMenuItem {
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
+            hbitmap: None,
             hmenu: std::ptr::null_mut(),
             hpopupmenu: std::ptr::null_mut(),
             children: None,
@@ -384,6 +389,7 @@ impl PlatformMenuItem {
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
+            hbitmap: None,
             hmenu: unsafe { CreateMenu() },
             hpopupmenu: unsafe { CreatePopupMenu() },
             children: Some(Vec::new()),
@@ -528,22 +534,25 @@ impl PlatformMenuItem {
 /// Icons
 impl PlatformMenuItem {
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
-        let hbitmap = self.hbitmap(icon);
-        let info = create_icon_item_info(hbitmap);
+        let hbitmap = self.create_hbitmap(icon);
+        let info = create_icon_item_info(hbitmap.as_deref().copied());
 
         for parent in &self.parents {
             unsafe { SetMenuItemInfoW(parent.hmenu, self.id(), FALSE, &info) };
         }
 
+        self.hbitmap = hbitmap;
         self.redraw_menu_bars();
     }
 
-    fn hbitmap(&self, icon: Option<&IconType>) -> HBITMAP {
-        match icon {
+    fn create_hbitmap(&self, icon: Option<&IconType>) -> Option<Owned<HBITMAP>> {
+        let hbitmap = match icon {
             Some(IconType::Custom(icon)) => unsafe { icon.inner.to_hbitmap() },
             Some(IconType::Native(icon)) => native_icon_hbitmap(icon),
             None => std::ptr::null_mut(),
-        }
+        };
+
+        (!hbitmap.is_null()).then(|| unsafe { Owned::new(hbitmap) })
     }
 }
 
@@ -674,7 +683,11 @@ fn attach_item(
     }
 
     if args.icon.is_some() {
-        let info = create_icon_item_info(child.hbitmap(args.icon.as_ref()));
+        if child.hbitmap.is_none() {
+            child.hbitmap = child.create_hbitmap(args.icon.as_ref());
+        }
+
+        let info = create_icon_item_info(child.hbitmap.as_deref().copied());
         unsafe {
             SetMenuItemInfoW(hmenu, id, FALSE, &info);
             SetMenuItemInfoW(hpopupmenu, id, FALSE, &info);
@@ -787,11 +800,11 @@ unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>
     (result > 0).then_some(result.try_into().ok()).flatten()
 }
 
-fn create_icon_item_info(hbitmap: HBITMAP) -> MENUITEMINFOW {
+fn create_icon_item_info(hbitmap: Option<HBITMAP>) -> MENUITEMINFOW {
     let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
     info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
     info.fMask = MIIM_BITMAP;
-    info.hbmpItem = hbitmap;
+    info.hbmpItem = hbitmap.unwrap_or(std::ptr::null_mut());
     info
 }
 

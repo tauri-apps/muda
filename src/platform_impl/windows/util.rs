@@ -8,7 +8,8 @@ use windows_sys::{
     Win32::{
         Foundation::{FARPROC, HWND, S_OK},
         Graphics::Gdi::{
-            GetDC, GetDeviceCaps, MonitorFromWindow, HMONITOR, LOGPIXELSX, MONITOR_DEFAULTTONEAREST,
+            DeleteObject, GetDC, GetDeviceCaps, MonitorFromWindow, HBITMAP, HMONITOR, LOGPIXELSX,
+            MONITOR_DEFAULTTONEAREST,
         },
         System::LibraryLoader::{GetProcAddress, LoadLibraryW},
         UI::{
@@ -17,6 +18,61 @@ use windows_sys::{
         },
     },
 };
+
+// Copied from the `windows-core` crate. Remove this compatibility shim once `Owned` and `Free`
+// are available from the `windows_sys::core` module.
+/// A handle that knows how to release its owned native resource.
+pub(super) trait Free {
+    /// Releases the handle.
+    ///
+    /// # Safety
+    ///
+    /// The handle must be owned by the caller and valid to release.
+    unsafe fn free(&mut self);
+}
+
+/// An owned native handle that releases itself when dropped.
+#[repr(transparent)]
+pub(super) struct Owned<T: Free>(T);
+
+impl<T: Free> Owned<T> {
+    /// Takes ownership of a native handle.
+    ///
+    /// # Safety
+    ///
+    /// The handle must be uniquely owned and valid to release with its [`Free`] implementation.
+    pub(super) unsafe fn new(handle: T) -> Self {
+        Self(handle)
+    }
+}
+
+impl<T: Free> Drop for Owned<T> {
+    fn drop(&mut self) {
+        unsafe { self.0.free() };
+    }
+}
+
+impl<T: Free> std::ops::Deref for Owned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Free> std::ops::DerefMut for Owned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Free for HBITMAP {
+    unsafe fn free(&mut self) {
+        if !self.is_null() {
+            DeleteObject(*self);
+        }
+    }
+}
 
 pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
     std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
