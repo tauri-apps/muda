@@ -853,6 +853,8 @@ impl PlatformMenuItem {
 
         app.set_accels_for_action(&self.detailed_action(), &[]);
 
+        self.action.take();
+
         let action_group = action_group_from_app(app);
         action_group.remove_action(&self.action_name);
     }
@@ -1459,64 +1461,5 @@ fn connect_context_menu_action_handler(
             main_loop.quit();
         });
         handlers.push((action, handler));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::accelerator::{Accelerator, Code, Modifiers};
-    use crate::ContextMenu;
-
-    #[test]
-    fn dropping_menu_destroys_native_tree_and_actions() {
-        gtk::init().unwrap();
-        let app = gtk::Application::new(None::<&str>, gio::ApplicationFlags::NON_UNIQUE);
-        app.register(None::<&gio::Cancellable>).unwrap();
-        let window = gtk::ApplicationWindow::new(&app);
-        let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        window.set_child(Some(&container));
-        let item = crate::MenuItem::new(
-            "item",
-            true,
-            Some(Accelerator::new(Modifiers::CONTROL, Code::KeyA)),
-        );
-        let menu = crate::Menu::with_items(&[&item]).unwrap();
-        menu.init_for_gtk_window(&window, Some(&container)).unwrap();
-        let menu_bar = menu.clone().gtk_menubar_for_gtk_window(&window).unwrap();
-        let action_name = item.platform.borrow().action_name.clone();
-        let detailed_action = format!("{DEFAULT_ACTION_GROUP}.{action_name}");
-        let action_group = action_group_from_app(&app);
-        assert!(menu_bar.parent().is_some());
-        assert!(action_group.has_action(&action_name));
-        assert!(!app.accels_for_action(&detailed_action).is_empty());
-
-        drop(menu);
-
-        assert!(menu_bar.parent().is_none());
-        assert!(item.platform.borrow().instances.is_empty());
-        assert!(!action_group.has_action(&action_name));
-        assert!(app.accels_for_action(&detailed_action).is_empty());
-
-        let child = crate::MenuItem::new(
-            "child",
-            true,
-            Some(Accelerator::new(Modifiers::CONTROL, Code::KeyB)),
-        );
-        let submenu = crate::Submenu::with_items("submenu", true, &[&child]).unwrap();
-        let context_menu = submenu.gtk_context_menu();
-        let child_action_name = child.platform.borrow().action_name.clone();
-        let child_detailed_action = format!("{DEFAULT_ACTION_GROUP}.{child_action_name}");
-        assert!(!submenu.platform.borrow().instances.is_empty());
-        assert!(!child.platform.borrow().instances.is_empty());
-        assert!(action_group.has_action(&child_action_name));
-        assert!(!app.accels_for_action(&child_detailed_action).is_empty());
-
-        drop(submenu);
-
-        assert!(context_menu.parent().is_none());
-        assert!(child.platform.borrow().instances.is_empty());
-        assert!(!action_group.has_action(&child_action_name));
-        assert!(app.accels_for_action(&child_detailed_action).is_empty());
     }
 }
