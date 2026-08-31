@@ -290,7 +290,7 @@ pub struct PlatformMenuItem {
     // submenu fields
     gtk_menus: Option<HashMap<u32, Vec<(u32, gtk::Menu)>>>,
     gtk_menu: Option<(u32, Option<gtk::Menu>)>, // dedicated menu for tray or context menus
-    accel_group: Option<gtk::AccelGroup>,
+    accel_groups: HashMap<u32, gtk::AccelGroup>,
 }
 
 fn drop_children_from_menu_and_destroy(
@@ -307,7 +307,7 @@ fn drop_children_from_menu_and_destroy(
             if let Some(items) = menu_items.remove(&id) {
                 for item in items {
                     menu.remove(&item);
-                    if let Some(accel_group) = &child_.accel_group {
+                    if let Some(accel_group) = child_.accel_groups.get(&id) {
                         if let Some((mods, key)) = child_.gtk_accelerator {
                             item.remove_accelerator(accel_group, key, mods);
                         }
@@ -317,10 +317,13 @@ fn drop_children_from_menu_and_destroy(
             }
         }
 
+        child_.accel_groups.remove(&id);
+
         if child_.gtk_menus.is_some() {
             if let Some(menus) = child_.gtk_menus.as_mut().unwrap().remove(&id) {
-                for (id, menu) in menus {
-                    drop_children_from_menu_and_destroy(id, &menu, &descendants);
+                for (menu_id, menu) in menus {
+                    drop_children_from_menu_and_destroy(menu_id, &menu, &descendants);
+                    child_.accel_groups.remove(&menu_id);
                     unsafe { menu.destroy() }
                 }
             }
@@ -336,7 +339,7 @@ impl PlatformMenuItem {
 
         Self {
             gtk_menu_items: Rc::new(RefCell::new(HashMap::new())),
-            accel_group: None,
+            accel_groups: HashMap::new(),
             gtk_accelerator: None,
             gtk_menu: None,
             gtk_menus: None,
@@ -356,6 +359,7 @@ impl PlatformMenuItem {
             for (_, menus) in gtk_menus.drain() {
                 for (id, menu) in menus {
                     drop_children_from_menu_and_destroy(id, &menu, children);
+                    self.accel_groups.remove(&id);
                     unsafe { menu.destroy() };
                 }
             }
@@ -376,7 +380,9 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         item: &impl IsA<gtk::Widget>,
+        menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
+        add_to_cache: bool,
     ) -> crate::Result<()> {
         self.gtk_accelerator = args
             .accelerator
@@ -392,6 +398,12 @@ impl PlatformMenuItem {
                 *mods,
                 gtk::AccelFlags::VISIBLE,
             );
+        }
+
+        if add_to_cache {
+            if let Some(accel_group) = accel_group {
+                self.accel_groups.insert(menu_id, accel_group.clone());
+            }
         }
 
         Ok(())
@@ -453,11 +465,10 @@ impl PlatformMenuItem {
         let new_accel = accelerator.map(MenuAccelerator::to_gtk).transpose()?;
         self.gtk_accelerator = new_accel;
 
-        let Some(accel_group) = &self.accel_group else {
-            return Ok(());
-        };
-
-        for items in self.gtk_menu_items.borrow().values() {
+        for (parent_id, items) in self.gtk_menu_items.borrow().iter() {
+            let Some(accel_group) = self.accel_groups.get(parent_id) else {
+                continue;
+            };
             for i in items {
                 if let Some((mods, key)) = prev_accel {
                     i.remove_accelerator(accel_group, key, mods);
@@ -563,8 +574,8 @@ impl PlatformMenuItem {
     pub fn attach(&mut self, child: &MenuItemKind, op: AddOp) -> crate::Result<()> {
         for menus in self.gtk_menus.as_ref().unwrap().values() {
             for (menu_id, menu) in menus {
-                let gtk_item =
-                    child.create_gtk(*menu_id, self.accel_group.as_ref(), true, false)?;
+                let accel_group = self.accel_groups.get(menu_id);
+                let gtk_item = child.create_gtk(*menu_id, accel_group, true, false)?;
                 match op {
                     AddOp::Append => menu.append(&gtk_item),
                     AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
@@ -574,7 +585,8 @@ impl PlatformMenuItem {
         }
 
         if let Some((menu_id, Some(menu))) = &self.gtk_menu {
-            let gtk_item = child.create_gtk(*menu_id, self.accel_group.as_ref(), true, false)?;
+            let accel_group = self.accel_groups.get(menu_id);
+            let gtk_item = child.create_gtk(*menu_id, accel_group, true, false)?;
             match op {
                 AddOp::Append => menu.append(&gtk_item),
                 AddOp::Insert(position) => menu.insert(&gtk_item, position as i32),
@@ -626,8 +638,9 @@ impl PlatformMenuItem {
         if add_items {
             let (menu_id, menu) = self.gtk_menu.as_ref().unwrap();
             for child in children {
+                let accel_group = self.accel_groups.get(menu_id);
                 let gtk_item = child
-                    .create_gtk(*menu_id, self.accel_group.as_ref(), true, false)
+                    .create_gtk(*menu_id, accel_group, true, false)
                     .unwrap();
                 menu.as_ref().unwrap().append(&gtk_item);
                 gtk_item.show();
@@ -677,17 +690,22 @@ impl PlatformMenuItem {
             if let Some((menu_id, menu)) = removed_menu {
                 let descendants = child.children();
                 drop_children_from_menu_and_destroy(menu_id, &menu, &descendants);
+                self.accel_groups.remove(&menu_id);
                 unsafe { menu.destroy() };
             }
         }
 
         parent_menu.remove(&item);
-        if let Some(accel_group) = &self.accel_group {
+        if let Some(accel_group) = self.accel_groups.get(&parent_id) {
             if let Some((mods, key)) = self.gtk_accelerator {
                 item.remove_accelerator(accel_group, key, mods);
             }
         }
         unsafe { item.destroy() };
+
+        if !self.gtk_menu_items.borrow().contains_key(&parent_id) {
+            self.accel_groups.remove(&parent_id);
+        }
     }
 
     fn remove_gtk_menu_item(&mut self, parent_id: u32, item: &gtk::MenuItem) -> Option<usize> {
@@ -755,11 +773,13 @@ impl PlatformMenuItem {
         item.set_submenu(Some(&submenu));
         item.show();
 
-        self.accel_group = accel_group.cloned();
-
         let mut id = 0;
         if add_to_cache {
             id = COUNTER.next();
+
+            if let Some(accel_group) = accel_group {
+                self.accel_groups.insert(id, accel_group.clone());
+            }
 
             self.gtk_menu_items
                 .borrow_mut()
@@ -775,7 +795,7 @@ impl PlatformMenuItem {
         }
 
         for child in children {
-            let gtk_item = child.create_gtk(id, self.accel_group.as_ref(), add_to_cache, false)?;
+            let gtk_item = child.create_gtk(id, accel_group, add_to_cache, false)?;
             submenu.append(&gtk_item);
             gtk_item.show();
         }
@@ -797,9 +817,7 @@ impl PlatformMenuItem {
             .sensitive(args.enabled)
             .build();
 
-        self.accel_group = accel_group.cloned();
-
-        self.register_accelerator(args, &item, accel_group)?;
+        self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let id = match click {
             ClickAction::Emit(id) => id.clone(),
@@ -869,7 +887,7 @@ impl PlatformMenuItem {
                     .unwrap()
                     .set_accel(key, mods);
             } else {
-                self.register_accelerator(args, &item, accel_group)?;
+                self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
             }
 
             item.connect_activate(move |_| run_predefined(&predefined_item_type));
@@ -877,7 +895,7 @@ impl PlatformMenuItem {
         } else {
             // Render unsupported predefined menu items as disabled menu items
             let item = make_item();
-            self.register_accelerator(args, &item, accel_group)?;
+            self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
             item.set_sensitive(false);
             item
         };
@@ -907,9 +925,7 @@ impl PlatformMenuItem {
             .active(args.checked)
             .build();
 
-        self.accel_group = accel_group.cloned();
-
-        self.register_accelerator(args, &item, accel_group)?;
+        self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let (id, state) = match click {
             ClickAction::Toggle(id, state) => (id.clone(), state.clone()),
@@ -971,8 +987,6 @@ impl PlatformMenuItem {
     ) -> crate::Result<gtk::MenuItem> {
         let image = Self::icon_image(args.icon.as_ref()).unwrap_or_default();
 
-        self.accel_group = accel_group.cloned();
-
         let label = gtk::AccelLabel::builder()
             .label(to_gtk_mnemonic(&args.text))
             .use_underline(true)
@@ -1002,7 +1016,7 @@ impl PlatformMenuItem {
             .sensitive(args.enabled)
             .build();
 
-        self.register_accelerator(args, &item, accel_group)?;
+        self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let id = match click {
             ClickAction::Emit(id) => id.clone(),
