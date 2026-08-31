@@ -175,6 +175,14 @@ impl Submenu {
     fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
         let kind = item.kind();
 
+        // Reject a submenu that is, or transitively contains, this submenu:
+        // attaching it would create a cycle in the menu tree.
+        if let MenuItemKind::Submenu(submenu) = &kind {
+            if submenu.is_equal_to(self) || submenu.contains(self) {
+                return Err(crate::Error::WouldCreateCycle);
+            }
+        }
+
         {
             let mut platform = self.platform.borrow_mut();
             platform.attach(&kind, op)?;
@@ -437,5 +445,26 @@ impl ContextMenu for Submenu {
 
     fn as_submenu(&self) -> Option<&Submenu> {
         Some(self)
+    }
+}
+
+impl Submenu {
+    /// Whether this submenu is the same as `other`.
+    fn is_equal_to(&self, other: &Submenu) -> bool {
+        Rc::ptr_eq(&self.state, &other.state)
+    }
+
+    /// Whether this submenu contains `other` anywhere in its subtree.
+    fn contains(&self, other: &Submenu) -> bool {
+        self.state
+            .borrow()
+            .children
+            .iter()
+            .any(|child| match child {
+                MenuItemKind::Submenu(submenu) => {
+                    submenu.is_equal_to(other) || submenu.contains(other)
+                }
+                _ => false,
+            })
     }
 }
