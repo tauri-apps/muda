@@ -801,9 +801,12 @@ impl PlatformMenuItem {
         let gtk_accelerator = accelerator.and_then(MenuAccelerator::to_gtk);
 
         for item in self.instances.values().flat_map(|v| v.iter()) {
-            if let Some(accelerator) = gtk_accelerator.as_ref() {
-                let app = item.application();
-                app.set_accels_for_action(&detailed_action, &[accelerator]);
+            let app = item.application();
+            match gtk_accelerator.as_ref() {
+                Some(accelerator) => {
+                    app.set_accels_for_action(&detailed_action, &[accelerator]);
+                }
+                None => app.set_accels_for_action(&detailed_action, &[]),
             }
         }
 
