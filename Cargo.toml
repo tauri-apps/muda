@@ -29,7 +29,7 @@ serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
 crossbeam-channel = "0.5"
-keyboard-types = "0.7"
+keyboard-types = "0.8"
 once_cell = "1"
 thiserror = "2"
 serde = { version = "1", optional = true }
@@ -90,7 +90,7 @@ png = "0.18"
 [dev-dependencies]
 winit = "0.30"
 tao = "0.36"
-wry = "0.55"
+wry = "0.56"
 image = { version = "0.25", default-features = false, features = ["png"] }
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",

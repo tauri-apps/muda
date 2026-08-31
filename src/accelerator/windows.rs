@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use keyboard_types::{Code, Key, Modifiers};
+use keyboard_types::{Code, Key, Modifiers, NamedKey};
 use windows_sys::Win32::UI::{
     Input::KeyboardAndMouse::*,
     WindowsAndMessaging::{ACCEL, FALT, FCONTROL, FSHIFT, FVIRTKEY},
@@ -248,14 +248,21 @@ fn code_to_vk(code: &Code) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
 }
 
 fn key_to_vk(key: &Key) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
-    use Key::*;
+    match key {
+        Key::Character(character) => character_to_vk(character),
+        Key::Named(key) => named_key_to_vk(key),
+    }
+}
+
+fn named_key_to_vk(key: &NamedKey) -> Result<VIRTUAL_KEY, AcceleratorParseError> {
+    use NamedKey::*;
 
     let vk_code = match key {
-        Character(character) => return character_to_vk(character),
         Alt => VK_MENU,
         AltGraph => VK_RMENU,
         CapsLock => VK_CAPITAL,
         Control => VK_CONTROL,
+        #[allow(deprecated)]
         Meta | Super => VK_LWIN,
         NumLock => VK_NUMLOCK,
         ScrollLock => VK_SCROLL,
@@ -415,9 +422,11 @@ fn write_modifiers(f: &mut fmt::Formatter<'_>, modifiers: Modifiers) -> fmt::Res
     if modifiers.contains(Modifiers::META) {
         f.write_str("Meta+")?;
     }
+    #[allow(deprecated)]
     if modifiers.contains(Modifiers::SUPER) {
         f.write_str("Super+")?;
     }
+    #[allow(deprecated)]
     if modifiers.contains(Modifiers::HYPER) {
         f.write_str("Hyper+")?;
     }
@@ -562,14 +571,21 @@ fn code_display(code: &Code) -> Option<String> {
 }
 
 fn key_display(key: &Key) -> Option<String> {
-    use Key::*;
+    match key {
+        Key::Character(character) => character_display(character),
+        Key::Named(key) => named_key_display(key),
+    }
+}
+
+fn named_key_display(key: &NamedKey) -> Option<String> {
+    use NamedKey::*;
 
     match key {
-        Character(character) => character_display(character),
         Alt => Some("Alt".into()),
         AltGraph => Some("AltGr".into()),
         CapsLock => Some("CapsLock".into()),
         Control => Some("Ctrl".into()),
+        #[allow(deprecated)]
         Meta | Super => Some("Win".into()),
         NumLock => Some("NumLock".into()),
         ScrollLock => Some("ScrollLock".into()),
