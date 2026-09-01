@@ -82,6 +82,7 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSMenuItem",
   "NSResponder",
   "NSRunningApplication",
+  "NSScreen",
   "NSView",
   "NSWindow",
 ] }
