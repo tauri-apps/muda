@@ -106,17 +106,17 @@ mod test {
     fn set_styled_text_concatenates_label() {
         let item = MenuItem::new("Preview", true, None);
         item.set_styled_text([
-            ("Preview", TextStyle::Normal),
+            ("Preview", TextStyle::Default),
             (" (default)", TextStyle::Secondary),
         ]);
         assert_eq!(item.text(), "Preview (default)");
 
-        item.set_styled_text([("Preview", TextStyle::Normal)]);
+        item.set_styled_text([("Preview", TextStyle::Default)]);
         assert_eq!(item.text(), "Preview");
 
         // `set_text` reverts to a plain label.
         item.set_styled_text([
-            ("Preview", TextStyle::Normal),
+            ("Preview", TextStyle::Default),
             (" (default)", TextStyle::Secondary),
         ]);
         item.set_text("Plain again");
@@ -139,7 +139,7 @@ mod test {
     )]
     fn every_item_type_takes_styled_text() {
         let parts = [
-            ("Speakers", TextStyle::Normal),
+            ("Speakers", TextStyle::Default),
             (" (current)", TextStyle::Secondary),
         ];
 
@@ -176,7 +176,7 @@ mod test {
     )]
     fn every_builder_takes_styled_text() {
         let parts = [
-            ("Preview", TextStyle::Normal),
+            ("Preview", TextStyle::Default),
             (" (default)", TextStyle::Secondary),
         ];
 

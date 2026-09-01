@@ -191,7 +191,7 @@ impl IconMenuItem {
     /// # use muda::{IconMenuItem, TextStyle};
     /// # fn example(item: &IconMenuItem) {
     /// item.set_styled_text([
-    ///     ("Preview", TextStyle::Normal),
+    ///     ("Preview", TextStyle::Default),
     ///     (" (default)", TextStyle::Secondary),
     /// ]);
     /// # }

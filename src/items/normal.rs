@@ -96,7 +96,7 @@ impl MenuItem {
     /// # use muda::{MenuItem, TextStyle};
     /// # fn example(item: &MenuItem) {
     /// item.set_styled_text([
-    ///     ("Preview", TextStyle::Normal),
+    ///     ("Preview", TextStyle::Default),
     ///     (" (default)", TextStyle::Secondary),
     /// ]);
     /// # }

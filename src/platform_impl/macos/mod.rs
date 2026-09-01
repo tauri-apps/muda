@@ -501,7 +501,7 @@ impl MenuChild {
         // attributed one (and don't leave a stale one behind on items created later).
         self.styled_text = parts
             .iter()
-            .any(|(_, style)| *style != TextStyle::Normal)
+            .any(|(_, style)| *style != TextStyle::Default)
             .then_some(parts);
 
         let title = NSString::from_str(&self.text);
@@ -1265,7 +1265,7 @@ impl MenuItem {
 }
 
 /// Builds an attributed title from the parts: every part at the standard menu font, and each
-/// non-[`TextStyle::Normal`] run additionally carrying its style's color.
+/// non-[`TextStyle::Default`] run additionally carrying its style's color.
 fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
     let combined: String = parts.iter().map(|(text, _)| text.as_str()).collect();
     let ns_combined = NSString::from_str(&combined);
@@ -1307,7 +1307,7 @@ impl TextStyle {
     /// The color this style draws in, or `None` to leave the platform default in place.
     fn ns_color(self) -> Option<Retained<NSColor>> {
         match self {
-            TextStyle::Normal => None,
+            TextStyle::Default => None,
             TextStyle::Secondary => Some(NSColor::secondaryLabelColor()),
         }
     }
@@ -1454,7 +1454,7 @@ mod tests {
         assert!(child.styled_text.is_none());
 
         child.set_styled_text(&[
-            ("Preview".to_owned(), TextStyle::Normal),
+            ("Preview".to_owned(), TextStyle::Default),
             (" (default)".to_owned(), TextStyle::Secondary),
         ]);
         assert_eq!(
@@ -1463,20 +1463,20 @@ mod tests {
                 .as_ref()
                 .map(|parts| parts.iter().map(|(t, s)| (t.as_str(), *s)).collect()),
             Some(vec![
-                ("Preview", TextStyle::Normal),
+                ("Preview", TextStyle::Default),
                 (" (default)", TextStyle::Secondary),
             ])
         );
         assert_eq!(child.text, "Preview (default)");
 
         // An all-`Normal` label needs no attributed title, so nothing is remembered.
-        child.set_styled_text(&[("Preview".to_owned(), TextStyle::Normal)]);
+        child.set_styled_text(&[("Preview".to_owned(), TextStyle::Default)]);
         assert!(child.styled_text.is_none());
         assert_eq!(child.text, "Preview");
 
         // `set_text` clears the parts, so a later append doesn't re-style a plain title.
         child.set_styled_text(&[
-            ("Preview".to_owned(), TextStyle::Normal),
+            ("Preview".to_owned(), TextStyle::Default),
             (" (default)".to_owned(), TextStyle::Secondary),
         ]);
         assert!(child.styled_text.is_some());
@@ -1489,7 +1489,7 @@ mod tests {
     #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
     fn build_attributed_title_colors_only_the_non_normal_parts() {
         let parts = [
-            ("Preview".to_owned(), TextStyle::Normal),
+            ("Preview".to_owned(), TextStyle::Default),
             (" (default)".to_owned(), TextStyle::Secondary),
         ];
         let attributed = build_attributed_title(&parts);

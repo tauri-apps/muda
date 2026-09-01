@@ -18,7 +18,7 @@
 pub enum TextStyle {
     /// The platform's default menu label treatment.
     #[default]
-    Normal,
+    Default,
     /// A de-emphasized treatment, for a part of the label that qualifies the rest:
     /// `Preview (default)`, `Speakers (current)`, `Folder (3 items selected)`.
     Secondary,

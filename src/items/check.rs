@@ -110,7 +110,7 @@ impl CheckMenuItem {
     /// # use muda::{CheckMenuItem, TextStyle};
     /// # fn example(item: &CheckMenuItem) {
     /// item.set_styled_text([
-    ///     ("Preview", TextStyle::Normal),
+    ///     ("Preview", TextStyle::Default),
     ///     (" (default)", TextStyle::Secondary),
     /// ]);
     /// # }

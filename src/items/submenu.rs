@@ -170,7 +170,7 @@ impl Submenu {
     /// # use muda::{Submenu, TextStyle};
     /// # fn example(item: &Submenu) {
     /// item.set_styled_text([
-    ///     ("Preview", TextStyle::Normal),
+    ///     ("Preview", TextStyle::Default),
     ///     (" (default)", TextStyle::Secondary),
     /// ]);
     /// # }
