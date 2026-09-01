@@ -74,32 +74,33 @@ impl MenuItemBuilder {
         Ok(self)
     }
 
-    /// Build this menu item.
     /// Set the text for this menu item as a sequence of styled text, so one part of the
     /// label can be de-emphasized relative to the rest.
     ///
     /// Overrides any text set with [`.text()`](Self::text).
     ///
     /// See [`MenuItem::set_styled_text`] for more info.
-    pub fn styled_text<S: AsRef<str>>(
+    pub fn styled_text<S: Into<String>>(
         mut self,
         parts: impl IntoIterator<Item = (S, TextStyle)>,
     ) -> Self {
         self.styled_text = Some(
             parts
                 .into_iter()
-                .map(|(text, style)| (text.as_ref().to_string(), style))
+                .map(|(text, style)| (text.into(), style))
                 .collect(),
         );
         self
     }
 
+    /// Build this menu item.
     pub fn build(self) -> MenuItem {
         let item = if let Some(id) = self.id {
             MenuItem::with_id(id, self.text, self.enabled, None)
         } else {
             MenuItem::new(self.text, self.enabled, None)
         };
+
         if let Some(accelerator) = self.accelerator {
             let _ = match accelerator {
                 MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
@@ -108,9 +109,11 @@ impl MenuItemBuilder {
                 }
             };
         }
+
         if let Some(parts) = self.styled_text {
             item.set_styled_text(parts);
         }
+
         item
     }
 }

@@ -91,26 +91,26 @@ impl<'a> SubmenuBuilder<'a> {
         self
     }
 
-    /// Build this menu item.
     /// Set the text for this menu item as a sequence of styled text, so one part of the
     /// label can be de-emphasized relative to the rest.
     ///
     /// Overrides any text set with [`.text()`](Self::text).
     ///
     /// See [`Submenu::set_styled_text`] for more info.
-    pub fn styled_text<S: AsRef<str>>(
+    pub fn styled_text<S: Into<String>>(
         mut self,
         parts: impl IntoIterator<Item = (S, TextStyle)>,
     ) -> Self {
         self.styled_text = Some(
             parts
                 .into_iter()
-                .map(|(text, style)| (text.as_ref().to_string(), style))
+                .map(|(text, style)| (text.into(), style))
                 .collect(),
         );
         self
     }
 
+    /// Build this submenu.
     pub fn build(self) -> crate::Result<Submenu> {
         let submenu = if let Some(id) = self.id {
             Submenu::with_id_and_items(id, self.text, self.enabled, &self.items)?
