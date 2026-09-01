@@ -670,9 +670,8 @@ impl PlatformMenuItem {
             return;
         };
 
-        if self.gtk_menus.is_some() {
+        if let Some(gtk_menus) = self.gtk_menus.as_mut() {
             let removed_menu = {
-                let gtk_menus = self.gtk_menus.as_mut().unwrap();
                 let mut remove_parent_entry = false;
                 let removed_menu = gtk_menus.get_mut(&parent_id).and_then(|menus| {
                     let removed_menu =

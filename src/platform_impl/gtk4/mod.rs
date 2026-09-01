@@ -30,6 +30,13 @@ const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";
 
 type GtkId = usize;
 
+struct GtkInsertContext<'a> {
+    app: &'a gtk::Application,
+    menu_id: GtkId,
+    parent_menu: &'a gio::Menu,
+    parent_widget: &'a gtk::Widget,
+}
+
 enum GtkMenuBar {
     MenuBar {
         widget: gtk::PopoverMenuBar,
@@ -495,10 +502,7 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         children: &[MenuItemKind],
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
-        parent_widget: &gtk::Widget,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let menu = gio::Menu::new();
@@ -506,25 +510,28 @@ impl PlatformMenuItem {
         let id = COUNTER.next() as GtkId;
         let item = gio_submenu(&args.text, &detailed_action, &menu, id);
 
-        self.ensure_submenu_action(app, args);
+        self.ensure_submenu_action(context.app, args);
 
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let widget = find_submenu_widget(parent_widget, &menu)
+        let widget = find_submenu_widget(context.parent_widget, &menu)
             .expect("GTK did not create a PopoverMenu for submenu");
 
         let child = GtkMenuChild::Submenu {
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             menu,
             widget,
             id,
-            app: app.clone(),
+            app: context.app.clone(),
         };
 
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         for item in children {
             self.add_existing_item_to_instance(item, id)?;
@@ -672,9 +679,7 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         click: &ClickAction,
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
@@ -682,23 +687,28 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            app.set_accels_for_action(&detailed_action, &[&accelerator]);
+            context
+                .app
+                .set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
-        self.ensure_action(app, args, click);
+        self.ensure_action(context.app, args, click);
 
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
         let child = GtkMenuChild::Item {
             id,
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             widget: None,
-            app: app.clone(),
+            app: context.app.clone(),
         };
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         Ok(())
     }
@@ -945,9 +955,7 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         click: &ClickAction,
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
@@ -955,33 +963,35 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            app.set_accels_for_action(&detailed_action, &[&accelerator]);
+            context
+                .app
+                .set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
-        self.ensure_action(app, args, click);
+        self.ensure_action(context.app, args, click);
 
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
         let child = GtkMenuChild::Item {
             id,
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             widget: None,
-            app: app.clone(),
+            app: context.app.clone(),
         };
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         Ok(())
     }
 
     fn insert_gtk_separator(
         &mut self,
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
-        parent_widget: &gtk::Widget,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let id = COUNTER.next() as GtkId;
@@ -989,22 +999,25 @@ impl PlatformMenuItem {
         let item = gio_custom_item(None, None, id);
         let separator = gtk::Separator::new(gtk::Orientation::Horizontal);
 
-        let widget = GtkCustomWidget::new(separator, parent_widget);
+        let widget = GtkCustomWidget::new(separator, context.parent_widget);
 
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
         let child = GtkMenuChild::Item {
             id,
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             widget: Some(widget),
-            app: app.clone(),
+            app: context.app.clone(),
         };
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         Ok(())
     }
@@ -1015,9 +1028,7 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         click: &ClickAction,
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
@@ -1025,23 +1036,28 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            app.set_accels_for_action(&detailed_action, &[&accelerator]);
+            context
+                .app
+                .set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
-        self.ensure_action(app, args, click);
+        self.ensure_action(context.app, args, click);
 
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
         let child = GtkMenuChild::Item {
             id,
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             widget: None,
-            app: app.clone(),
+            app: context.app.clone(),
         };
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         Ok(())
     }
@@ -1065,10 +1081,7 @@ impl PlatformMenuItem {
         &mut self,
         args: &PlatformAttachArgs,
         click: &ClickAction,
-        app: &gtk::Application,
-        menu_id: GtkId,
-        parent_menu: &gio::Menu,
-        parent_widget: &gtk::Widget,
+        context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
         let detailed_action = self.detailed_action();
@@ -1076,10 +1089,12 @@ impl PlatformMenuItem {
         let item = gio_custom_item(Some(&args.text), Some(&detailed_action), id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            app.set_accels_for_action(&detailed_action, &[&accelerator]);
+            context
+                .app
+                .set_accels_for_action(&detailed_action, &[&accelerator]);
         }
 
-        self.ensure_action(app, args, click);
+        self.ensure_action(context.app, args, click);
 
         let widget = IconMenuItem::new(
             &args.text,
@@ -1088,21 +1103,24 @@ impl PlatformMenuItem {
             args.accelerator.as_ref(),
         );
 
-        let widget = GtkCustomWidget::new(widget.clone(), parent_widget);
+        let widget = GtkCustomWidget::new(widget.clone(), context.parent_widget);
         match op {
-            AddOp::Append => parent_menu.append_item(&item),
-            AddOp::Insert(position) => parent_menu.insert_item(position as i32, &item),
+            AddOp::Append => context.parent_menu.append_item(&item),
+            AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
         let child = GtkMenuChild::Item {
             id,
-            parent_menu: parent_menu.clone(),
+            parent_menu: context.parent_menu.clone(),
             widget: Some(widget),
-            app: app.clone(),
+            app: context.app.clone(),
         };
-        self.instances.entry(menu_id).or_default().push(child);
+        self.instances
+            .entry(context.menu_id)
+            .or_default()
+            .push(child);
 
         Ok(())
     }
@@ -1139,43 +1157,27 @@ impl MenuItemKind {
         let click = self.click_action();
         let platform = self.platform();
         let mut child = platform.borrow_mut();
+        let context = GtkInsertContext {
+            app,
+            menu_id,
+            parent_menu,
+            parent_widget,
+        };
 
         match self {
-            Self::Submenu(_) => child.insert_gtk_submenu(
-                &args,
-                &self.children(),
-                app,
-                menu_id,
-                parent_menu,
-                parent_widget,
-                op,
-            ),
-            Self::MenuItem(_) => {
-                child.insert_gtk_item(&args, &click, app, menu_id, parent_menu, op)
-            }
-            Self::Check(_) => {
-                child.insert_gtk_check_item(&args, &click, app, menu_id, parent_menu, op)
-            }
-            Self::Icon(_) => child.insert_gtk_icon_item(
-                &args,
-                &click,
-                app,
-                menu_id,
-                parent_menu,
-                parent_widget,
-                op,
-            ),
+            Self::Submenu(_) => child.insert_gtk_submenu(&args, &self.children(), &context, op),
+            Self::MenuItem(_) => child.insert_gtk_item(&args, &click, &context, op),
+            Self::Check(_) => child.insert_gtk_check_item(&args, &click, &context, op),
+            Self::Icon(_) => child.insert_gtk_icon_item(&args, &click, &context, op),
             Self::Predefined(item)
                 if matches!(
                     item.state.borrow().predefined_item_type,
                     PredefinedMenuItemType::Separator
                 ) =>
             {
-                child.insert_gtk_separator(app, menu_id, parent_menu, parent_widget, op)
+                child.insert_gtk_separator(&context, op)
             }
-            Self::Predefined(_) => {
-                child.insert_gtk_predefined_item(&args, &click, app, menu_id, parent_menu, op)
-            }
+            Self::Predefined(_) => child.insert_gtk_predefined_item(&args, &click, &context, op),
         }
     }
 }
