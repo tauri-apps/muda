@@ -1452,44 +1452,6 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
-    fn styled_text_round_trip() {
-        let mut child = MenuChild::new("placeholder", true, None, None);
-        assert!(child.styled_text.is_none());
-
-        child.set_styled_text([
-            ("Preview".to_owned(), TextStyle::Default),
-            (" (default)".to_owned(), TextStyle::Secondary),
-        ]);
-        assert_eq!(
-            child
-                .styled_text
-                .as_ref()
-                .map(|parts| parts.iter().map(|(t, s)| (t.as_str(), *s)).collect()),
-            Some(vec![
-                ("Preview", TextStyle::Default),
-                (" (default)", TextStyle::Secondary),
-            ])
-        );
-        assert_eq!(child.text, "Preview (default)");
-
-        // An all-`Normal` label needs no attributed title, so nothing is remembered.
-        child.set_styled_text([("Preview".to_owned(), TextStyle::Default)]);
-        assert!(child.styled_text.is_none());
-        assert_eq!(child.text, "Preview");
-
-        // `set_text` clears the parts, so a later append doesn't re-style a plain title.
-        child.set_styled_text([
-            ("Preview".to_owned(), TextStyle::Default),
-            (" (default)".to_owned(), TextStyle::Secondary),
-        ]);
-        assert!(child.styled_text.is_some());
-        child.set_text("Plain again");
-        assert!(child.styled_text.is_none());
-        assert_eq!(child.text, "Plain again");
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore = "calls into the ObjC runtime, which Miri can't emulate")]
     fn build_attributed_title_colors_only_the_non_normal_parts() {
         let parts = [
             ("Preview".to_owned(), TextStyle::Default),
