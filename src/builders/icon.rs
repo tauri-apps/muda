@@ -5,7 +5,7 @@
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
-    IconMenuItem, MenuId,
+    IconMenuItem, MenuId, TextStyle,
 };
 
 /// A builder type for [`IconMenuItem`]
@@ -17,6 +17,7 @@ pub struct IconMenuItemBuilder {
     accelerator: Option<MenuAccelerator>,
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
+    styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl IconMenuItemBuilder {
@@ -107,6 +108,25 @@ impl IconMenuItemBuilder {
         Ok(self)
     }
 
+    /// Set the text for this menu item as a sequence of styled text, so one part of the
+    /// label can be de-emphasized relative to the rest.
+    ///
+    /// Overrides any text set with [`.text()`](Self::text).
+    ///
+    /// See [`IconMenuItem::set_styled_text`] for more info.
+    pub fn styled_text<S: Into<String>>(
+        mut self,
+        parts: impl IntoIterator<Item = (S, TextStyle)>,
+    ) -> Self {
+        self.styled_text = Some(
+            parts
+                .into_iter()
+                .map(|(text, style)| (text.into(), style))
+                .collect(),
+        );
+        self
+    }
+
     /// Build this icon menu item.
     pub fn build(self) -> IconMenuItem {
         let item = if let Some(id) = self.id {
@@ -126,6 +146,7 @@ impl IconMenuItemBuilder {
         } else {
             IconMenuItem::with_native_icon(self.text, self.enabled, self.native_icon, None)
         };
+
         if let Some(accelerator) = self.accelerator {
             let _ = match accelerator {
                 MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
@@ -134,6 +155,11 @@ impl IconMenuItemBuilder {
                 }
             };
         }
+
+        if let Some(parts) = self.styled_text {
+            item.set_styled_text(parts);
+        }
+
         item
     }
 }

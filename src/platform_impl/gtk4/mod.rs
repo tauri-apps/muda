@@ -22,7 +22,7 @@ use crate::{
     accelerator::MenuAccelerator,
     util::{AddOp, Counter},
     AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
-    PredefinedMenuItemType,
+    PredefinedMenuItemType, TextStyle,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -827,6 +827,18 @@ impl MenuChild {
         self.replace_gtk_items();
 
         self.for_each_icon_item(|widget| widget.set_label(text));
+    }
+
+    pub fn set_styled_text<S: AsRef<str>>(
+        &mut self,
+        parts: impl IntoIterator<Item = (S, TextStyle)>,
+    ) {
+        let text = parts
+            .into_iter()
+            .map(|(s, _style)| s.as_ref().to_string())
+            .collect::<String>();
+
+        self.set_text(&text);
     }
 
     pub fn is_enabled(&self) -> bool {

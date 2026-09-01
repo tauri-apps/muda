@@ -8,7 +8,7 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     sealed::IsMenuItemBase,
-    IsMenuItem, MenuId, MenuItemKind,
+    IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -181,6 +181,31 @@ impl IconMenuItem {
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         self.inner.borrow_mut().set_text(text.as_ref())
+    }
+
+    /// Set the item's label as a sequence of styled text, so one part of the label can be
+    /// de-emphasized relative to the rest. Finder uses this for entries like
+    /// `Preview (default)` in its "Open with" submenu.
+    ///
+    /// ```
+    /// # use muda::{IconMenuItem, TextStyle};
+    /// # fn example(item: &IconMenuItem) {
+    /// item.set_styled_text([
+    ///     ("Preview", TextStyle::Default),
+    ///     (" (default)", TextStyle::Secondary),
+    /// ]);
+    /// # }
+    /// ```
+    ///
+    /// [`IconMenuItem::text`] returns the concatenation of the parts, which is what the item
+    /// actually draws. [`IconMenuItem::set_text`] clears the styling.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **Windows / Linux**: the parts are concatenated and set as plain text; styles are
+    ///   not visually distinguished.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        self.inner.borrow_mut().set_styled_text(parts)
     }
 
     /// Get whether this check menu item is enabled or not.
