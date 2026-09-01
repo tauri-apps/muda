@@ -139,6 +139,15 @@ impl PlatformMenu {
     }
 
     pub fn destroy(&mut self, children: &[MenuItemKind]) {
+        let mtm = MainThreadMarker::from(&*self.ns_menu.1);
+        let app = NSApplication::sharedApplication(mtm);
+        if app
+            .mainMenu()
+            .is_some_and(|menu| std::ptr::eq(&*menu, &*self.ns_menu.1))
+        {
+            app.setMainMenu(None);
+        }
+
         remove_children_instances_for_parent(self.ns_menu.0, children);
     }
 
@@ -171,6 +180,7 @@ impl PlatformMenu {
 /// A generic child in a menu
 pub struct PlatformMenuItem {
     click: ClickAction,
+    is_services_menu: bool,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
     ns_menu: Option<NsMenuRef>,
@@ -181,6 +191,7 @@ impl PlatformMenuItem {
     pub fn new(click: ClickAction) -> Self {
         Self {
             click,
+            is_services_menu: false,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
             ns_menus: None,
@@ -196,6 +207,7 @@ impl PlatformMenuItem {
         };
         Self {
             click,
+            is_services_menu: false,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
                 menu.setAutoenablesItems(false);
@@ -214,6 +226,8 @@ impl PlatformMenuItem {
         if !self.is_submenu() {
             return;
         }
+
+        self.remove_from_nsapp_menu_slots();
 
         let menu_ids = self
             .ns_menus
@@ -341,6 +355,20 @@ fn remove_children_instances_for_parent(parent_id: u32, children: &[MenuItemKind
     }
 }
 
+fn remove_services_menu_for_nsapp(ns_item: &NSMenuItem) {
+    let Some(submenu) = ns_item.submenu() else {
+        return;
+    };
+    let mtm = MainThreadMarker::from(&*submenu);
+    let app = NSApplication::sharedApplication(mtm);
+    if app
+        .servicesMenu()
+        .is_some_and(|services_menu| std::ptr::eq(&*services_menu, &*submenu))
+    {
+        app.setServicesMenu(None);
+    }
+}
+
 /// Submenu methods
 impl PlatformMenuItem {
     pub fn attach(&mut self, item: &MenuItemKind, op: AddOp) -> crate::Result<()> {
@@ -403,6 +431,10 @@ impl PlatformMenuItem {
             return;
         };
 
+        if self.is_services_menu {
+            remove_services_menu_for_nsapp(&ns_item);
+        }
+
         if self.is_submenu() {
             self.remove_ns_menu_for_parent_item(parent_menu.0, &ns_item, children);
         }
@@ -439,7 +471,14 @@ impl PlatformMenuItem {
     }
 
     fn remove_instances_for_parent(&mut self, parent_id: u32, children: &[MenuItemKind]) {
-        self.ns_menu_items.remove(&parent_id);
+        if let Some(items) = self.ns_menu_items.remove(&parent_id) {
+            // Removed item could be a predefined Services menu item
+            if self.is_services_menu {
+                for item in items {
+                    remove_services_menu_for_nsapp(&item);
+                }
+            }
+        }
 
         if !self.is_submenu() {
             return;
@@ -466,6 +505,30 @@ impl PlatformMenuItem {
 
         if items.is_empty() {
             self.ns_menu_items.remove(&parent_id);
+        }
+    }
+
+    fn remove_from_nsapp_menu_slots(&self) {
+        if self.ns_menus.as_ref().unwrap().is_empty() {
+            return;
+        }
+
+        let mtm = MainThreadMarker::from(&*self.ns_menu.as_ref().unwrap().1);
+        let app = NSApplication::sharedApplication(mtm);
+        let owns_menu = |menu: &NSMenu| {
+            self.ns_menus
+                .as_ref()
+                .unwrap()
+                .values()
+                .flatten()
+                .any(|owned| std::ptr::eq(menu, &*owned.1))
+        };
+
+        if app.windowsMenu().as_deref().is_some_and(&owns_menu) {
+            app.setWindowsMenu(None);
+        }
+        if app.helpMenu().as_deref().is_some_and(owns_menu) {
+            app.setHelpMenu(None);
         }
     }
 
@@ -636,6 +699,7 @@ impl PlatformMenuItem {
         ns_menu_item.setEnabled(args.enabled);
 
         if let PredefinedMenuItemType::Services = &predefined_item_type {
+            self.is_services_menu = true;
             // we have to assign an empty menu as the app's services menu, and macOS will populate it
             let services_menu = NSMenu::new(mtm);
             NSApplication::sharedApplication(mtm).setServicesMenu(Some(&services_menu));
