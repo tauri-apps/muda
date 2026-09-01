@@ -387,17 +387,6 @@ mod sealed {
     pub trait IsMenuItemBase {}
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum MenuItemType {
-    #[default]
-    MenuItem,
-    Submenu,
-    Predefined,
-    Check,
-    Icon,
-}
-
 /// A helper trait with methods to help creating a context menu.
 pub trait ContextMenu {
     /// Get the popup [`HMENU`] for this menu.

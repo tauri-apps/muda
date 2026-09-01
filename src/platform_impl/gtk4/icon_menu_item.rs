@@ -6,7 +6,7 @@ use std::cell::OnceCell;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{accelerator::MenuAccelerator, Icon};
+use crate::{accelerator::MenuAccelerator, items::IconType};
 
 use super::mnemonic::to_gtk_mnemonic;
 
@@ -49,8 +49,7 @@ impl IconMenuItem {
     pub(super) fn new(
         text: &str,
         detailed_action: &str,
-        icon: Option<&Icon>,
-        native_icon: Option<&str>,
+        icon: Option<&IconType>,
         accelerator: Option<&MenuAccelerator>,
     ) -> Self {
         let item: Self = glib::Object::new();
@@ -97,11 +96,7 @@ impl IconMenuItem {
 
         item.add_menu_item_controllers();
         item.set_label(text);
-        if icon.is_some() {
-            item.set_icon(icon);
-        } else {
-            item.set_native_icon(native_icon);
-        }
+        item.set_icon(icon);
         item.set_accelerator(accelerator);
 
         item
@@ -116,28 +111,26 @@ impl IconMenuItem {
         label.set_mnemonic_widget(Some(self));
     }
 
-    pub fn set_icon(&self, icon: Option<&Icon>) {
+    pub(super) fn set_icon(&self, icon: Option<&IconType>) {
         let Some(image) = self.imp().image.get() else {
             return;
         };
 
-        image.set_icon_name(None);
-
-        if let Some(icon) = icon {
-            let texture = icon.inner.texture();
-            image.set_paintable(Some(&texture));
-        } else {
-            image.set_paintable(gtk::gdk::Paintable::NONE);
+        match icon {
+            Some(IconType::Custom(icon)) => {
+                image.set_icon_name(None);
+                let texture = icon.inner.texture();
+                image.set_paintable(Some(&texture));
+            }
+            Some(IconType::Native(icon)) => {
+                image.set_paintable(gtk::gdk::Paintable::NONE);
+                image.set_icon_name(Some(icon.gtk_icon_name()));
+            }
+            None => {
+                image.set_paintable(gtk::gdk::Paintable::NONE);
+                image.set_icon_name(None);
+            }
         }
-    }
-
-    pub fn set_native_icon(&self, icon: Option<&str>) {
-        let Some(image) = self.imp().image.get() else {
-            return;
-        };
-
-        image.set_paintable(gtk::gdk::Paintable::NONE);
-        image.set_icon_name(icon);
     }
 
     pub(super) fn set_accelerator(&self, accelerator: Option<&MenuAccelerator>) {

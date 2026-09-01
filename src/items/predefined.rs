@@ -1,20 +1,30 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.inner
+// SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, Code, MenuAccelerator, Modifiers, CMD_OR_CTRL},
+    platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    AboutMetadata, IsMenuItem, MenuId, MenuItemKind,
+    util, AboutMetadata, ClickAction, IsMenuItem, MenuId, MenuItemKind,
 };
 
 /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
-    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    pub(crate) state: Rc<RefCell<PredefinedMenuItemState>>,
+    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
+}
+
+/// Shared state of a [`PredefinedMenuItem`].
+#[derive(Debug, Clone)]
+pub(crate) struct PredefinedMenuItemState {
+    pub text: String,
+    pub predefined_item_type: PredefinedMenuItemType,
+    pub enabled: bool,
 }
 
 impl IsMenuItemBase for PredefinedMenuItem {}
@@ -280,13 +290,28 @@ impl PredefinedMenuItem {
     }
 
     fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
-        let item = crate::platform_impl::MenuChild::new_predefined(
-            item,
-            text.map(|t| t.as_ref().to_string()),
-        );
+        let id = util::next_id(None);
+
+        let resolved_text = text
+            .as_ref()
+            .map(|text| text.as_ref().to_string())
+            .unwrap_or_else(|| item.default_text(app_name().as_deref()));
+        let enabled = item.is_supported();
+        let state = Rc::new(RefCell::new(PredefinedMenuItemState {
+            text: resolved_text,
+            predefined_item_type: item,
+            enabled,
+        }));
+
+        // A predefined item emits no event; what it does instead is decided from its kind at
+        // click time, which is why the action needs a handle to state rather than the id.
+        let click = ClickAction::Predefined(Rc::downgrade(&state));
+        let platform = PlatformMenuItem::new(click);
+
         Self {
-            id: Rc::new(item.id().clone()),
-            inner: Rc::new(RefCell::new(item)),
+            id: Rc::new(id),
+            state,
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 
@@ -297,12 +322,23 @@ impl PredefinedMenuItem {
 
     /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
-        self.inner.borrow().text()
+        self.platform
+            .borrow()
+            .text()
+            .unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        let accelerator = {
+            let mut state = self.state.borrow_mut();
+            state.text = text.as_ref().to_string();
+            state.predefined_item_type.accelerator()
+        };
+
+        self.platform
+            .borrow_mut()
+            .set_text(text.as_ref(), accelerator.as_ref())
     }
 
     /// Convert this menu item into its menu ID.
@@ -316,34 +352,20 @@ impl PredefinedMenuItem {
     }
 }
 
-#[test]
-fn test_about_metadata() {
-    assert_eq!(
-        AboutMetadata {
-            ..Default::default()
-        }
-        .full_version(),
+/// The running application's name, for the macOS items that splice it into their label.
+///
+/// The one construction-time platform call left in the crate, and the reason
+/// [`PredefinedMenuItemState::new`] takes the name as an argument instead of fetching it: the
+/// other three platforms' labels never mention it, so everywhere else this is a constant.
+fn app_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::platform_impl::app_name()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
         None
-    );
-
-    assert_eq!(
-        AboutMetadata {
-            version: Some("Version: 1.inner".into()),
-            ..Default::default()
-        }
-        .full_version(),
-        Some("Version: 1.inner".into())
-    );
-
-    assert_eq!(
-        AboutMetadata {
-            version: Some("Version: 1.inner".into()),
-            short_version: Some("Universal".into()),
-            ..Default::default()
-        }
-        .full_version(),
-        Some("Version: 1.inner (Universal)".into())
-    );
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -421,6 +443,143 @@ impl PredefinedMenuItemType {
         }
     }
 
+    /// The label this kind carries when the caller supplies none.
+    ///
+    /// Mnemonic-encoded, like every other label in shared state: `&` marks the mnemonic and
+    /// `&&` is a literal ampersand. Backends that have no mnemonics strip on the way out.
+    ///
+    /// `app_name` is consulted on macOS alone, where three of the kinds name the running
+    /// application. It is passed in rather than read here because fetching it is a native
+    /// call, and this table has to stay answerable without one.
+    pub(crate) fn default_text(&self, app_name: Option<&str>) -> String {
+        #[cfg(target_os = "macos")]
+        {
+            // An empty (or absent) name degrades to the bare verb, matching what
+            // `format!("About {}", "").trim()` used to produce.
+            let named = |verb: &str| match app_name {
+                Some(name) if !name.trim().is_empty() => {
+                    format!("{verb} {}", escape_mnemonic(name.trim()))
+                }
+                _ => verb.to_string(),
+            };
+
+            match self {
+                PredefinedMenuItemType::About(_) => return named("About"),
+                PredefinedMenuItemType::Hide => return named("Hide"),
+                PredefinedMenuItemType::Quit => return named("Quit"),
+                _ => {}
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = app_name;
+
+        self.text().to_string()
+    }
+
+    /// Whether this kind does anything on the platform being compiled for.
+    ///
+    /// An unsupported kind is not rejected at construction — it is created and left
+    /// disabled, which is why this feeds `enabled` rather than an error.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::PasteAndMatchStyle
+                | PredefinedMenuItemType::Delete
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::ActualSize
+                | PredefinedMenuItemType::ZoomIn
+                | PredefinedMenuItemType::ZoomOut
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::HideOthers
+                | PredefinedMenuItemType::ShowAll
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+                | PredefinedMenuItemType::Services
+                | PredefinedMenuItemType::BringAllToFront
+                | PredefinedMenuItemType::StartSpeaking
+                | PredefinedMenuItemType::StopSpeaking
+                | PredefinedMenuItemType::StartDictation
+                | PredefinedMenuItemType::EmojiAndSymbols
+        )
+    }
+
     pub(crate) fn accelerator(&self) -> Option<MenuAccelerator> {
         match self {
             PredefinedMenuItemType::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
@@ -486,4 +645,49 @@ impl PredefinedMenuItemType {
 
 fn physical_accelerator(modifiers: Modifiers, key: Code) -> MenuAccelerator {
     MenuAccelerator::Physical(Accelerator::new(modifiers, key))
+}
+
+/// Make `text` survive mnemonic decoding unchanged.
+///
+/// Application names are not labels the caller wrote, so an ampersand in one is a literal
+/// ampersand — `Foo & Bar` has to reach the user as `Foo & Bar`, not as `Foo  Bar` with the
+/// space swallowed as a mnemonic marker.
+#[cfg(target_os = "macos")]
+fn escape_mnemonic(text: &str) -> String {
+    text.replace('&', "&&")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_about_metadata() {
+        assert_eq!(
+            AboutMetadata {
+                ..Default::default()
+            }
+            .full_version(),
+            None
+        );
+
+        assert_eq!(
+            AboutMetadata {
+                version: Some("Version: 1.inner".into()),
+                ..Default::default()
+            }
+            .full_version(),
+            Some("Version: 1.inner".into())
+        );
+
+        assert_eq!(
+            AboutMetadata {
+                version: Some("Version: 1.inner".into()),
+                short_version: Some("Universal".into()),
+                ..Default::default()
+            }
+            .full_version(),
+            Some("Version: 1.inner (Universal)".into())
+        );
+    }
 }

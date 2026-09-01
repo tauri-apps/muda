@@ -1,13 +1,14 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.inner
+// SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
+    platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -19,7 +20,18 @@ use crate::{
 #[derive(Clone)]
 pub struct CheckMenuItem {
     pub(crate) id: Rc<MenuId>,
-    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    pub(crate) state: Rc<RefCell<CheckMenuItemState>>,
+    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
+}
+
+/// Shared state of a [`CheckMenuItem`].
+#[derive(Debug, Clone)]
+pub(crate) struct CheckMenuItemState {
+    pub text: String,
+    pub enabled: bool,
+    pub checked: bool,
+    pub accelerator: Option<MenuAccelerator>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl IsMenuItemBase for CheckMenuItem {}
@@ -48,17 +60,13 @@ impl CheckMenuItem {
         checked: bool,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let item = crate::platform_impl::MenuChild::new_check(
+        Self::new_inner(
+            None,
             text.as_ref(),
             enabled,
             checked,
             accelerator.map(MenuAccelerator::Physical),
-            None,
-        );
-        Self {
-            id: Rc::new(item.id().clone()),
-            inner: Rc::new(RefCell::new(item)),
-        }
+        )
     }
 
     /// Create a new check menu item with the specified id.
@@ -72,16 +80,41 @@ impl CheckMenuItem {
         checked: bool,
         accelerator: Option<Accelerator>,
     ) -> Self {
-        let id = id.into();
+        Self::new_inner(
+            Some(id.into()),
+            text.as_ref(),
+            enabled,
+            checked,
+            accelerator.map(MenuAccelerator::Physical),
+        )
+    }
+
+    fn new_inner(
+        id: Option<MenuId>,
+        text: &str,
+        enabled: bool,
+        checked: bool,
+        accelerator: Option<MenuAccelerator>,
+    ) -> Self {
+        let id = util::next_id(id);
+        let state = Rc::new(RefCell::new(CheckMenuItemState {
+            text: text.to_string(),
+            enabled,
+            checked,
+            accelerator,
+            styled_text: None,
+        }));
+
+        // The click path flips `checked` through this handle rather than through the wrapper,
+        // which it has no way to reach. It is weak so that state does not own the platform that
+        // owns it back (O4).
+        let click = ClickAction::Toggle(id.clone(), Rc::downgrade(&state));
+        let platform = PlatformMenuItem::new(click);
+
         Self {
-            id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_check(
-                text.as_ref(),
-                enabled,
-                checked,
-                accelerator.map(MenuAccelerator::Physical),
-                Some(id),
-            ))),
+            id: Rc::new(id),
+            state,
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 
@@ -92,77 +125,97 @@ impl CheckMenuItem {
 
     /// Get the text for this check menu item.
     pub fn text(&self) -> String {
-        self.inner.borrow().text()
+        self.platform
+            .borrow()
+            .text()
+            .unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this check menu item. `text` could optionally contain
     /// an `&` before a character to assign this character as the mnemonic
     /// for this check menu item. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        let accelerator = {
+            let mut state = self.state.borrow_mut();
+            state.text = text.as_ref().to_string();
+            state.styled_text = None;
+            state.accelerator.clone()
+        };
+
+        self.platform
+            .borrow_mut()
+            .set_text(text.as_ref(), accelerator.as_ref())
     }
 
-    /// Set the item's label as a sequence of styled text, so one part of the label can be
-    /// de-emphasized relative to the rest. Finder uses this for entries like
-    /// `Preview (default)` in its "Open with" submenu.
-    ///
-    /// ```
-    /// # use muda::{CheckMenuItem, TextStyle};
-    /// # fn example(item: &CheckMenuItem) {
-    /// item.set_styled_text([
-    ///     ("Preview", TextStyle::Default),
-    ///     (" (default)", TextStyle::Secondary),
-    /// ]);
-    /// # }
-    /// ```
-    ///
-    /// [`CheckMenuItem::text`] returns the concatenation of the parts, which is what the item
-    /// actually draws. [`CheckMenuItem::set_text`] clears the styling.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **Windows / Linux**: the parts are concatenated and set as plain text; styles are
-    ///   not visually distinguished.
+    /// Set the item's label as styled parts. On Windows and Linux the parts render as plain text.
     pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
-        self.inner.borrow_mut().set_styled_text(parts)
+        let parts = parts
+            .into_iter()
+            .map(|(text, style)| (text.as_ref().to_string(), style))
+            .collect::<Vec<_>>();
+        let (text, accelerator) = {
+            let mut state = self.state.borrow_mut();
+            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
+            state.styled_text = Some(parts.clone());
+            (state.text.clone(), state.accelerator.clone())
+        };
+        self.platform
+            .borrow_mut()
+            .set_styled_text(&text, &parts, accelerator.as_ref())
     }
 
     /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.inner.borrow().is_enabled()
+        self.platform
+            .borrow()
+            .is_enabled()
+            .unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this check menu item.
     pub fn set_enabled(&self, enabled: bool) {
-        self.inner.borrow_mut().set_enabled(enabled)
+        self.state.borrow_mut().enabled = enabled;
+        self.platform.borrow_mut().set_enabled(enabled)
     }
 
     /// Set this check menu item accelerator.
     ///
     /// (Note that setting an accelerator will override any existing [.set_key_accelerator()](Self::set_key_accelerator))
     pub fn set_accelerator(&self, accelerator: Option<Accelerator>) -> crate::Result<()> {
-        self.inner
-            .borrow_mut()
-            .set_accelerator(accelerator.map(MenuAccelerator::Physical))
+        self.set_accelerator_inner(accelerator.map(MenuAccelerator::Physical))
     }
 
     /// Set this check menu item accelerator using a [`KeyAccelerator`].
     ///
     /// (Note that setting a key_accelerator will override any existing [.set_accelerator()](Self::set_accelerator))
     pub fn set_key_accelerator(&self, accelerator: Option<KeyAccelerator>) -> crate::Result<()> {
-        self.inner
+        self.set_accelerator_inner(accelerator.map(MenuAccelerator::Logical))
+    }
+
+    fn set_accelerator_inner(&self, accelerator: Option<MenuAccelerator>) -> crate::Result<()> {
+        let text = {
+            let mut state = self.state.borrow_mut();
+            state.accelerator = accelerator.clone();
+            state.text.clone()
+        };
+
+        self.platform
             .borrow_mut()
-            .set_accelerator(accelerator.map(MenuAccelerator::Logical))
+            .set_accelerator(&text, accelerator.as_ref())
     }
 
     /// Get whether this check menu item is checked or not.
     pub fn is_checked(&self) -> bool {
-        self.inner.borrow().is_checked()
+        self.platform
+            .borrow()
+            .is_checked()
+            .unwrap_or_else(|| self.state.borrow().checked)
     }
 
     /// Check or Uncheck this check menu item.
     pub fn set_checked(&self, checked: bool) {
-        self.inner.borrow_mut().set_checked(checked)
+        self.state.borrow_mut().checked = checked;
+        self.platform.borrow_mut().set_checked(checked)
     }
 
     /// Convert this menu item into its menu ID.

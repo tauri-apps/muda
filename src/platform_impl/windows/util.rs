@@ -2,23 +2,77 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ops::{Deref, DerefMut};
-
 use once_cell::sync::Lazy;
 use windows_sys::{
     core::HRESULT,
     Win32::{
         Foundation::{FARPROC, HWND, S_OK},
         Graphics::Gdi::{
-            GetDC, GetDeviceCaps, MonitorFromWindow, HMONITOR, LOGPIXELSX, MONITOR_DEFAULTTONEAREST,
+            DeleteObject, GetDC, GetDeviceCaps, MonitorFromWindow, HBITMAP, HMONITOR, LOGPIXELSX,
+            MONITOR_DEFAULTTONEAREST,
         },
         System::LibraryLoader::{GetProcAddress, LoadLibraryW},
         UI::{
             HiDpi::{MDT_EFFECTIVE_DPI, MONITOR_DPI_TYPE},
-            WindowsAndMessaging::{IsProcessDPIAware, ACCEL},
+            WindowsAndMessaging::IsProcessDPIAware,
         },
     },
 };
+
+// Copied from the `windows-core` crate. Remove this compatibility shim once `Owned` and `Free`
+// are available from the `windows_sys::core` module.
+/// A handle that knows how to release its owned native resource.
+pub(super) trait Free {
+    /// Releases the handle.
+    ///
+    /// # Safety
+    ///
+    /// The handle must be owned by the caller and valid to release.
+    unsafe fn free(&mut self);
+}
+
+/// An owned native handle that releases itself when dropped.
+#[repr(transparent)]
+pub(super) struct Owned<T: Free>(T);
+
+impl<T: Free> Owned<T> {
+    /// Takes ownership of a native handle.
+    ///
+    /// # Safety
+    ///
+    /// The handle must be uniquely owned and valid to release with its [`Free`] implementation.
+    pub(super) unsafe fn new(handle: T) -> Self {
+        Self(handle)
+    }
+}
+
+impl<T: Free> Drop for Owned<T> {
+    fn drop(&mut self) {
+        unsafe { self.0.free() };
+    }
+}
+
+impl<T: Free> std::ops::Deref for Owned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Free> std::ops::DerefMut for Owned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Free for HBITMAP {
+    unsafe fn free(&mut self) {
+        if !self.is_null() {
+            DeleteObject(*self);
+        }
+    }
+}
 
 pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
     std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
@@ -35,35 +89,6 @@ pub fn decode_wide(w_str: *mut u16) -> String {
     let len = unsafe { windows_sys::Win32::Globalization::lstrlenW(w_str) } as usize;
     let w_str_slice = unsafe { std::slice::from_raw_parts(w_str, len) };
     String::from_utf16_lossy(w_str_slice)
-}
-
-/// ACCEL wrapper to implement Debug
-#[derive(Clone)]
-#[repr(transparent)]
-pub struct Accel(pub ACCEL);
-
-impl std::fmt::Debug for Accel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ACCEL")
-            .field("key", &self.0.key)
-            .field("cmd", &self.0.cmd)
-            .field("fVirt", &self.0.fVirt)
-            .finish()
-    }
-}
-
-impl Deref for Accel {
-    type Target = ACCEL;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Accel {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 // taken from winit's code base
@@ -166,4 +191,8 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
             BASE_DPI
         }
     }
+}
+
+pub unsafe fn cast_mut<'a, T>(data: usize) -> &'a mut T {
+    unsafe { &mut *(data as *mut T) }
 }

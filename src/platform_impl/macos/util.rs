@@ -4,6 +4,14 @@
 
 use std::str;
 
+use objc2_app_kit::NSRunningApplication;
+
+pub(crate) fn app_name() -> Option<String> {
+    NSRunningApplication::currentApplication()
+        .localizedName()
+        .map(|name| name.to_string())
+}
+
 /// Strips single `&` characters from the string.
 ///
 /// `&` can be escaped as `&&` to prevent stripping, in which case a single `&` will be output.

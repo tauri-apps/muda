@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::{cell::RefCell, rc::Weak};
+
+use crate::{Icon, MenuId, NativeIcon};
+
 mod check;
 mod icon;
 mod normal;
@@ -36,8 +40,21 @@ pub enum TextStyle {
     Secondary,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum IconType {
+    Custom(Icon),
+    Native(NativeIcon),
+}
+
+#[derive(Clone)]
+pub(crate) enum ClickAction {
+    Emit(MenuId),
+    Toggle(MenuId, Weak<RefCell<CheckMenuItemState>>),
+    Predefined(Weak<RefCell<PredefinedMenuItemState>>),
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu};
 
     #[test]

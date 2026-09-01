@@ -63,8 +63,11 @@ impl<'a> SubmenuBuilder<'a> {
     }
 
     /// Set an icon for this submenu.
+    ///
+    /// (Note that setting an icon will override any existing [.native_icon()](Self::native_icon))
     pub fn icon(mut self, icon: Icon) -> Self {
         self.icon = Some(icon);
+        self.native_icon = None;
         self
     }
 
@@ -86,8 +89,11 @@ impl<'a> SubmenuBuilder<'a> {
     /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
     /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
     /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    ///
+    /// (Note that setting a native icon will override any existing [.icon()](Self::icon))
     pub fn native_icon(mut self, icon: NativeIcon) -> Self {
         self.native_icon = Some(icon);
+        self.icon = None;
         self
     }
 
