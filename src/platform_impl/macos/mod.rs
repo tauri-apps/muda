@@ -477,7 +477,9 @@ impl MenuChild {
 
     pub fn set_text(&mut self, text: &str) {
         self.text = strip_mnemonic(text);
+
         self.styled_text = None;
+
         let title = NSString::from_str(&self.text);
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
@@ -503,12 +505,8 @@ impl MenuChild {
             .iter()
             .map(|(text, _)| text.as_str())
             .collect::<String>();
-        // An all-`Normal` label draws identically to a plain title, so don't pay for an
-        // attributed one (and don't leave a stale one behind on items created later).
-        self.styled_text = parts
-            .iter()
-            .any(|(_, style)| *style != TextStyle::Default)
-            .then_some(parts);
+
+        self.styled_text = Some(parts);
 
         let title = NSString::from_str(&self.text);
         let attributed = self.styled_text.as_deref().map(build_attributed_title);
@@ -1305,8 +1303,7 @@ fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttribute
         offset += len;
     }
 
-    // SAFETY: `NSMutableAttributedString` is a subclass of `NSAttributedString`.
-    unsafe { Retained::cast_unchecked::<NSAttributedString>(attributed) }
+    attributed.into_super()
 }
 
 impl TextStyle {
