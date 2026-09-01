@@ -35,7 +35,9 @@ mod platform;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind, TextStyle};
+#[cfg(target_os = "macos")]
+use crate::TextStyle;
+use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
 
 pub(crate) use self::platform::*;
 
@@ -58,6 +60,7 @@ pub(crate) struct PlatformAttachArgs {
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
     pub icon: Option<IconType>,
+    #[cfg(target_os = "macos")]
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
@@ -72,6 +75,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: None,
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
@@ -83,6 +87,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: None,
                     icon: state.icon.clone(),
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
@@ -94,6 +99,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.predefined_item_type.accelerator(),
                     icon: None,
+                    #[cfg(target_os = "macos")]
                     styled_text: None,
                 }
             }
@@ -105,6 +111,7 @@ impl MenuItemKind {
                     checked: state.checked,
                     accelerator: state.accelerator.clone(),
                     icon: None,
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
@@ -116,6 +123,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: state.icon.clone(),
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
