@@ -792,6 +792,15 @@ impl PlatformMenuItem {
         self.for_each_custom_widget(|widget| widget.set_label(text));
     }
 
+    pub fn set_styled_text(
+        &mut self,
+        text: &str,
+        _parts: &[(String, crate::TextStyle)],
+        accelerator: Option<&MenuAccelerator>,
+    ) {
+        self.set_text(text, accelerator)
+    }
+
     pub fn is_enabled(&self) -> Option<bool> {
         self.action.as_ref().map(|action| action.is_enabled())
     }

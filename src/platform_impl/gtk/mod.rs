@@ -433,6 +433,15 @@ impl PlatformMenuItem {
         }
     }
 
+    pub fn set_styled_text(
+        &mut self,
+        text: &str,
+        _parts: &[(String, crate::TextStyle)],
+        accelerator: Option<&MenuAccelerator>,
+    ) {
+        self.set_text(text, accelerator)
+    }
+
     pub fn is_enabled(&self) -> Option<bool> {
         match self
             .gtk_menu_items

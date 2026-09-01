@@ -35,7 +35,7 @@ mod platform;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
+use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind, TextStyle};
 
 pub(crate) use self::platform::*;
 
@@ -58,6 +58,7 @@ pub(crate) struct PlatformAttachArgs {
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
     pub icon: Option<IconType>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl MenuItemKind {
@@ -71,6 +72,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: None,
+                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Submenu(item) => {
@@ -81,6 +83,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: None,
                     icon: state.icon.clone(),
+                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Predefined(item) => {
@@ -91,6 +94,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.predefined_item_type.accelerator(),
                     icon: None,
+                    styled_text: None,
                 }
             }
             MenuItemKind::Check(item) => {
@@ -101,6 +105,7 @@ impl MenuItemKind {
                     checked: state.checked,
                     accelerator: state.accelerator.clone(),
                     icon: None,
+                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Icon(item) => {
@@ -111,6 +116,7 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: state.icon.clone(),
+                    styled_text: state.styled_text.clone(),
                 }
             }
         }

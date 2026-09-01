@@ -8,7 +8,7 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    util, ClickAction, IsMenuItem, MenuId, MenuItemKind,
+    util, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -31,6 +31,7 @@ pub(crate) struct CheckMenuItemState {
     pub enabled: bool,
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl IsMenuItemBase for CheckMenuItem {}
@@ -101,6 +102,7 @@ impl CheckMenuItem {
             enabled,
             checked,
             accelerator,
+            styled_text: None,
         }));
 
         // The click path flips `checked` through this handle rather than through the wrapper,
@@ -136,12 +138,30 @@ impl CheckMenuItem {
         let accelerator = {
             let mut state = self.state.borrow_mut();
             state.text = text.as_ref().to_string();
+            state.styled_text = None;
             state.accelerator.clone()
         };
 
         self.platform
             .borrow_mut()
             .set_text(text.as_ref(), accelerator.as_ref())
+    }
+
+    /// Set the item's label as styled parts. On Windows and Linux the parts render as plain text.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        let parts = parts
+            .into_iter()
+            .map(|(text, style)| (text.as_ref().to_string(), style))
+            .collect::<Vec<_>>();
+        let (text, accelerator) = {
+            let mut state = self.state.borrow_mut();
+            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
+            state.styled_text = Some(parts.clone());
+            (state.text.clone(), state.accelerator.clone())
+        };
+        self.platform
+            .borrow_mut()
+            .set_styled_text(&text, &parts, accelerator.as_ref())
     }
 
     /// Get whether this check menu item is enabled or not.

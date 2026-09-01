@@ -15,17 +15,18 @@ use objc2::{
     define_class, msg_send,
     rc::Retained,
     runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel},
-    sel, DeclaredClass, MainThreadOnly, Message,
+    sel, AnyThread, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
-    NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSImage, NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSView,
+    NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
+    NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
+    NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
-    NSSize, NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
+    NSMutableAttributedString, NSObject, NSPoint, NSRange, NSRect, NSSize, NSString,
 };
 
 use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
@@ -259,6 +260,30 @@ impl PlatformMenuItem {
         let title = NSString::from_str(&strip_mnemonic(text));
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
+                ns_item.setAttributedTitle(None);
+                ns_item.setTitle(&title);
+                if let Some(submenu) = ns_item.submenu() {
+                    submenu.setTitle(&title);
+                }
+            }
+        }
+    }
+
+    pub fn set_styled_text(
+        &mut self,
+        text: &str,
+        parts: &[(String, TextStyle)],
+        _accelerator: Option<&MenuAccelerator>,
+    ) {
+        let title = NSString::from_str(&strip_mnemonic(text));
+        let parts = parts
+            .iter()
+            .map(|(text, style)| (strip_mnemonic(text), *style))
+            .collect::<Vec<_>>();
+        let attributed = build_attributed_title(&parts);
+        for ns_items in self.ns_menu_items.values() {
+            for ns_item in ns_items {
+                ns_item.setAttributedTitle(Some(&attributed));
                 ns_item.setTitle(&title);
                 if let Some(submenu) = ns_item.submenu() {
                     submenu.setTitle(&title);
@@ -914,13 +939,43 @@ impl PredefinedMenuItemType {
     }
 }
 
+fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
+    let combined: String = parts.iter().map(|(text, _)| text.as_str()).collect();
+    let ns_combined = NSString::from_str(&combined);
+    let attributed =
+        NSMutableAttributedString::initWithString(NSMutableAttributedString::alloc(), &ns_combined);
+    let font = NSFont::menuFontOfSize(0.0);
+    unsafe {
+        attributed.addAttribute_value_range(
+            NSFontAttributeName,
+            &font,
+            NSRange::new(0, ns_combined.length()),
+        );
+    }
+    let mut offset = 0;
+    for (text, style) in parts {
+        let len = text.encode_utf16().count();
+        if len > 0 && matches!(style, TextStyle::Secondary) {
+            unsafe {
+                attributed.addAttribute_value_range(
+                    NSForegroundColorAttributeName,
+                    &NSColor::secondaryLabelColor(),
+                    NSRange::new(offset, len),
+                );
+            }
+        }
+        offset += len;
+    }
+    attributed.into_super()
+}
+
 impl MenuItemKind {
     fn create_ns(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
         let args = self.platform_attach_args();
         let platform = self.platform();
         let mut item = platform.borrow_mut();
 
-        match self {
+        let ns_item = match self {
             MenuItemKind::Submenu(_) => item.create_ns_submenu(&args, &self.children(), menu_id),
             MenuItemKind::MenuItem(_) => item.create_ns_item(&args, platform.clone(), menu_id),
             MenuItemKind::Predefined(i) => {
@@ -934,7 +989,16 @@ impl MenuItemKind {
             }
             MenuItemKind::Check(_) => item.create_ns_check_item(&args, platform.clone(), menu_id),
             MenuItemKind::Icon(_) => item.create_ns_icon_item(&args, platform.clone(), menu_id),
+        }?;
+
+        if let Some(parts) = &args.styled_text {
+            let parts = parts
+                .iter()
+                .map(|(text, style)| (strip_mnemonic(text), *style))
+                .collect::<Vec<_>>();
+            ns_item.setAttributedTitle(Some(&build_attributed_title(&parts)));
         }
+        Ok(ns_item)
     }
 }
 
@@ -1047,6 +1111,8 @@ impl NativeIcon {
     }
 }
 
+const SCREEN_EDGE_MARGIN: f64 = 4.0;
+
 unsafe fn show_context_menu(
     ns_menu: &NSMenu,
     view: *const c_void,
@@ -1071,5 +1137,62 @@ unsafe fn show_context_menu(
         (location, None)
     };
 
+    let location = match in_view {
+        Some(view) => {
+            let anchor = window.convertPointToScreen(view.convertPoint_toView(location, None));
+            let anchor = fit_menu_on_screen(ns_menu, &window, anchor);
+            view.convertPoint_fromView(window.convertPointFromScreen(anchor), None)
+        }
+        None => fit_menu_on_screen(ns_menu, &window, location),
+    };
+
     ns_menu.popUpMenuPositioningItem_atLocation_inView(None, location, in_view)
+}
+
+fn fit_menu_on_screen(ns_menu: &NSMenu, window: &NSWindow, anchor: NSPoint) -> NSPoint {
+    let Some(screen) = window.screen() else {
+        return anchor;
+    };
+    fit_anchor(anchor, ns_menu.size(), screen.visibleFrame())
+}
+
+fn fit_anchor(mut anchor: NSPoint, menu_size: NSSize, visible: NSRect) -> NSPoint {
+    let overflow_below = visible.origin.y - (anchor.y - menu_size.height);
+    if overflow_below > 0.0 {
+        anchor.y += overflow_below + SCREEN_EDGE_MARGIN;
+    }
+    anchor.y = anchor.y.min(visible.origin.y + visible.size.height);
+    if anchor.x + menu_size.width > visible.origin.x + visible.size.width {
+        anchor.x -= menu_size.width;
+    }
+    anchor
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn visible_frame() -> NSRect {
+        NSRect::new(NSPoint::new(0.0, 50.0), NSSize::new(1440.0, 825.0))
+    }
+
+    #[test]
+    fn fit_anchor_handles_bottom_and_right_overflow() {
+        let fitted = fit_anchor(
+            NSPoint::new(1400.0, 150.0),
+            NSSize::new(180.0, 300.0),
+            visible_frame(),
+        );
+        assert_eq!(fitted.x, 1220.0);
+        assert_eq!(fitted.y, 354.0);
+    }
+
+    #[test]
+    fn fit_anchor_leaves_fitting_menu_alone() {
+        let anchor = NSPoint::new(200.0, 700.0);
+        assert_eq!(
+            fit_anchor(anchor, NSSize::new(180.0, 300.0), visible_frame()),
+            anchor
+        );
+    }
 }

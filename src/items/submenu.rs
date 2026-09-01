@@ -11,6 +11,7 @@ use crate::{
     sealed::IsMenuItemBase,
     util::{self, AddOp},
     ClickAction, ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemKind, NativeIcon,
+    TextStyle,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -29,6 +30,7 @@ pub(crate) struct SubmenuState {
     pub enabled: bool,
     pub icon: Option<IconType>,
     pub children: Vec<MenuItemKind>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 #[cfg(any(
@@ -93,6 +95,7 @@ impl Submenu {
             enabled,
             icon: None,
             children: Vec::new(),
+            styled_text: None,
         };
         let click = ClickAction::Emit(id.clone());
         let platform = PlatformMenuItem::new_submenu(click);
@@ -245,9 +248,29 @@ impl Submenu {
     /// an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.state.borrow_mut().text = text.as_ref().to_string();
+        let mut state = self.state.borrow_mut();
+        state.text = text.as_ref().to_string();
+        state.styled_text = None;
+        drop(state);
         // A submenu carries no accelerator: there is no `Submenu::set_accelerator`.
         self.platform.borrow_mut().set_text(text.as_ref(), None)
+    }
+
+    /// Set the submenu label as styled parts. On Windows and Linux the parts render as plain text.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        let parts = parts
+            .into_iter()
+            .map(|(text, style)| (text.as_ref().to_string(), style))
+            .collect::<Vec<_>>();
+        let text = {
+            let mut state = self.state.borrow_mut();
+            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
+            state.styled_text = Some(parts.clone());
+            state.text.clone()
+        };
+        self.platform
+            .borrow_mut()
+            .set_styled_text(&text, &parts, None)
     }
 
     /// Get whether this submenu is enabled or not.

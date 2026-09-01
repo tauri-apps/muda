@@ -18,6 +18,17 @@ pub use normal::*;
 pub use predefined::*;
 pub use submenu::*;
 
+/// How one part of a menu item's label is rendered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
+pub enum TextStyle {
+    /// The platform's default menu label treatment.
+    #[default]
+    Default,
+    /// A de-emphasized treatment for text that qualifies the rest of the label.
+    Secondary,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum IconType {
     Custom(Icon),

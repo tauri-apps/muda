@@ -9,7 +9,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    util, ClickAction, IconType, IsMenuItem, MenuId, MenuItemKind,
+    util, ClickAction, IconType, IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -31,6 +31,7 @@ pub(crate) struct IconMenuItemState {
     pub enabled: bool,
     pub icon: Option<IconType>,
     pub accelerator: Option<MenuAccelerator>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl IsMenuItemBase for IconMenuItem {}
@@ -173,6 +174,7 @@ impl IconMenuItem {
             enabled,
             icon,
             accelerator,
+            styled_text: None,
         };
 
         let click = ClickAction::Emit(id.clone());
@@ -205,12 +207,30 @@ impl IconMenuItem {
         let accelerator = {
             let mut state = self.state.borrow_mut();
             state.text = text.as_ref().to_string();
+            state.styled_text = None;
             state.accelerator.clone()
         };
 
         self.platform
             .borrow_mut()
             .set_text(text.as_ref(), accelerator.as_ref())
+    }
+
+    /// Set the item's label as styled parts. On Windows and Linux the parts render as plain text.
+    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
+        let parts = parts
+            .into_iter()
+            .map(|(text, style)| (text.as_ref().to_string(), style))
+            .collect::<Vec<_>>();
+        let (text, accelerator) = {
+            let mut state = self.state.borrow_mut();
+            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
+            state.styled_text = Some(parts.clone());
+            (state.text.clone(), state.accelerator.clone())
+        };
+        self.platform
+            .borrow_mut()
+            .set_styled_text(&text, &parts, accelerator.as_ref())
     }
 
     /// Get whether this check menu item is enabled or not.

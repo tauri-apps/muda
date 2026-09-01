@@ -508,6 +508,15 @@ impl PlatformMenuItem {
         self.redraw_menu_bars();
     }
 
+    pub fn set_styled_text(
+        &mut self,
+        text: &str,
+        _parts: &[(String, crate::TextStyle)],
+        accelerator: Option<&MenuAccelerator>,
+    ) {
+        self.set_text(text, accelerator)
+    }
+
     fn state(&self) -> Option<u32> {
         let parent = self.parents.first()?;
 
