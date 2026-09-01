@@ -23,13 +23,13 @@ use objc2::{
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
-    NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
-    NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage, NSImageName, NSMenu,
-    NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView, NSWindow,
+    NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
+    NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
+    NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSRunningApplication, NSView, NSWindow,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger, NSObject, NSPoint,
-    NSRect, NSSize, NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
+    NSMutableAttributedString, NSObject, NSPoint, NSRange, NSRect, NSSize, NSString,
 };
 
 use self::util::strip_mnemonic;
@@ -1515,7 +1515,11 @@ mod tests {
 
         let color_at = |index: usize| unsafe {
             attributed
-                .attribute_atIndex_effectiveRange(NSForegroundColorAttributeName, index, null_mut())
+                .attribute_atIndex_effectiveRange(
+                    NSForegroundColorAttributeName,
+                    index,
+                    std::ptr::null_mut(),
+                )
                 .map(|value| Retained::cast_unchecked::<NSColor>(value))
         };
 
@@ -1526,7 +1530,7 @@ mod tests {
         // Every run gets the menu font, so the two halves line up.
         let font_at = |index: usize| unsafe {
             attributed
-                .attribute_atIndex_effectiveRange(NSFontAttributeName, index, null_mut())
+                .attribute_atIndex_effectiveRange(NSFontAttributeName, index, std::ptr::null_mut())
                 .map(|value| Retained::cast_unchecked::<NSFont>(value))
         };
         assert_eq!(font_at(0), font_at(8));
