@@ -110,7 +110,7 @@ impl MenuItem {
     /// - **Windows / Linux**: the parts are concatenated and set as plain text; styles are
     ///   not visually distinguished.
     pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
-        crate::items::styled_text::apply_styled_text(&mut self.inner.borrow_mut(), parts)
+        self.inner.borrow_mut().set_styled_text(parts)
     }
 
     /// Get whether this menu item is enabled or not.

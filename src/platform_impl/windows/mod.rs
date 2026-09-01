@@ -16,7 +16,7 @@ use crate::{
     items::PredefinedMenuItemType,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, MenuTheme,
-    NativeIcon,
+    NativeIcon, TextStyle,
 };
 use std::{
     cell::{RefCell, RefMut},
@@ -731,6 +731,18 @@ impl MenuChild {
                 }
             }
         }
+    }
+
+    pub fn set_styled_text<S: AsRef<str>>(
+        &mut self,
+        parts: impl IntoIterator<Item = (S, TextStyle)>,
+    ) {
+        let text = parts
+            .into_iter()
+            .map(|(s, _style)| s.as_ref().to_string())
+            .collect::<String>();
+
+        self.set_text(&text);
     }
 
     pub fn is_enabled(&self) -> bool {
