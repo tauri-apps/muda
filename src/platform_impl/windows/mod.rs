@@ -13,7 +13,7 @@ use crate::{
     accelerator::MenuAccelerator,
     dpi::Position,
     icon::Icon,
-    items::PredefinedMenuItemType,
+    items::PredefinedMenuItemKind,
     util::{AddOp, Counter},
     AboutMetadata, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, MenuTheme,
     NativeIcon,
@@ -70,8 +70,8 @@ macro_rules! inner_menu_child_and_flags {
             MenuItemKind::Predefined(i) => {
                 let child = i.inner;
                 let child_ = child.borrow();
-                match child_.predefined_item_type.as_ref().unwrap() {
-                    PredefinedMenuItemType::Separator => {
+                match child_.predefined_item_kind.as_ref().unwrap() {
+                    PredefinedMenuItemKind::Separator => {
                         flags |= MF_SEPARATOR;
                     }
                     _ => {
@@ -484,13 +484,13 @@ pub(crate) struct MenuChild {
     accelerator: Option<MenuAccelerator>,
 
     // predefined menu item fields
-    predefined_item_type: Option<PredefinedMenuItemType>,
+    pub(crate) predefined_item_kind: Option<PredefinedMenuItemKind>,
 
     // check menu item fields
     checked: bool,
 
     // icon menu item fields
-    icon: Option<Icon>,
+    pub(crate) icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
 
     // submenu fields
@@ -534,7 +534,7 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: HashMap::new(),
-            predefined_item_type: None,
+            predefined_item_kind: None,
             icon: None,
             native_icon: None,
             checked: false,
@@ -557,7 +557,7 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             hpopupmenu: unsafe { CreatePopupMenu() },
             root_menu_haccel_stores: HashMap::new(),
-            predefined_item_type: None,
+            predefined_item_kind: None,
             icon: None,
             native_icon: None,
             checked: false,
@@ -565,7 +565,7 @@ impl MenuChild {
         }
     }
 
-    pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+    pub fn new_predefined(item_type: PredefinedMenuItemKind, text: Option<String>) -> Self {
         let internal_id = COUNTER.next();
         let enabled = item_type.is_supported_on_windows();
         Self {
@@ -576,7 +576,7 @@ impl MenuChild {
             internal_id,
             id: MenuId::new(internal_id.to_string()),
             accelerator: item_type.accelerator(),
-            predefined_item_type: Some(item_type),
+            predefined_item_kind: Some(item_type),
             root_menu_haccel_stores: HashMap::new(),
             icon: None,
             native_icon: None,
@@ -605,7 +605,7 @@ impl MenuChild {
             accelerator,
             checked,
             root_menu_haccel_stores: HashMap::new(),
-            predefined_item_type: None,
+            predefined_item_kind: None,
             icon: None,
             native_icon: None,
             children: None,
@@ -633,7 +633,7 @@ impl MenuChild {
             icon,
             native_icon: None,
             root_menu_haccel_stores: HashMap::new(),
-            predefined_item_type: None,
+            predefined_item_kind: None,
             checked: false,
             children: None,
             hmenu: std::ptr::null_mut(),
@@ -658,7 +658,7 @@ impl MenuChild {
             id: id.unwrap_or_else(|| MenuId::new(internal_id.to_string())),
             accelerator,
             root_menu_haccel_stores: HashMap::new(),
-            predefined_item_type: None,
+            predefined_item_kind: None,
             icon: None,
             native_icon,
             checked: false,
@@ -1312,33 +1312,33 @@ unsafe fn menu_selected(hwnd: windows_sys::Win32::Foundation::HWND, item: &mut M
                 item.set_checked(checked);
             }
             MenuItemType::Predefined => {
-                if let Some(predefined_item_type) = &item.predefined_item_type {
-                    match predefined_item_type {
-                        PredefinedMenuItemType::Copy => execute_edit_command(EditCommand::Copy),
-                        PredefinedMenuItemType::Cut => execute_edit_command(EditCommand::Cut),
-                        PredefinedMenuItemType::Paste => execute_edit_command(EditCommand::Paste),
-                        PredefinedMenuItemType::SelectAll => {
+                if let Some(predefined_item_kind) = &item.predefined_item_kind {
+                    match predefined_item_kind {
+                        PredefinedMenuItemKind::Copy => execute_edit_command(EditCommand::Copy),
+                        PredefinedMenuItemKind::Cut => execute_edit_command(EditCommand::Cut),
+                        PredefinedMenuItemKind::Paste => execute_edit_command(EditCommand::Paste),
+                        PredefinedMenuItemKind::SelectAll => {
                             execute_edit_command(EditCommand::SelectAll)
                         }
-                        PredefinedMenuItemType::Undo => execute_edit_command(EditCommand::Undo),
-                        PredefinedMenuItemType::Redo => execute_edit_command(EditCommand::Redo),
-                        PredefinedMenuItemType::Separator => {}
-                        PredefinedMenuItemType::Minimize => {
+                        PredefinedMenuItemKind::Undo => execute_edit_command(EditCommand::Undo),
+                        PredefinedMenuItemKind::Redo => execute_edit_command(EditCommand::Redo),
+                        PredefinedMenuItemKind::Separator => {}
+                        PredefinedMenuItemKind::Minimize => {
                             ShowWindow(hwnd, SW_MINIMIZE);
                         }
-                        PredefinedMenuItemType::Maximize => {
+                        PredefinedMenuItemKind::Maximize => {
                             ShowWindow(hwnd, SW_MAXIMIZE);
                         }
-                        PredefinedMenuItemType::Hide => {
+                        PredefinedMenuItemKind::Hide => {
                             ShowWindow(hwnd, SW_HIDE);
                         }
-                        PredefinedMenuItemType::CloseWindow => {
+                        PredefinedMenuItemKind::CloseWindow => {
                             SendMessageW(hwnd, WM_CLOSE, 0, 0);
                         }
-                        PredefinedMenuItemType::Quit => {
+                        PredefinedMenuItemKind::Quit => {
                             PostQuitMessage(0);
                         }
-                        PredefinedMenuItemType::About(Some(ref metadata)) => {
+                        PredefinedMenuItemKind::About(Some(ref metadata)) => {
                             show_about_dialog(hwnd as _, metadata)
                         }
 
@@ -1513,23 +1513,23 @@ fn show_about_dialog(hwnd: Hwnd, metadata: &AboutMetadata) {
     }
 }
 
-impl PredefinedMenuItemType {
+impl PredefinedMenuItemKind {
     fn is_supported_on_windows(&self) -> bool {
         matches!(
             self,
-            PredefinedMenuItemType::Separator
-                | PredefinedMenuItemType::Copy
-                | PredefinedMenuItemType::Cut
-                | PredefinedMenuItemType::Paste
-                | PredefinedMenuItemType::SelectAll
-                | PredefinedMenuItemType::Undo
-                | PredefinedMenuItemType::Redo
-                | PredefinedMenuItemType::Minimize
-                | PredefinedMenuItemType::Maximize
-                | PredefinedMenuItemType::Hide
-                | PredefinedMenuItemType::CloseWindow
-                | PredefinedMenuItemType::Quit
-                | PredefinedMenuItemType::About(_)
+            PredefinedMenuItemKind::Separator
+                | PredefinedMenuItemKind::Copy
+                | PredefinedMenuItemKind::Cut
+                | PredefinedMenuItemKind::Paste
+                | PredefinedMenuItemKind::SelectAll
+                | PredefinedMenuItemKind::Undo
+                | PredefinedMenuItemKind::Redo
+                | PredefinedMenuItemKind::Minimize
+                | PredefinedMenuItemKind::Maximize
+                | PredefinedMenuItemKind::Hide
+                | PredefinedMenuItemKind::CloseWindow
+                | PredefinedMenuItemKind::Quit
+                | PredefinedMenuItemKind::About(_)
         )
     }
 }

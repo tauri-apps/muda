@@ -41,4 +41,8 @@ impl PlatformIcon {
     pub fn texture(&self) -> gtk::gdk::Texture {
         gtk::gdk::Texture::for_pixbuf(&self.0)
     }
+
+    pub fn to_pixbuf(&self) -> gtk::gdk_pixbuf::Pixbuf {
+        self.0.clone()
+    }
 }

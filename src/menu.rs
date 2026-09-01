@@ -4,6 +4,12 @@
 
 use std::{cell::RefCell, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{dpi::Position, util::AddOp, ContextMenu, IsMenuItem, MenuId, MenuItemKind};
 
 /// A root menu that can be added to a window on Windows, GTK 3, or GTK 4
@@ -511,6 +517,12 @@ impl ContextMenu for Menu {
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         self.inner.borrow_mut().gtk_context_menu()
+    }
+
+    /// Get all menu items within this context menu.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.inner.borrow_mut().compat_items()
     }
 
     #[cfg(target_os = "macos")]

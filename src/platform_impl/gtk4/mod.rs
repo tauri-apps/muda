@@ -12,6 +12,12 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use dpi::Position;
 use gtk::{gdk::Rectangle, gio, glib, prelude::*};
 pub(crate) use icon::PlatformIcon;
@@ -22,7 +28,7 @@ use crate::{
     accelerator::MenuAccelerator,
     util::{AddOp, Counter},
     AboutMetadata, Icon, IsMenuItem, MenuEvent, MenuId, MenuItemKind, MenuItemType, NativeIcon,
-    PredefinedMenuItemType,
+    PredefinedMenuItemKind,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -188,6 +194,14 @@ impl Menu {
         self.children
             .iter()
             .map(|c| c.borrow().kind(c.clone()))
+            .collect()
+    }
+
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.children
+            .iter()
+            .map(|c| c.borrow().kind(c.clone()).compat_child())
             .collect()
     }
 
@@ -494,17 +508,30 @@ pub struct MenuChild {
 
     checked: bool,
 
-    icon: Option<Icon>,
+    pub(crate) icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
 
     type_: MenuItemType,
-    predefined_item_type: Option<PredefinedMenuItemType>,
+    pub(crate) predefined_item_kind: Option<PredefinedMenuItemKind>,
 
     instances: HashMap<GtkId, Vec<GtkMenuChild>>,
     ctx_menu_id: GtkId,
     children: Vec<Rc<RefCell<MenuChild>>>,
 
     action: Option<gio::SimpleAction>,
+}
+
+impl std::fmt::Debug for MenuChild {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MenuChild")
+            .field("id", &self.id)
+            .field("action_name", &self.action_name)
+            .field("text", &self.text)
+            .field("enabled", &self.enabled)
+            .field("checked", &self.checked)
+            .field("type_", &self.type_)
+            .finish_non_exhaustive()
+    }
 }
 
 impl MenuChild {
@@ -519,7 +546,7 @@ impl MenuChild {
             native_icon: None,
             accelerator: None,
             type_: MenuItemType::Submenu,
-            predefined_item_type: None,
+            predefined_item_kind: None,
             ctx_menu_id: COUNTER.next() as GtkId,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -664,6 +691,14 @@ impl MenuChild {
             .collect()
     }
 
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.children
+            .iter()
+            .map(|c| c.borrow().kind(c.clone()).compat_child())
+            .collect()
+    }
+
     pub fn show_context_menu_for_gtk_window(
         &mut self,
         window: &gtk::Window,
@@ -755,7 +790,7 @@ impl MenuChild {
             native_icon: None,
             checked: false,
             type_: MenuItemType::MenuItem,
-            predefined_item_type: None,
+            predefined_item_kind: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -992,7 +1027,7 @@ impl MenuChild {
 }
 
 impl MenuChild {
-    pub fn new_predefined(item_type: PredefinedMenuItemType, text: Option<String>) -> Self {
+    pub fn new_predefined(item_type: PredefinedMenuItemKind, text: Option<String>) -> Self {
         let accelerator = item_type.accelerator();
         let enabled = item_type.is_supported_on_gtk4();
 
@@ -1006,7 +1041,7 @@ impl MenuChild {
             native_icon: None,
             checked: false,
             type_: MenuItemType::Predefined,
-            predefined_item_type: Some(item_type),
+            predefined_item_kind: Some(item_type),
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1022,10 +1057,10 @@ impl MenuChild {
         parent_widget: &gtk::Widget,
         op: AddOp,
     ) -> crate::Result<()> {
-        let predefined_item_type = self.predefined_item_type.as_ref().unwrap().clone();
+        let predefined_item_kind = self.predefined_item_kind.as_ref().unwrap().clone();
 
         // Separator is a special case, that requires custom widget
-        if matches!(predefined_item_type, PredefinedMenuItemType::Separator) {
+        if matches!(predefined_item_kind, PredefinedMenuItemKind::Separator) {
             return self.insert_gtk_item_for_separator(
                 app,
                 menu_id,
@@ -1047,10 +1082,10 @@ impl MenuChild {
             let action_group = action_group_from_app(app);
 
             let action = gio::SimpleAction::new(&self.action_name, None);
-            if predefined_item_type.is_supported_on_gtk4() {
+            if predefined_item_kind.is_supported_on_gtk4() {
                 let app = app.clone();
                 action.connect_activate(move |_, _| {
-                    activate_predefined_action(&app, &predefined_item_type)
+                    activate_predefined_action(&app, &predefined_item_kind)
                 });
             }
 
@@ -1128,7 +1163,7 @@ impl MenuChild {
             native_icon: None,
             checked,
             type_: MenuItemType::Check,
-            predefined_item_type: None,
+            predefined_item_kind: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1224,7 +1259,7 @@ impl MenuChild {
             native_icon: None,
             checked: false,
             type_: MenuItemType::Icon,
-            predefined_item_type: None,
+            predefined_item_kind: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1249,7 +1284,7 @@ impl MenuChild {
             native_icon,
             checked: false,
             type_: MenuItemType::Icon,
-            predefined_item_type: None,
+            predefined_item_kind: None,
             ctx_menu_id: 0,
             instances: HashMap::new(),
             children: Vec::new(),
@@ -1457,49 +1492,49 @@ fn remove_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>) {
     }
 }
 
-impl PredefinedMenuItemType {
+impl PredefinedMenuItemKind {
     fn is_supported_on_gtk4(&self) -> bool {
         matches!(
             self,
-            PredefinedMenuItemType::Separator
-                | PredefinedMenuItemType::Minimize
-                | PredefinedMenuItemType::Maximize
-                | PredefinedMenuItemType::Fullscreen
-                | PredefinedMenuItemType::Hide
-                | PredefinedMenuItemType::CloseWindow
-                | PredefinedMenuItemType::Quit
-                | PredefinedMenuItemType::About(_)
+            PredefinedMenuItemKind::Separator
+                | PredefinedMenuItemKind::Minimize
+                | PredefinedMenuItemKind::Maximize
+                | PredefinedMenuItemKind::Fullscreen
+                | PredefinedMenuItemKind::Hide
+                | PredefinedMenuItemKind::CloseWindow
+                | PredefinedMenuItemKind::Quit
+                | PredefinedMenuItemKind::About(_)
         )
     }
 }
 
 fn activate_predefined_action(
     app: &gtk::Application,
-    predefined_item_type: &PredefinedMenuItemType,
+    predefined_item_kind: &PredefinedMenuItemKind,
 ) {
     let Some(window) = app.active_window() else {
         return;
     };
 
-    match predefined_item_type {
-        PredefinedMenuItemType::Minimize => window.minimize(),
-        PredefinedMenuItemType::Maximize => window.maximize(),
-        PredefinedMenuItemType::Fullscreen => {
+    match predefined_item_kind {
+        PredefinedMenuItemKind::Minimize => window.minimize(),
+        PredefinedMenuItemKind::Maximize => window.maximize(),
+        PredefinedMenuItemKind::Fullscreen => {
             if window.is_fullscreen() {
                 window.unfullscreen();
             } else {
                 window.fullscreen();
             }
         }
-        PredefinedMenuItemType::Hide => window.set_visible(false),
-        PredefinedMenuItemType::CloseWindow => window.close(),
-        PredefinedMenuItemType::Quit => {
+        PredefinedMenuItemKind::Hide => window.set_visible(false),
+        PredefinedMenuItemKind::CloseWindow => window.close(),
+        PredefinedMenuItemKind::Quit => {
             for window in app.windows() {
                 window.close();
             }
             app.quit();
         }
-        PredefinedMenuItemType::About(metadata) => {
+        PredefinedMenuItemKind::About(metadata) => {
             show_about_dialog(app, &window, metadata.as_ref());
         }
         _ => {}

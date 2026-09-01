@@ -4,6 +4,12 @@
 
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use std::sync::Arc;
+
+#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+use arc_swap::ArcSwap;
+
 use crate::{
     dpi::Position, sealed::IsMenuItemBase, util::AddOp, ContextMenu, Icon, IsMenuItem, MenuId,
     MenuItemKind, NativeIcon,
@@ -12,10 +18,12 @@ use crate::{
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
 ///
 /// [`Menu`]: crate::Menu
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Submenu {
     pub(crate) id: Rc<MenuId>,
     pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) compat: Arc<ArcSwap<crate::CompatMenuItem>>,
 }
 
 impl IsMenuItemBase for Submenu {}
@@ -34,15 +42,33 @@ impl IsMenuItem for Submenu {
 }
 
 impl Submenu {
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    pub(crate) fn compat_menu_item(
+        item: &crate::platform_impl::MenuChild,
+    ) -> crate::CompatMenuItem {
+        crate::CompatSubMenuItem {
+            label: super::strip_mnemonic(item.text()),
+            enabled: item.is_enabled(),
+            submenu: item.compat_items(),
+        }
+        .into()
+    }
+
     /// Create a new submenu.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
     ///   for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn new<S: AsRef<str>>(text: S, enabled: bool) -> Self {
         let submenu = crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, None);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = Self::compat_menu_item(&submenu);
+
         Self {
             id: Rc::new(submenu.id().clone()),
             inner: Rc::new(RefCell::new(submenu)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
     }
 
@@ -52,14 +78,17 @@ impl Submenu {
     ///   for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S, enabled: bool) -> Self {
         let id = id.into();
+        let submenu =
+            crate::platform_impl::MenuChild::new_submenu(text.as_ref(), enabled, Some(id.clone()));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        let compat = Self::compat_menu_item(&submenu);
 
         Self {
-            id: Rc::new(id.clone()),
-            inner: Rc::new(RefCell::new(crate::platform_impl::MenuChild::new_submenu(
-                text.as_ref(),
-                enabled,
-                Some(id),
-            ))),
+            id: Rc::new(id),
+            inner: Rc::new(RefCell::new(submenu)),
+            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+            compat: Arc::new(ArcSwap::from_pointee(compat)),
         }
     }
 
@@ -93,7 +122,16 @@ impl Submenu {
 
     /// Add a menu item to the end of this menu.
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.inner.borrow_mut().add_menu_item(item, AddOp::Append)
+        let mut inner = self.inner.borrow_mut();
+        inner.add_menu_item(item, AddOp::Append)?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.
@@ -107,9 +145,16 @@ impl Submenu {
 
     /// Add a menu item to the beginning of this submenu.
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.inner
-            .borrow_mut()
-            .add_menu_item(item, AddOp::Insert(0))
+        let mut inner = self.inner.borrow_mut();
+        inner.add_menu_item(item, AddOp::Insert(0))?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Add menu items to the beginning of this submenu.
@@ -121,9 +166,16 @@ impl Submenu {
 
     /// Insert a menu item at the specified `position` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.inner
-            .borrow_mut()
-            .add_menu_item(item, AddOp::Insert(position))
+        let mut inner = self.inner.borrow_mut();
+        inner.add_menu_item(item, AddOp::Insert(position))?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Insert menu items at the specified `position` in the submenu.
@@ -137,12 +189,30 @@ impl Submenu {
 
     /// Remove all occurrences of a menu item from this submenu.
     pub fn remove(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.inner.borrow_mut().remove(item)
+        let mut inner = self.inner.borrow_mut();
+        inner.remove(item)?;
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
+
+        Ok(())
     }
 
     /// Remove the menu item at the specified position from this submenu and returns it.
     pub fn remove_at(&self, position: usize) -> Option<MenuItemKind> {
-        self.inner.borrow_mut().remove_at(position)
+        let item = self.inner.borrow_mut().remove_at(position);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        if item.is_some() {
+            let inner = self.inner.borrow();
+            self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+            crate::send_menu_update();
+        }
+
+        item
     }
 
     /// Returns a list of menu items that has been added to this submenu.
@@ -159,7 +229,14 @@ impl Submenu {
     /// an `&` before a character to assign this character as the mnemonic
     /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        self.inner.borrow_mut().set_text(text.as_ref())
+        let mut inner = self.inner.borrow_mut();
+        inner.set_text(text.as_ref());
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 
     /// Get whether this submenu is enabled or not.
@@ -169,7 +246,14 @@ impl Submenu {
 
     /// Enable or disable this submenu.
     pub fn set_enabled(&self, enabled: bool) {
-        self.inner.borrow_mut().set_enabled(enabled)
+        let mut inner = self.inner.borrow_mut();
+        inner.set_enabled(enabled);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 
     /// Set this submenu as the Window menu for the application on macOS.
@@ -227,7 +311,14 @@ impl Submenu {
     ///
     /// - GTK 4: Unsupported.
     pub fn set_icon(&self, icon: Option<Icon>) {
-        self.inner.borrow_mut().set_icon(icon)
+        let mut inner = self.inner.borrow_mut();
+        inner.set_icon(icon);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 
     /// Change this menu item icon to a native image or remove it.
@@ -249,7 +340,14 @@ impl Submenu {
     /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
     /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
     pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
-        self.inner.borrow_mut().set_native_icon(icon)
+        let mut inner = self.inner.borrow_mut();
+        inner.set_native_icon(icon);
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
+
+        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+        crate::send_menu_update();
     }
 }
 
@@ -322,6 +420,12 @@ impl ContextMenu for Submenu {
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         self.inner.borrow_mut().gtk_context_menu()
+    }
+
+    /// Get all menu items within this context menu.
+    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
+    fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>> {
+        self.inner.borrow_mut().compat_items()
     }
 
     #[cfg(target_os = "macos")]
