@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// A builder type for [`IconMenuItem`]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct IconMenuItemBuilder {
     text: String,
     enabled: bool,
@@ -18,6 +18,20 @@ pub struct IconMenuItemBuilder {
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
     styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for IconMenuItemBuilder {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            id: None,
+            accelerator: None,
+            icon: None,
+            native_icon: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl IconMenuItemBuilder {

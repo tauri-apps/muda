@@ -5,7 +5,7 @@
 use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu, TextStyle};
 
 /// A builder type for [`Submenu`]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct SubmenuBuilder<'a> {
     text: String,
     enabled: bool,
@@ -14,6 +14,20 @@ pub struct SubmenuBuilder<'a> {
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
     styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for SubmenuBuilder<'_> {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            id: None,
+            items: Vec::new(),
+            icon: None,
+            native_icon: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl std::fmt::Debug for SubmenuBuilder<'_> {

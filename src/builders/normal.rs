@@ -8,13 +8,25 @@ use crate::{
 };
 
 /// A builder type for [`MenuItem`]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MenuItemBuilder {
     text: String,
     enabled: bool,
     id: Option<MenuId>,
     accelerator: Option<MenuAccelerator>,
     styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for MenuItemBuilder {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            id: None,
+            accelerator: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl MenuItemBuilder {
