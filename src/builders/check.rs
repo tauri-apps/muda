@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// A builder type for [`CheckMenuItem`]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct CheckMenuItemBuilder {
     text: String,
     enabled: bool,
@@ -16,6 +16,19 @@ pub struct CheckMenuItemBuilder {
     accelerator: Option<MenuAccelerator>,
     id: Option<MenuId>,
     styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for CheckMenuItemBuilder {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            checked: false,
+            accelerator: None,
+            id: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl CheckMenuItemBuilder {
