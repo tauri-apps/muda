@@ -8,7 +8,7 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    util, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, CheckMenuItemBuilder, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -50,6 +50,11 @@ impl IsMenuItem for CheckMenuItem {
 }
 
 impl CheckMenuItem {
+    /// Returns a new [`CheckMenuItemBuilder`].
+    pub fn builder() -> CheckMenuItemBuilder {
+        CheckMenuItemBuilder::new()
+    }
+
     /// Create a new check menu item.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
