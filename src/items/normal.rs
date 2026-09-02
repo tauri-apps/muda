@@ -4,7 +4,7 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    util, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, ClickAction, IsMenuItem, MenuId, MenuItemBuilder, MenuItemKind, TextStyle,
 };
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -43,6 +43,11 @@ impl IsMenuItem for MenuItem {
 }
 
 impl MenuItem {
+    /// Returns a new [`MenuItemBuilder`].
+    pub fn builder() -> MenuItemBuilder {
+        MenuItemBuilder::new()
+    }
+
     /// Create a new menu item.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic

@@ -11,7 +11,7 @@ use crate::{
     sealed::IsMenuItemBase,
     util::{self, AddOp},
     ClickAction, ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemKind, NativeIcon,
-    TextStyle,
+    SubmenuBuilder, TextStyle,
 };
 
 /// A menu that can be added to a [`Menu`] or another [`Submenu`].
@@ -71,6 +71,11 @@ impl IsMenuItem for Submenu {
 }
 
 impl Submenu {
+    /// Returns a new [`SubmenuBuilder`].
+    pub fn builder<'a>() -> SubmenuBuilder<'a> {
+        SubmenuBuilder::new()
+    }
+
     /// Create a new submenu.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic

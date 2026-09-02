@@ -9,7 +9,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     platform_impl::PlatformMenuItem,
     sealed::IsMenuItemBase,
-    util, ClickAction, IconType, IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, ClickAction, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemKind, TextStyle,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -50,6 +50,11 @@ impl IsMenuItem for IconMenuItem {
 }
 
 impl IconMenuItem {
+    /// Returns a new [`IconMenuItemBuilder`].
+    pub fn builder() -> IconMenuItemBuilder {
+        IconMenuItemBuilder::new()
+    }
+
     /// Create a new icon menu item.
     ///
     /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
