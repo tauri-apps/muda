@@ -9,6 +9,12 @@ on:
     branches:
       - dev
 
+permissions:
+  # required to create the GitHub Release
+  contents: write
+  # required for creating the Version Packages Release
+  pull-requests: write
+
 jobs:
   version-or-publish:
     runs-on: ubuntu-latest
@@ -34,8 +40,6 @@ jobs:
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
