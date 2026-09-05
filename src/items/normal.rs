@@ -1,5 +1,10 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
+#[cfg(target_os = "macos")]
+use objc2::{rc::Retained, Message};
+#[cfg(target_os = "macos")]
+use objc2_foundation::NSAttributedString;
+
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
@@ -25,6 +30,11 @@ pub(crate) struct MenuItemState {
     pub enabled: bool,
     pub accelerator: Option<MenuAccelerator>,
     pub styled_text: Option<Vec<(String, TextStyle)>>,
+    /// macOS-only fully custom attributed title set via
+    /// [`MenuItem::set_attributed_title`]. When present it takes precedence over
+    /// `text`/`styled_text` when the native item is (re)created.
+    #[cfg(target_os = "macos")]
+    pub attributed_title: Option<Retained<NSAttributedString>>,
 }
 
 impl IsMenuItemBase for MenuItem {}
@@ -91,6 +101,8 @@ impl MenuItem {
             enabled,
             accelerator,
             styled_text: None,
+            #[cfg(target_os = "macos")]
+            attributed_title: None,
         };
         let click = ClickAction::Emit(id.clone());
         let platform = PlatformMenuItem::new(click);
@@ -125,6 +137,10 @@ impl MenuItem {
             let mut state = self.state.borrow_mut();
             state.text = text.as_ref().to_string();
             state.styled_text = None;
+            #[cfg(target_os = "macos")]
+            {
+                state.attributed_title = None;
+            }
             state.accelerator.clone()
         };
 
@@ -143,11 +159,41 @@ impl MenuItem {
             let mut state = self.state.borrow_mut();
             state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
             state.styled_text = Some(parts.clone());
+            #[cfg(target_os = "macos")]
+            {
+                state.attributed_title = None;
+            }
             (state.text.clone(), state.accelerator.clone())
         };
         self.platform
             .borrow_mut()
             .set_styled_text(&text, &parts, accelerator.as_ref())
+    }
+
+    /// Set the item's label to a fully custom [`NSAttributedString`] (macOS only).
+    ///
+    /// This is an escape hatch for layouts and colors that the semantic
+    /// [`set_styled_text`](Self::set_styled_text) API cannot express — for
+    /// example a right-aligned trailing segment (built with an `NSParagraphStyle`
+    /// that has a right-aligned `NSTextTab` and a `\t` separator, as the system
+    /// battery menu does) or a custom `NSForegroundColorAttributeName` used to
+    /// tint a whole row. Because the caller supplies raw attributes, it is the
+    /// caller's responsibility to keep the label legible in light and dark modes,
+    /// under increased contrast, and when the system menu font changes.
+    ///
+    /// The attributed title takes precedence over any [`set_text`](Self::set_text)
+    /// or [`set_styled_text`](Self::set_styled_text) value until it is cleared.
+    /// Pass `None` to clear it and fall back to the plain text.
+    #[cfg(target_os = "macos")]
+    pub fn set_attributed_title(&self, title: Option<&NSAttributedString>) {
+        let title = {
+            let mut state = self.state.borrow_mut();
+            state.attributed_title = title.map(|t| t.retain());
+            state.attributed_title.clone()
+        };
+        self.platform
+            .borrow_mut()
+            .set_attributed_title(title.as_deref());
     }
 
     /// Get whether this menu item is enabled or not.

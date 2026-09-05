@@ -292,6 +292,14 @@ impl PlatformMenuItem {
         }
     }
 
+    pub fn set_attributed_title(&mut self, title: Option<&NSAttributedString>) {
+        for ns_items in self.ns_menu_items.values() {
+            for ns_item in ns_items {
+                ns_item.setAttributedTitle(title);
+            }
+        }
+    }
+
     pub fn is_enabled(&self) -> Option<bool> {
         self.ns_menu_items
             .values()
@@ -997,6 +1005,9 @@ impl MenuItemKind {
                 .map(|(text, style)| (strip_mnemonic(text), *style))
                 .collect::<Vec<_>>();
             ns_item.setAttributedTitle(Some(&build_attributed_title(&parts)));
+        }
+        if let Some(title) = &args.attributed_title {
+            ns_item.setAttributedTitle(Some(title));
         }
         Ok(ns_item)
     }
