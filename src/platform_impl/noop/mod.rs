@@ -12,6 +12,13 @@ use crate::{
 
 pub(crate) type PlatformIcon = NoIcon;
 
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    f();
+}
+
 pub(crate) struct PlatformMenu;
 
 impl PlatformMenu {

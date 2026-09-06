@@ -1,10 +1,48 @@
-use std::sync::Arc;
+use std::{cell::RefCell, mem::ManuallyDrop, rc::Rc, sync::Arc};
 
 use crate::{
     items::{IconType, PredefinedMenuItemType},
+    platform_impl::{self, PlatformMenuItem},
     CheckMenuItemState, IconMenuItemState, MenuEvent, MenuItemKind, MenuItemState, NativeIcon,
     PredefinedMenuItemState, StateCell, SubmenuState, UnsafeMenuItemKind,
 };
+
+struct UnsafeSend(ManuallyDrop<Rc<RefCell<PlatformMenuItem>>>);
+
+struct UnsafeSendDrop(ManuallyDrop<Rc<RefCell<PlatformMenuItem>>>);
+
+// SAFETY: the wrapped platform item is accessed only from a callback dispatched to its owner
+// thread.
+unsafe impl Send for UnsafeSend {}
+// SAFETY: the platform backend serializes all access to the wrapped item on its main thread.
+unsafe impl Sync for UnsafeSend {}
+// SAFETY: automatic destruction is suppressed if the queued callback is not run.
+unsafe impl Send for UnsafeSendDrop {}
+
+impl UnsafeSend {
+    fn new(platform: Rc<RefCell<PlatformMenuItem>>) -> Self {
+        Self(ManuallyDrop::new(platform))
+    }
+
+    /// # Safety
+    ///
+    /// This must be called only from a callback dispatched to the platform item's owner thread.
+    unsafe fn local(&self) -> &Rc<RefCell<PlatformMenuItem>> {
+        &self.0
+    }
+}
+
+impl Drop for UnsafeSend {
+    fn drop(&mut self) {
+        let platform = UnsafeSendDrop(ManuallyDrop::new(unsafe {
+            ManuallyDrop::take(&mut self.0)
+        }));
+        platform_impl::dispatch_on_main_thread(move || {
+            let mut platform = platform;
+            unsafe { ManuallyDrop::drop(&mut platform.0) };
+        });
+    }
+}
 
 /// A thread-safe handle to a menu tree.
 #[derive(Clone)]
@@ -207,6 +245,8 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
             MenuItemKind::Check(item) => {
                 let id = Arc::clone(&item.id);
                 let state = item.state.clone();
+                let platform = Arc::new(UnsafeSend::new(item.platform.clone()));
+
                 Self::Check(CheckMenuItemSnapshot {
                     state: state.clone(),
                     activate: Arc::new(move || {
@@ -214,6 +254,17 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
                             let mut state = state.borrow_mut();
                             state.checked = !state.checked;
                         }
+
+                        let platform = Arc::clone(&platform);
+                        let state = state.clone();
+                        platform_impl::dispatch_on_main_thread(move || {
+                            let checked = state.borrow().checked;
+                            // SAFETY: the platform runs this callback on the item's owner thread.
+                            unsafe { platform.local() }
+                                .borrow_mut()
+                                .set_checked(checked);
+                        });
+
                         MenuEvent::send(MenuEvent { id: (*id).clone() });
                     }),
                 })
@@ -232,11 +283,11 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
 }
 
 impl UnsafeMenuItemKind {
-    /// Creates a snapshot from thread-safe ID and state fields without touching platform fields.
+    /// Creates a snapshot from thread-safe fields and wrapped platform handles.
     pub(crate) fn snapshot(&self) -> MenuItemKindSnapshot {
         // The `Send` implementation relies on this method reading only the immutable discriminant
-        // and the matching thread-safe ID and state fields. It must not clone, dereference, or
-        // otherwise access an `Rc` or platform field.
+        // and wrapping thread-bound platform values before they cross a thread boundary. Wrapped
+        // platform values are accessed and destroyed only from the platform main thread.
         MenuItemKindSnapshot::from(&*self.0)
     }
 }

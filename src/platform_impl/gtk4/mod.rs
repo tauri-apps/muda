@@ -24,6 +24,13 @@ use crate::{
 
 static COUNTER: Counter = Counter::new();
 
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    glib::MainContext::default().invoke(f);
+}
+
 const DEFAULT_ACTION_GROUP: &str = "muda";
 const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
 const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";

@@ -27,6 +27,13 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    glib::idle_add_once(f);
+}
+
 pub struct PlatformMenu {
     gtk_menubars: HashMap<u32, gtk::MenuBar>,
     gtk_windows: HashMap<u32, glib::WeakRef<gtk::Window>>,

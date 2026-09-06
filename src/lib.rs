@@ -293,8 +293,8 @@ pub(crate) struct UnsafeMenuItemKind(std::mem::ManuallyDrop<MenuItemKind>);
 // SAFETY: `ManuallyDrop` prevents the wrapped `MenuItemKind` from being destroyed after this
 // wrapper crosses a thread boundary. Accessing, cloning, or recovering the complete value requires
 // an unsafe call whose originating-thread requirement is upheld by the thread-bound `Menu` and
-// `Submenu` implementations. When enabled, the snapshot projection accesses only explicitly
-// thread-safe fields.
+// `Submenu` implementations. When enabled, the snapshot projection wraps any platform handle it
+// captures and queues access and destruction on the platform thread.
 unsafe impl Send for UnsafeMenuItemKind {}
 
 impl UnsafeMenuItemKind {

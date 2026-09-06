@@ -42,6 +42,14 @@ use crate::{
 
 static COUNTER: Counter = Counter::new();
 
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    // TODO: Dispatch the callback to the macOS main thread instead of running it inline.
+    f();
+}
+
 /// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";
