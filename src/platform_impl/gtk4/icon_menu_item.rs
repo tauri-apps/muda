@@ -124,7 +124,7 @@ impl IconMenuItem {
             }
             Some(IconType::Native(icon)) => {
                 image.set_paintable(gtk::gdk::Paintable::NONE);
-                image.set_icon_name(Some(icon.gtk_icon_name()));
+                image.set_icon_name(Some(icon.freedesktop_name()));
             }
             None => {
                 image.set_paintable(gtk::gdk::Paintable::NONE);

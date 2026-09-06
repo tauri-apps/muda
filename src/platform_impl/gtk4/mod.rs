@@ -170,7 +170,7 @@ impl PlatformMenu {
     pub fn remove_at(&mut self, position: usize, item: &MenuItemKind) {
         let child = item.platform();
         for menu_id in self.instances.keys().copied().collect::<Vec<_>>() {
-            let children = item.children();
+            let children = item.items();
             let mut child = child.borrow_mut();
             child.remove_instance_for_parent_at_position(menu_id, position, &children);
         }
@@ -585,7 +585,7 @@ impl PlatformMenuItem {
             .flat_map(|menus| menus.iter().map(GtkMenuChild::id))
             .collect::<Vec<_>>()
         {
-            let children = item.children();
+            let children = item.items();
             let mut child = child.borrow_mut();
             child.remove_instance_for_parent_at_position(parent_id, position, &children);
         }
@@ -667,7 +667,7 @@ impl PlatformMenuItem {
 
 fn remove_children_instances_for_parent(parent_id: GtkId, children: &[MenuItemKind]) {
     for item in children {
-        let descendants = item.children();
+        let descendants = item.items();
         item.platform()
             .borrow_mut()
             .remove_instances_for_parent(parent_id, &descendants);
@@ -1174,7 +1174,7 @@ impl MenuItemKind {
         };
 
         match self {
-            Self::Submenu(_) => child.insert_gtk_submenu(&args, &self.children(), &context, op),
+            Self::Submenu(_) => child.insert_gtk_submenu(&args, &self.items(), &context, op),
             Self::MenuItem(_) => child.insert_gtk_item(&args, &click, &context, op),
             Self::Check(_) => child.insert_gtk_check_item(&args, &click, &context, op),
             Self::Icon(_) => child.insert_gtk_icon_item(&args, &click, &context, op),
@@ -1459,7 +1459,7 @@ fn connect_context_menu_action_handler(
     handlers: &mut Vec<(gio::SimpleAction, glib::SignalHandlerId)>,
 ) {
     if matches!(item, MenuItemKind::Submenu(_)) {
-        for item in item.children() {
+        for item in item.items() {
             connect_context_menu_action_handler(&item, main_loop, selected, handlers);
         }
     } else {

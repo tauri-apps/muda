@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     platform_impl::PlatformMenuItem,
-    sealed::IsMenuItemBase,
-    util, ClickAction, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, ClickAction, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemKind, StateCell,
+    TextStyle,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -19,8 +19,8 @@ use crate::{
 /// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct IconMenuItem {
-    pub(crate) id: Rc<MenuId>,
-    pub(crate) state: Rc<RefCell<IconMenuItemState>>,
+    pub(crate) id: Arc<MenuId>,
+    pub(crate) state: StateCell<IconMenuItemState>,
     pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
 }
 
@@ -34,7 +34,7 @@ pub(crate) struct IconMenuItemState {
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
-impl IsMenuItemBase for IconMenuItem {}
+impl crate::sealed::Sealed for IconMenuItem {}
 impl IsMenuItem for IconMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Icon(self.clone())
@@ -186,8 +186,8 @@ impl IconMenuItem {
         let platform = PlatformMenuItem::new(click);
 
         Self {
-            id: Rc::new(id),
-            state: Rc::new(RefCell::new(state)),
+            id: Arc::new(id),
+            state: StateCell::new(state),
             platform: Rc::new(RefCell::new(platform)),
         }
     }
@@ -199,10 +199,8 @@ impl IconMenuItem {
 
     /// Get the text for this check menu item.
     pub fn text(&self) -> String {
-        self.platform
-            .borrow()
-            .text()
-            .unwrap_or_else(|| self.state.borrow().text.clone())
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this check menu item. `text` could optionally contain
@@ -240,10 +238,8 @@ impl IconMenuItem {
 
     /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.platform
-            .borrow()
-            .is_enabled()
-            .unwrap_or_else(|| self.state.borrow().enabled)
+        let enabled = self.platform.borrow().is_enabled();
+        enabled.unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this check menu item.
@@ -282,9 +278,12 @@ impl IconMenuItem {
     ///
     /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
     pub fn set_icon(&self, icon: Option<Icon>) {
-        self.state.borrow_mut().icon = icon.map(IconType::Custom);
-        let state = self.state.borrow();
-        self.platform.borrow_mut().set_icon(state.icon.as_ref())
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Custom);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon(icon.as_ref())
     }
 
     /// Change this menu item icon to a native image or remove it.
@@ -308,16 +307,17 @@ impl IconMenuItem {
     ///
     /// (Note that setting a native icon will override any existing [.set_icon()](Self::set_icon))
     pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
-        let icon = icon.map(IconType::Native);
-        self.state.borrow_mut().icon = icon;
-        let state = self.state.borrow();
-        self.platform.borrow_mut().set_icon(state.icon.as_ref())
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Native);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon(icon.as_ref())
     }
 
     /// Convert this menu item into its menu ID.
     pub fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
+        if let Some(id) = Arc::get_mut(&mut self.id) {
             mem::take(id)
         } else {
             self.id().clone()

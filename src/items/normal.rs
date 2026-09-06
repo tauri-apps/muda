@@ -1,10 +1,9 @@
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
-    sealed::IsMenuItemBase,
-    util, ClickAction, IsMenuItem, MenuId, MenuItemBuilder, MenuItemKind, TextStyle,
+    util, ClickAction, IsMenuItem, MenuId, MenuItemBuilder, MenuItemKind, StateCell, TextStyle,
 };
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -13,8 +12,8 @@ use crate::{
 /// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct MenuItem {
-    pub(crate) id: Rc<MenuId>,
-    pub(crate) state: Rc<RefCell<MenuItemState>>,
+    pub(crate) id: Arc<MenuId>,
+    pub(crate) state: StateCell<MenuItemState>,
     pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
 }
 
@@ -27,7 +26,7 @@ pub(crate) struct MenuItemState {
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
-impl IsMenuItemBase for MenuItem {}
+impl crate::sealed::Sealed for MenuItem {}
 impl IsMenuItem for MenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::MenuItem(self.clone())
@@ -96,8 +95,8 @@ impl MenuItem {
         let platform = PlatformMenuItem::new(click);
 
         Self {
-            id: Rc::new(id),
-            state: Rc::new(RefCell::new(state)),
+            id: Arc::new(id),
+            state: StateCell::new(state),
             platform: Rc::new(RefCell::new(platform)),
         }
     }
@@ -109,10 +108,8 @@ impl MenuItem {
 
     /// Get the text for this menu item.
     pub fn text(&self) -> String {
-        self.platform
-            .borrow()
-            .text()
-            .unwrap_or_else(|| self.state.borrow().text.clone())
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this menu item. `text` could optionally contain
@@ -152,10 +149,8 @@ impl MenuItem {
 
     /// Get whether this menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.platform
-            .borrow()
-            .is_enabled()
-            .unwrap_or_else(|| self.state.borrow().enabled)
+        let enabled = self.platform.borrow().is_enabled();
+        enabled.unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this menu item.
@@ -192,8 +187,7 @@ impl MenuItem {
 
     /// Convert this menu item into its menu ID.
     pub fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
+        if let Some(id) = Arc::get_mut(&mut self.id) {
             mem::take(id)
         } else {
             self.id().clone()

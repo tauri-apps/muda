@@ -9,17 +9,20 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "appkit"))]
 use tao::platform::macos::WindowExtMacOS;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+#[cfg(all(
+    feature = "gtk",
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
 ))]
 use tao::platform::unix::WindowExtUnix;
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "win32"))]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
@@ -32,7 +35,7 @@ fn main() {
 
     let menu_bar = Menu::new();
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     {
         let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
@@ -138,7 +141,7 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
@@ -148,7 +151,7 @@ fn main() {
             menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
@@ -213,7 +216,7 @@ fn main() {
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
@@ -221,7 +224,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
@@ -229,12 +232,15 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         }
     }
 
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
+    #[cfg(all(
+        feature = "gtk",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )
     ))]
     {
         menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
