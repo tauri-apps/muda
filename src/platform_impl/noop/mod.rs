@@ -12,6 +12,7 @@ use crate::{
 
 pub(crate) type PlatformIcon = NoIcon;
 
+#[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,

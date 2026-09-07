@@ -1,11 +1,35 @@
 use std::{cell::RefCell, mem::ManuallyDrop, rc::Rc, sync::Arc};
 
+use crossbeam_channel::{bounded, Receiver, Sender};
+use once_cell::sync::Lazy;
+
 use crate::{
     items::{IconType, PredefinedMenuItemType},
     platform_impl::{self, PlatformMenuItem},
-    CheckMenuItemState, IconMenuItemState, MenuEvent, MenuItemKind, MenuItemState, NativeIcon,
-    PredefinedMenuItemState, StateCell, SubmenuState, UnsafeMenuItemKind,
+    CheckMenuItemState, IconMenuItemState, MenuEvent, MenuItemKind, MenuItemState, MenuState,
+    NativeIcon, PredefinedMenuItemState, StateCell, SubmenuState, UnsafeMenuItemKind,
 };
+
+/// Notification emitted after a menu or menu item changes.
+#[derive(Clone, Copy, Debug)]
+pub struct MenuChangeEvent;
+
+/// A receiver for process-wide menu change notifications.
+pub type MenuChangeEventReceiver = Receiver<MenuChangeEvent>;
+
+static MENU_CHANGE_CHANNEL: Lazy<(Sender<MenuChangeEvent>, MenuChangeEventReceiver)> =
+    Lazy::new(|| bounded(1));
+
+impl MenuChangeEvent {
+    /// Gets the process-wide menu change event receiver.
+    pub fn receiver<'a>() -> &'a MenuChangeEventReceiver {
+        &MENU_CHANGE_CHANNEL.1
+    }
+
+    pub(crate) fn send() {
+        let _ = MENU_CHANGE_CHANNEL.0.try_send(Self);
+    }
+}
 
 struct UnsafeSend(ManuallyDrop<Rc<RefCell<PlatformMenuItem>>>);
 
@@ -46,8 +70,14 @@ impl Drop for UnsafeSend {
 
 /// A thread-safe handle to a menu tree.
 #[derive(Clone)]
-pub struct MenuSnapshot {
-    pub items: Vec<MenuItemKindSnapshot>,
+pub struct MenuSnapshotHandle {
+    source: MenuSnapshotSource,
+}
+
+#[derive(Clone)]
+enum MenuSnapshotSource {
+    Menu(StateCell<MenuState>),
+    Submenu(StateCell<SubmenuState>),
 }
 
 /// A thread-safe read projection and activation callback for a [`crate::MenuItem`].
@@ -107,6 +137,35 @@ pub enum SnapshotIcon {
     },
     /// A platform-native icon.
     Native(NativeIcon),
+}
+
+impl MenuSnapshotHandle {
+    pub(crate) fn from_menu(state: StateCell<MenuState>) -> Self {
+        Self {
+            source: MenuSnapshotSource::Menu(state),
+        }
+    }
+
+    pub(crate) fn from_submenu(state: StateCell<SubmenuState>) -> Self {
+        Self {
+            source: MenuSnapshotSource::Submenu(state),
+        }
+    }
+
+    /// Returns thread-safe snapshot handles for the menu's current items.
+    pub fn items(&self) -> Vec<MenuItemKindSnapshot> {
+        self.source.items()
+    }
+}
+
+impl MenuSnapshotSource {
+    fn items(&self) -> Vec<MenuItemKindSnapshot> {
+        let state = match self {
+            Self::Menu(state) => &state.borrow().children,
+            Self::Submenu(state) => &state.borrow().children,
+        };
+        state.iter().map(UnsafeMenuItemKind::snapshot).collect()
+    }
 }
 
 impl MenuItemSnapshot {
@@ -294,11 +353,11 @@ impl UnsafeMenuItemKind {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
+    use std::{thread, time::Duration};
 
-    use crate::{IsMenuItem, MenuItem, UnsafeMenuItemKind};
+    use crate::{ContextMenu, IsMenuItem, Menu, MenuItem, Submenu, UnsafeMenuItemKind};
 
-    use super::MenuItemKindSnapshot;
+    use super::{MenuChangeEvent, MenuItemKindSnapshot};
 
     fn assert_send<T: Send>() {}
     fn assert_send_sync<T: Send + Sync>() {}
@@ -307,6 +366,7 @@ mod tests {
     fn unsafe_menu_item_kind_is_send() {
         assert_send::<UnsafeMenuItemKind>();
         assert_send_sync::<crate::StateCell<crate::menu::MenuState>>();
+        assert_send_sync::<crate::MenuSnapshotHandle>();
         assert_send_sync::<MenuItemKindSnapshot>();
     }
 
@@ -328,5 +388,47 @@ mod tests {
         // SAFETY: the wrapper has returned to the thread where its `MenuItemKind` was created.
         let recovered = unsafe { wrapped.unwrap() };
         assert_eq!(recovered.id(), item.id());
+    }
+
+    #[test]
+    fn menu_snapshot_reflects_item_and_structure_changes() {
+        let item = MenuItem::new("First", true, None);
+        let menu = Menu::with_items(&[&item]).unwrap();
+        let snapshot = menu.snapshot_handle();
+
+        item.set_text("Updated");
+
+        let second = MenuItem::new("Second", true, None);
+        menu.append(&second).unwrap();
+
+        let items = snapshot.items();
+        assert_eq!(items.len(), 2);
+        let MenuItemKindSnapshot::MenuItem(first) = &items[0] else {
+            panic!("expected a menu item");
+        };
+        assert_eq!(first.text(), "Updated");
+    }
+
+    #[test]
+    fn menu_change_channel_reports_nested_changes() {
+        let item = MenuItem::new("Nested", true, None);
+        let submenu = Submenu::with_items("Submenu", true, &[&item]).unwrap();
+        let menu = Menu::with_items(&[&submenu]).unwrap();
+        let snapshot = menu.snapshot_handle();
+        let changes = MenuChangeEvent::receiver();
+        while changes.try_recv().is_ok() {}
+
+        item.set_enabled(false);
+        changes.recv_timeout(Duration::from_secs(1)).unwrap();
+
+        let second = MenuItem::new("Second", true, None);
+        submenu.append(&second).unwrap();
+        changes.recv_timeout(Duration::from_secs(1)).unwrap();
+
+        let items = snapshot.items();
+        let MenuItemKindSnapshot::Submenu(submenu) = &items[0] else {
+            panic!("expected a submenu");
+        };
+        assert_eq!(submenu.items().len(), 2);
     }
 }

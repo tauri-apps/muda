@@ -136,6 +136,13 @@ impl<T> DerefMut for StateRefMut<'_, T> {
     }
 }
 
+#[cfg(feature = "snapshot")]
+impl<T> Drop for StateRefMut<'_, T> {
+    fn drop(&mut self) {
+        crate::MenuChangeEvent::send();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::StateCell;

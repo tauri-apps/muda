@@ -604,7 +604,7 @@ pub trait ContextMenu: sealed::Sealed {
 
     /// Returns a thread-safe snapshot handle for this menu tree.
     #[cfg(feature = "snapshot")]
-    fn snapshot(&self) -> MenuSnapshot;
+    fn snapshot_handle(&self) -> MenuSnapshotHandle;
 }
 
 /// Describes a menu event emitted when a menu item is activated

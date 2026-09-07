@@ -41,6 +41,7 @@ type Hwnd = isize;
 /// Internal command ids. Used for the `WM_COMMAND` message to identify which menu item was clicked.
 static COUNTER: Counter = Counter::new_with_start(1000);
 
+#[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,

@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[cfg(feature = "snapshot")]
-use crate::MenuSnapshot;
+use crate::MenuSnapshotHandle;
 
 #[cfg(any(
     all(target_os = "windows", feature = "win32"),
@@ -652,16 +652,8 @@ impl ContextMenu for Menu {
     }
 
     #[cfg(feature = "snapshot")]
-    fn snapshot(&self) -> MenuSnapshot {
-        MenuSnapshot {
-            items: self
-                .state
-                .borrow()
-                .children
-                .iter()
-                .map(UnsafeMenuItemKind::snapshot)
-                .collect(),
-        }
+    fn snapshot_handle(&self) -> MenuSnapshotHandle {
+        MenuSnapshotHandle::from_menu(self.state.clone())
     }
 }
 
