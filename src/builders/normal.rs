@@ -4,16 +4,29 @@
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
-    MenuId, MenuItem,
+    MenuId, MenuItem, TextStyle,
 };
 
 /// A builder type for [`MenuItem`]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MenuItemBuilder {
     text: String,
     enabled: bool,
     id: Option<MenuId>,
     accelerator: Option<MenuAccelerator>,
+    styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for MenuItemBuilder {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            id: None,
+            accelerator: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl MenuItemBuilder {
@@ -73,6 +86,25 @@ impl MenuItemBuilder {
         Ok(self)
     }
 
+    /// Set the text for this menu item as a sequence of styled text, so one part of the
+    /// label can be de-emphasized relative to the rest.
+    ///
+    /// Overrides any text set with [`.text()`](Self::text).
+    ///
+    /// See [`MenuItem::set_styled_text`] for more info.
+    pub fn styled_text<S: Into<String>>(
+        mut self,
+        parts: impl IntoIterator<Item = (S, TextStyle)>,
+    ) -> Self {
+        self.styled_text = Some(
+            parts
+                .into_iter()
+                .map(|(text, style)| (text.into(), style))
+                .collect(),
+        );
+        self
+    }
+
     /// Build this menu item.
     pub fn build(self) -> MenuItem {
         let item = if let Some(id) = self.id {
@@ -80,6 +112,7 @@ impl MenuItemBuilder {
         } else {
             MenuItem::new(self.text, self.enabled, None)
         };
+
         if let Some(accelerator) = self.accelerator {
             let _ = match accelerator {
                 MenuAccelerator::Physical(accelerator) => item.set_accelerator(Some(accelerator)),
@@ -88,6 +121,11 @@ impl MenuItemBuilder {
                 }
             };
         }
+
+        if let Some(parts) = self.styled_text {
+            item.set_styled_text(parts);
+        }
+
         item
     }
 }

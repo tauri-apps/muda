@@ -12,18 +12,10 @@ use once_cell::sync::Lazy;
 use windows_sys::{
     s,
     Win32::{
-        Foundation::{HWND, LPARAM, RECT, WPARAM},
+        Foundation::*,
         Graphics::Gdi::*,
-        System::LibraryLoader::{GetProcAddress, LoadLibraryA},
-        UI::{
-            Accessibility::HIGHCONTRASTA,
-            Controls::*,
-            WindowsAndMessaging::{
-                GetClientRect, GetMenuBarInfo, GetMenuItemInfoW, GetWindowRect,
-                SystemParametersInfoA, HMENU, MENUBARINFO, MENUITEMINFOW, MIIM_STRING, OBJID_MENU,
-                SPI_GETHIGHCONTRAST, WM_NCACTIVATE, WM_NCPAINT,
-            },
-        },
+        System::LibraryLoader::*,
+        UI::{Accessibility::*, Controls::*, WindowsAndMessaging::*},
     },
 };
 

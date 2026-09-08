@@ -10,8 +10,7 @@
 //!
 //! - Windows
 //! - macOS
-//! - Linux/BSD with GTK 3
-//! - Linux/BSD with GTK 4
+//! - Linux/BSD with GTK 3 or GTK 4
 //!
 //! # Platform-specific notes:
 //!
@@ -24,12 +23,16 @@
 //!
 //! # Cargo features
 //!
+//! - `win32`: Enables the Win32 backend on Windows. This is enabled by default.
+//! - `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
 //! - `gtk`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
 //! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
 //!   enabling this feature because the defaults include `gtk`.
 //! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
 //!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
 //!   by GTK 4.
+//! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
+//!   to thread-safe synchronization.
 //!
 //! The `gtk` and `gtk4` features are mutually exclusive.
 //!
@@ -129,7 +132,7 @@
 //! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
-//! #[cfg(target_os = "windows")]
+//! #[cfg(all(target_os = "windows", feature = "win32"))]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
 //! #[cfg(any(
 //!     target_os = "linux",
@@ -139,7 +142,7 @@
 //!     target_os = "openbsd"
 //! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
-//! #[cfg(target_os = "macos")]
+//! #[cfg(all(target_os = "macos", feature = "appkit"))]
 //! menu.init_for_nsapp();
 //! ```
 //!
@@ -161,11 +164,11 @@
 //!     target_os = "openbsd"
 //! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(target_os = "macos")]
+//! # #[cfg(all(target_os = "macos", feature = "appkit"))]
 //! # let nsview = std::ptr::null();
 //! // --snip--
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
-//! #[cfg(target_os = "windows")]
+//! #[cfg(all(target_os = "windows", feature = "win32"))]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
 //! #[cfg(any(
 //!     target_os = "linux",
@@ -175,7 +178,7 @@
 //!     target_os = "openbsd"
 //! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
-//! #[cfg(target_os = "macos")]
+//! #[cfg(all(target_os = "macos", feature = "appkit"))]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
 //! ```
 //! # Processing menu events
@@ -235,14 +238,6 @@ compile_error!("features `gtk` and `gtk4` cannot be enabled together");
 ))]
 extern crate gtk4 as gtk;
 
-use std::{cell::RefCell, rc::Rc};
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use arc_swap::ArcSwap;
-
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
@@ -255,6 +250,9 @@ mod items;
 mod menu;
 mod menu_id;
 mod platform_impl;
+#[cfg(feature = "snapshot")]
+mod snapshot;
+mod state_cell;
 mod util;
 
 pub use about_metadata::AboutMetadata;
@@ -265,15 +263,13 @@ pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
 pub use menu::*;
 pub use menu_id::MenuId;
-
-#[cfg(all(target_os = "linux", feature = "gtk"))]
-pub use platform_impl::AboutDialog;
-
-use platform_impl::MenuChild;
+#[cfg(feature = "snapshot")]
+pub use snapshot::*;
+pub(crate) use state_cell::{StateCell, WeakStateCell};
 
 /// An enumeration of all available menu types, useful to match against
 /// the items returned from [`Menu::items`] or [`Submenu::items`]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum MenuItemKind {
     MenuItem(MenuItem),
     Submenu(Submenu),
@@ -282,7 +278,70 @@ pub enum MenuItemKind {
     Icon(IconMenuItem),
 }
 
+/// A thread-bound [`MenuItemKind`] stored inside otherwise thread-safe menu state.
+///
+/// [`MenuItemKind`] itself is not thread-safe because it contains `Rc` and platform values. This
+/// wrapper suppresses automatic destruction so it can cross a thread boundary as part of menu
+/// state. Access to the complete value through [`Self::borrow`], [`Self::clone`], or
+/// [`Self::unwrap`] is restricted to its originating thread.
+///
+/// The wrapped value must eventually be recovered with [`Self::unwrap`] and dropped on its
+/// originating thread. The thread-bound [`Menu`] and [`Submenu`] implementations uphold that
+/// invariant.
+pub(crate) struct UnsafeMenuItemKind(std::mem::ManuallyDrop<MenuItemKind>);
+
+// SAFETY: `ManuallyDrop` prevents the wrapped `MenuItemKind` from being destroyed after this
+// wrapper crosses a thread boundary. Accessing, cloning, or recovering the complete value requires
+// an unsafe call whose originating-thread requirement is upheld by the thread-bound `Menu` and
+// `Submenu` implementations. When enabled, the snapshot projection wraps any platform handle it
+// captures and queues access and destruction on the platform thread.
+unsafe impl Send for UnsafeMenuItemKind {}
+
+impl UnsafeMenuItemKind {
+    pub(crate) fn new(local: MenuItemKind) -> Self {
+        Self(std::mem::ManuallyDrop::new(local))
+    }
+
+    /// Borrows the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread.
+    pub(crate) unsafe fn borrow(&self) -> &MenuItemKind {
+        &self.0
+    }
+
+    /// Clones the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread. The returned clone must remain
+    /// on that thread.
+    pub(crate) unsafe fn clone(&self) -> MenuItemKind {
+        unsafe { self.borrow() }.clone()
+    }
+
+    /// Recovers the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread. The recovered value must remain
+    /// on that thread and be dropped there.
+    pub(crate) unsafe fn unwrap(mut self) -> MenuItemKind {
+        unsafe { std::mem::ManuallyDrop::take(&mut self.0) }
+    }
+}
+
 impl MenuItemKind {
+    /// Returns a thread-safe snapshot handle for this menu item.
+    #[cfg(feature = "snapshot")]
+    pub fn snapshot(&self) -> MenuItemKindSnapshot {
+        self.into()
+    }
+
     /// Returns a unique identifier associated with this menu item.
     pub fn id(&self) -> &MenuId {
         match self {
@@ -384,22 +443,10 @@ impl MenuItemKind {
             MenuItemKind::Icon(i) => i.into_id(),
         }
     }
-
-    /// Get the menu item's inner value.
-    #[allow(dead_code)]
-    pub(crate) fn inner(&self) -> Rc<RefCell<MenuChild>> {
-        match self {
-            MenuItemKind::MenuItem(i) => i.inner.clone(),
-            MenuItemKind::Submenu(i) => i.inner.clone(),
-            MenuItemKind::Predefined(i) => i.inner.clone(),
-            MenuItemKind::Check(i) => i.inner.clone(),
-            MenuItemKind::Icon(i) => i.inner.clone(),
-        }
-    }
 }
 
 /// A trait that defines a generic item in a menu, which may be one of [`MenuItemKind`]
-pub trait IsMenuItem: sealed::IsMenuItemBase {
+pub trait IsMenuItem: sealed::Sealed {
     /// Returns a [`MenuItemKind`] associated with this item.
     fn kind(&self) -> MenuItemKind;
     /// Returns a unique identifier associated with this menu item.
@@ -409,28 +456,17 @@ pub trait IsMenuItem: sealed::IsMenuItemBase {
 }
 
 mod sealed {
-    pub trait IsMenuItemBase {}
-}
-
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum MenuItemType {
-    #[default]
-    MenuItem,
-    Submenu,
-    Predefined,
-    Check,
-    Icon,
+    pub trait Sealed {}
 }
 
 /// A helper trait with methods to help creating a context menu.
-pub trait ContextMenu {
+pub trait ContextMenu: sealed::Sealed {
     /// Get the popup [`HMENU`] for this menu.
     ///
     /// The returned [`HMENU`] is valid as long as the `ContextMenu` is.
     ///
     /// [`HMENU`]: windows_sys::Win32::UI::WindowsAndMessaging::HMENU
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     fn hpopupmenu(&self) -> isize;
 
     /// Shows this menu as a context menu inside a win32 window.
@@ -442,7 +478,7 @@ pub trait ContextMenu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn show_context_menu_for_hwnd(
         &self,
         hwnd: isize,
@@ -457,7 +493,7 @@ pub trait ContextMenu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize);
 
     /// Remove the menu subclass handler from the given hwnd
@@ -467,7 +503,7 @@ pub trait ContextMenu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
     /// Shows this menu as a context menu inside a [`gtk::Window`].
@@ -523,10 +559,6 @@ pub trait ContextMenu {
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
-    /// Get all menu items within this context menu.
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    fn compat_items(&self) -> Vec<Arc<ArcSwap<crate::CompatMenuItem>>>;
-
     /// Shows this menu as a context menu for the specified `NSView`.
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.
@@ -536,7 +568,7 @@ pub trait ContextMenu {
     /// # Safety
     ///
     /// The view must be a pointer to a valid `NSView`.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -547,7 +579,7 @@ pub trait ContextMenu {
     ///
     /// The returned pointer is valid for as long as the `ContextMenu` is. If
     /// you need it to be alive for longer, retain it.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
 
     /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
@@ -569,6 +601,10 @@ pub trait ContextMenu {
     fn as_submenu_unchecked(&self) -> &Menu {
         self.as_menu().expect("Not a Submenu")
     }
+
+    /// Returns a thread-safe snapshot handle for this menu tree.
+    #[cfg(feature = "snapshot")]
+    fn snapshot_handle(&self) -> MenuSnapshotHandle;
 }
 
 /// Describes a menu event emitted when a menu item is activated
@@ -616,24 +652,11 @@ impl MenuEvent {
         }
     }
 
-    pub fn send(event: MenuEvent) {
+    pub(crate) fn send(event: MenuEvent) {
         if let Some(handler) = MENU_EVENT_HANDLER.get_or_init(|| None) {
             handler(event);
         } else {
             let _ = MENU_CHANNEL.0.send(event);
         }
     }
-}
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-static MENU_UPDATE_CHANNEL: Lazy<(Sender<()>, Receiver<()>)> = Lazy::new(unbounded);
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-pub fn recv_menu_update() -> std::result::Result<(), crossbeam_channel::RecvError> {
-    MENU_UPDATE_CHANNEL.1.recv()
-}
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-pub fn send_menu_update() {
-    let _ = MENU_UPDATE_CHANNEL.0.send(());
 }

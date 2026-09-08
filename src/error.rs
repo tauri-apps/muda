@@ -12,6 +12,8 @@ pub use crate::accelerator::AcceleratorParseError;
 pub enum Error {
     #[error("This menu item is not a child of this `Menu` or `Submenu`")]
     NotAChildOfThisMenu,
+    #[error("Adding this submenu would create a cycle; a submenu cannot contain itself")]
+    WouldCreateCycle,
     #[cfg(any(
         windows,
         all(

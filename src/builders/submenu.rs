@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu};
+use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu, TextStyle};
 
 /// A builder type for [`Submenu`]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct SubmenuBuilder<'a> {
     text: String,
     enabled: bool,
@@ -13,6 +13,21 @@ pub struct SubmenuBuilder<'a> {
     items: Vec<&'a dyn IsMenuItem>,
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
+    styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
+impl Default for SubmenuBuilder<'_> {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            enabled: true,
+            id: None,
+            items: Vec::new(),
+            icon: None,
+            native_icon: None,
+            styled_text: None,
+        }
+    }
 }
 
 impl std::fmt::Debug for SubmenuBuilder<'_> {
@@ -62,8 +77,11 @@ impl<'a> SubmenuBuilder<'a> {
     }
 
     /// Set an icon for this submenu.
+    ///
+    /// (Note that setting an icon will override any existing [.native_icon()](Self::native_icon))
     pub fn icon(mut self, icon: Icon) -> Self {
         self.icon = Some(icon);
+        self.native_icon = None;
         self
     }
 
@@ -85,12 +103,34 @@ impl<'a> SubmenuBuilder<'a> {
     /// [`SHGetStockIconInfo`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shgetstockiconinfo
     /// [`GtkIconTheme`]: https://docs.gtk.org/gtk3/class.IconTheme.html
     /// [Icon Naming Specification]: https://specifications.freedesktop.org/icon-naming-spec/latest/
+    ///
+    /// (Note that setting a native icon will override any existing [.icon()](Self::icon))
     pub fn native_icon(mut self, icon: NativeIcon) -> Self {
         self.native_icon = Some(icon);
+        self.icon = None;
         self
     }
 
-    /// Build this menu item.
+    /// Set the text for this menu item as a sequence of styled text, so one part of the
+    /// label can be de-emphasized relative to the rest.
+    ///
+    /// Overrides any text set with [`.text()`](Self::text).
+    ///
+    /// See [`Submenu::set_styled_text`] for more info.
+    pub fn styled_text<S: Into<String>>(
+        mut self,
+        parts: impl IntoIterator<Item = (S, TextStyle)>,
+    ) -> Self {
+        self.styled_text = Some(
+            parts
+                .into_iter()
+                .map(|(text, style)| (text.into(), style))
+                .collect(),
+        );
+        self
+    }
+
+    /// Build this submenu.
     pub fn build(self) -> crate::Result<Submenu> {
         let submenu = if let Some(id) = self.id {
             Submenu::with_id_and_items(id, self.text, self.enabled, &self.items)?
@@ -104,6 +144,10 @@ impl<'a> SubmenuBuilder<'a> {
 
         if let Some(native_icon) = self.native_icon {
             submenu.set_native_icon(Some(native_icon));
+        }
+
+        if let Some(parts) = self.styled_text {
+            submenu.set_styled_text(parts);
         }
 
         Ok(submenu)

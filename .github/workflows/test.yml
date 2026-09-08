@@ -24,12 +24,15 @@ jobs:
       matrix:
         include:
           - platform: windows-latest
+            cargo-args: --features snapshot
           - platform: macos-latest
+            cargo-args: --features snapshot
           - platform: ubuntu-latest
             backend: (gtk3)
+            cargo-args: --features snapshot
           - platform: ubuntu-latest
             backend: (gtk4)
-            cargo-args: --no-default-features --features gtk4
+            cargo-args: --no-default-features --features gtk4,snapshot
 
     runs-on: ${{ matrix.platform }}
 
@@ -52,6 +55,10 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
 
       - run: cargo build ${{ matrix.cargo-args }}
+
+      - name: Build common-controls-v6 example
+        if: matrix.platform == 'windows-latest'
+        run: cargo build --manifest-path examples/windows-common-controls-v6/Cargo.toml --no-default-features --features win32
 
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test ${{ matrix.cargo-args }}

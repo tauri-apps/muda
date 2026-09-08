@@ -69,7 +69,7 @@ impl PartialEq<&MenuId> for MenuId {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::MenuId;
 
     #[test]

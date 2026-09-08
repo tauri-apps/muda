@@ -4,10 +4,20 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::MenuId;
+
 #[derive(Clone, Copy, Debug)]
 pub enum AddOp {
     Append,
     Insert(usize),
+}
+
+/// Ids for callers who did not supply one.
+static ID_COUNTER: Counter = Counter::new_with_start(0);
+
+/// `id`, or the next generated one.
+pub fn next_id(id: Option<MenuId>) -> MenuId {
+    id.unwrap_or_else(|| MenuId(ID_COUNTER.next().to_string()))
 }
 
 pub struct Counter(AtomicU32);

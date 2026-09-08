@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use gtk::gdk;
-use keyboard_types::{Code, Key, Modifiers};
+use keyboard_types::{Code, Key, Modifiers, NamedKey};
 
 use crate::accelerator::{Accelerator, AcceleratorParseError, KeyAccelerator, MenuAccelerator};
 
@@ -51,10 +51,12 @@ fn modifiers_to_gdk_modifier_type(modifiers: Modifiers) -> gdk::ModifierType {
         gdk::ModifierType::META_MASK,
         modifiers.contains(Modifiers::META),
     );
+    #[allow(deprecated)]
     result.set(
         gdk::ModifierType::SUPER_MASK,
         modifiers.contains(Modifiers::SUPER),
     );
+    #[allow(deprecated)]
     result.set(
         gdk::ModifierType::HYPER_MASK,
         modifiers.contains(Modifiers::HYPER),
@@ -70,7 +72,7 @@ fn code_to_gdk_key(code: &Code) -> Result<u32, AcceleratorParseError> {
 fn key_to_gdk_key(key: &Key) -> Result<u32, AcceleratorParseError> {
     match key {
         Key::Character(character) => character_to_gdk_key(character),
-        key => gdk_key_from_name(key_to_gdk_key_name(key)?),
+        Key::Named(key) => gdk_key_from_name(key_to_gdk_named_key_name(key)?),
     }
 }
 
@@ -243,7 +245,9 @@ fn code_to_gdk_key_name(code: &Code) -> Result<&'static str, AcceleratorParseErr
         AudioVolumeMute => "AudioMute",
         AudioVolumeUp => "AudioRaiseVolume",
         WakeUp => "WakeUp",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Copy => "Copy",
         Cut => "Cut",
@@ -300,12 +304,10 @@ fn code_to_gdk_key_name(code: &Code) -> Result<&'static str, AcceleratorParseErr
     Ok(name)
 }
 
-fn key_to_gdk_key_name(key: &Key) -> Result<&'static str, AcceleratorParseError> {
-    use Key::*;
+fn key_to_gdk_named_key_name(key: &NamedKey) -> Result<&'static str, AcceleratorParseError> {
+    use NamedKey::*;
 
     let name = match key {
-        Unidentified => return Err(AcceleratorParseError::UnsupportedKey(format!("{key:?}"))),
-        Character(_) => unreachable!("characters are handled by character_to_gdk_key"),
         Alt => "Alt_L",
         AltGraph => "ISO_Level3_Shift",
         CapsLock => "Caps_Lock",
@@ -314,7 +316,9 @@ fn key_to_gdk_key_name(key: &Key) -> Result<&'static str, AcceleratorParseError>
         NumLock => "Num_Lock",
         ScrollLock => "Scroll_Lock",
         Shift => "Shift_L",
+        #[allow(deprecated)]
         Hyper => "Hyper_L",
+        #[allow(deprecated)]
         Super => "Super_L",
         Enter => "Return",
         Tab => "Tab",

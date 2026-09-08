@@ -1,31 +1,32 @@
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.inner
+// SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, mem, rc::Rc};
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use std::sync::Arc;
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-use arc_swap::ArcSwap;
-
 use crate::{
     accelerator::{Accelerator, Code, MenuAccelerator, Modifiers, CMD_OR_CTRL},
-    sealed::IsMenuItemBase,
-    AboutMetadata, IsMenuItem, MenuId, MenuItemKind,
+    platform_impl::PlatformMenuItem,
+    util, AboutMetadata, ClickAction, IsMenuItem, MenuId, MenuItemKind, StateCell,
 };
 
 /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
-    pub(crate) inner: Rc<RefCell<crate::platform_impl::MenuChild>>,
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    pub(crate) compat: Arc<ArcSwap<crate::CompatMenuItem>>,
+    pub(crate) state: StateCell<PredefinedMenuItemState>,
+    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
 }
 
-impl IsMenuItemBase for PredefinedMenuItem {}
+/// Shared state of a [`PredefinedMenuItem`].
+#[derive(Debug, Clone)]
+pub(crate) struct PredefinedMenuItemState {
+    pub text: String,
+    pub predefined_item_type: PredefinedMenuItemType,
+    pub enabled: bool,
+}
+
+impl crate::sealed::Sealed for PredefinedMenuItem {}
 impl IsMenuItem for PredefinedMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Predefined(self.clone())
@@ -41,39 +42,9 @@ impl IsMenuItem for PredefinedMenuItem {
 }
 
 impl PredefinedMenuItem {
-    #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-    pub(crate) fn compat_menu_item(
-        item: &crate::platform_impl::MenuChild,
-    ) -> crate::CompatMenuItem {
-        match &item.predefined_item_kind {
-            Some(PredefinedMenuItemKind::Separator) => crate::CompatMenuItem::Separator,
-            Some(predefined_menu_item_kind) => crate::CompatStandardItem {
-                id: item.id().0.clone(),
-                label: super::strip_mnemonic(item.text()),
-                enabled: item.is_enabled(),
-                icon: None,
-                predefined_menu_item_kind: Some(predefined_menu_item_kind.clone()),
-            }
-            .into(),
-            _ => crate::CompatStandardItem {
-                id: item.id().0.clone(),
-                label: super::strip_mnemonic(item.text()),
-                enabled: item.is_enabled(),
-                icon: None,
-                predefined_menu_item_kind: None,
-            }
-            .into(),
-        }
-    }
-
-    /// The kind of predefined menu item.
-    pub fn predefined_item_kind(&self) -> Option<PredefinedMenuItemKind> {
-        self.inner.borrow().predefined_item_kind.clone()
-    }
-
     /// Separator menu item
     pub fn separator() -> PredefinedMenuItem {
-        PredefinedMenuItem::new::<&str>(PredefinedMenuItemKind::Separator, None)
+        PredefinedMenuItem::new::<&str>(PredefinedMenuItemType::Separator, None)
     }
 
     /// Copy menu item
@@ -83,7 +54,7 @@ impl PredefinedMenuItem {
     /// - **GTK 3:** Requires the `libxdo` feature.
     /// - **GTK 4:** Unsupported.
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Copy, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Copy, text)
     }
 
     /// Cut menu item
@@ -93,7 +64,7 @@ impl PredefinedMenuItem {
     /// - **GTK 3:** Requires the `libxdo` feature.
     /// - **GTK 4:** Unsupported.
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Cut, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Cut, text)
     }
 
     /// Paste menu item
@@ -103,7 +74,7 @@ impl PredefinedMenuItem {
     /// - **GTK 3:** Requires the `libxdo` feature.
     /// - **GTK 4:** Unsupported.
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Paste, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
 
     /// Paste and Match Style menu item
@@ -112,7 +83,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn paste_and_match_style(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::PasteAndMatchStyle, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::PasteAndMatchStyle, text)
     }
 
     /// Delete menu item
@@ -121,7 +92,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn delete(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Delete, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Delete, text)
     }
 
     /// SelectAll menu item
@@ -131,7 +102,7 @@ impl PredefinedMenuItem {
     /// - **GTK 3:** Requires the `libxdo` feature.
     /// - **GTK 4:** Unsupported.
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::SelectAll, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::SelectAll, text)
     }
 
     /// Undo menu item
@@ -140,7 +111,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3 / GTK 4:** Unsupported.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Undo, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
     /// Redo menu item
     ///
@@ -148,7 +119,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3 / GTK 4:** Unsupported.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Redo, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
 
     /// Minimize window menu item
@@ -157,7 +128,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3:** Unsupported.
     pub fn minimize(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Minimize, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Minimize, text)
     }
 
     /// Maximize window menu item
@@ -166,7 +137,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3:** Unsupported.
     pub fn maximize(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Maximize, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Maximize, text)
     }
 
     /// Zoom window menu item
@@ -183,7 +154,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn actual_size(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::ActualSize, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::ActualSize, text)
     }
 
     /// Zoom In menu item
@@ -192,7 +163,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn zoom_in(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::ZoomIn, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::ZoomIn, text)
     }
 
     /// Zoom Out menu item
@@ -201,7 +172,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn zoom_out(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::ZoomOut, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::ZoomOut, text)
     }
 
     /// Fullscreen menu item
@@ -210,7 +181,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3:** Unsupported.
     pub fn fullscreen(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Fullscreen, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Fullscreen, text)
     }
 
     /// Hide window menu item
@@ -219,7 +190,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3:** Unsupported.
     pub fn hide(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Hide, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Hide, text)
     }
 
     /// Hide other windows menu item
@@ -228,7 +199,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn hide_others(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::HideOthers, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::HideOthers, text)
     }
 
     /// Show all app windows menu item
@@ -237,7 +208,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn show_all(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::ShowAll, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::ShowAll, text)
     }
 
     /// Close window menu item
@@ -246,7 +217,7 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3:** Unsupported.
     pub fn close_window(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::CloseWindow, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::CloseWindow, text)
     }
 
     /// Quit app menu item
@@ -255,12 +226,12 @@ impl PredefinedMenuItem {
     ///
     /// - **GTK 3:** Unsupported.
     pub fn quit(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Quit, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Quit, text)
     }
 
     /// About app menu item
     pub fn about(text: Option<&str>, metadata: Option<AboutMetadata>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::About(metadata), text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::About(metadata), text)
     }
 
     /// Services menu item
@@ -269,7 +240,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn services(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::Services, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::Services, text)
     }
 
     /// 'Bring all to front' menu item
@@ -278,7 +249,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn bring_all_to_front(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::BringAllToFront, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::BringAllToFront, text)
     }
 
     /// Start Speaking menu item
@@ -287,7 +258,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn start_speaking(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::StartSpeaking, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::StartSpeaking, text)
     }
 
     /// Stop Speaking menu item
@@ -296,7 +267,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn stop_speaking(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::StopSpeaking, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::StopSpeaking, text)
     }
 
     /// Start Dictation menu item
@@ -305,7 +276,7 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn start_dictation(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::StartDictation, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::StartDictation, text)
     }
 
     /// Emoji & Symbols menu item
@@ -314,23 +285,32 @@ impl PredefinedMenuItem {
     ///
     /// - **Windows / GTK 3 / GTK 4:** Unsupported.
     pub fn emoji_and_symbols(text: Option<&str>) -> PredefinedMenuItem {
-        PredefinedMenuItem::new(PredefinedMenuItemKind::EmojiAndSymbols, text)
+        PredefinedMenuItem::new(PredefinedMenuItemType::EmojiAndSymbols, text)
     }
 
-    fn new<S: AsRef<str>>(item: PredefinedMenuItemKind, text: Option<S>) -> Self {
-        let item = crate::platform_impl::MenuChild::new_predefined(
-            item,
-            text.map(|t| t.as_ref().to_string()),
-        );
+    fn new<S: AsRef<str>>(item: PredefinedMenuItemType, text: Option<S>) -> Self {
+        let id = util::next_id(None);
 
-        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        let compat = Self::compat_menu_item(&item);
+        let resolved_text = text
+            .as_ref()
+            .map(|text| text.as_ref().to_string())
+            .unwrap_or_else(|| item.default_text(app_name().as_deref()));
+        let enabled = item.is_supported();
+        let state = StateCell::new(PredefinedMenuItemState {
+            text: resolved_text,
+            predefined_item_type: item,
+            enabled,
+        });
+
+        // A predefined item emits no event; what it does instead is decided from its kind at
+        // click time, which is why the action needs a handle to state rather than the id.
+        let click = ClickAction::Predefined(state.downgrade());
+        let platform = PlatformMenuItem::new(click);
 
         Self {
-            id: Rc::new(item.id().clone()),
-            inner: Rc::new(RefCell::new(item)),
-            #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-            compat: Arc::new(ArcSwap::from_pointee(compat)),
+            id: Rc::new(id),
+            state,
+            platform: Rc::new(RefCell::new(platform)),
         }
     }
 
@@ -341,19 +321,21 @@ impl PredefinedMenuItem {
 
     /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
-        self.inner.borrow().text()
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this predefined menu item.
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
-        let mut inner = self.inner.borrow_mut();
-        inner.set_text(text.as_ref());
+        let accelerator = {
+            let mut state = self.state.borrow_mut();
+            state.text = text.as_ref().to_string();
+            state.predefined_item_type.accelerator()
+        };
 
-        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        self.compat.store(Arc::new(Self::compat_menu_item(&inner)));
-
-        #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-        crate::send_menu_update();
+        self.platform
+            .borrow_mut()
+            .set_text(text.as_ref(), accelerator.as_ref())
     }
 
     /// Convert this menu item into its menu ID.
@@ -367,40 +349,26 @@ impl PredefinedMenuItem {
     }
 }
 
-#[test]
-fn test_about_metadata() {
-    assert_eq!(
-        AboutMetadata {
-            ..Default::default()
-        }
-        .full_version(),
+/// The running application's name, for the macOS items that splice it into their label.
+///
+/// The one construction-time platform call left in the crate, and the reason
+/// [`PredefinedMenuItemState::new`] takes the name as an argument instead of fetching it: the
+/// other three platforms' labels never mention it, so everywhere else this is a constant.
+fn app_name() -> Option<String> {
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    {
+        crate::platform_impl::app_name()
+    }
+    #[cfg(not(all(target_os = "macos", feature = "appkit")))]
+    {
         None
-    );
-
-    assert_eq!(
-        AboutMetadata {
-            version: Some("Version: 1.inner".into()),
-            ..Default::default()
-        }
-        .full_version(),
-        Some("Version: 1.inner".into())
-    );
-
-    assert_eq!(
-        AboutMetadata {
-            version: Some("Version: 1.inner".into()),
-            short_version: Some("Universal".into()),
-            ..Default::default()
-        }
-        .full_version(),
-        Some("Version: 1.inner (Universal)".into())
-    );
+    }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
-pub enum PredefinedMenuItemKind {
+pub(crate) enum PredefinedMenuItemType {
     Separator,
     Copy,
     Cut,
@@ -428,108 +396,260 @@ pub enum PredefinedMenuItemKind {
     StopSpeaking,
     StartDictation,
     EmojiAndSymbols,
-    #[default]
-    None,
 }
 
-impl PredefinedMenuItemKind {
+impl PredefinedMenuItemType {
     pub(crate) fn text(&self) -> &str {
         match self {
-            PredefinedMenuItemKind::Separator => "",
-            PredefinedMenuItemKind::Copy => "&Copy",
-            PredefinedMenuItemKind::Cut => "Cu&t",
-            PredefinedMenuItemKind::Paste => "&Paste",
-            PredefinedMenuItemKind::PasteAndMatchStyle => "Paste and Match Style",
-            PredefinedMenuItemKind::Delete => "&Delete",
-            PredefinedMenuItemKind::SelectAll => "Select &All",
-            PredefinedMenuItemKind::Undo => "Undo",
-            PredefinedMenuItemKind::Redo => "Redo",
-            PredefinedMenuItemKind::Minimize => "&Minimize",
+            PredefinedMenuItemType::Separator => "",
+            PredefinedMenuItemType::Copy => "&Copy",
+            PredefinedMenuItemType::Cut => "Cu&t",
+            PredefinedMenuItemType::Paste => "&Paste",
+            PredefinedMenuItemType::PasteAndMatchStyle => "Paste and Match Style",
+            PredefinedMenuItemType::Delete => "&Delete",
+            PredefinedMenuItemType::SelectAll => "Select &All",
+            PredefinedMenuItemType::Undo => "Undo",
+            PredefinedMenuItemType::Redo => "Redo",
+            PredefinedMenuItemType::Minimize => "&Minimize",
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::Maximize => "Zoom",
+            PredefinedMenuItemType::Maximize => "Zoom",
             #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemKind::Maximize => "Ma&ximize",
-            PredefinedMenuItemKind::ActualSize => "Actual Size",
-            PredefinedMenuItemKind::ZoomIn => "Zoom In",
-            PredefinedMenuItemKind::ZoomOut => "Zoom Out",
-            PredefinedMenuItemKind::Fullscreen => "Toggle Full Screen",
-            PredefinedMenuItemKind::Hide => "&Hide",
-            PredefinedMenuItemKind::HideOthers => "Hide Others",
-            PredefinedMenuItemKind::ShowAll => "Show All",
+            PredefinedMenuItemType::Maximize => "Ma&ximize",
+            PredefinedMenuItemType::ActualSize => "Actual Size",
+            PredefinedMenuItemType::ZoomIn => "Zoom In",
+            PredefinedMenuItemType::ZoomOut => "Zoom Out",
+            PredefinedMenuItemType::Fullscreen => "Toggle Full Screen",
+            PredefinedMenuItemType::Hide => "&Hide",
+            PredefinedMenuItemType::HideOthers => "Hide Others",
+            PredefinedMenuItemType::ShowAll => "Show All",
             #[cfg(windows)]
-            PredefinedMenuItemKind::CloseWindow => "Close",
+            PredefinedMenuItemType::CloseWindow => "Close",
             #[cfg(not(windows))]
-            PredefinedMenuItemKind::CloseWindow => "C&lose Window",
+            PredefinedMenuItemType::CloseWindow => "C&lose Window",
             #[cfg(windows)]
-            PredefinedMenuItemKind::Quit => "&Exit",
+            PredefinedMenuItemType::Quit => "&Exit",
             #[cfg(not(windows))]
-            PredefinedMenuItemKind::Quit => "&Quit",
-            PredefinedMenuItemKind::About(_) => "&About",
-            PredefinedMenuItemKind::Services => "Services",
-            PredefinedMenuItemKind::BringAllToFront => "Bring All to Front",
-            PredefinedMenuItemKind::StartSpeaking => "Start Speaking",
-            PredefinedMenuItemKind::StopSpeaking => "Stop Speaking",
-            PredefinedMenuItemKind::StartDictation => "Start Dictation…",
-            PredefinedMenuItemKind::EmojiAndSymbols => "Emoji & Symbols",
-            PredefinedMenuItemKind::None => "",
+            PredefinedMenuItemType::Quit => "&Quit",
+            PredefinedMenuItemType::About(_) => "&About",
+            PredefinedMenuItemType::Services => "Services",
+            PredefinedMenuItemType::BringAllToFront => "Bring All to Front",
+            PredefinedMenuItemType::StartSpeaking => "Start Speaking",
+            PredefinedMenuItemType::StopSpeaking => "Stop Speaking",
+            PredefinedMenuItemType::StartDictation => "Start Dictation…",
+            PredefinedMenuItemType::EmojiAndSymbols => "Emoji & Symbols",
         }
+    }
+
+    /// The label this kind carries when the caller supplies none.
+    ///
+    /// Mnemonic-encoded, like every other label in shared state: `&` marks the mnemonic and
+    /// `&&` is a literal ampersand. Backends that have no mnemonics strip on the way out.
+    ///
+    /// `app_name` is consulted on macOS alone, where three of the kinds name the running
+    /// application. It is passed in rather than read here because fetching it is a native
+    /// call, and this table has to stay answerable without one.
+    pub(crate) fn default_text(&self, app_name: Option<&str>) -> String {
+        #[cfg(target_os = "macos")]
+        {
+            // An empty (or absent) name degrades to the bare verb, matching what
+            // `format!("About {}", "").trim()` used to produce.
+            let named = |verb: &str| match app_name {
+                Some(name) if !name.trim().is_empty() => {
+                    format!("{verb} {}", escape_mnemonic(name.trim()))
+                }
+                _ => verb.to_string(),
+            };
+
+            match self {
+                PredefinedMenuItemType::About(_) => return named("About"),
+                PredefinedMenuItemType::Hide => return named("Hide"),
+                PredefinedMenuItemType::Quit => return named("Quit"),
+                _ => {}
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = app_name;
+
+        self.text().to_string()
+    }
+
+    /// Whether this kind does anything on the platform being compiled for.
+    ///
+    /// An unsupported kind is not rejected at construction — it is created and left
+    /// disabled, which is why this feeds `enabled` rather than an error.
+    #[cfg(all(target_os = "windows", feature = "win32"))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(any(
+        all(target_os = "windows", not(feature = "win32")),
+        all(target_os = "macos", not(feature = "appkit")),
+        all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            not(any(feature = "gtk", feature = "gtk4"))
+        )
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(self, PredefinedMenuItemType::Separator)
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk4"
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+        )
+    }
+
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::PasteAndMatchStyle
+                | PredefinedMenuItemType::Delete
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::ActualSize
+                | PredefinedMenuItemType::ZoomIn
+                | PredefinedMenuItemType::ZoomOut
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::HideOthers
+                | PredefinedMenuItemType::ShowAll
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+                | PredefinedMenuItemType::Services
+                | PredefinedMenuItemType::BringAllToFront
+                | PredefinedMenuItemType::StartSpeaking
+                | PredefinedMenuItemType::StopSpeaking
+                | PredefinedMenuItemType::StartDictation
+                | PredefinedMenuItemType::EmojiAndSymbols
+        )
     }
 
     pub(crate) fn accelerator(&self) -> Option<MenuAccelerator> {
         match self {
-            PredefinedMenuItemKind::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
-            PredefinedMenuItemKind::Cut => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyX)),
-            PredefinedMenuItemKind::Paste => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyV)),
+            PredefinedMenuItemType::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
+            PredefinedMenuItemType::Cut => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyX)),
+            PredefinedMenuItemType::Paste => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyV)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::PasteAndMatchStyle => Some(physical_accelerator(
+            PredefinedMenuItemType::PasteAndMatchStyle => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::ALT | Modifiers::SHIFT,
                 Code::KeyV,
             )),
-            PredefinedMenuItemKind::Undo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyZ)),
+            PredefinedMenuItemType::Undo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyZ)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::Redo => Some(physical_accelerator(
+            PredefinedMenuItemType::Redo => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::SHIFT,
                 Code::KeyZ,
             )),
             #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemKind::Redo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyY)),
-            PredefinedMenuItemKind::SelectAll => {
+            PredefinedMenuItemType::Redo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyY)),
+            PredefinedMenuItemType::SelectAll => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::KeyA))
             }
-            PredefinedMenuItemKind::Minimize => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyM)),
+            PredefinedMenuItemType::Minimize => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyM)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::ActualSize => {
+            PredefinedMenuItemType::ActualSize => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::Digit0))
             }
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::ZoomIn => Some(physical_accelerator(
+            PredefinedMenuItemType::ZoomIn => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::SHIFT,
                 Code::Equal,
             )),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::ZoomOut => Some(physical_accelerator(CMD_OR_CTRL, Code::Minus)),
+            PredefinedMenuItemType::ZoomOut => Some(physical_accelerator(CMD_OR_CTRL, Code::Minus)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::Fullscreen => Some(physical_accelerator(
+            PredefinedMenuItemType::Fullscreen => Some(physical_accelerator(
                 Modifiers::META | Modifiers::CONTROL,
                 Code::KeyF,
             )),
-            PredefinedMenuItemKind::Hide => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyH)),
-            PredefinedMenuItemKind::HideOthers => Some(physical_accelerator(
+            PredefinedMenuItemType::Hide => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyH)),
+            PredefinedMenuItemType::HideOthers => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::ALT,
                 Code::KeyH,
             )),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::CloseWindow => {
+            PredefinedMenuItemType::CloseWindow => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::KeyW))
             }
             #[cfg(not(target_os = "macos"))]
-            PredefinedMenuItemKind::CloseWindow => {
+            PredefinedMenuItemType::CloseWindow => {
                 Some(physical_accelerator(Modifiers::ALT, Code::F4))
             }
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::Quit => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyQ)),
+            PredefinedMenuItemType::Quit => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyQ)),
             #[cfg(target_os = "macos")]
-            PredefinedMenuItemKind::EmojiAndSymbols => Some(physical_accelerator(
+            PredefinedMenuItemType::EmojiAndSymbols => Some(physical_accelerator(
                 Modifiers::META | Modifiers::CONTROL,
                 Code::Space,
             )),
@@ -540,4 +660,49 @@ impl PredefinedMenuItemKind {
 
 fn physical_accelerator(modifiers: Modifiers, key: Code) -> MenuAccelerator {
     MenuAccelerator::Physical(Accelerator::new(modifiers, key))
+}
+
+/// Make `text` survive mnemonic decoding unchanged.
+///
+/// Application names are not labels the caller wrote, so an ampersand in one is a literal
+/// ampersand — `Foo & Bar` has to reach the user as `Foo & Bar`, not as `Foo  Bar` with the
+/// space swallowed as a mnemonic marker.
+#[cfg(target_os = "macos")]
+fn escape_mnemonic(text: &str) -> String {
+    text.replace('&', "&&")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_about_metadata() {
+        assert_eq!(
+            AboutMetadata {
+                ..Default::default()
+            }
+            .full_version(),
+            None
+        );
+
+        assert_eq!(
+            AboutMetadata {
+                version: Some("Version: 1.inner".into()),
+                ..Default::default()
+            }
+            .full_version(),
+            Some("Version: 1.inner".into())
+        );
+
+        assert_eq!(
+            AboutMetadata {
+                version: Some("Version: 1.inner".into()),
+                short_version: Some("Universal".into()),
+                ..Default::default()
+            }
+            .full_version(),
+            Some("Version: 1.inner (Universal)".into())
+        );
+    }
 }

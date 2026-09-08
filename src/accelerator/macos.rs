@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use keyboard_types::{Code, Key, Modifiers};
+use keyboard_types::{Code, Key, Modifiers, NamedKey};
 use objc2_app_kit::NSEventModifierFlags;
 
 use crate::accelerator::{Accelerator, AcceleratorParseError, KeyAccelerator, MenuAccelerator};
@@ -60,6 +60,7 @@ fn modifiers_to_mask(modifiers: Modifiers) -> NSEventModifierFlags {
     if modifiers.contains(Modifiers::CONTROL) {
         flags.insert(NSEventModifierFlags::Control);
     }
+    #[allow(deprecated)]
     if modifiers.contains(Modifiers::META) || modifiers.contains(Modifiers::SUPER) {
         flags.insert(NSEventModifierFlags::Command);
     }
@@ -190,10 +191,16 @@ fn code_key_equivalent(code: &Code) -> Result<String, AcceleratorParseError> {
 }
 
 fn key_key_equivalent(key: &Key) -> Result<String, AcceleratorParseError> {
-    use Key::*;
+    match key {
+        Key::Character(character) => character_key_equivalent(character),
+        Key::Named(key) => named_key_key_equivalent(key),
+    }
+}
+
+fn named_key_key_equivalent(key: &NamedKey) -> Result<String, AcceleratorParseError> {
+    use NamedKey::*;
 
     let key = match key {
-        Character(character) => return character_key_equivalent(character),
         Enter => "\u{000d}",
         Tab => "\u{0009}",
         ArrowDown => "\u{F701}",

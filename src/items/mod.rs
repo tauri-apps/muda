@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::{Icon, MenuId, NativeIcon, WeakStateCell};
+
 mod check;
 mod icon;
 mod normal;
 mod predefined;
 mod submenu;
-
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-mod compat;
 
 pub use check::*;
 pub use icon::*;
@@ -17,11 +16,43 @@ pub use normal::*;
 pub use predefined::*;
 pub use submenu::*;
 
-#[cfg(all(feature = "linux-ksni", target_os = "linux"))]
-pub use compat::*;
+/// How one part of a menu item's label is rendered.
+///
+/// Styles are semantic, so each platform maps them to its own conventions instead of
+/// the caller picking colors or fonts. That keeps labels correct in light and dark
+/// modes, under increased contrast, and when the system menu font changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
+pub enum TextStyle {
+    /// The platform's default menu label treatment.
+    #[default]
+    Default,
+    /// A de-emphasized treatment, for a part of the label that qualifies the rest:
+    /// `Preview (default)`, `Speakers (current)`, `Folder (3 items selected)`.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: [`TextStyle::Secondary`] renders in `NSColor.secondaryLabelColor`, the
+    ///   same treatment Finder uses for the " (default)" suffix in its "Open with" submenu.
+    /// - **Windows / Linux**: every style renders as plain text for now.
+    Secondary,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum IconType {
+    Custom(Icon),
+    Native(NativeIcon),
+}
+
+#[derive(Clone)]
+pub(crate) enum ClickAction {
+    Emit(MenuId),
+    Toggle(MenuId, WeakStateCell<CheckMenuItemState>),
+    Predefined(WeakStateCell<PredefinedMenuItemState>),
+}
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{CheckMenuItem, IconMenuItem, MenuId, MenuItem, PredefinedMenuItem, Submenu};
 
     #[test]
