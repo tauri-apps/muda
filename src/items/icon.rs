@@ -8,8 +8,8 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     icon::{Icon, NativeIcon},
     platform_impl::PlatformMenuItem,
-    util, ClickAction, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemKind, StateCell,
-    TextStyle,
+    util, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind,
+    StateCell, TextStyle,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -182,7 +182,7 @@ impl IconMenuItem {
             styled_text: None,
         };
 
-        let click = ClickAction::Emit(id.clone());
+        let click = MenuItemAction::Emit(id.clone());
         let platform = PlatformMenuItem::new(click);
 
         Self {

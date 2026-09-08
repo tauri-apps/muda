@@ -13,7 +13,7 @@ use crate::{
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    ClickAction, MenuEvent, MenuItemKind,
+    MenuEvent, MenuItemAction, MenuItemKind,
 };
 use glib::translate::ToGlibPtr;
 use gtk::{gdk, glib, prelude::*, AboutDialog, Container, Orientation};
@@ -341,8 +341,8 @@ fn drop_children_from_menu_and_destroy(
 
 /// Constructors
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction) -> Self {
-        let needs_syncing = matches!(click, ClickAction::Toggle(..));
+    pub fn new(click: MenuItemAction) -> Self {
+        let needs_syncing = matches!(click, MenuItemAction::Toggle(..));
         let is_syncing = needs_syncing.then(|| Rc::new(AtomicBool::new(false)));
 
         Self {
@@ -355,7 +355,7 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn new_submenu(click: ClickAction) -> Self {
+    pub fn new_submenu(click: MenuItemAction) -> Self {
         let mut item = Self::new(click);
         item.gtk_menu = Some((COUNTER.next(), None));
         item.gtk_menus = Some(HashMap::new());
@@ -823,7 +823,7 @@ impl PlatformMenuItem {
     fn create_gtk_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
@@ -837,7 +837,7 @@ impl PlatformMenuItem {
         self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let id = match click {
-            ClickAction::Emit(id) => id.clone(),
+            MenuItemAction::Emit(id) => id.clone(),
             _ => unreachable!("regular item without emit action"),
         };
         item.connect_activate(move |_| {
@@ -858,13 +858,13 @@ impl PlatformMenuItem {
     fn create_gtk_predefined_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
     ) -> crate::Result<gtk::MenuItem> {
         let predefined_item_type = match click {
-            ClickAction::Predefined(state) => state
+            MenuItemAction::Predefined(state) => state
                 .upgrade()
                 .map(|state| state.borrow().predefined_item_type.clone())
                 .expect("predefined menu item state was dropped"),
@@ -930,7 +930,7 @@ impl PlatformMenuItem {
     fn create_gtk_check_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
@@ -945,7 +945,7 @@ impl PlatformMenuItem {
         self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let (id, state) = match click {
-            ClickAction::Toggle(id, state) => (id.clone(), state.clone()),
+            MenuItemAction::Toggle(id, state) => (id.clone(), state.clone()),
             _ => unreachable!("check item without toggle action"),
         };
 
@@ -996,7 +996,7 @@ impl PlatformMenuItem {
     fn create_gtk_icon_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         menu_id: u32,
         accel_group: Option<&gtk::AccelGroup>,
         add_to_cache: bool,
@@ -1036,7 +1036,7 @@ impl PlatformMenuItem {
         self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
 
         let id = match click {
-            ClickAction::Emit(id) => id.clone(),
+            MenuItemAction::Emit(id) => id.clone(),
             _ => unreachable!("icon item without emit action"),
         };
         item.connect_activate(move |_| {

@@ -15,7 +15,7 @@ use self::{
 use crate::{
     accelerator::MenuAccelerator,
     dpi::Position,
-    items::{ClickAction, IconType, PredefinedMenuItemType},
+    items::{IconType, MenuItemAction, PredefinedMenuItemType},
     util::{AddOp, Counter},
     AboutMetadata, MenuEvent, MenuTheme, NativeIcon,
 };
@@ -184,7 +184,7 @@ impl Drop for PlatformMenu {
 pub(crate) struct PlatformMenuItem {
     id: u32,
     /// What a click does.
-    click: ClickAction,
+    click: MenuItemAction,
     parents: Vec<ParentMenu>,
     accelerator_tables: HashMap<u32, AcceleratorTableRef>,
     accel: Option<ACCEL>,
@@ -428,7 +428,7 @@ impl PlatformMenu {
 }
 
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction) -> Self {
+    pub fn new(click: MenuItemAction) -> Self {
         Self {
             id: COUNTER.next(),
             click,
@@ -443,7 +443,7 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn new_submenu(click: ClickAction) -> Self {
+    pub fn new_submenu(click: MenuItemAction) -> Self {
         Self {
             id: COUNTER.next(),
             click,
@@ -1126,8 +1126,8 @@ unsafe fn handle_item_activate(hwnd: HWND, item: &Rc<RefCell<PlatformMenuItem>>)
     let click = item.borrow().click.clone();
 
     match click {
-        ClickAction::Emit(id) => MenuEvent::send(MenuEvent { id }),
-        ClickAction::Toggle(id, state) => {
+        MenuItemAction::Emit(id) => MenuEvent::send(MenuEvent { id }),
+        MenuItemAction::Toggle(id, state) => {
             if let Some(state) = state.upgrade() {
                 let checked = {
                     let mut state = state.borrow_mut();
@@ -1138,7 +1138,7 @@ unsafe fn handle_item_activate(hwnd: HWND, item: &Rc<RefCell<PlatformMenuItem>>)
             }
             MenuEvent::send(MenuEvent { id });
         }
-        ClickAction::Predefined(state) => {
+        MenuItemAction::Predefined(state) => {
             if let Some(state) = state.upgrade() {
                 let item_type = state.borrow().predefined_item_type.clone();
                 run_predefined(hwnd, &item_type);

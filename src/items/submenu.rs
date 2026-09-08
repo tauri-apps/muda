@@ -8,7 +8,7 @@ use crate::{
     menu::positions_of,
     platform_impl::PlatformMenuItem,
     util::{self, AddOp},
-    ClickAction, ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemKind, NativeIcon,
+    ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, NativeIcon,
     StateCell, SubmenuBuilder, TextStyle, UnsafeMenuItemKind,
 };
 
@@ -130,7 +130,7 @@ impl Submenu {
             children: Vec::new(),
             styled_text: None,
         };
-        let click = ClickAction::Emit(id.clone());
+        let click = MenuItemAction::Emit(id.clone());
         let platform = PlatformMenuItem::new_submenu(click);
 
         Self {

@@ -7,7 +7,7 @@ use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
-    util, CheckMenuItemBuilder, ClickAction, IsMenuItem, MenuId, MenuItemKind, StateCell,
+    util, CheckMenuItemBuilder, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, StateCell,
     TextStyle,
 };
 
@@ -112,7 +112,7 @@ impl CheckMenuItem {
         // The click path flips `checked` through this handle rather than through the wrapper,
         // which it has no way to reach. It is weak so that state does not own the platform that
         // owns it back (O4).
-        let click = ClickAction::Toggle(id.clone(), state.downgrade());
+        let click = MenuItemAction::Toggle(id.clone(), state.downgrade());
         let platform = PlatformMenuItem::new(click);
 
         Self {

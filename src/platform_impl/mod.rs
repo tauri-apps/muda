@@ -165,15 +165,15 @@ impl MenuItemKind {
     }
 
     #[cfg_attr(any(target_os = "windows", target_os = "macos"), allow(dead_code))]
-    pub(crate) fn click_action(&self) -> crate::ClickAction {
+    pub(crate) fn click_action(&self) -> crate::MenuItemAction {
         match self {
-            Self::MenuItem(item) => crate::ClickAction::Emit((*item.id).clone()),
-            Self::Submenu(item) => crate::ClickAction::Emit((*item.id).clone()),
-            Self::Predefined(item) => crate::ClickAction::Predefined(item.state.downgrade()),
+            Self::MenuItem(item) => crate::MenuItemAction::Emit((*item.id).clone()),
+            Self::Submenu(item) => crate::MenuItemAction::Emit((*item.id).clone()),
+            Self::Predefined(item) => crate::MenuItemAction::Predefined(item.state.downgrade()),
             Self::Check(item) => {
-                crate::ClickAction::Toggle((*item.id).clone(), item.state.downgrade())
+                crate::MenuItemAction::Toggle((*item.id).clone(), item.state.downgrade())
             }
-            Self::Icon(item) => crate::ClickAction::Emit((*item.id).clone()),
+            Self::Icon(item) => crate::MenuItemAction::Emit((*item.id).clone()),
         }
     }
 

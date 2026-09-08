@@ -5,7 +5,7 @@
 use crate::{
     accelerator::MenuAccelerator,
     icon::NoIcon,
-    items::{ClickAction, IconType},
+    items::{IconType, MenuItemAction},
     util::AddOp,
     MenuItemKind, TextStyle,
 };
@@ -37,11 +37,11 @@ impl PlatformMenu {
 pub(crate) struct PlatformMenuItem;
 
 impl PlatformMenuItem {
-    pub(crate) fn new(_click: ClickAction) -> Self {
+    pub(crate) fn new(_click: MenuItemAction) -> Self {
         Self
     }
 
-    pub(crate) fn new_submenu(_click: ClickAction) -> Self {
+    pub(crate) fn new_submenu(_click: MenuItemAction) -> Self {
         Self
     }
 

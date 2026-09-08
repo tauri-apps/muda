@@ -19,7 +19,7 @@ use crate::{
     items::IconType,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    AboutMetadata, ClickAction, MenuEvent, MenuItemKind, PredefinedMenuItemType,
+    AboutMetadata, MenuEvent, MenuItemAction, MenuItemKind, PredefinedMenuItemType,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -490,7 +490,7 @@ pub struct PlatformMenuItem {
 }
 
 impl PlatformMenuItem {
-    pub fn new(_click: ClickAction) -> Self {
+    pub fn new(_click: MenuItemAction) -> Self {
         Self {
             action_name: format!("item-{}", COUNTER.next()),
             ctx_menu_id: 0,
@@ -499,7 +499,7 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn new_submenu(_click: ClickAction) -> Self {
+    pub fn new_submenu(_click: MenuItemAction) -> Self {
         Self {
             ctx_menu_id: COUNTER.next() as GtkId,
             ..Self::new(_click)
@@ -686,7 +686,7 @@ impl PlatformMenuItem {
     fn insert_gtk_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
@@ -729,14 +729,14 @@ impl PlatformMenuItem {
         &mut self,
         app: &gtk::Application,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
     ) {
         if self.action.is_some() {
             return;
         }
 
         let action = match click {
-            ClickAction::Toggle(id, state) => {
+            MenuItemAction::Toggle(id, state) => {
                 let action = gio::SimpleAction::new_stateful(
                     &self.action_name,
                     None,
@@ -757,7 +757,7 @@ impl PlatformMenuItem {
                 });
                 action
             }
-            ClickAction::Predefined(state) => {
+            MenuItemAction::Predefined(state) => {
                 let action = gio::SimpleAction::new(&self.action_name, None);
                 let state = state.upgrade();
                 let predefined_item_type = state.map(|s| s.borrow().predefined_item_type.clone());
@@ -767,7 +767,7 @@ impl PlatformMenuItem {
                 }
                 action
             }
-            ClickAction::Emit(id) => {
+            MenuItemAction::Emit(id) => {
                 let action = gio::SimpleAction::new(&self.action_name, None);
                 let id = id.clone();
                 action.connect_activate(move |_, _| MenuEvent::send(MenuEvent { id: id.clone() }));
@@ -971,7 +971,7 @@ impl PlatformMenuItem {
     fn insert_gtk_predefined_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
@@ -1044,7 +1044,7 @@ impl PlatformMenuItem {
     fn insert_gtk_check_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {
@@ -1097,7 +1097,7 @@ impl PlatformMenuItem {
     fn insert_gtk_icon_item(
         &mut self,
         args: &PlatformAttachArgs,
-        click: &ClickAction,
+        click: &MenuItemAction,
         context: &GtkInsertContext<'_>,
         op: AddOp,
     ) -> crate::Result<()> {

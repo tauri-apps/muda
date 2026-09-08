@@ -7,7 +7,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 use crate::{
     accelerator::{Accelerator, Code, MenuAccelerator, Modifiers, CMD_OR_CTRL},
     platform_impl::PlatformMenuItem,
-    util, AboutMetadata, ClickAction, IsMenuItem, MenuId, MenuItemKind, StateCell,
+    util, AboutMetadata, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, StateCell,
 };
 
 /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
@@ -304,7 +304,7 @@ impl PredefinedMenuItem {
 
         // A predefined item emits no event; what it does instead is decided from its kind at
         // click time, which is why the action needs a handle to state rather than the id.
-        let click = ClickAction::Predefined(state.downgrade());
+        let click = MenuItemAction::Predefined(state.downgrade());
         let platform = PlatformMenuItem::new(click);
 
         Self {

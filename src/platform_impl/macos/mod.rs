@@ -37,7 +37,7 @@ use crate::{
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
-    ClickAction, MenuEvent, MenuItemKind, NativeIcon,
+    MenuEvent, MenuItemAction, MenuItemKind, NativeIcon,
 };
 
 static COUNTER: Counter = Counter::new();
@@ -189,7 +189,7 @@ impl PlatformMenu {
 
 /// A generic child in a menu
 pub struct PlatformMenuItem {
-    click: ClickAction,
+    click: MenuItemAction,
     is_services_menu: bool,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
@@ -198,7 +198,7 @@ pub struct PlatformMenuItem {
 
 /// Constructors
 impl PlatformMenuItem {
-    pub fn new(click: ClickAction) -> Self {
+    pub fn new(click: MenuItemAction) -> Self {
         Self {
             click,
             is_services_menu: false,
@@ -208,7 +208,7 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn new_submenu(click: ClickAction) -> Self {
+    pub fn new_submenu(click: MenuItemAction) -> Self {
         let mtm = if cfg!(test) {
             unsafe { MainThreadMarker::new_unchecked() }
         } else {
@@ -820,8 +820,8 @@ impl NsMenuItem {
         let click = item.borrow().click.clone();
 
         match click {
-            ClickAction::Emit(id) => MenuEvent::send(MenuEvent { id }),
-            ClickAction::Toggle(id, state) => {
+            MenuItemAction::Emit(id) => MenuEvent::send(MenuEvent { id }),
+            MenuItemAction::Toggle(id, state) => {
                 if let Some(state) = state.upgrade() {
                     let checked = {
                         let mut state = state.borrow_mut();
@@ -832,7 +832,7 @@ impl NsMenuItem {
                 }
                 MenuEvent::send(MenuEvent { id });
             }
-            ClickAction::Predefined(_) => {
+            MenuItemAction::Predefined(_) => {
                 unreachable!("predefined menu item used the generic click action")
             }
         }
@@ -845,7 +845,7 @@ impl NsMenuItem {
         let item = item.as_ref().expect("PlatformMenuItem pointer was unset");
         let click = item.borrow().click.clone();
 
-        let ClickAction::Predefined(state) = click else {
+        let MenuItemAction::Predefined(state) = click else {
             unreachable!("About menu item without predefined action");
         };
         let item_type = state

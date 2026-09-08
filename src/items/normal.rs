@@ -3,7 +3,7 @@ use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
-    util, ClickAction, IsMenuItem, MenuId, MenuItemBuilder, MenuItemKind, StateCell, TextStyle,
+    util, IsMenuItem, MenuId, MenuItemAction, MenuItemBuilder, MenuItemKind, StateCell, TextStyle,
 };
 
 /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
@@ -91,7 +91,7 @@ impl MenuItem {
             accelerator,
             styled_text: None,
         };
-        let click = ClickAction::Emit(id.clone());
+        let click = MenuItemAction::Emit(id.clone());
         let platform = PlatformMenuItem::new(click);
 
         Self {

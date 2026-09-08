@@ -45,7 +45,7 @@ pub(crate) enum IconType {
 }
 
 #[derive(Clone)]
-pub(crate) enum ClickAction {
+pub(crate) enum MenuItemAction {
     Emit(MenuId),
     Toggle(MenuId, WeakStateCell<CheckMenuItemState>),
     Predefined(WeakStateCell<PredefinedMenuItemState>),
