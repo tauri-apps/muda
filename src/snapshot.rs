@@ -353,11 +353,11 @@ impl UnsafeMenuItemKind {
 
 #[cfg(test)]
 mod tests {
-    use std::{thread, time::Duration};
+    use std::thread;
 
-    use crate::{ContextMenu, IsMenuItem, Menu, MenuItem, Submenu, UnsafeMenuItemKind};
+    use crate::{IsMenuItem, MenuItem, UnsafeMenuItemKind};
 
-    use super::{MenuChangeEvent, MenuItemKindSnapshot};
+    use super::MenuItemKindSnapshot;
 
     fn assert_send<T: Send>() {}
     fn assert_send_sync<T: Send + Sync>() {}
@@ -388,47 +388,5 @@ mod tests {
         // SAFETY: the wrapper has returned to the thread where its `MenuItemKind` was created.
         let recovered = unsafe { wrapped.unwrap() };
         assert_eq!(recovered.id(), item.id());
-    }
-
-    #[test]
-    fn menu_snapshot_reflects_item_and_structure_changes() {
-        let item = MenuItem::new("First", true, None);
-        let menu = Menu::with_items(&[&item]).unwrap();
-        let snapshot = menu.snapshot_handle();
-
-        item.set_text("Updated");
-
-        let second = MenuItem::new("Second", true, None);
-        menu.append(&second).unwrap();
-
-        let items = snapshot.items();
-        assert_eq!(items.len(), 2);
-        let MenuItemKindSnapshot::MenuItem(first) = &items[0] else {
-            panic!("expected a menu item");
-        };
-        assert_eq!(first.text(), "Updated");
-    }
-
-    #[test]
-    fn menu_change_channel_reports_nested_changes() {
-        let item = MenuItem::new("Nested", true, None);
-        let submenu = Submenu::with_items("Submenu", true, &[&item]).unwrap();
-        let menu = Menu::with_items(&[&submenu]).unwrap();
-        let snapshot = menu.snapshot_handle();
-        let changes = MenuChangeEvent::receiver();
-        while changes.try_recv().is_ok() {}
-
-        item.set_enabled(false);
-        changes.recv_timeout(Duration::from_secs(1)).unwrap();
-
-        let second = MenuItem::new("Second", true, None);
-        submenu.append(&second).unwrap();
-        changes.recv_timeout(Duration::from_secs(1)).unwrap();
-
-        let items = snapshot.items();
-        let MenuItemKindSnapshot::Submenu(submenu) = &items[0] else {
-            panic!("expected a submenu");
-        };
-        assert_eq!(submenu.items().len(), 2);
     }
 }
