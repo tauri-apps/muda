@@ -24,7 +24,7 @@ use crate::MenuSnapshotHandle;
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     )
 ))]
 use crate::dpi::Position;
@@ -65,7 +65,7 @@ impl Drop for Menu {
                         target_os = "netbsd",
                         target_os = "openbsd"
                     ),
-                    any(feature = "gtk", feature = "gtk4")
+                    any(feature = "gtk3", feature = "gtk4")
                 )
             ))]
             self.platform.borrow_mut().destroy(&children);
@@ -268,7 +268,7 @@ impl Menu {
 
     /// Adds this menu to a [`gtk::Window`].
     ///
-    /// With the `gtk` feature this creates a `gtk::MenuBar`. With the `gtk4` feature this
+    /// With the `gtk3` feature this creates a `gtk::MenuBar`. With the `gtk4` feature this
     /// creates a `gtk::PopoverMenuBar`.
     ///
     /// - `container`: this optional parameter specifies the container that receives the menu bar.
@@ -301,7 +301,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
@@ -399,7 +399,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -431,7 +431,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -459,7 +459,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -487,7 +487,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
@@ -504,7 +504,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        feature = "gtk3"
     ))]
     /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
     /// This is useful to get information about the menubar for example its height.
@@ -588,7 +588,7 @@ impl ContextMenu for Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -609,7 +609,7 @@ impl ContextMenu for Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        feature = "gtk3"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         let children = self.items();

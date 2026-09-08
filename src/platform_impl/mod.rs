@@ -14,7 +14,7 @@
                 target_os = "netbsd",
                 target_os = "openbsd"
             ),
-            not(any(feature = "gtk", feature = "gtk4"))
+            not(any(feature = "gtk3", feature = "gtk4"))
         )
     ),
     allow(dead_code)
@@ -43,7 +43,7 @@ mod platform;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk"
+    feature = "gtk3"
 ))]
 #[path = "gtk/mod.rs"]
 mod platform;
@@ -58,7 +58,7 @@ mod platform;
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        not(any(feature = "gtk", feature = "gtk4"))
+        not(any(feature = "gtk3", feature = "gtk4"))
     )
 ))]
 #[path = "noop/mod.rs"]

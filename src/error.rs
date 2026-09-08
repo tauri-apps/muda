@@ -24,7 +24,7 @@ pub enum Error {
                 target_os = "netbsd",
                 target_os = "openbsd"
             ),
-            any(feature = "gtk", feature = "gtk4")
+            any(feature = "gtk3", feature = "gtk4")
         )
     ))]
     #[error("This menu has not been initialized")]
@@ -39,7 +39,7 @@ pub enum Error {
                 target_os = "netbsd",
                 target_os = "openbsd"
             ),
-            any(feature = "gtk", feature = "gtk4")
+            any(feature = "gtk3", feature = "gtk4")
         )
     ))]
     #[error("This menu has already been initialized")]
@@ -54,7 +54,7 @@ pub enum Error {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     #[error("Gtk Window doesn't have an application")]
     GtkWindowWithoutApplication,
@@ -66,7 +66,7 @@ pub enum Error {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     #[error("Unsupported GTK container type")]
     UnsupportedGtkContainer,

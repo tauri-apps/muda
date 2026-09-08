@@ -12,7 +12,7 @@ use muda::{
 #[cfg(all(target_os = "macos", feature = "appkit"))]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(all(
-    feature = "gtk",
+    feature = "gtk3",
     any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -177,7 +177,7 @@ fn main() {
         menu_bar.init_for_hwnd(window2.hwnd() as _);
     }
     #[cfg(all(
-        feature = "gtk",
+        feature = "gtk3",
         any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -264,7 +264,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
     #[cfg(all(
-        feature = "gtk",
+        feature = "gtk3",
         any(
             target_os = "linux",
             target_os = "dragonfly",

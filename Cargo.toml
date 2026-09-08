@@ -20,9 +20,9 @@ include = [
 ]
 
 [features]
-default = ["libxdo", "gtk", "appkit", "win32"]
+default = ["libxdo", "gtk3", "appkit", "win32"]
 libxdo = ["dep:libxdo"]
-gtk = ["dep:gtk"]
+gtk3 = ["dep:gtk"]
 gtk4 = ["dep:gtk4"]
 appkit = [
   "dep:objc2",
