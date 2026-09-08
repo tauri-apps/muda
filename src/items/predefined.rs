@@ -355,11 +355,11 @@ impl PredefinedMenuItem {
 /// [`PredefinedMenuItemState::new`] takes the name as an argument instead of fetching it: the
 /// other three platforms' labels never mention it, so everywhere else this is a constant.
 fn app_name() -> Option<String> {
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     {
         crate::platform_impl::app_name()
     }
-    #[cfg(not(all(target_os = "macos", feature = "appkit")))]
+    #[cfg(not(target_os = "macos"))]
     {
         None
     }
@@ -477,7 +477,7 @@ impl PredefinedMenuItemType {
     ///
     /// An unsupported kind is not rejected at construction — it is created and left
     /// disabled, which is why this feeds `enabled` rather than an error.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
             self,
@@ -497,19 +497,15 @@ impl PredefinedMenuItemType {
         )
     }
 
-    #[cfg(any(
-        all(target_os = "windows", not(feature = "win32")),
-        all(target_os = "macos", not(feature = "appkit")),
-        all(
-            any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-            ),
-            not(any(feature = "gtk3", feature = "gtk4"))
-        )
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        not(any(feature = "gtk3", feature = "gtk4"))
     ))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(self, PredefinedMenuItemType::Separator)
@@ -561,7 +557,7 @@ impl PredefinedMenuItemType {
         )
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
             self,

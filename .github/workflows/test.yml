@@ -58,7 +58,7 @@ jobs:
 
       - name: Build common-controls-v6 example
         if: matrix.platform == 'windows-latest'
-        run: cargo build --manifest-path examples/windows-common-controls-v6/Cargo.toml --no-default-features --features win32
+        run: cargo build --manifest-path examples/windows-common-controls-v6/Cargo.toml --no-default-features
 
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test ${{ matrix.cargo-args }}

@@ -60,9 +60,9 @@ pub(crate) mod gtk;
     feature = "gtk4"
 ))]
 pub(crate) mod gtk4;
-#[cfg(all(target_os = "macos", feature = "appkit"))]
+#[cfg(target_os = "macos")]
 pub(crate) mod macos;
-#[cfg(all(target_os = "windows", feature = "win32"))]
+#[cfg(target_os = "windows")]
 pub(crate) mod windows;
 
 #[cfg(target_os = "macos")]

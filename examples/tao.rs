@@ -9,7 +9,7 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
-#[cfg(all(target_os = "macos", feature = "appkit"))]
+#[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(all(
     feature = "gtk3",
@@ -22,7 +22,7 @@ use tao::platform::macos::WindowExtMacOS;
     )
 ))]
 use tao::platform::unix::WindowExtUnix;
-#[cfg(all(target_os = "windows", feature = "win32"))]
+#[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
@@ -40,7 +40,7 @@ fn main() {
     let menu_bar = Menu::new();
 
     // setup accelerator handler on Windows
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     {
         let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
@@ -171,7 +171,7 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe {
         menu_bar.init_for_hwnd(window.hwnd() as _);
         menu_bar.init_for_hwnd(window2.hwnd() as _);
@@ -190,7 +190,7 @@ fn main() {
         menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
         menu_bar.init_for_gtk_window(window2.gtk_window(), window2.default_vbox());
     }
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
@@ -259,7 +259,7 @@ fn main() {
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
@@ -274,7 +274,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         )
     ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);
     }

@@ -3,24 +3,20 @@
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(
-    any(
-        all(target_os = "windows", not(feature = "win32")),
-        all(target_os = "macos", not(feature = "appkit")),
-        all(
-            any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-            ),
-            not(any(feature = "gtk3", feature = "gtk4"))
-        )
+    all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        not(any(feature = "gtk3", feature = "gtk4"))
     ),
     allow(dead_code)
 )]
 
-#[cfg(all(target_os = "windows", feature = "win32"))]
+#[cfg(target_os = "windows")]
 #[path = "windows/mod.rs"]
 mod platform;
 #[cfg(all(
@@ -47,23 +43,19 @@ mod platform;
 ))]
 #[path = "gtk/mod.rs"]
 mod platform;
-#[cfg(any(
-    all(target_os = "windows", not(feature = "win32")),
-    all(target_os = "macos", not(feature = "appkit")),
-    all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        not(any(feature = "gtk3", feature = "gtk4"))
-    )
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    not(any(feature = "gtk3", feature = "gtk4"))
 ))]
 #[path = "noop/mod.rs"]
 mod platform;
-#[cfg(all(target_os = "macos", feature = "appkit"))]
+#[cfg(target_os = "macos")]
 #[path = "macos/mod.rs"]
 mod platform;
 

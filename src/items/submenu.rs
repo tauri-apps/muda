@@ -16,8 +16,8 @@ use crate::{
 use crate::MenuSnapshotHandle;
 
 #[cfg(any(
-    all(target_os = "windows", feature = "win32"),
-    all(target_os = "macos", feature = "appkit"),
+    target_os = "windows",
+    target_os = "macos",
     all(
         any(
             target_os = "linux",
@@ -64,7 +64,7 @@ impl Drop for Submenu {
                 .collect();
 
             #[cfg(any(
-                all(target_os = "macos", feature = "appkit"),
+                target_os = "macos",
                 all(
                     any(
                         target_os = "linux",
@@ -344,7 +344,7 @@ impl Submenu {
     /// this method will set the first instance of this submenu as the Window menu for the application.
     ///
     /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     pub fn set_as_windows_menu_for_nsapp(&self) {
         self.platform.borrow_mut().set_as_windows_menu_for_nsapp()
     }
@@ -364,7 +364,7 @@ impl Submenu {
     /// this method will set the first instance of this submenu as the Help menu for the application.
     ///
     /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.platform.borrow_mut().set_as_help_menu_for_nsapp()
     }
@@ -426,23 +426,23 @@ impl Submenu {
 }
 
 impl ContextMenu for Submenu {
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> isize {
         self.platform.borrow().hpopupmenu()
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
         let selected = self.platform.borrow().show_context_menu(hwnd, position);
         crate::platform_impl::dispatch_selection(hwnd, selected)
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
@@ -498,7 +498,7 @@ impl ContextMenu for Submenu {
         self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -509,7 +509,7 @@ impl ContextMenu for Submenu {
             .show_context_menu_for_nsview(view, position)
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }

@@ -54,7 +54,7 @@ jobs:
 
       - name: Clippy common-controls-v6 example
         if: matrix.platform == 'windows-latest'
-        run: cargo clippy --manifest-path examples/windows-common-controls-v6/Cargo.toml --all-targets --no-default-features --features win32 -- -D warnings
+        run: cargo clippy --manifest-path examples/windows-common-controls-v6/Cargo.toml --all-targets --no-default-features -- -D warnings
 
   fmt:
     runs-on: ubuntu-latest
