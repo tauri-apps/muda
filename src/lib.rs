@@ -25,20 +25,20 @@
 //!
 //! - `win32`: Enables the Win32 backend on Windows. This is enabled by default.
 //! - `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
-//! - `gtk`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
+//! - `gtk3`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
 //! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
-//!   enabling this feature because the defaults include `gtk`.
+//!   enabling this feature because the defaults include `gtk3`.
 //! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
 //!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
 //!   by GTK 4.
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
-//! The `gtk` and `gtk4` features are mutually exclusive.
+//! The `gtk3` and `gtk4` features are mutually exclusive.
 //!
 //! # Dependencies (Linux/BSD)
 //!
-//! The `gtk` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
+//! The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
 //! only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll`
 //! menu items work when the `libxdo` feature is enabled. Be sure to install the packages for the
 //! GTK backend you enabled before building:
@@ -223,8 +223,8 @@
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
 
-#[cfg(all(feature = "gtk", feature = "gtk4"))]
-compile_error!("features `gtk` and `gtk4` cannot be enabled together");
+#[cfg(all(feature = "gtk3", feature = "gtk4"))]
+compile_error!("features `gtk3` and `gtk4` cannot be enabled together");
 
 #[cfg(all(
     any(
@@ -521,7 +521,7 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk", feature = "gtk4")
+        any(feature = "gtk3", feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -540,7 +540,7 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk"
+        feature = "gtk3"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 

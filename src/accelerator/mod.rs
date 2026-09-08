@@ -46,7 +46,7 @@ use std::{borrow::Borrow, hash::Hash, str::FromStr};
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk"
+    feature = "gtk3"
 ))]
 pub(crate) mod gtk;
 #[cfg(all(

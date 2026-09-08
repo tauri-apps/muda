@@ -20,18 +20,18 @@ Menu Utilities library for Desktop Applications.
 
 - `win32`: Enables the Win32 backend on Windows. This is enabled by default.
 - `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
-- `gtk`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
-- `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk`.
+- `gtk3`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
+- `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk3`.
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
 - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used by GTK 4.
 - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state to thread-safe synchronization.
 - `serde`: Enables de/serializing the dpi types.
 
-The `gtk` and `gtk4` features are mutually exclusive.
+The `gtk3` and `gtk4` features are mutually exclusive.
 
 ## Dependencies (Linux/BSD)
 
-The `gtk` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work when the `libxdo` feature is enabled.
+The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work when the `libxdo` feature is enabled.
 
 Be sure to install the packages for the GTK backend you enabled before building:
 
