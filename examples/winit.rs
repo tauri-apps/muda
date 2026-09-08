@@ -11,11 +11,14 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "appkit"))]
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "win32"))]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(
+    all(windows, feature = "win32"),
+    all(target_os = "macos", feature = "appkit")
+))]
 use winit::raw_window_handle::*;
 use winit::{
     application::ApplicationHandler,
@@ -34,7 +37,7 @@ fn main() {
     let menu_bar = Menu::new();
 
     // setup accelerator handler on Windows
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     {
         let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
@@ -46,7 +49,7 @@ fn main() {
             }
         });
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder.build().unwrap();
@@ -85,7 +88,7 @@ impl ApplicationHandler<AppEvent> for App {
             let window_attrs2 = WindowAttributes::default().with_title("Window 2");
             let window2 = event_loop.create_window(window_attrs2).unwrap();
 
-            #[cfg(target_os = "windows")]
+            #[cfg(all(target_os = "windows", feature = "win32"))]
             {
                 use winit::raw_window_handle::*;
                 if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
@@ -95,7 +98,7 @@ impl ApplicationHandler<AppEvent> for App {
                     unsafe { self.app_menu.menu_bar.init_for_hwnd(handle.hwnd.get()) };
                 }
             }
-            #[cfg(target_os = "macos")]
+            #[cfg(all(target_os = "macos", feature = "appkit"))]
             {
                 self.app_menu.menu_bar.init_for_nsapp();
                 self.app_menu.window_menu.set_as_windows_menu_for_nsapp();
@@ -275,13 +278,13 @@ impl AppMenu {
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     {
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_hwnd(handle.hwnd.get(), position) };
         }
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     {
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {
             unsafe { menu.show_context_menu_for_nsview(handle.ns_view.as_ptr() as _, position) };

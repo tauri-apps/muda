@@ -5,28 +5,17 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    dpi::Position,
     platform_impl::PlatformMenu,
     util::{self, AddOp},
-    ContextMenu, IsMenuItem, MenuId, MenuItemKind,
+    ContextMenu, IsMenuItem, MenuId, MenuItemKind, StateCell, UnsafeMenuItemKind,
 };
 
-/// A root menu that can be added to a window on Windows, GTK 3, or GTK 4
-/// and used as the app global menu on macOS.
-#[derive(Clone)]
-pub struct Menu {
-    id: Rc<MenuId>,
-    state: Rc<RefCell<MenuState>>,
-    platform: Rc<RefCell<PlatformMenu>>,
-}
-
-/// Shared state of a root [`Menu`].
-pub(crate) struct MenuState {
-    pub children: Vec<MenuItemKind>,
-}
+#[cfg(feature = "snapshot")]
+use crate::MenuSnapshotHandle;
 
 #[cfg(any(
-    target_os = "macos",
+    all(target_os = "windows", feature = "win32"),
+    all(target_os = "macos", feature = "appkit"),
     all(
         any(
             target_os = "linux",
@@ -38,11 +27,50 @@ pub(crate) struct MenuState {
         any(feature = "gtk", feature = "gtk4")
     )
 ))]
+use crate::dpi::Position;
+
+/// A root menu that can be added to a window on Windows, GTK 3, or GTK 4
+/// and used as the app global menu on macOS.
+#[derive(Clone)]
+pub struct Menu {
+    id: Rc<MenuId>,
+    state: StateCell<MenuState>,
+    platform: Rc<RefCell<PlatformMenu>>,
+}
+
+/// Shared state of a root [`Menu`].
+pub(crate) struct MenuState {
+    pub children: Vec<UnsafeMenuItemKind>,
+}
+
 impl Drop for Menu {
     fn drop(&mut self) {
-        if Rc::strong_count(&self.state) == 1 {
-            let state = self.state.borrow();
-            self.platform.borrow_mut().destroy(&state.children);
+        if Rc::strong_count(&self.id) == 1 {
+            let children: Vec<MenuItemKind> = std::mem::take(&mut self.state.borrow_mut().children)
+                .into_iter()
+                .map(|child| {
+                    // SAFETY: the last thread-bound `Menu` is being dropped on the thread where
+                    // its children were wrapped, so they can be recovered and destroyed here.
+                    unsafe { child.unwrap() }
+                })
+                .collect();
+
+            #[cfg(any(
+                all(target_os = "macos", feature = "appkit"),
+                all(
+                    any(
+                        target_os = "linux",
+                        target_os = "dragonfly",
+                        target_os = "freebsd",
+                        target_os = "netbsd",
+                        target_os = "openbsd"
+                    ),
+                    any(feature = "gtk", feature = "gtk4")
+                )
+            ))]
+            self.platform.borrow_mut().destroy(&children);
+
+            drop(children);
         }
     }
 }
@@ -67,9 +95,9 @@ impl Menu {
     fn new_inner(id: Option<MenuId>) -> Self {
         Self {
             id: Rc::new(util::next_id(id)),
-            state: Rc::new(RefCell::new(MenuState {
+            state: StateCell::new(MenuState {
                 children: Vec::new(),
-            })),
+            }),
             platform: Rc::new(RefCell::new(PlatformMenu::new())),
         }
     }
@@ -178,6 +206,7 @@ impl Menu {
             platform.attach(&kind, op)?;
         }
 
+        let kind = UnsafeMenuItemKind::new(kind);
         let mut state = self.state.borrow_mut();
         match op {
             AddOp::Append => state.children.push(kind),
@@ -214,6 +243,10 @@ impl Menu {
             state.children.remove(position)
         };
 
+        // SAFETY: this thread-bound `Menu` can mutate its children only on the thread where their
+        // `MenuItemKind` values were wrapped.
+        let kind = unsafe { kind.unwrap() };
+
         self.platform.borrow_mut().remove_at(position, &kind);
 
         Some(kind)
@@ -221,7 +254,16 @@ impl Menu {
 
     /// Returns a list of menu items that has been added to this menu.
     pub fn items(&self) -> Vec<MenuItemKind> {
-        self.state.borrow().children.clone()
+        self.state
+            .borrow()
+            .children
+            .iter()
+            .map(|child| {
+                // SAFETY: the thread-bound `Menu` remains on the thread where its children were
+                // wrapped, and the returned clones remain on that thread.
+                unsafe { child.clone() }
+            })
+            .collect()
     }
 
     /// Adds this menu to a [`gtk::Window`].
@@ -267,10 +309,10 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::Widget>,
         C: gtk::prelude::IsA<gtk::Widget>,
     {
-        let state = self.state.borrow();
+        let children = self.items();
         self.platform
             .borrow_mut()
-            .init_for_gtk_window(&state.children, window, container)
+            .init_for_gtk_window(&children, window, container)
     }
 
     /// Adds this menu to a win32 window.
@@ -301,7 +343,7 @@ impl Menu {
     ///     }
     /// }
     /// ```
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow_mut().init_for_hwnd(hwnd)
     }
@@ -315,7 +357,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn init_for_hwnd_with_theme(
         &self,
         hwnd: isize,
@@ -333,7 +375,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn set_theme_for_hwnd(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()> {
         self.platform.borrow().set_theme_for_hwnd(hwnd, theme)
     }
@@ -343,7 +385,7 @@ impl Menu {
     /// in the event loop to enable accelerators
     ///
     /// The returned [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) is valid as long as the [Menu] is.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub fn haccel(&self) -> isize {
         self.platform.borrow().haccel()
     }
@@ -364,10 +406,10 @@ impl Menu {
         W: gtk::prelude::IsA<gtk::Window>,
         W: gtk::prelude::IsA<gtk::Widget>,
     {
-        let state = self.state.borrow();
+        let children = self.items();
         self.platform
             .borrow_mut()
-            .remove_for_gtk_window(&state.children, window)
+            .remove_for_gtk_window(&children, window)
     }
 
     /// Removes this menu from a win32 window
@@ -375,7 +417,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow_mut().remove_for_hwnd(hwnd)
     }
@@ -403,7 +445,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow().hide_for_hwnd(hwnd)
     }
@@ -431,7 +473,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow().show_for_hwnd(hwnd)
     }
@@ -497,42 +539,43 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub unsafe fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
         self.platform.borrow().is_visible_on_hwnd(hwnd)
     }
 
     /// Adds this menu to an NSApp.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     pub fn init_for_nsapp(&self) {
         self.platform.borrow_mut().init_for_nsapp()
     }
 
     /// Removes this menu from an NSApp.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     pub fn remove_for_nsapp(&self) {
         self.platform.borrow_mut().remove_for_nsapp()
     }
 }
 
+impl crate::sealed::Sealed for Menu {}
 impl ContextMenu for Menu {
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     fn hpopupmenu(&self) -> isize {
         self.platform.borrow().hpopupmenu()
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
         let selected = self.platform.borrow().show_context_menu(hwnd, position);
         crate::platform_impl::dispatch_selection(hwnd, selected)
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
@@ -552,12 +595,10 @@ impl ContextMenu for Menu {
         window: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
-        let state = self.state.borrow();
-        self.platform.borrow_mut().show_context_menu_for_gtk_window(
-            &state.children,
-            window,
-            position,
-        )
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .show_context_menu_for_gtk_window(&children, window, position)
     }
 
     #[cfg(all(
@@ -571,8 +612,8 @@ impl ContextMenu for Menu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        let state = self.state.borrow();
-        self.platform.borrow_mut().gtk_context_menu(&state.children)
+        let children = self.items();
+        self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
     #[cfg(all(
@@ -586,11 +627,11 @@ impl ContextMenu for Menu {
         feature = "gtk4"
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
-        let state = self.state.borrow();
-        self.platform.borrow_mut().gtk_context_menu(&state.children)
+        let children = self.items();
+        self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -601,7 +642,7 @@ impl ContextMenu for Menu {
             .show_context_menu_for_nsview(view, position)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }
@@ -609,10 +650,15 @@ impl ContextMenu for Menu {
     fn as_menu(&self) -> Option<&Menu> {
         Some(self)
     }
+
+    #[cfg(feature = "snapshot")]
+    fn snapshot_handle(&self) -> MenuSnapshotHandle {
+        MenuSnapshotHandle::from_menu(self.state.clone())
+    }
 }
 
 /// The window menu bar theme
-#[cfg(windows)]
+#[cfg(all(windows, feature = "win32"))]
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -622,10 +668,14 @@ pub enum MenuTheme {
     Auto = 2,
 }
 
-pub(crate) fn positions_of(children: &[MenuItemKind], id: &MenuId) -> Vec<usize> {
+pub(crate) fn positions_of(children: &[UnsafeMenuItemKind], id: &MenuId) -> Vec<usize> {
     children
         .iter()
         .enumerate()
-        .filter_map(|(index, child)| (child.id() == id).then_some(index))
+        .filter_map(|(index, child)| {
+            // SAFETY: callers hold a thread-bound `Menu` or `Submenu`, so this runs on the thread
+            // where the child was wrapped.
+            (unsafe { child.borrow() }.id() == id).then_some(index)
+        })
         .collect()
 }

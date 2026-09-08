@@ -25,14 +25,14 @@ jobs:
         include:
           - platform: ubuntu-latest
             backend: (gtk3)
-            cargo-args: --all-targets --features serde,common-controls-v6
+            cargo-args: --all-targets --features snapshot,serde,common-controls-v6
           - platform: ubuntu-latest
             backend: (gtk4)
-            cargo-args: --all-targets --no-default-features --features gtk4,serde,common-controls-v6
+            cargo-args: --all-targets --no-default-features --features gtk4,snapshot,serde,common-controls-v6
           - platform: macos-latest
-            cargo-args: --all-targets --features serde,common-controls-v6
+            cargo-args: --all-targets --features snapshot,serde,common-controls-v6
           - platform: windows-latest
-            cargo-args: --all-targets --features serde,common-controls-v6
+            cargo-args: --all-targets --features snapshot,serde,common-controls-v6
 
     runs-on: ${{ matrix.platform }}
 
@@ -51,6 +51,10 @@ jobs:
           components: clippy
 
       - run: cargo clippy ${{ matrix.cargo-args }} -- -D warnings
+
+      - name: Clippy common-controls-v6 example
+        if: matrix.platform == 'windows-latest'
+        run: cargo clippy --manifest-path examples/windows-common-controls-v6/Cargo.toml --all-targets --no-default-features --features win32 -- -D warnings
 
   fmt:
     runs-on: ubuntu-latest

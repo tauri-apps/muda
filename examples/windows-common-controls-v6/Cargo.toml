@@ -5,8 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["libxdo", "gtk", "appkit", "win32"]
+libxdo = ["muda/libxdo"]
+gtk = ["muda/gtk"]
+appkit = ["muda/appkit"]
+win32 = ["muda/win32"]
+
 [dependencies]
-muda = { path = "../../", features = ["common-controls-v6"] }
+muda = { path = "../../", default-features = false, features = ["common-controls-v6"] }
 tao = "0.28"
 image = "0.25"
 

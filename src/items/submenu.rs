@@ -5,36 +5,19 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    dpi::Position,
     menu::positions_of,
     platform_impl::PlatformMenuItem,
-    sealed::IsMenuItemBase,
     util::{self, AddOp},
     ClickAction, ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemKind, NativeIcon,
-    SubmenuBuilder, TextStyle,
+    StateCell, SubmenuBuilder, TextStyle, UnsafeMenuItemKind,
 };
 
-/// A menu that can be added to a [`Menu`] or another [`Submenu`].
-///
-/// [`Menu`]: crate::Menu
-#[derive(Clone)]
-pub struct Submenu {
-    pub(crate) id: Rc<MenuId>,
-    pub(crate) state: Rc<RefCell<SubmenuState>>,
-    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
-}
-
-/// Shared state of a [`Submenu`].
-pub(crate) struct SubmenuState {
-    pub text: String,
-    pub enabled: bool,
-    pub icon: Option<IconType>,
-    pub children: Vec<MenuItemKind>,
-    pub styled_text: Option<Vec<(String, TextStyle)>>,
-}
+#[cfg(feature = "snapshot")]
+use crate::MenuSnapshotHandle;
 
 #[cfg(any(
-    target_os = "macos",
+    all(target_os = "windows", feature = "win32"),
+    all(target_os = "macos", feature = "appkit"),
     all(
         any(
             target_os = "linux",
@@ -46,16 +29,61 @@ pub(crate) struct SubmenuState {
         any(feature = "gtk", feature = "gtk4")
     )
 ))]
+use crate::dpi::Position;
+
+/// A menu that can be added to a [`Menu`] or another [`Submenu`].
+///
+/// [`Menu`]: crate::Menu
+#[derive(Clone)]
+pub struct Submenu {
+    pub(crate) id: Rc<MenuId>,
+    pub(crate) state: StateCell<SubmenuState>,
+    pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
+}
+
+/// Shared state of a [`Submenu`].
+pub(crate) struct SubmenuState {
+    pub text: String,
+    pub enabled: bool,
+    pub icon: Option<IconType>,
+    pub children: Vec<UnsafeMenuItemKind>,
+    pub styled_text: Option<Vec<(String, TextStyle)>>,
+}
+
 impl Drop for Submenu {
     fn drop(&mut self) {
-        if Rc::strong_count(&self.state) == 1 {
-            let state = self.state.borrow();
-            self.platform.borrow_mut().destroy(&state.children);
+        if Rc::strong_count(&self.id) == 1 {
+            let children: Vec<MenuItemKind> = std::mem::take(&mut self.state.borrow_mut().children)
+                .into_iter()
+                .map(|child| {
+                    // SAFETY: the last thread-bound `Submenu` is being dropped on the thread
+                    // where its children were wrapped, so they can be recovered and destroyed
+                    // here.
+                    unsafe { child.unwrap() }
+                })
+                .collect();
+
+            #[cfg(any(
+                all(target_os = "macos", feature = "appkit"),
+                all(
+                    any(
+                        target_os = "linux",
+                        target_os = "dragonfly",
+                        target_os = "freebsd",
+                        target_os = "netbsd",
+                        target_os = "openbsd"
+                    ),
+                    any(feature = "gtk", feature = "gtk4")
+                )
+            ))]
+            self.platform.borrow_mut().destroy(&children);
+
+            drop(children);
         }
     }
 }
 
-impl IsMenuItemBase for Submenu {}
+impl crate::sealed::Sealed for Submenu {}
 impl IsMenuItem for Submenu {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Submenu(self.clone())
@@ -107,7 +135,7 @@ impl Submenu {
 
         Self {
             id: Rc::new(id.clone()),
-            state: Rc::new(RefCell::new(state)),
+            state: StateCell::new(state),
             platform: Rc::new(RefCell::new(platform)),
         }
     }
@@ -196,6 +224,7 @@ impl Submenu {
             platform.attach(&kind, op)?;
         }
 
+        let kind = UnsafeMenuItemKind::new(kind);
         let mut state = self.state.borrow_mut();
         match op {
             AddOp::Append => state.children.push(kind),
@@ -231,6 +260,10 @@ impl Submenu {
             state.children.remove(position)
         };
 
+        // SAFETY: this thread-bound `Submenu` can mutate its children only on the thread where their
+        // `MenuItemKind` values were wrapped.
+        let kind = unsafe { kind.unwrap() };
+
         self.platform.borrow_mut().remove_at(position, &kind);
 
         Some(kind)
@@ -238,15 +271,22 @@ impl Submenu {
 
     /// Returns a list of menu items that has been added to this submenu.
     pub fn items(&self) -> Vec<MenuItemKind> {
-        self.state.borrow().children.clone()
+        self.state
+            .borrow()
+            .children
+            .iter()
+            .map(|child| {
+                // SAFETY: the thread-bound `Submenu` remains on the thread where its children were
+                // wrapped, and the returned clones remain on that thread.
+                unsafe { child.clone() }
+            })
+            .collect()
     }
 
     /// Get the text for this submenu.
     pub fn text(&self) -> String {
-        self.platform
-            .borrow()
-            .text()
-            .unwrap_or_else(|| self.state.borrow().text.clone())
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this submenu. `text` could optionally contain
@@ -280,10 +320,8 @@ impl Submenu {
 
     /// Get whether this submenu is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.platform
-            .borrow()
-            .is_enabled()
-            .unwrap_or_else(|| self.state.borrow().enabled)
+        let enabled = self.platform.borrow().is_enabled();
+        enabled.unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this submenu.
@@ -306,7 +344,7 @@ impl Submenu {
     /// this method will set the first instance of this submenu as the Window menu for the application.
     ///
     /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     pub fn set_as_windows_menu_for_nsapp(&self) {
         self.platform.borrow_mut().set_as_windows_menu_for_nsapp()
     }
@@ -326,7 +364,7 @@ impl Submenu {
     /// this method will set the first instance of this submenu as the Help menu for the application.
     ///
     /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     pub fn set_as_help_menu_for_nsapp(&self) {
         self.platform.borrow_mut().set_as_help_menu_for_nsapp()
     }
@@ -349,9 +387,12 @@ impl Submenu {
     ///
     /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
     pub fn set_icon(&self, icon: Option<Icon>) {
-        self.state.borrow_mut().icon = icon.map(IconType::Custom);
-        let state = self.state.borrow();
-        self.platform.borrow_mut().set_icon(state.icon.as_ref())
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Custom);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon(icon.as_ref())
     }
 
     /// Change this menu item icon to a native image or remove it.
@@ -375,31 +416,33 @@ impl Submenu {
     ///
     /// (Note that setting a native icon will override any existing [.set_icon()](Self::set_icon))
     pub fn set_native_icon(&self, icon: Option<NativeIcon>) {
-        let icon = icon.map(IconType::Native);
-        self.state.borrow_mut().icon = icon;
-        let state = self.state.borrow();
-        self.platform.borrow_mut().set_icon(state.icon.as_ref())
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Native);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon(icon.as_ref())
     }
 }
 
 impl ContextMenu for Submenu {
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     fn hpopupmenu(&self) -> isize {
         self.platform.borrow().hpopupmenu()
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
         let selected = self.platform.borrow().show_context_menu(hwnd, position);
         crate::platform_impl::dispatch_selection(hwnd, selected)
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
@@ -419,10 +462,10 @@ impl ContextMenu for Submenu {
         w: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
-        let state = self.state.borrow();
+        let children = self.items();
         self.platform
             .borrow_mut()
-            .show_context_menu_for_gtk_window(&state.children, w, position)
+            .show_context_menu_for_gtk_window(&children, w, position)
     }
 
     #[cfg(all(
@@ -436,8 +479,8 @@ impl ContextMenu for Submenu {
         feature = "gtk"
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
-        let state = self.state.borrow();
-        self.platform.borrow_mut().gtk_context_menu(&state.children)
+        let children = self.items();
+        self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
     #[cfg(all(
@@ -451,11 +494,11 @@ impl ContextMenu for Submenu {
         feature = "gtk4"
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
-        let state = self.state.borrow();
-        self.platform.borrow_mut().gtk_context_menu(&state.children)
+        let children = self.items();
+        self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -466,7 +509,7 @@ impl ContextMenu for Submenu {
             .show_context_menu_for_nsview(view, position)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }
@@ -474,25 +517,25 @@ impl ContextMenu for Submenu {
     fn as_submenu(&self) -> Option<&Submenu> {
         Some(self)
     }
+
+    #[cfg(feature = "snapshot")]
+    fn snapshot_handle(&self) -> MenuSnapshotHandle {
+        MenuSnapshotHandle::from_submenu(self.state.clone())
+    }
 }
 
 impl Submenu {
     /// Whether this submenu is the same as `other`.
     fn is_equal_to(&self, other: &Submenu) -> bool {
-        Rc::ptr_eq(&self.state, &other.state)
+        self.state.ptr_eq(&other.state)
     }
 
     /// Whether this submenu contains `other` anywhere in its subtree.
     fn contains(&self, other: &Submenu) -> bool {
-        self.state
-            .borrow()
-            .children
-            .iter()
-            .any(|child| match child {
-                MenuItemKind::Submenu(submenu) => {
-                    submenu.is_equal_to(other) || submenu.contains(other)
-                }
-                _ => false,
-            })
+        let children = self.items();
+        children.iter().any(|child| match child {
+            MenuItemKind::Submenu(submenu) => submenu.is_equal_to(other) || submenu.contains(other),
+            _ => false,
+        })
     }
 }

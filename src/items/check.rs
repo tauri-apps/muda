@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 
 use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
-    sealed::IsMenuItemBase,
-    util, CheckMenuItemBuilder, ClickAction, IsMenuItem, MenuId, MenuItemKind, TextStyle,
+    util, CheckMenuItemBuilder, ClickAction, IsMenuItem, MenuId, MenuItemKind, StateCell,
+    TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -19,8 +19,8 @@ use crate::{
 /// [`Submenu`]: crate::Submenu
 #[derive(Clone)]
 pub struct CheckMenuItem {
-    pub(crate) id: Rc<MenuId>,
-    pub(crate) state: Rc<RefCell<CheckMenuItemState>>,
+    pub(crate) id: Arc<MenuId>,
+    pub(crate) state: StateCell<CheckMenuItemState>,
     pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
 }
 
@@ -34,7 +34,7 @@ pub(crate) struct CheckMenuItemState {
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
-impl IsMenuItemBase for CheckMenuItem {}
+impl crate::sealed::Sealed for CheckMenuItem {}
 impl IsMenuItem for CheckMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Check(self.clone())
@@ -102,22 +102,21 @@ impl CheckMenuItem {
         accelerator: Option<MenuAccelerator>,
     ) -> Self {
         let id = util::next_id(id);
-        let state = Rc::new(RefCell::new(CheckMenuItemState {
+        let state = StateCell::new(CheckMenuItemState {
             text: text.to_string(),
             enabled,
             checked,
             accelerator,
             styled_text: None,
-        }));
-
+        });
         // The click path flips `checked` through this handle rather than through the wrapper,
         // which it has no way to reach. It is weak so that state does not own the platform that
         // owns it back (O4).
-        let click = ClickAction::Toggle(id.clone(), Rc::downgrade(&state));
+        let click = ClickAction::Toggle(id.clone(), state.downgrade());
         let platform = PlatformMenuItem::new(click);
 
         Self {
-            id: Rc::new(id),
+            id: Arc::new(id),
             state,
             platform: Rc::new(RefCell::new(platform)),
         }
@@ -130,10 +129,8 @@ impl CheckMenuItem {
 
     /// Get the text for this check menu item.
     pub fn text(&self) -> String {
-        self.platform
-            .borrow()
-            .text()
-            .unwrap_or_else(|| self.state.borrow().text.clone())
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this check menu item. `text` could optionally contain
@@ -171,10 +168,8 @@ impl CheckMenuItem {
 
     /// Get whether this check menu item is enabled or not.
     pub fn is_enabled(&self) -> bool {
-        self.platform
-            .borrow()
-            .is_enabled()
-            .unwrap_or_else(|| self.state.borrow().enabled)
+        let enabled = self.platform.borrow().is_enabled();
+        enabled.unwrap_or_else(|| self.state.borrow().enabled)
     }
 
     /// Enable or disable this check menu item.
@@ -211,10 +206,8 @@ impl CheckMenuItem {
 
     /// Get whether this check menu item is checked or not.
     pub fn is_checked(&self) -> bool {
-        self.platform
-            .borrow()
-            .is_checked()
-            .unwrap_or_else(|| self.state.borrow().checked)
+        let checked = self.platform.borrow().is_checked();
+        checked.unwrap_or_else(|| self.state.borrow().checked)
     }
 
     /// Check or Uncheck this check menu item.
@@ -225,8 +218,7 @@ impl CheckMenuItem {
 
     /// Convert this menu item into its menu ID.
     pub fn into_id(mut self) -> MenuId {
-        // Note: `Rc::into_inner` is available from Rust 1.70
-        if let Some(id) = Rc::get_mut(&mut self.id) {
+        if let Some(id) = Arc::get_mut(&mut self.id) {
             mem::take(id)
         } else {
             self.id().clone()

@@ -42,6 +42,15 @@ use crate::{
 
 static COUNTER: Counter = Counter::new();
 
+#[cfg(feature = "snapshot")]
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    // TODO: Dispatch the callback to the macOS main thread instead of running it inline.
+    f();
+}
+
 /// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";
@@ -133,7 +142,7 @@ impl PlatformMenu {
     }
 
     pub fn remove_at(&mut self, position: usize, item: &MenuItemKind) {
-        let children = item.children();
+        let children = item.items();
         item.platform()
             .borrow_mut()
             .remove_instance_for_parent_at_position(&self.ns_menu, position, &children);
@@ -372,7 +381,7 @@ impl PlatformMenuItem {
 
 fn remove_children_instances_for_parent(parent_id: u32, children: &[MenuItemKind]) {
     for child in children {
-        let descendants = child.children();
+        let descendants = child.items();
         child
             .platform()
             .borrow_mut()
@@ -432,7 +441,7 @@ impl PlatformMenuItem {
     }
 
     pub fn remove_at(&mut self, position: usize, item: &MenuItemKind) {
-        let children = item.children();
+        let children = item.items();
         let child = item.platform();
 
         //  Join the ns_menus and ns_menu into a single iterator of parent menus to remove the child from
@@ -976,7 +985,7 @@ impl MenuItemKind {
         let mut item = platform.borrow_mut();
 
         let ns_item = match self {
-            MenuItemKind::Submenu(_) => item.create_ns_submenu(&args, &self.children(), menu_id),
+            MenuItemKind::Submenu(_) => item.create_ns_submenu(&args, &self.items(), menu_id),
             MenuItemKind::MenuItem(_) => item.create_ns_item(&args, platform.clone(), menu_id),
             MenuItemKind::Predefined(i) => {
                 let predefined_item_type = i.state.borrow().predefined_item_type.clone();

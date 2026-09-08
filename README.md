@@ -8,8 +8,7 @@ Menu Utilities library for Desktop Applications.
 
 - Windows
 - macOS
-- Linux/BSD with GTK 3
-- Linux/BSD with GTK 4
+- Linux/BSD with GTK 3 or GTK 4
 
 ## Platform-specific notes:
 
@@ -19,11 +18,14 @@ Menu Utilities library for Desktop Applications.
 
 ### Cargo Features
 
-- `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
-- `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used by GTK 4.
-- `serde`: Enables de/serializing the dpi types.
+- `win32`: Enables the Win32 backend on Windows. This is enabled by default.
+- `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
 - `gtk`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
 - `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk`.
+- `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
+- `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used by GTK 4.
+- `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state to thread-safe synchronization.
+- `serde`: Enables de/serializing the dpi types.
 
 The `gtk` and `gtk4` features are mutually exclusive.
 

@@ -20,11 +20,20 @@ include = [
 ]
 
 [features]
-default = ["libxdo", "gtk"]
+default = ["libxdo", "gtk", "appkit", "win32"]
 libxdo = ["dep:libxdo"]
 gtk = ["dep:gtk"]
 gtk4 = ["dep:gtk4"]
+appkit = [
+  "dep:objc2",
+  "dep:objc2-app-kit",
+  "dep:objc2-core-foundation",
+  "dep:objc2-foundation",
+  "dep:png",
+]
+win32 = ["dep:windows-sys"]
 common-controls-v6 = []
+snapshot = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
@@ -37,6 +46,7 @@ dpi = "0.1"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
 version = ">=0.60, <=0.61"
+optional = true
 features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_Foundation",
@@ -57,12 +67,12 @@ gtk4 = { version = "0.11", optional = true, features = ["v4_12"] }
 libxdo = { version = "0.6.0", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6.1"
-objc2-core-foundation = { version = "0.3.0", default-features = false, features = [
+objc2 = { version = "0.6.1", optional = true }
+objc2-core-foundation = { version = "0.3.0", optional = true, default-features = false, features = [
   "std",
   "CFCGTypes",
 ] }
-objc2-foundation = { version = "0.3.0", default-features = false, features = [
+objc2-foundation = { version = "0.3.0", optional = true, default-features = false, features = [
   "std",
   "NSAttributedString",
   "NSData",
@@ -72,7 +82,7 @@ objc2-foundation = { version = "0.3.0", default-features = false, features = [
   "NSString",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.3.0", default-features = false, features = [
+objc2-app-kit = { version = "0.3.0", optional = true, default-features = false, features = [
   "std",
   "objc2-core-foundation",
   "NSApplication",
@@ -90,7 +100,7 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSView",
   "NSWindow",
 ] }
-png = "0.18"
+png = { version = "0.18", optional = true }
 
 [dev-dependencies]
 winit = "0.30"
@@ -102,13 +112,5 @@ winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk
 ] }
 
 [[example]]
-name = "tao"
-required-features = ["gtk"]
-
-[[example]]
 name = "winit_gtk4"
 required-features = ["gtk4"]
-
-[[example]]
-name = "wry"
-required-features = ["gtk"]

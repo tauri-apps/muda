@@ -27,6 +27,14 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
+#[cfg(feature = "snapshot")]
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    glib::idle_add_once(f);
+}
+
 pub struct PlatformMenu {
     gtk_menubars: HashMap<u32, gtk::MenuBar>,
     gtk_windows: HashMap<u32, glib::WeakRef<gtk::Window>>,
@@ -299,7 +307,7 @@ fn drop_children_from_menu_and_destroy(
     children: &[MenuItemKind],
 ) {
     for child in children {
-        let descendants = child.children();
+        let descendants = child.items();
         let child_platform = child.platform();
         let mut child_ = child_platform.borrow_mut();
         {
@@ -537,7 +545,8 @@ impl PlatformMenuItem {
             let IconType::Native(icon) = icon? else {
                 return None;
             };
-            let image = gtk::Image::from_icon_name(Some(icon.gtk_icon_name()), gtk::IconSize::Menu);
+            let icon_name = icon.freedesktop_name();
+            let image = gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Menu);
             Some(image)
         }
     }
@@ -562,7 +571,7 @@ impl PlatformMenuItem {
                     if let Some(pixbuf) = pixbuf.as_ref() {
                         image.set_pixbuf(Some(pixbuf));
                     } else if let Some(IconType::Native(native_icon)) = icon {
-                        let native_icon = native_icon.gtk_icon_name();
+                        let native_icon = native_icon.freedesktop_name();
                         image.set_from_icon_name(Some(native_icon), gtk::IconSize::Menu);
                     } else {
                         box_container.remove(image);
@@ -696,7 +705,7 @@ impl PlatformMenuItem {
             };
 
             if let Some((menu_id, menu)) = removed_menu {
-                let descendants = child.children();
+                let descendants = child.items();
                 drop_children_from_menu_and_destroy(menu_id, &menu, &descendants);
                 self.accel_groups.remove(&menu_id);
                 unsafe { menu.destroy() };
@@ -1062,7 +1071,7 @@ impl MenuItemKind {
         match self {
             Self::Submenu(_) => item.create_gtk_submenu(
                 &args,
-                &self.children(),
+                &self.items(),
                 menu_id,
                 accel_group,
                 add_to_cache,

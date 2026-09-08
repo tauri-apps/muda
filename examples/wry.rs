@@ -11,7 +11,7 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "appkit"))]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(any(
     target_os = "linux",
@@ -21,7 +21,7 @@ use tao::platform::macos::WindowExtMacOS;
     target_os = "openbsd"
 ))]
 use tao::platform::unix::WindowExtUnix;
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "win32"))]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{Event, WindowEvent},
@@ -48,7 +48,7 @@ fn main() -> wry::Result<()> {
     let menu_bar = Menu::new();
 
     // setup accelerator handler on Windows
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     {
         let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
@@ -183,17 +183,20 @@ fn main() -> wry::Result<()> {
         ])
         .unwrap();
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe {
         menu_bar.init_for_hwnd(window.hwnd() as _).unwrap();
         menu_bar.init_for_hwnd(window2.hwnd() as _).unwrap();
     }
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
+    #[cfg(all(
+        feature = "gtk",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )
     ))]
     {
         menu_bar
@@ -203,7 +206,7 @@ fn main() -> wry::Result<()> {
             .init_for_gtk_window(window2.gtk_window(), window2.default_vbox())
             .unwrap();
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
@@ -281,12 +284,15 @@ fn main() -> wry::Result<()> {
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
 
-                #[cfg(any(
-                    target_os = "linux",
-                    target_os = "dragonfly",
-                    target_os = "freebsd",
-                    target_os = "netbsd",
-                    target_os = "openbsd"
+                #[cfg(all(
+                    feature = "gtk",
+                    any(
+                        target_os = "linux",
+                        target_os = "dragonfly",
+                        target_os = "freebsd",
+                        target_os = "netbsd",
+                        target_os = "openbsd"
+                    )
                 ))]
                 if let Some(menu_bar) = menu_bar
                     .clone()
@@ -357,19 +363,22 @@ fn main() -> wry::Result<()> {
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     unsafe {
         menu.show_context_menu_for_hwnd(window.hwnd() as _, position);
     }
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
+    #[cfg(all(
+        feature = "gtk",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )
     ))]
     menu.show_context_menu_for_gtk_window(window.gtk_window().as_ref(), position);
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     unsafe {
         menu.show_context_menu_for_nsview(window.ns_view() as _, position);
     }

@@ -7,15 +7,14 @@ use std::{cell::RefCell, mem, rc::Rc};
 use crate::{
     accelerator::{Accelerator, Code, MenuAccelerator, Modifiers, CMD_OR_CTRL},
     platform_impl::PlatformMenuItem,
-    sealed::IsMenuItemBase,
-    util, AboutMetadata, ClickAction, IsMenuItem, MenuId, MenuItemKind,
+    util, AboutMetadata, ClickAction, IsMenuItem, MenuId, MenuItemKind, StateCell,
 };
 
 /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
 #[derive(Clone)]
 pub struct PredefinedMenuItem {
     pub(crate) id: Rc<MenuId>,
-    pub(crate) state: Rc<RefCell<PredefinedMenuItemState>>,
+    pub(crate) state: StateCell<PredefinedMenuItemState>,
     pub(crate) platform: Rc<RefCell<PlatformMenuItem>>,
 }
 
@@ -27,7 +26,7 @@ pub(crate) struct PredefinedMenuItemState {
     pub enabled: bool,
 }
 
-impl IsMenuItemBase for PredefinedMenuItem {}
+impl crate::sealed::Sealed for PredefinedMenuItem {}
 impl IsMenuItem for PredefinedMenuItem {
     fn kind(&self) -> MenuItemKind {
         MenuItemKind::Predefined(self.clone())
@@ -297,15 +296,15 @@ impl PredefinedMenuItem {
             .map(|text| text.as_ref().to_string())
             .unwrap_or_else(|| item.default_text(app_name().as_deref()));
         let enabled = item.is_supported();
-        let state = Rc::new(RefCell::new(PredefinedMenuItemState {
+        let state = StateCell::new(PredefinedMenuItemState {
             text: resolved_text,
             predefined_item_type: item,
             enabled,
-        }));
+        });
 
         // A predefined item emits no event; what it does instead is decided from its kind at
         // click time, which is why the action needs a handle to state rather than the id.
-        let click = ClickAction::Predefined(Rc::downgrade(&state));
+        let click = ClickAction::Predefined(state.downgrade());
         let platform = PlatformMenuItem::new(click);
 
         Self {
@@ -322,10 +321,8 @@ impl PredefinedMenuItem {
 
     /// Get the text for this predefined menu item.
     pub fn text(&self) -> String {
-        self.platform
-            .borrow()
-            .text()
-            .unwrap_or_else(|| self.state.borrow().text.clone())
+        let text = self.platform.borrow().text();
+        text.unwrap_or_else(|| self.state.borrow().text.clone())
     }
 
     /// Set the text for this predefined menu item.
@@ -358,11 +355,11 @@ impl PredefinedMenuItem {
 /// [`PredefinedMenuItemState::new`] takes the name as an argument instead of fetching it: the
 /// other three platforms' labels never mention it, so everywhere else this is a constant.
 fn app_name() -> Option<String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     {
         crate::platform_impl::app_name()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(all(target_os = "macos", feature = "appkit")))]
     {
         None
     }
@@ -480,7 +477,7 @@ impl PredefinedMenuItemType {
     ///
     /// An unsupported kind is not rejected at construction — it is created and left
     /// disabled, which is why this feeds `enabled` rather than an error.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "win32"))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
             self,
@@ -498,6 +495,24 @@ impl PredefinedMenuItemType {
                 | PredefinedMenuItemType::Quit
                 | PredefinedMenuItemType::About(_)
         )
+    }
+
+    #[cfg(any(
+        all(target_os = "windows", not(feature = "win32")),
+        all(target_os = "macos", not(feature = "appkit")),
+        all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            not(any(feature = "gtk", feature = "gtk4"))
+        )
+    ))]
+    pub(crate) fn is_supported(&self) -> bool {
+        matches!(self, PredefinedMenuItemType::Separator)
     }
 
     #[cfg(all(
@@ -546,7 +561,7 @@ impl PredefinedMenuItemType {
         )
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "appkit"))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
             self,

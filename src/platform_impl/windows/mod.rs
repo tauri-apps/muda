@@ -41,6 +41,15 @@ type Hwnd = isize;
 /// Internal command ids. Used for the `WM_COMMAND` message to identify which menu item was clicked.
 static COUNTER: Counter = Counter::new_with_start(1000);
 
+#[cfg(feature = "snapshot")]
+pub(crate) fn dispatch_on_main_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    // TODO: Dispatch the callback to the Windows main thread instead of running it inline.
+    f();
+}
+
 /// The accelerator table for a menu, which is shared by all windows that have the menu attached.
 /// and also by all submenus and items of the menu so that they can add and remove their own accelerators.
 struct AcceleratorTable {
