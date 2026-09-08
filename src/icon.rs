@@ -156,7 +156,7 @@ impl Icon {
     ///
     /// In cases where the specified size does not exist in the file, Windows may perform scaling
     /// to get an icon of the desired size.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(windows)]
     pub fn from_path<P: AsRef<std::path::Path>>(
         path: P,
         size: Option<(u32, u32)>,
@@ -176,7 +176,7 @@ impl Icon {
     ///
     /// In cases where the specified size does not exist in the file, Windows may perform scaling
     /// to get an icon of the desired size.
-    #[cfg(all(windows, feature = "win32"))]
+    #[cfg(windows)]
     pub fn from_resource(ordinal: u16, size: Option<(u32, u32)>) -> Result<Self, BadIcon> {
         let win_icon = PlatformIcon::from_resource(ordinal, size)?;
         Ok(Icon {

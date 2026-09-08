@@ -9,7 +9,7 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
-#[cfg(all(target_os = "macos", feature = "appkit"))]
+#[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(all(
     feature = "gtk3",
@@ -22,7 +22,7 @@ use tao::platform::macos::WindowExtMacOS;
     )
 ))]
 use tao::platform::unix::WindowExtUnix;
-#[cfg(all(target_os = "windows", feature = "win32"))]
+#[cfg(target_os = "windows")]
 use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{ElementState, Event, MouseButton, WindowEvent},
@@ -35,7 +35,7 @@ fn main() {
 
     let menu_bar = Menu::new();
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     {
         let menu_bar = menu_bar.clone();
         event_loop_builder.with_msg_hook(move |msg| {
@@ -141,7 +141,7 @@ fn main() {
 
     edit_m.append_items(&[&copy_i, &PredefinedMenuItem::separator(), &paste_i]);
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
@@ -151,7 +151,7 @@ fn main() {
             menu_bar.init_for_hwnd(handle.hwnd.get()).unwrap();
         }
     }
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     {
         menu_bar.init_for_nsapp();
         window_m.set_as_windows_menu_for_nsapp();
@@ -216,7 +216,7 @@ fn main() {
 
 fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<Position>) {
     println!("Show context menu at position {position:?}");
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::Win32(handle) = window.window_handle().unwrap().as_raw() {
@@ -224,7 +224,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         }
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     {
         use tao::rwh_06::*;
         if let RawWindowHandle::AppKit(handle) = window.window_handle().unwrap().as_raw() {

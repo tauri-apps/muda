@@ -14,8 +14,8 @@ use crate::{
 use crate::MenuSnapshotHandle;
 
 #[cfg(any(
-    all(target_os = "windows", feature = "win32"),
-    all(target_os = "macos", feature = "appkit"),
+    target_os = "windows",
+    target_os = "macos",
     all(
         any(
             target_os = "linux",
@@ -56,7 +56,7 @@ impl Drop for Menu {
                 .collect();
 
             #[cfg(any(
-                all(target_os = "macos", feature = "appkit"),
+                target_os = "macos",
                 all(
                     any(
                         target_os = "linux",
@@ -343,7 +343,7 @@ impl Menu {
     ///     }
     /// }
     /// ```
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow_mut().init_for_hwnd(hwnd)
     }
@@ -357,7 +357,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn init_for_hwnd_with_theme(
         &self,
         hwnd: isize,
@@ -375,7 +375,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn set_theme_for_hwnd(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()> {
         self.platform.borrow().set_theme_for_hwnd(hwnd, theme)
     }
@@ -385,7 +385,7 @@ impl Menu {
     /// in the event loop to enable accelerators
     ///
     /// The returned [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) is valid as long as the [Menu] is.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub fn haccel(&self) -> isize {
         self.platform.borrow().haccel()
     }
@@ -417,7 +417,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow_mut().remove_for_hwnd(hwnd)
     }
@@ -445,7 +445,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow().hide_for_hwnd(hwnd)
     }
@@ -473,7 +473,7 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
         self.platform.borrow().show_for_hwnd(hwnd)
     }
@@ -539,19 +539,19 @@ impl Menu {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     pub unsafe fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
         self.platform.borrow().is_visible_on_hwnd(hwnd)
     }
 
     /// Adds this menu to an NSApp.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     pub fn init_for_nsapp(&self) {
         self.platform.borrow_mut().init_for_nsapp()
     }
 
     /// Removes this menu from an NSApp.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     pub fn remove_for_nsapp(&self) {
         self.platform.borrow_mut().remove_for_nsapp()
     }
@@ -559,23 +559,23 @@ impl Menu {
 
 impl crate::sealed::Sealed for Menu {}
 impl ContextMenu for Menu {
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> isize {
         self.platform.borrow().hpopupmenu()
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
         let selected = self.platform.borrow().show_context_menu(hwnd, position);
         crate::platform_impl::dispatch_selection(hwnd, selected)
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
         self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
     }
 
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
         self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
     }
@@ -631,7 +631,7 @@ impl ContextMenu for Menu {
         self.platform.borrow_mut().gtk_context_menu(&children)
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -642,7 +642,7 @@ impl ContextMenu for Menu {
             .show_context_menu_for_nsview(view, position)
     }
 
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }
@@ -658,7 +658,7 @@ impl ContextMenu for Menu {
 }
 
 /// The window menu bar theme
-#[cfg(all(windows, feature = "win32"))]
+#[cfg(windows)]
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -23,8 +23,8 @@
 //!
 //! # Cargo features
 //!
-//! - `win32`: Enables the Win32 backend on Windows. This is enabled by default.
-//! - `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
+//! The Win32 and AppKit backends are always enabled on Windows and macOS, respectively.
+//!
 //! - `gtk3`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
 //! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
 //!   enabling this feature because the defaults include `gtk3`.
@@ -132,7 +132,7 @@
 //! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
-//! #[cfg(all(target_os = "windows", feature = "win32"))]
+//! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
 //! #[cfg(any(
 //!     target_os = "linux",
@@ -142,7 +142,7 @@
 //!     target_os = "openbsd"
 //! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
-//! #[cfg(all(target_os = "macos", feature = "appkit"))]
+//! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
 //! ```
 //!
@@ -164,11 +164,11 @@
 //!     target_os = "openbsd"
 //! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(all(target_os = "macos", feature = "appkit"))]
+//! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
 //! // --snip--
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
-//! #[cfg(all(target_os = "windows", feature = "win32"))]
+//! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
 //! #[cfg(any(
 //!     target_os = "linux",
@@ -178,7 +178,7 @@
 //!     target_os = "openbsd"
 //! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
-//! #[cfg(all(target_os = "macos", feature = "appkit"))]
+//! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
 //! ```
 //! # Processing menu events
@@ -466,7 +466,7 @@ pub trait ContextMenu: sealed::Sealed {
     /// The returned [`HMENU`] is valid as long as the `ContextMenu` is.
     ///
     /// [`HMENU`]: windows_sys::Win32::UI::WindowsAndMessaging::HMENU
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     fn hpopupmenu(&self) -> isize;
 
     /// Shows this menu as a context menu inside a win32 window.
@@ -478,7 +478,7 @@ pub trait ContextMenu: sealed::Sealed {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn show_context_menu_for_hwnd(
         &self,
         hwnd: isize,
@@ -493,7 +493,7 @@ pub trait ContextMenu: sealed::Sealed {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize);
 
     /// Remove the menu subclass handler from the given hwnd
@@ -503,7 +503,7 @@ pub trait ContextMenu: sealed::Sealed {
     /// # Safety
     ///
     /// The `hwnd` must be a valid window HWND.
-    #[cfg(all(target_os = "windows", feature = "win32"))]
+    #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
     /// Shows this menu as a context menu inside a [`gtk::Window`].
@@ -568,7 +568,7 @@ pub trait ContextMenu: sealed::Sealed {
     /// # Safety
     ///
     /// The view must be a pointer to a valid `NSView`.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
@@ -579,7 +579,7 @@ pub trait ContextMenu: sealed::Sealed {
     ///
     /// The returned pointer is valid for as long as the `ContextMenu` is. If
     /// you need it to be alive for longer, retain it.
-    #[cfg(all(target_os = "macos", feature = "appkit"))]
+    #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
 
     /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.

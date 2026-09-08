@@ -18,8 +18,8 @@ Menu Utilities library for Desktop Applications.
 
 ### Cargo Features
 
-- `win32`: Enables the Win32 backend on Windows. This is enabled by default.
-- `appkit`: Enables the AppKit backend on macOS. This is enabled by default.
+The Win32 and AppKit backends are always enabled on Windows and macOS, respectively.
+
 - `gtk3`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
 - `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk3`.
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
