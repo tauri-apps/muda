@@ -170,7 +170,7 @@ impl Submenu {
 
     /// Add a menu item to the end of this menu.
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Append)
+        self.add_menu_item(item, AddOp::Append).map(drop)
     }
 
     /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.
@@ -184,7 +184,7 @@ impl Submenu {
 
     /// Add a menu item to the beginning of this submenu.
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(0))
+        self.add_menu_item(item, AddOp::Insert(0)).map(drop)
     }
 
     /// Add menu items to the beginning of this submenu.
@@ -196,20 +196,27 @@ impl Submenu {
 
     /// Insert a menu item at the specified `position` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(position))
+        self.add_menu_item(item, AddOp::Insert(position)).map(drop)
     }
 
     /// Insert menu items at the specified `position` in the submenu.
     pub fn insert_items(&self, items: &[&dyn IsMenuItem], position: usize) -> crate::Result<()> {
-        for (i, item) in items.iter().enumerate() {
-            self.insert(*item, position + i)?
+        let mut inserted = 0;
+        for item in items {
+            if self.add_menu_item(*item, AddOp::Insert(position + inserted))? {
+                inserted += 1;
+            }
         }
 
         Ok(())
     }
 
-    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
+    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<bool> {
         let kind = item.kind();
+
+        if !kind.should_render() {
+            return Ok(false);
+        }
 
         // Reject a submenu that is, or transitively contains, this submenu:
         // attaching it would create a cycle in the menu tree.
@@ -231,7 +238,7 @@ impl Submenu {
             AddOp::Insert(position) => state.children.insert(position, kind),
         }
 
-        Ok(())
+        Ok(true)
     }
 
     /// Remove all occurrences of a menu item from this submenu.

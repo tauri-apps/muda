@@ -47,6 +47,17 @@ impl PredefinedMenuItem {
         PredefinedMenuItem::new::<&str>(PredefinedMenuItemType::Separator, None)
     }
 
+    /// Non-interactive section header menu item.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS:** Uses the native section-header appearance on macOS 14 and later. The item is
+    ///   not added to menus on older versions.
+    /// - **Windows / GTK 3 / GTK 4:** The item is not added to menus.
+    pub fn section_header(text: &str) -> PredefinedMenuItem {
+        PredefinedMenuItem::new(PredefinedMenuItemType::SectionHeader, Some(text))
+    }
+
     /// Copy menu item
     ///
     /// ## Platform-specific:
@@ -295,7 +306,7 @@ impl PredefinedMenuItem {
             .as_ref()
             .map(|text| text.as_ref().to_string())
             .unwrap_or_else(|| item.default_text(app_name().as_deref()));
-        let enabled = item.is_supported();
+        let enabled = item.is_supported() && !matches!(item, PredefinedMenuItemType::SectionHeader);
         let state = StateCell::new(PredefinedMenuItemState {
             text: resolved_text,
             predefined_item_type: item,
@@ -338,6 +349,23 @@ impl PredefinedMenuItem {
             .set_text(text.as_ref(), accelerator.as_ref())
     }
 
+    pub(crate) fn should_render(&self) -> bool {
+        let is_section_header = matches!(
+            self.state.borrow().predefined_item_type,
+            PredefinedMenuItemType::SectionHeader
+        );
+
+        if !is_section_header {
+            return true;
+        }
+
+        #[cfg(target_os = "macos")]
+        return objc2::available!(macos = 14.0);
+
+        #[cfg(not(target_os = "macos"))]
+        false
+    }
+
     /// Convert this menu item into its menu ID.
     pub fn into_id(mut self) -> MenuId {
         // Note: `Rc::into_inner` is available from Rust 1.70
@@ -370,6 +398,7 @@ fn app_name() -> Option<String> {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PredefinedMenuItemType {
     Separator,
+    SectionHeader,
     Copy,
     Cut,
     Paste,
@@ -402,6 +431,7 @@ impl PredefinedMenuItemType {
     pub(crate) fn text(&self) -> &str {
         match self {
             PredefinedMenuItemType::Separator => "",
+            PredefinedMenuItemType::SectionHeader => "",
             PredefinedMenuItemType::Copy => "&Copy",
             PredefinedMenuItemType::Cut => "Cu&t",
             PredefinedMenuItemType::Paste => "&Paste",
@@ -563,6 +593,7 @@ impl PredefinedMenuItemType {
         matches!(
             self,
             PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::SectionHeader
                 | PredefinedMenuItemType::Copy
                 | PredefinedMenuItemType::Cut
                 | PredefinedMenuItemType::Paste

@@ -716,6 +716,10 @@ impl PlatformMenuItem {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
         let ns_menu_item = match &predefined_item_type {
             PredefinedMenuItemType::Separator => NSMenuItem::separatorItem(mtm),
+            PredefinedMenuItemType::SectionHeader => {
+                let title = NSString::from_str(&strip_mnemonic(&args.text));
+                NSMenuItem::sectionHeaderWithTitle(&title, mtm)
+            }
             _ => {
                 let selector = predefined_item_type.selector();
                 let ns_menu_item =
@@ -918,6 +922,7 @@ impl PredefinedMenuItemType {
     pub(crate) fn selector(&self) -> Option<Sel> {
         match self {
             PredefinedMenuItemType::Separator => None,
+            PredefinedMenuItemType::SectionHeader => None,
             PredefinedMenuItemType::Copy => Some(sel!(copy:)),
             PredefinedMenuItemType::Cut => Some(sel!(cut:)),
             PredefinedMenuItemType::Paste => Some(sel!(paste:)),

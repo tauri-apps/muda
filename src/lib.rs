@@ -333,6 +333,13 @@ impl UnsafeMenuItemKind {
 }
 
 impl MenuItemKind {
+    pub(crate) fn should_render(&self) -> bool {
+        match self {
+            Self::Predefined(item) => item.should_render(),
+            _ => true,
+        }
+    }
+
     /// Returns a thread-safe snapshot handle for this menu item.
     #[cfg(feature = "snapshot")]
     pub fn snapshot(&self) -> MenuItemKindSnapshot {
