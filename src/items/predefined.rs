@@ -505,7 +505,10 @@ impl PredefinedMenuItemType {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        not(any(feature = "gtk3", feature = "gtk4"))
+        any(
+            not(any(feature = "gtk3", feature = "gtk4")),
+            all(feature = "gtk3", feature = "gtk4")
+        )
     ))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(self, PredefinedMenuItemType::Separator)
@@ -519,7 +522,8 @@ impl PredefinedMenuItemType {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk3"
+        feature = "gtk3",
+        not(feature = "gtk4")
     ))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
@@ -541,7 +545,8 @@ impl PredefinedMenuItemType {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        feature = "gtk4",
+        not(feature = "gtk3")
     ))]
     pub(crate) fn is_supported(&self) -> bool {
         matches!(
