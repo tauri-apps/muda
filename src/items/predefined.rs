@@ -306,6 +306,7 @@ impl PredefinedMenuItem {
             .as_ref()
             .map(|text| text.as_ref().to_string())
             .unwrap_or_else(|| item.default_text(app_name().as_deref()));
+        // Section headers are supported on macOS 14+, but are labels rather than actionable items.
         let enabled = item.is_supported() && !matches!(item, PredefinedMenuItemType::SectionHeader);
         let state = StateCell::new(PredefinedMenuItemState {
             text: resolved_text,
