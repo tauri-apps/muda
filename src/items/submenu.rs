@@ -5,12 +5,13 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    menu::positions_of,
     platform_impl::PlatformMenuItem,
     util::{self, AddOp},
     ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, NativeIcon,
     StateCell, SubmenuBuilder, TextStyle, UnsafeMenuItemKind,
 };
+
+use super::menu::positions_of;
 
 #[cfg(feature = "snapshot")]
 use crate::MenuSnapshotHandle;
