@@ -717,8 +717,17 @@ impl PlatformMenuItem {
         let ns_menu_item = match &predefined_item_type {
             PredefinedMenuItemType::Separator => NSMenuItem::separatorItem(mtm),
             PredefinedMenuItemType::SectionHeader => {
-                let title = NSString::from_str(&strip_mnemonic(&args.text));
-                NSMenuItem::sectionHeaderWithTitle(&title, mtm)
+                if objc2::available!(macos = 14.0) {
+                    let title = NSString::from_str(&strip_mnemonic(&args.text));
+                    NSMenuItem::sectionHeaderWithTitle(&title, mtm)
+                } else {
+                    Retained::into_super(NsMenuItem::create(
+                        mtm,
+                        &args.text,
+                        None,
+                        &args.accelerator,
+                    )?)
+                }
             }
             _ => {
                 let selector = predefined_item_type.selector();

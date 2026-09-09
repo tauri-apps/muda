@@ -52,8 +52,8 @@ impl PredefinedMenuItem {
     /// ## Platform-specific:
     ///
     /// - **macOS:** Uses the native section-header appearance on macOS 14 and later. The item is
-    ///   not added to menus on older versions.
-    /// - **Windows / GTK 3 / GTK 4:** The item is not added to menus.
+    ///   rendered as a disabled menu item on older versions.
+    /// - **Windows / GTK 3 / GTK 4:** Rendered as a disabled menu item.
     pub fn section_header(text: &str) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::SectionHeader, Some(text))
     }
@@ -347,23 +347,6 @@ impl PredefinedMenuItem {
         self.platform
             .borrow_mut()
             .set_text(text.as_ref(), accelerator.as_ref())
-    }
-
-    pub(crate) fn should_render(&self) -> bool {
-        let is_section_header = matches!(
-            self.state.borrow().predefined_item_type,
-            PredefinedMenuItemType::SectionHeader
-        );
-
-        if !is_section_header {
-            return true;
-        }
-
-        #[cfg(target_os = "macos")]
-        return objc2::available!(macos = 14.0);
-
-        #[cfg(not(target_os = "macos"))]
-        false
     }
 
     /// Convert this menu item into its menu ID.

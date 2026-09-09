@@ -5,12 +5,13 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
-    menu::positions_of,
     platform_impl::PlatformMenuItem,
     util::{self, AddOp},
     ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, NativeIcon,
     StateCell, SubmenuBuilder, TextStyle, UnsafeMenuItemKind,
 };
+
+use super::menu::positions_of;
 
 #[cfg(feature = "snapshot")]
 use crate::MenuSnapshotHandle;
@@ -184,7 +185,7 @@ impl Submenu {
 
     /// Add a menu item to the beginning of this submenu.
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(0)).map(drop)
+        self.add_menu_item(item, AddOp::Insert(0))
     }
 
     /// Add menu items to the beginning of this submenu.
@@ -196,27 +197,20 @@ impl Submenu {
 
     /// Insert a menu item at the specified `position` in the submenu.
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(position)).map(drop)
+        self.add_menu_item(item, AddOp::Insert(position))
     }
 
     /// Insert menu items at the specified `position` in the submenu.
     pub fn insert_items(&self, items: &[&dyn IsMenuItem], position: usize) -> crate::Result<()> {
-        let mut inserted = 0;
-        for item in items {
-            if self.add_menu_item(*item, AddOp::Insert(position + inserted))? {
-                inserted += 1;
-            }
+        for (i, item) in items.iter().enumerate() {
+            self.insert(*item, position + i)?
         }
 
         Ok(())
     }
 
-    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<bool> {
+    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
         let kind = item.kind();
-
-        if !kind.should_render() {
-            return Ok(false);
-        }
 
         // Reject a submenu that is, or transitively contains, this submenu:
         // attaching it would create a cycle in the menu tree.
@@ -238,7 +232,7 @@ impl Submenu {
             AddOp::Insert(position) => state.children.insert(position, kind),
         }
 
-        Ok(true)
+        Ok(())
     }
 
     /// Remove all occurrences of a menu item from this submenu.

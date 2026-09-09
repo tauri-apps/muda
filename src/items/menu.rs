@@ -132,7 +132,7 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Append).map(drop)
+        self.add_menu_item(item, AddOp::Append)
     }
 
     /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
@@ -158,7 +158,7 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn prepend(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(0)).map(drop)
+        self.add_menu_item(item, AddOp::Insert(0))
     }
 
     /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
@@ -180,7 +180,7 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn insert(&self, item: &dyn IsMenuItem, position: usize) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Insert(position)).map(drop)
+        self.add_menu_item(item, AddOp::Insert(position))
     }
 
     /// Insert menu items at the specified `position` in the menu.
@@ -191,22 +191,15 @@ impl Menu {
     ///
     /// [`Submenu`]: crate::Submenu
     pub fn insert_items(&self, items: &[&dyn IsMenuItem], position: usize) -> crate::Result<()> {
-        let mut inserted = 0;
-        for item in items {
-            if self.add_menu_item(*item, AddOp::Insert(position + inserted))? {
-                inserted += 1;
-            }
+        for (i, item) in items.iter().enumerate() {
+            self.insert(*item, position + i)?
         }
 
         Ok(())
     }
 
-    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<bool> {
+    fn add_menu_item(&self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
         let kind = item.kind();
-
-        if !kind.should_render() {
-            return Ok(false);
-        }
 
         {
             let mut platform = self.platform.borrow_mut();
@@ -220,7 +213,7 @@ impl Menu {
             AddOp::Insert(position) => state.children.insert(position, kind),
         }
 
-        Ok(true)
+        Ok(())
     }
 
     /// Remove a menu item from this menu.
