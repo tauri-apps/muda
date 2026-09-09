@@ -34,7 +34,7 @@
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
-//! When both `gtk3` and `gtk4` features are enabled, Muda uses its no-op backend.
+//! When both `gtk3` and `gtk4` features are enabled, Muda uses the GTK 4 backend.
 //!
 //! # Dependencies (Linux/BSD)
 //!
@@ -231,8 +231,7 @@
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk4",
-    not(feature = "gtk3")
+    feature = "gtk4"
 ))]
 extern crate gtk4 as gtk;
 
@@ -519,10 +518,7 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(
-            all(feature = "gtk3", not(feature = "gtk4")),
-            all(feature = "gtk4", not(feature = "gtk3"))
-        )
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -557,8 +553,7 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4",
-        not(feature = "gtk3")
+        feature = "gtk4"
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 

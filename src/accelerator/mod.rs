@@ -58,8 +58,7 @@ pub(crate) mod gtk;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk4",
-    not(feature = "gtk3")
+    feature = "gtk4"
 ))]
 pub(crate) mod gtk4;
 #[cfg(target_os = "macos")]
