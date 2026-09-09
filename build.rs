@@ -12,7 +12,7 @@ fn main() {
         && std::env::var_os("CARGO_FEATURE_GTK4").is_some()
     {
         println!(
-            "cargo::warning=features `gtk3` and `gtk4` are enabled together; Muda will use its no-op backend"
+            "cargo::warning=features `gtk3` and `gtk4` are enabled together; Muda will use the `gtk4` backend"
         );
     }
 }
