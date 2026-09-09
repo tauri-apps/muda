@@ -233,7 +233,7 @@
     ),
     feature = "gtk4"
 ))]
-pub(crate) use gtk4 as gtk;
+extern crate gtk4 as gtk;
 
 pub mod about_metadata;
 pub mod accelerator;
