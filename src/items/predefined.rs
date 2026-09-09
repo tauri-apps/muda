@@ -306,8 +306,7 @@ impl PredefinedMenuItem {
             .as_ref()
             .map(|text| text.as_ref().to_string())
             .unwrap_or_else(|| item.default_text(app_name().as_deref()));
-        // Section headers are supported on macOS 14+, but are labels rather than actionable items.
-        let enabled = item.is_supported() && !matches!(item, PredefinedMenuItemType::SectionHeader);
+        let enabled = item.is_enabled();
         let state = StateCell::new(PredefinedMenuItemState {
             text: resolved_text,
             predefined_item_type: item,
@@ -605,6 +604,14 @@ impl PredefinedMenuItemType {
                 | PredefinedMenuItemType::StartDictation
                 | PredefinedMenuItemType::EmojiAndSymbols
         )
+    }
+
+    /// Whether this kind should be enabled on the current platform.
+    ///
+    /// Section headers are supported on macOS 14+, but remain disabled because they are labels
+    /// rather than actionable menu items.
+    fn is_enabled(&self) -> bool {
+        self.is_supported() && !matches!(self, PredefinedMenuItemType::SectionHeader)
     }
 
     pub(crate) fn accelerator(&self) -> Option<MenuAccelerator> {
