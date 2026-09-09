@@ -24,7 +24,7 @@ use crate::MenuSnapshotHandle;
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     )
 ))]
 use crate::dpi::Position;
@@ -65,7 +65,7 @@ impl Drop for Menu {
                         target_os = "netbsd",
                         target_os = "openbsd"
                     ),
-                    feature = "gtk4"
+                    any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
                 )
             ))]
             self.platform.borrow_mut().destroy(&children);
@@ -301,7 +301,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
@@ -399,7 +399,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -431,7 +431,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -459,7 +459,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
@@ -487,7 +487,7 @@ impl Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
@@ -589,7 +589,7 @@ impl ContextMenu for Menu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
