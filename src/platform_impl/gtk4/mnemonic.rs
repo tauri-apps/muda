@@ -8,16 +8,23 @@
 /// and two underlines (__) to escape it into a single underline
 /// while we use (&) and (&&), so we have to do a few conversions
 pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
-    string
-        .as_ref()
-        // escape underlines
-        .replace("_", "__")
-        // perserve &&
-        .replace("&&", "[~~]")
-        // transfrom & -> _
-        .replace('&', "_")
-        // revert back && to unsecaped &
-        .replace("[~~]", "&")
+    let string = string.as_ref();
+    let mut converted = String::with_capacity(string.len());
+    let mut characters = string.chars().peekable();
+
+    while let Some(character) = characters.next() {
+        match character {
+            '_' => converted.push_str("__"),
+            '&' if characters.peek() == Some(&'&') => {
+                characters.next();
+                converted.push('&');
+            }
+            '&' => converted.push('_'),
+            _ => converted.push(character),
+        }
+    }
+
+    converted
 }
 
 #[cfg(test)]
@@ -31,5 +38,6 @@ mod tests {
         assert_eq!(to_gtk_mnemonic("H&&&ello"), "H&_ello");
         assert_eq!(to_gtk_mnemonic("H_ello"), "H__ello");
         assert_eq!(to_gtk_mnemonic("H__ello"), "H____ello");
+        assert_eq!(to_gtk_mnemonic("[~~]"), "[~~]");
     }
 }
