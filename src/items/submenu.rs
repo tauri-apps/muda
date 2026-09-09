@@ -171,7 +171,7 @@ impl Submenu {
 
     /// Add a menu item to the end of this menu.
     pub fn append(&self, item: &dyn IsMenuItem) -> crate::Result<()> {
-        self.add_menu_item(item, AddOp::Append).map(drop)
+        self.add_menu_item(item, AddOp::Append)
     }
 
     /// Add menu items to the end of this submenu. It calls [`Submenu::append`] in a loop.

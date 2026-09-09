@@ -716,18 +716,9 @@ impl PlatformMenuItem {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
         let ns_menu_item = match &predefined_item_type {
             PredefinedMenuItemType::Separator => NSMenuItem::separatorItem(mtm),
-            PredefinedMenuItemType::SectionHeader => {
-                if objc2::available!(macos = 14.0) {
-                    let title = NSString::from_str(&strip_mnemonic(&args.text));
-                    NSMenuItem::sectionHeaderWithTitle(&title, mtm)
-                } else {
-                    Retained::into_super(NsMenuItem::create(
-                        mtm,
-                        &args.text,
-                        None,
-                        &args.accelerator,
-                    )?)
-                }
+            PredefinedMenuItemType::SectionHeader if objc2::available!(macos = 14.0) => {
+                let title = NSString::from_str(&strip_mnemonic(&args.text));
+                NSMenuItem::sectionHeaderWithTitle(&title, mtm)
             }
             _ => {
                 let selector = predefined_item_type.selector();
