@@ -26,7 +26,10 @@ use crate::MenuSnapshotHandle;
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk3", feature = "gtk4")
+        any(
+            all(feature = "gtk3", not(feature = "gtk4")),
+            all(feature = "gtk4", not(feature = "gtk3"))
+        )
     )
 ))]
 use crate::dpi::Position;
@@ -73,7 +76,10 @@ impl Drop for Submenu {
                         target_os = "netbsd",
                         target_os = "openbsd"
                     ),
-                    any(feature = "gtk3", feature = "gtk4")
+                    any(
+                        all(feature = "gtk3", not(feature = "gtk4")),
+                        all(feature = "gtk4", not(feature = "gtk3"))
+                    )
                 )
             ))]
             self.platform.borrow_mut().destroy(&children);
@@ -455,7 +461,10 @@ impl ContextMenu for Submenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk3", feature = "gtk4")
+        any(
+            all(feature = "gtk3", not(feature = "gtk4")),
+            all(feature = "gtk4", not(feature = "gtk3"))
+        )
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -476,7 +485,8 @@ impl ContextMenu for Submenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk3"
+        feature = "gtk3",
+        not(feature = "gtk4")
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu {
         let children = self.items();
@@ -491,7 +501,8 @@ impl ContextMenu for Submenu {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        feature = "gtk4",
+        not(feature = "gtk3")
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();

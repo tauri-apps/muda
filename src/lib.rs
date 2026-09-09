@@ -34,7 +34,7 @@
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
-//! The `gtk3` and `gtk4` features are mutually exclusive.
+//! When both `gtk3` and `gtk4` features are enabled, Muda uses its no-op backend.
 //!
 //! # Dependencies (Linux/BSD)
 //!
@@ -223,9 +223,6 @@
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
 
-#[cfg(all(feature = "gtk3", feature = "gtk4"))]
-compile_error!("features `gtk3` and `gtk4` cannot be enabled together");
-
 #[cfg(all(
     any(
         target_os = "linux",
@@ -234,7 +231,8 @@ compile_error!("features `gtk3` and `gtk4` cannot be enabled together");
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk4"
+    feature = "gtk4",
+    not(feature = "gtk3")
 ))]
 extern crate gtk4 as gtk;
 
@@ -521,7 +519,10 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        any(feature = "gtk3", feature = "gtk4")
+        any(
+            all(feature = "gtk3", not(feature = "gtk4")),
+            all(feature = "gtk4", not(feature = "gtk3"))
+        )
     ))]
     fn show_context_menu_for_gtk_window(
         &self,
@@ -540,7 +541,8 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk3"
+        feature = "gtk3",
+        not(feature = "gtk4")
     ))]
     fn gtk_context_menu(&self) -> gtk::Menu;
 
@@ -555,7 +557,8 @@ pub trait ContextMenu: sealed::Sealed {
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        feature = "gtk4"
+        feature = "gtk4",
+        not(feature = "gtk3")
     ))]
     fn gtk_context_menu(&self) -> gtk::PopoverMenu;
 
