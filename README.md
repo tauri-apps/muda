@@ -14,7 +14,7 @@ Menu Utilities library for Desktop Applications.
 
 - On Windows, accelerators don't work unless the win32 message loop calls
   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
-  See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
+  See [`MenuExtWindows::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/trait.MenuExtWindows.html#tymethod.init_for_hwnd) for more details.
 
 ### Cargo Features
 
@@ -27,7 +27,7 @@ The Win32 and AppKit backends are always enabled on Windows and macOS, respectiv
 - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state to thread-safe synchronization.
 - `serde`: Enables de/serializing the dpi types.
 
-When both `gtk3` and `gtk4` are enabled, Muda uses the GTK 4 backend and emits a Cargo warning.
+The `gtk3` and `gtk4` features are mutually exclusive.
 
 ## Dependencies (Linux/BSD)
 
@@ -93,6 +93,13 @@ Then add your root menu to a window on Windows, GTK 3, or GTK 4
 or use it as your global app menu on macOS
 
 ```rs
+#[cfg(target_os = "windows")]
+use muda::MenuExtWindows;
+#[cfg(target_os = "linux")]
+use muda::MenuGtkExt;
+#[cfg(target_os = "macos")]
+use muda::MenuExtMacOS;
+
 // --snip--
 #[cfg(target_os = "windows")]
 unsafe { menu.init_for_hwnd(window.hwnd() as isize) };
@@ -107,6 +114,13 @@ menu.init_for_nsapp();
 You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
 
 ```rs
+#[cfg(target_os = "windows")]
+use muda::ContextMenuExtWindows;
+#[cfg(target_os = "linux")]
+use muda::ContextMenuGtkExt;
+#[cfg(target_os = "macos")]
+use muda::ContextMenuExtMacOS;
+
 // --snip--
 let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 #[cfg(target_os = "windows")]

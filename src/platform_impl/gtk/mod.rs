@@ -261,11 +261,11 @@ impl PlatformMenu {
         widget: &impl IsA<gtk::Widget>,
         position: Option<Position>,
     ) -> bool {
-        let menu = self.gtk_context_menu(children);
+        let menu = self.gtk_menu(children);
         show_context_menu(menu, widget, position)
     }
 
-    pub fn gtk_context_menu(&mut self, children: &[MenuItemKind]) -> gtk::Menu {
+    pub fn gtk_menu(&mut self, children: &[MenuItemKind]) -> gtk::Menu {
         let mut add_items = false;
 
         if self.gtk_menu.1.is_none() {
@@ -639,11 +639,11 @@ impl PlatformMenuItem {
         widget: &impl IsA<gtk::Widget>,
         position: Option<Position>,
     ) -> bool {
-        let menu = self.gtk_context_menu(children);
+        let menu = self.gtk_menu(children);
         show_context_menu(menu, widget, position)
     }
 
-    pub fn gtk_context_menu(&mut self, children: &[MenuItemKind]) -> gtk::Menu {
+    pub fn gtk_menu(&mut self, children: &[MenuItemKind]) -> gtk::Menu {
         let mut add_items = false;
         {
             let gtk_menu = self.gtk_menu.as_mut().unwrap();

@@ -19,7 +19,7 @@
 //!
 //! - On Windows, accelerators don't work unless the win32 message loop calls
 //!   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
-//!   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
+//!   See [`MenuExtWindows::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/trait.MenuExtWindows.html#tymethod.init_for_hwnd) for more details.
 //!
 //! # Cargo features
 //!
@@ -34,7 +34,7 @@
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
-//! When both `gtk3` and `gtk4` features are enabled, Muda uses the GTK 4 backend.
+//! The `gtk3` and `gtk4` features are mutually exclusive.
 //!
 //! # Dependencies (Linux/BSD)
 //!
@@ -107,39 +107,59 @@
 //! );
 //! ```
 //!
-//! Then add your root menu to a window on Windows, GTK 3, or GTK 4
-//! or use it as your global app menu on macOS
+//! Then add your root menu to a window on Windows or GTK, or use it as your global app menu on
+//! macOS. The GTK examples below use GTK 3.
 //!
 //! ```no_run
-//! # #[cfg(feature = "gtk4")]
-//! # use gtk4 as gtk;
-//! # let menu = muda::Menu::new();
-//! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
+//! # #[cfg(target_os = "windows")]
+//! # use muda::MenuExtWindows;
+//! # #[cfg(target_os = "macos")]
+//! # use muda::MenuExtMacOS;
+//! # #[cfg(all(
+//!     feature = "gtk3",
+//!     any(
+//!         target_os = "linux",
 //!         target_os = "dragonfly",
 //!         target_os = "freebsd",
 //!         target_os = "netbsd",
 //!         target_os = "openbsd"
+//!     )
 //! ))]
+//! # use muda::MenuGtkExt;
+//! # let menu = muda::Menu::new();
+//! # let window_hwnd = 0;
+//! # #[cfg(all(
+//!     feature = "gtk3",
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! )))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
+//! # #[cfg(all(
+//!     feature = "gtk3",
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! )))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 //! // --snip--
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
+//! #[cfg(all(
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//!     ),
+//!     feature = "gtk3"
 //! ))]
 //! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 //! #[cfg(target_os = "macos")]
@@ -151,18 +171,32 @@
 //! You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
 //!
 //! ```no_run
-//! # #[cfg(feature = "gtk4")]
-//! # use gtk4 as gtk;
-//! use muda::ContextMenu;
+//! # #[cfg(target_os = "windows")]
+//! # use muda::ContextMenuExtWindows;
+//! # #[cfg(target_os = "macos")]
+//! # use muda::ContextMenuExtMacOS;
+//! # #[cfg(all(
+//!     feature = "gtk3",
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//!     )
+//! ))]
+//! # use muda::ContextMenuGtkExt;
 //! # let menu = muda::Menu::new();
 //! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
+//! # #[cfg(all(
+//!     feature = "gtk3",
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//! )))]
 //! # let gtk_window = gtk::Window::builder().build();
 //! # #[cfg(target_os = "macos")]
 //! # let nsview = std::ptr::null();
@@ -170,12 +204,15 @@
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
+//! #[cfg(all(
+//!     any(
+//!         target_os = "linux",
+//!         target_os = "dragonfly",
+//!         target_os = "freebsd",
+//!         target_os = "netbsd",
+//!         target_os = "openbsd"
+//!     ),
+//!     feature = "gtk3"
 //! ))]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
 //! #[cfg(target_os = "macos")]
@@ -223,17 +260,8 @@
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
 
-#[cfg(all(
-    any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ),
-    feature = "gtk4"
-))]
-extern crate gtk4 as gtk;
+#[cfg(all(feature = "gtk3", feature = "gtk4"))]
+compile_error!("features `gtk3` and `gtk4` cannot be enabled together");
 
 pub mod about_metadata;
 pub mod accelerator;
@@ -253,7 +281,7 @@ mod util;
 
 pub use about_metadata::AboutMetadata;
 pub use builders::*;
-pub use context_menu::ContextMenu;
+pub use context_menu::*;
 pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};

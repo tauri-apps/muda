@@ -16,9 +16,6 @@
     allow(dead_code)
 )]
 
-#[cfg(target_os = "windows")]
-#[path = "windows/mod.rs"]
-mod platform;
 #[cfg(all(
     any(
         target_os = "linux",
@@ -43,6 +40,9 @@ mod platform;
     not(feature = "gtk4")
 ))]
 #[path = "gtk/mod.rs"]
+mod platform;
+#[cfg(target_os = "windows")]
+#[path = "windows/mod.rs"]
 mod platform;
 #[cfg(all(
     any(

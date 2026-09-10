@@ -9,7 +9,7 @@ mod mnemonic;
 use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use dpi::Position;
-use gtk::{gdk::Rectangle, gio, glib, prelude::*};
+use gtk4::{gdk::Rectangle, gio, glib, prelude::*};
 pub(crate) use icon::PlatformIcon;
 use icon_menu_item::IconMenuItem;
 use mnemonic::to_gtk_mnemonic;
@@ -39,30 +39,30 @@ const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";
 type GtkId = usize;
 
 struct GtkInsertContext<'a> {
-    app: &'a gtk::Application,
+    app: &'a gtk4::Application,
     menu_id: GtkId,
     parent_menu: &'a gio::Menu,
-    parent_widget: &'a gtk::Widget,
+    parent_widget: &'a gtk4::Widget,
 }
 
 enum GtkMenuBar {
     MenuBar {
-        widget: gtk::PopoverMenuBar,
+        widget: gtk4::PopoverMenuBar,
         menu: gio::Menu,
-        app: gtk::Application,
-        window: glib::WeakRef<gtk::Window>,
+        app: gtk4::Application,
+        window: glib::WeakRef<gtk4::Window>,
     },
     ContextMenu {
-        widget: gtk::PopoverMenu,
+        widget: gtk4::PopoverMenu,
         menu: gio::Menu,
-        app: gtk::Application,
+        app: gtk4::Application,
     },
 }
 
 impl GtkMenuBar {
-    fn new(app: gtk::Application, window: glib::WeakRef<gtk::Window>) -> Self {
+    fn new(app: gtk4::Application, window: glib::WeakRef<gtk4::Window>) -> Self {
         let menu = gio::Menu::new();
-        let widget = gtk::PopoverMenuBar::from_model(Some(&menu));
+        let widget = gtk4::PopoverMenuBar::from_model(Some(&menu));
         Self::MenuBar {
             widget,
             menu,
@@ -71,27 +71,27 @@ impl GtkMenuBar {
         }
     }
 
-    fn new_context(app: gtk::Application) -> Self {
+    fn new_context(app: gtk4::Application) -> Self {
         let menu = gio::Menu::new();
-        let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
+        let widget = gtk4::PopoverMenu::from_model_full(&menu, gtk4::PopoverMenuFlags::NESTED);
         Self::ContextMenu { widget, menu, app }
     }
 
-    fn applicaiton(&self) -> &gtk::Application {
+    fn applicaiton(&self) -> &gtk4::Application {
         match self {
             GtkMenuBar::MenuBar { app, .. } => app,
             GtkMenuBar::ContextMenu { app, .. } => app,
         }
     }
 
-    fn menu_bar(&self) -> &gtk::PopoverMenuBar {
+    fn menu_bar(&self) -> &gtk4::PopoverMenuBar {
         match self {
             GtkMenuBar::MenuBar { widget, .. } => widget,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
         }
     }
 
-    fn context_menu(&self) -> &gtk::PopoverMenu {
+    fn context_menu(&self) -> &gtk4::PopoverMenu {
         match self {
             GtkMenuBar::ContextMenu { widget, .. } => widget,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
@@ -105,7 +105,7 @@ impl GtkMenuBar {
         }
     }
 
-    fn widget(&self) -> &gtk::Widget {
+    fn widget(&self) -> &gtk4::Widget {
         match self {
             GtkMenuBar::MenuBar { widget, .. } => widget.upcast_ref(),
             GtkMenuBar::ContextMenu { widget, .. } => widget.upcast_ref(),
@@ -191,9 +191,9 @@ impl PlatformMenu {
         container: Option<&C>,
     ) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Widget>,
-        C: gtk::prelude::IsA<gtk::Widget>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
+        C: gtk4::prelude::IsA<gtk4::Widget>,
     {
         let id = window.as_ptr() as GtkId;
 
@@ -205,7 +205,7 @@ impl PlatformMenu {
             return Err(crate::Error::AlreadyInitialized);
         }
 
-        let window_ref = window.upcast_ref::<gtk::Window>().downgrade();
+        let window_ref = window.upcast_ref::<gtk4::Window>().downgrade();
         let menu_bar = GtkMenuBar::new(app.clone(), window_ref);
         Self::attach_menubar_to_window(window, container, menu_bar.menu_bar())?;
         self.instances.insert(id, menu_bar);
@@ -226,18 +226,18 @@ impl PlatformMenu {
     fn attach_menubar_to_window<W, C>(
         window: &W,
         container: Option<&C>,
-        menu_bar: &gtk::PopoverMenuBar,
+        menu_bar: &gtk4::PopoverMenuBar,
     ) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        C: gtk::prelude::IsA<gtk::Widget>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
+        C: gtk4::prelude::IsA<gtk4::Widget>,
     {
         if let Some(container) = container {
-            if let Some(gtk_box) = container.dynamic_cast_ref::<gtk::Box>() {
+            if let Some(gtk_box) = container.dynamic_cast_ref::<gtk4::Box>() {
                 gtk_box.prepend(menu_bar);
-            } else if let Some(gtk_fixed) = container.dynamic_cast_ref::<gtk::Fixed>() {
+            } else if let Some(gtk_fixed) = container.dynamic_cast_ref::<gtk4::Fixed>() {
                 gtk_fixed.put(menu_bar, 0., 0.);
-            } else if let Some(gtk_stack) = container.dynamic_cast_ref::<gtk::Stack>() {
+            } else if let Some(gtk_stack) = container.dynamic_cast_ref::<gtk4::Stack>() {
                 gtk_stack.add_child(menu_bar);
             } else {
                 return Err(crate::Error::UnsupportedGtkContainer);
@@ -255,8 +255,8 @@ impl PlatformMenu {
         window: &W,
     ) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Widget>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
+        W: gtk4::prelude::IsA<gtk4::Widget>,
     {
         let id = window.as_ptr() as GtkId;
 
@@ -275,7 +275,7 @@ impl PlatformMenu {
 
     pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         let id = window.as_ptr() as GtkId;
         let Some(menu_bar) = self.instances.get(&id) else {
@@ -287,7 +287,7 @@ impl PlatformMenu {
 
     pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         let id = window.as_ptr() as GtkId;
         let Some(menu_bar) = self.instances.get(&id) else {
@@ -299,7 +299,7 @@ impl PlatformMenu {
 
     pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         let id = window.as_ptr() as GtkId;
         self.instances
@@ -308,9 +308,9 @@ impl PlatformMenu {
             .unwrap_or(false)
     }
 
-    pub fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk::PopoverMenuBar>
+    pub fn gtk_popover_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
+        W: gtk4::prelude::IsA<gtk4::Window>,
     {
         let id = window.as_ptr() as GtkId;
         self.instances.get(&id).map(|m| m.menu_bar().clone())
@@ -319,7 +319,7 @@ impl PlatformMenu {
     pub fn show_context_menu_for_gtk_window(
         &mut self,
         children: &[MenuItemKind],
-        window: &gtk::Window,
+        window: &gtk4::Window,
         position: Option<Position>,
     ) -> bool {
         let Some(app) = window.application() else {
@@ -342,14 +342,14 @@ impl PlatformMenu {
         run_context_menu(context_menu, children, x, y)
     }
 
-    pub fn gtk_context_menu(&mut self, children: &[MenuItemKind]) -> gtk::PopoverMenu {
+    pub fn gtk_popover_menu(&mut self, children: &[MenuItemKind]) -> gtk4::PopoverMenu {
         self.ensure_context_menu(self.context_menu_application(), children);
 
         // SAFETY: it is guaranteed to exist due to ensure_context_menu.
         self.instances[&self.ctx_menu_id].context_menu().clone()
     }
 
-    fn ensure_context_menu(&mut self, app: gtk::Application, children: &[MenuItemKind]) {
+    fn ensure_context_menu(&mut self, app: gtk4::Application, children: &[MenuItemKind]) {
         if self.instances.contains_key(&self.ctx_menu_id) {
             return;
         }
@@ -368,7 +368,7 @@ impl PlatformMenu {
         }
     }
 
-    fn context_menu_application(&self) -> gtk::Application {
+    fn context_menu_application(&self) -> gtk4::Application {
         self.instances
             .values()
             .next()
@@ -379,12 +379,12 @@ impl PlatformMenu {
 
 #[derive(Clone)]
 struct GtkCustomWidget {
-    widget: gtk::Widget,
-    host: gtk::Widget,
+    widget: gtk4::Widget,
+    host: gtk4::Widget,
 }
 
 impl GtkCustomWidget {
-    fn new(widget: impl IsA<gtk::Widget>, host: &gtk::Widget) -> Self {
+    fn new(widget: impl IsA<gtk4::Widget>, host: &gtk4::Widget) -> Self {
         Self {
             widget: widget.upcast(),
             host: host.clone(),
@@ -398,20 +398,20 @@ enum GtkMenuChild {
         id: GtkId,
         parent_menu: gio::Menu,
         widget: Option<GtkCustomWidget>,
-        app: gtk::Application,
+        app: gtk4::Application,
     },
     Submenu {
         id: GtkId,
         parent_menu: gio::Menu,
         menu: gio::Menu,
-        widget: gtk::PopoverMenu,
-        app: gtk::Application,
+        widget: gtk4::PopoverMenu,
+        app: gtk4::Application,
     },
     ContextMenu {
         id: GtkId,
-        widget: gtk::PopoverMenu,
+        widget: gtk4::PopoverMenu,
         menu: gio::Menu,
-        app: gtk::Application,
+        app: gtk4::Application,
     },
 }
 
@@ -424,7 +424,7 @@ impl GtkMenuChild {
         }
     }
 
-    fn application(&self) -> &gtk::Application {
+    fn application(&self) -> &gtk4::Application {
         match self {
             GtkMenuChild::Submenu { app, .. } => app,
             GtkMenuChild::ContextMenu { app, .. } => app,
@@ -440,7 +440,7 @@ impl GtkMenuChild {
         }
     }
 
-    fn widget(&self) -> &gtk::Widget {
+    fn widget(&self) -> &gtk4::Widget {
         match self {
             GtkMenuChild::Submenu { widget, .. } => widget.upcast_ref(),
             GtkMenuChild::ContextMenu { widget, .. } => widget.upcast_ref(),
@@ -448,7 +448,7 @@ impl GtkMenuChild {
         }
     }
 
-    fn context_menu(&self) -> &gtk::PopoverMenu {
+    fn context_menu(&self) -> &gtk4::PopoverMenu {
         match self {
             GtkMenuChild::ContextMenu { widget, .. } => widget,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
@@ -602,7 +602,7 @@ impl PlatformMenuItem {
     pub fn show_context_menu_for_gtk_window(
         &mut self,
         children: &[MenuItemKind],
-        window: &gtk::Window,
+        window: &gtk4::Window,
         position: Option<Position>,
     ) -> bool {
         let Some(app) = window.application() else {
@@ -627,7 +627,7 @@ impl PlatformMenuItem {
         run_context_menu(context_menu, children, x, y)
     }
 
-    pub fn gtk_context_menu(&mut self, children: &[MenuItemKind]) -> gtk::PopoverMenu {
+    pub fn gtk_popover_menu(&mut self, children: &[MenuItemKind]) -> gtk4::PopoverMenu {
         self.ensure_context_menu(self.context_menu_application(), children);
 
         // SAFETY: it is guaranteed to exist due to ensure_context_menu.
@@ -638,13 +638,13 @@ impl PlatformMenuItem {
             .clone()
     }
 
-    fn ensure_context_menu(&mut self, app: gtk::Application, children: &[MenuItemKind]) {
+    fn ensure_context_menu(&mut self, app: gtk4::Application, children: &[MenuItemKind]) {
         if self.instances.contains_key(&self.ctx_menu_id) {
             return;
         }
 
         let menu = gio::Menu::new();
-        let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
+        let widget = gtk4::PopoverMenu::from_model_full(&menu, gtk4::PopoverMenuFlags::NESTED);
 
         let action_group = action_group_from_app(&app);
         widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
@@ -663,7 +663,7 @@ impl PlatformMenuItem {
         }
     }
 
-    fn context_menu_application(&self) -> gtk::Application {
+    fn context_menu_application(&self) -> gtk4::Application {
         self.instances
             .values()
             .flatten()
@@ -727,7 +727,7 @@ impl PlatformMenuItem {
 
     fn ensure_action(
         &mut self,
-        app: &gtk::Application,
+        app: &gtk4::Application,
         args: &PlatformAttachArgs,
         click: &MenuItemAction,
     ) {
@@ -780,7 +780,7 @@ impl PlatformMenuItem {
         self.action = Some(action);
     }
 
-    fn ensure_submenu_action(&mut self, app: &gtk::Application, args: &PlatformAttachArgs) {
+    fn ensure_submenu_action(&mut self, app: &gtk4::Application, args: &PlatformAttachArgs) {
         if self.action.is_some() {
             return;
         }
@@ -876,7 +876,7 @@ impl PlatformMenuItem {
             .any(|child| !matches!(child, GtkMenuChild::ContextMenu { .. }))
     }
 
-    fn cleanup_unused_action(&mut self, app: &gtk::Application) {
+    fn cleanup_unused_action(&mut self, app: &gtk4::Application) {
         if self.is_alive() {
             return;
         }
@@ -1014,7 +1014,7 @@ impl PlatformMenuItem {
         let id = COUNTER.next() as GtkId;
 
         let item = gio_custom_item(None, None, id);
-        let separator = gtk::Separator::new(gtk::Orientation::Horizontal);
+        let separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
 
         let widget = GtkCustomWidget::new(separator, context.parent_widget);
 
@@ -1164,10 +1164,10 @@ impl PlatformMenuItem {
 impl MenuItemKind {
     fn insert_gtk(
         &self,
-        app: &gtk::Application,
+        app: &gtk4::Application,
         menu_id: GtkId,
         parent_menu: &gio::Menu,
-        parent_widget: &gtk::Widget,
+        parent_widget: &gtk4::Widget,
         op: AddOp,
     ) -> crate::Result<()> {
         let args = self.platform_attach_args();
@@ -1234,8 +1234,8 @@ fn find_row_index(menu: &gio::Menu, id: GtkId) -> Option<i32> {
 /// Gtk creates a new PopoverMenu for each submenu,
 /// so we need to find the correct PopoverMenu that matches the given gio::Menu.
 /// so we can add the custom item to the correct PopoverMenu.
-fn find_submenu_widget(host: &gtk::Widget, menu: &gio::Menu) -> Option<gtk::PopoverMenu> {
-    if let Some(popover_menu) = host.downcast_ref::<gtk::PopoverMenu>() {
+fn find_submenu_widget(host: &gtk4::Widget, menu: &gio::Menu) -> Option<gtk4::PopoverMenu> {
+    if let Some(popover_menu) = host.downcast_ref::<gtk4::PopoverMenu>() {
         if popover_menu
             .menu_model()
             .as_ref()
@@ -1261,23 +1261,23 @@ fn is_same_menu_model(model: &gio::MenuModel, menu: &gio::Menu) -> bool {
     model.as_ptr().cast::<()>() == menu.as_ptr().cast::<()>()
 }
 
-fn add_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>, id: &str) {
-    if let Some(menu_bar) = host.downcast_ref::<gtk::PopoverMenuBar>() {
+fn add_custom_child(host: &gtk4::Widget, child: &impl IsA<gtk4::Widget>, id: &str) {
+    if let Some(menu_bar) = host.downcast_ref::<gtk4::PopoverMenuBar>() {
         let _ = menu_bar.add_child(child, id);
-    } else if let Some(menu) = host.downcast_ref::<gtk::PopoverMenu>() {
+    } else if let Some(menu) = host.downcast_ref::<gtk4::PopoverMenu>() {
         let _ = menu.add_child(child, id);
     }
 }
 
-fn remove_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>) {
-    if let Some(menu_bar) = host.downcast_ref::<gtk::PopoverMenuBar>() {
+fn remove_custom_child(host: &gtk4::Widget, child: &impl IsA<gtk4::Widget>) {
+    if let Some(menu_bar) = host.downcast_ref::<gtk4::PopoverMenuBar>() {
         menu_bar.remove_child(child);
-    } else if let Some(menu) = host.downcast_ref::<gtk::PopoverMenu>() {
+    } else if let Some(menu) = host.downcast_ref::<gtk4::PopoverMenu>() {
         menu.remove_child(child);
     }
 }
 
-fn run_predefined(app: &gtk::Application, predefined_item_type: &PredefinedMenuItemType) {
+fn run_predefined(app: &gtk4::Application, predefined_item_type: &PredefinedMenuItemType) {
     let Some(window) = app.active_window() else {
         return;
     };
@@ -1308,8 +1308,8 @@ fn run_predefined(app: &gtk::Application, predefined_item_type: &PredefinedMenuI
 }
 
 fn show_about_dialog(
-    app: &gtk::Application,
-    window: &gtk::Window,
+    app: &gtk4::Application,
+    window: &gtk4::Window,
     metadata: Option<&AboutMetadata>,
 ) {
     let title = metadata
@@ -1318,7 +1318,7 @@ fn show_about_dialog(
         .to_string();
     let title = format!("About {}", title);
 
-    let mut builder = gtk::AboutDialog::builder()
+    let mut builder = gtk4::AboutDialog::builder()
         .application(app)
         .modal(true)
         .transient_for(window)
@@ -1359,23 +1359,23 @@ fn show_about_dialog(
 
     if let Some(titlebar) = dialog
         .titlebar()
-        .and_then(|titlebar| titlebar.downcast::<gtk::HeaderBar>().ok())
+        .and_then(|titlebar| titlebar.downcast::<gtk4::HeaderBar>().ok())
     {
-        let title_label = gtk::Label::new(Some(&title));
+        let title_label = gtk4::Label::new(Some(&title));
         titlebar.set_title_widget(Some(&title_label));
     }
 
     dialog.present();
 }
 
-fn default_gtk_application() -> gtk::Application {
+fn default_gtk_application() -> gtk4::Application {
     gio::Application::default()
-        .and_then(|app| app.downcast::<gtk::Application>().ok())
+        .and_then(|app| app.downcast::<gtk4::Application>().ok())
         .unwrap_or_default()
 }
 
 /// Returns and creates the action group on this application if necessary.
-fn action_group_from_app(app: &gtk::Application) -> gio::SimpleActionGroup {
+fn action_group_from_app(app: &gtk4::Application) -> gio::SimpleActionGroup {
     let action_group = unsafe { app.data::<gio::SimpleActionGroup>(ACTION_GROUP_DATA_KEY) };
 
     let action_group = if let Some(action_group) = action_group {
@@ -1389,7 +1389,7 @@ fn action_group_from_app(app: &gtk::Application) -> gio::SimpleActionGroup {
     action_group
 }
 
-fn get_cursor_pos(window: &gtk::Window) -> (i32, i32) {
+fn get_cursor_pos(window: &gtk4::Window) -> (i32, i32) {
     WidgetExt::display(window)
         .default_seat()
         .and_then(|s| s.pointer())
@@ -1400,7 +1400,7 @@ fn get_cursor_pos(window: &gtk::Window) -> (i32, i32) {
         .unwrap_or_default()
 }
 
-fn scale_factor(window: &gtk::Window) -> f64 {
+fn scale_factor(window: &gtk4::Window) -> f64 {
     window
         .surface()
         .map(|surface| surface.scale())
@@ -1408,7 +1408,7 @@ fn scale_factor(window: &gtk::Window) -> f64 {
 }
 
 fn run_context_menu(
-    context_menu: &gtk::PopoverMenu,
+    context_menu: &gtk4::PopoverMenu,
     items: &[MenuItemKind],
     x: i32,
     y: i32,

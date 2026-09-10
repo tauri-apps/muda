@@ -12,7 +12,6 @@ categories = ["gui"]
 rust-version = "1.90"
 include = [
   "README.md",
-  "build.rs",
   "src/**/*.rs",
   "Cargo.toml",
   "LICENSE-APACHE",

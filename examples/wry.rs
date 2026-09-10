@@ -12,6 +12,22 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
+use muda::{ContextMenuExtMacOS, MenuExtMacOS, SubmenuExtMacOS};
+#[cfg(target_os = "windows")]
+use muda::{ContextMenuExtWindows, MenuExtWindows};
+#[cfg(all(
+    feature = "gtk3",
+    not(feature = "gtk4"),
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
+))]
+use muda::{ContextMenuGtkExt, MenuGtkExt};
+#[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(any(
     target_os = "linux",
@@ -190,6 +206,7 @@ fn main() -> wry::Result<()> {
     }
     #[cfg(all(
         feature = "gtk3",
+        not(feature = "gtk4"),
         any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -286,6 +303,7 @@ fn main() -> wry::Result<()> {
 
                 #[cfg(all(
                     feature = "gtk3",
+                    not(feature = "gtk4"),
                     any(
                         target_os = "linux",
                         target_os = "dragonfly",
@@ -369,6 +387,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
     }
     #[cfg(all(
         feature = "gtk3",
+        not(feature = "gtk4"),
         any(
             target_os = "linux",
             target_os = "dragonfly",

@@ -331,45 +331,6 @@ impl Submenu {
         self.platform.borrow_mut().set_enabled(enabled)
     }
 
-    /// Set this submenu as the Window menu for the application on macOS.
-    /// This will cause macOS to automatically add window-switching items and
-    /// certain other items to the menu.
-    ///
-    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
-    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
-    ///
-    ///
-    /// # Note
-    ///
-    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
-    /// this method will set the first instance of this submenu as the Window menu for the application.
-    ///
-    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(target_os = "macos")]
-    pub fn set_as_windows_menu_for_nsapp(&self) {
-        self.platform.borrow_mut().set_as_windows_menu_for_nsapp()
-    }
-
-    /// Set this submenu as the Help menu for the application on macOS.
-    /// This will cause macOS to automatically add a search box to the menu.
-    ///
-    /// Must be called after adding this submenu to [`Menu`](crate::Menu)
-    /// and after calling [`Menu::init_for_nsapp`](crate::Menu::init_for_nsapp) on that menu.
-    ///
-    /// If no menu is set as the Help menu, macOS will automatically use any menu
-    /// which has a title matching the localized word "Help".
-    ///
-    /// # Note
-    ///
-    /// Because a [`Submenu`] can be added multiple times to the same [`Menu`](crate::Menu)
-    /// this method will set the first instance of this submenu as the Help menu for the application.
-    ///
-    /// It is not recommended to add the same submenu multiple times to the same menu, but if you do, be aware of this behavior.
-    #[cfg(target_os = "macos")]
-    pub fn set_as_help_menu_for_nsapp(&self) {
-        self.platform.borrow_mut().set_as_help_menu_for_nsapp()
-    }
-
     /// Convert this submenu into its menu ID.
     pub fn into_id(mut self) -> MenuId {
         // Note: `Rc::into_inner` is available from Rust 1.70
@@ -426,98 +387,132 @@ impl Submenu {
     }
 }
 
-impl ContextMenu for Submenu {
-    #[cfg(target_os = "windows")]
-    fn hpopupmenu(&self) -> isize {
-        self.platform.borrow().hpopupmenu()
+/// macOS-specific operations for a [`Submenu`].
+#[cfg(target_os = "macos")]
+pub trait SubmenuExtMacOS {
+    /// Sets this submenu as the application's Window menu.
+    ///
+    /// Call this after adding the submenu to a [`Menu`](crate::Menu) and initializing that menu
+    /// for `NSApp`. If the submenu occurs more than once, the first instance is used.
+    fn set_as_windows_menu_for_nsapp(&self);
+
+    /// Sets this submenu as the application's Help menu.
+    ///
+    /// Call this after adding the submenu to a [`Menu`](crate::Menu) and initializing that menu
+    /// for `NSApp`. If the submenu occurs more than once, the first instance is used.
+    fn set_as_help_menu_for_nsapp(&self);
+}
+
+#[cfg(target_os = "macos")]
+impl SubmenuExtMacOS for Submenu {
+    fn set_as_windows_menu_for_nsapp(&self) {
+        self.platform.borrow_mut().set_as_windows_menu_for_nsapp()
     }
 
-    #[cfg(target_os = "windows")]
-    unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
-        let selected = self.platform.borrow().show_context_menu(hwnd, position);
-        crate::platform_impl::dispatch_selection(hwnd, selected)
+    fn set_as_help_menu_for_nsapp(&self) {
+        self.platform.borrow_mut().set_as_help_menu_for_nsapp()
     }
+}
 
-    #[cfg(target_os = "windows")]
-    unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
-    }
-
-    #[cfg(target_os = "windows")]
-    unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
-    }
-
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    not(feature = "gtk4")
+))]
+impl crate::ContextMenuGtkExt for Submenu {
     fn show_context_menu_for_gtk_window(
         &self,
-        w: &gtk::Window,
+        window: &gtk::Window,
         position: Option<Position>,
     ) -> bool {
         let children = self.items();
         self.platform
             .borrow_mut()
-            .show_context_menu_for_gtk_window(&children, w, position)
+            .show_context_menu_for_gtk_window(&children, window, position)
     }
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk3",
-        not(feature = "gtk4")
-    ))]
-    fn gtk_context_menu(&self) -> gtk::Menu {
+    fn gtk_menu(&self) -> gtk::Menu {
         let children = self.items();
-        self.platform.borrow_mut().gtk_context_menu(&children)
+        self.platform.borrow_mut().gtk_menu(&children)
     }
+}
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk4"
-    ))]
-    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+impl crate::ContextMenuGtk4Ext for Submenu {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        window: &gtk4::Window,
+        position: Option<Position>,
+    ) -> bool {
         let children = self.items();
-        self.platform.borrow_mut().gtk_context_menu(&children)
+        self.platform
+            .borrow_mut()
+            .show_context_menu_for_gtk_window(&children, window, position)
     }
 
-    #[cfg(target_os = "macos")]
+    fn gtk_popover_menu(&self) -> gtk4::PopoverMenu {
+        let children = self.items();
+        self.platform.borrow_mut().gtk_popover_menu(&children)
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl crate::ContextMenuExtWindows for Submenu {
+    fn hpopupmenu(&self) -> isize {
+        self.platform.borrow().hpopupmenu()
+    }
+
+    unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
+        let selected = unsafe { self.platform.borrow().show_context_menu(hwnd, position) };
+        crate::platform_impl::dispatch_selection(hwnd, selected)
+    }
+
+    unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        unsafe { self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd) }
+    }
+
+    unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        unsafe { self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd) }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl crate::ContextMenuExtMacOS for Submenu {
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
         position: Option<Position>,
     ) -> bool {
-        self.platform
-            .borrow_mut()
-            .show_context_menu_for_nsview(view, position)
+        unsafe {
+            self.platform
+                .borrow_mut()
+                .show_context_menu_for_nsview(view, position)
+        }
     }
 
-    #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }
+}
 
-    fn as_submenu(&self) -> Option<&Submenu> {
-        Some(self)
+impl ContextMenu for Submenu {
+    fn kind(&self) -> crate::MenuKind {
+        crate::MenuKind::Submenu(self.clone())
     }
 
     #[cfg(feature = "snapshot")]
@@ -526,6 +521,7 @@ impl ContextMenu for Submenu {
     }
 }
 
+/// Internal helper methods for `Submenu`.
 impl Submenu {
     /// Whether this submenu is the same as `other`.
     fn is_equal_to(&self, other: &Submenu) -> bool {

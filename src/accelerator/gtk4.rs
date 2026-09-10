@@ -9,7 +9,7 @@ use crate::accelerator::{Accelerator, KeyAccelerator, MenuAccelerator};
 
 impl MenuAccelerator {
     /// Builds a GTK accelerator string (e.g. `<Shift><Control>a`) that can be
-    /// passed to `gtk::Application::set_accels_for_action`.
+    /// passed to `gtk4::Application::set_accels_for_action`.
     pub(crate) fn to_gtk(&self) -> Option<String> {
         match self {
             MenuAccelerator::Physical(accelerator) => accelerator.to_gtk(),
@@ -20,7 +20,7 @@ impl MenuAccelerator {
 
 impl Accelerator {
     /// Builds a GTK accelerator string (e.g. `<Shift><Control>a`) that can be
-    /// passed to `gtk::Application::set_accels_for_action`.
+    /// passed to `gtk4::Application::set_accels_for_action`.
     pub(crate) fn to_gtk(self) -> Option<String> {
         let mut gtk = modifiers_to_gtk(self.mods);
         gtk.push_str(&code_to_gtk(&self.key)?);
@@ -30,7 +30,7 @@ impl Accelerator {
 
 impl KeyAccelerator {
     /// Builds a GTK accelerator string (e.g. `<Shift><Control>a`) that can be
-    /// passed to `gtk::Application::set_accels_for_action`.
+    /// passed to `gtk4::Application::set_accels_for_action`.
     pub fn to_gtk(&self) -> Option<String> {
         let mut gtk = modifiers_to_gtk(self.mods);
         gtk.push_str(&key_to_gtk(&self.key)?);

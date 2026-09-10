@@ -43,98 +43,6 @@ pub enum MenuItemKind {
     Icon(IconMenuItem),
 }
 
-/// How one part of a menu item's label is rendered.
-///
-/// Styles are semantic, so each platform maps them to its own conventions instead of
-/// the caller picking colors or fonts. That keeps labels correct in light and dark
-/// modes, under increased contrast, and when the system menu font changes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-#[non_exhaustive]
-pub enum TextStyle {
-    /// The platform's default menu label treatment.
-    #[default]
-    Default,
-    /// A de-emphasized treatment, for a part of the label that qualifies the rest:
-    /// `Preview (default)`, `Speakers (current)`, `Folder (3 items selected)`.
-    ///
-    /// ## Platform-specific:
-    ///
-    /// - **macOS**: [`TextStyle::Secondary`] renders in `NSColor.secondaryLabelColor`, the
-    ///   same treatment Finder uses for the " (default)" suffix in its "Open with" submenu.
-    /// - **Windows / Linux**: every style renders as plain text for now.
-    Secondary,
-}
-
-// ---------------
-// Internal types
-// ---------------
-
-/// A thread-bound [`MenuItemKind`] stored inside otherwise thread-safe menu state.
-///
-/// [`MenuItemKind`] itself is not thread-safe because it contains `Rc` and platform values. This
-/// wrapper suppresses automatic destruction so it can cross a thread boundary as part of menu
-/// state. Access to the complete value through [`Self::borrow`], [`Self::clone`], or
-/// [`Self::unwrap`] is restricted to its originating thread.
-///
-/// The wrapped value must eventually be recovered with [`Self::unwrap`] and dropped on its
-/// originating thread. The thread-bound [`crate::Menu`] and [`Submenu`] implementations uphold that
-/// invariant.
-pub(crate) struct UnsafeMenuItemKind(std::mem::ManuallyDrop<MenuItemKind>);
-
-// SAFETY: `ManuallyDrop` prevents the wrapped `MenuItemKind` from being destroyed after this
-// wrapper crosses a thread boundary. Accessing, cloning, or recovering the complete value requires
-// an unsafe call whose originating-thread requirement is upheld by the thread-bound `Menu` and
-// `Submenu` implementations. When enabled, the snapshot projection wraps any platform handle it
-// captures and queues access and destruction on the platform thread.
-unsafe impl Send for UnsafeMenuItemKind {}
-
-impl UnsafeMenuItemKind {
-    pub(crate) fn new(local: MenuItemKind) -> Self {
-        Self(std::mem::ManuallyDrop::new(local))
-    }
-
-    /// Borrows the complete thread-bound menu item.
-    ///
-    /// # Safety
-    ///
-    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
-    /// concurrent access to the wrapped value from another thread.
-    pub(crate) unsafe fn borrow(&self) -> &MenuItemKind {
-        &self.0
-    }
-
-    /// Clones the complete thread-bound menu item.
-    ///
-    /// # Safety
-    ///
-    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
-    /// concurrent access to the wrapped value from another thread. The returned clone must remain
-    /// on that thread.
-    pub(crate) unsafe fn clone(&self) -> MenuItemKind {
-        unsafe { self.borrow() }.clone()
-    }
-
-    /// Recovers the complete thread-bound menu item.
-    ///
-    /// # Safety
-    ///
-    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
-    /// concurrent access to the wrapped value from another thread. The recovered value must remain
-    /// on that thread and be dropped there.
-    pub(crate) unsafe fn unwrap(mut self) -> MenuItemKind {
-        unsafe { std::mem::ManuallyDrop::take(&mut self.0) }
-    }
-
-    /// Creates a snapshot from thread-safe fields and wrapped platform handles.
-    #[cfg(feature = "snapshot")]
-    pub(crate) fn snapshot(&self) -> crate::MenuItemKindSnapshot {
-        // The `Send` implementation relies on this method reading only the immutable discriminant
-        // and wrapping thread-bound platform values before they cross a thread boundary. Wrapped
-        // platform values are accessed and destroyed only from the platform main thread.
-        crate::MenuItemKindSnapshot::from(&*self.0)
-    }
-}
-
 impl MenuItemKind {
     /// Returns a thread-safe snapshot handle for this menu item.
     #[cfg(feature = "snapshot")]
@@ -242,6 +150,261 @@ impl MenuItemKind {
             MenuItemKind::Check(i) => i.into_id(),
             MenuItemKind::Icon(i) => i.into_id(),
         }
+    }
+}
+
+/// An enumeration of all available menu types.
+///
+/// This is useful when code receives a [`crate::ContextMenu`] trait object and needs to dispatch
+/// to the platform extension implemented by its underlying [`Menu`] or [`Submenu`].
+#[derive(Clone)]
+pub enum MenuKind {
+    /// A root menu.
+    Menu(Menu),
+    /// A submenu.
+    Submenu(Submenu),
+}
+
+impl MenuKind {
+    /// Casts this kind to a [`Menu`], returning `None` for a submenu.
+    pub fn as_menu(&self) -> Option<&Menu> {
+        match self {
+            Self::Menu(menu) => Some(menu),
+            Self::Submenu(_) => None,
+        }
+    }
+
+    /// Casts this kind to a [`Menu`], and panics if it is a submenu.
+    pub fn as_menu_unchecked(&self) -> &Menu {
+        self.as_menu().expect("Not a Menu")
+    }
+
+    /// Casts this kind to a [`Submenu`], returning `None` for a root menu.
+    pub fn as_submenu(&self) -> Option<&Submenu> {
+        match self {
+            Self::Menu(_) => None,
+            Self::Submenu(submenu) => Some(submenu),
+        }
+    }
+
+    /// Casts this kind to a [`Submenu`], and panics if it is a root menu.
+    pub fn as_submenu_unchecked(&self) -> &Submenu {
+        self.as_submenu().expect("Not a Submenu")
+    }
+}
+
+/// How one part of a menu item's label is rendered.
+///
+/// Styles are semantic, so each platform maps them to its own conventions instead of
+/// the caller picking colors or fonts. That keeps labels correct in light and dark
+/// modes, under increased contrast, and when the system menu font changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
+pub enum TextStyle {
+    /// The platform's default menu label treatment.
+    #[default]
+    Default,
+    /// A de-emphasized treatment, for a part of the label that qualifies the rest:
+    /// `Preview (default)`, `Speakers (current)`, `Folder (3 items selected)`.
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **macOS**: [`TextStyle::Secondary`] renders in `NSColor.secondaryLabelColor`, the
+    ///   same treatment Finder uses for the " (default)" suffix in its "Open with" submenu.
+    /// - **Windows / Linux**: every style renders as plain text for now.
+    Secondary,
+}
+
+// ---------------------------
+// Conversions implementations
+// ---------------------------
+
+impl From<Menu> for MenuKind {
+    fn from(menu: Menu) -> Self {
+        Self::Menu(menu)
+    }
+}
+
+impl TryFrom<MenuKind> for Menu {
+    type Error = MenuKind;
+
+    fn try_from(kind: MenuKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuKind::Menu(menu) => Ok(menu),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<Submenu> for MenuKind {
+    fn from(submenu: Submenu) -> Self {
+        Self::Submenu(submenu)
+    }
+}
+
+impl TryFrom<MenuKind> for Submenu {
+    type Error = MenuKind;
+
+    fn try_from(kind: MenuKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuKind::Submenu(submenu) => Ok(submenu),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<MenuItem> for MenuItemKind {
+    fn from(item: MenuItem) -> Self {
+        Self::MenuItem(item)
+    }
+}
+
+impl TryFrom<MenuItemKind> for MenuItem {
+    type Error = MenuItemKind;
+
+    fn try_from(kind: MenuItemKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuItemKind::MenuItem(item) => Ok(item),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<Submenu> for MenuItemKind {
+    fn from(submenu: Submenu) -> Self {
+        Self::Submenu(submenu)
+    }
+}
+
+impl TryFrom<MenuItemKind> for Submenu {
+    type Error = MenuItemKind;
+
+    fn try_from(kind: MenuItemKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuItemKind::Submenu(submenu) => Ok(submenu),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<PredefinedMenuItem> for MenuItemKind {
+    fn from(item: PredefinedMenuItem) -> Self {
+        Self::Predefined(item)
+    }
+}
+
+impl TryFrom<MenuItemKind> for PredefinedMenuItem {
+    type Error = MenuItemKind;
+
+    fn try_from(kind: MenuItemKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuItemKind::Predefined(item) => Ok(item),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<CheckMenuItem> for MenuItemKind {
+    fn from(item: CheckMenuItem) -> Self {
+        Self::Check(item)
+    }
+}
+
+impl TryFrom<MenuItemKind> for CheckMenuItem {
+    type Error = MenuItemKind;
+
+    fn try_from(kind: MenuItemKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuItemKind::Check(item) => Ok(item),
+            kind => Err(kind),
+        }
+    }
+}
+
+impl From<IconMenuItem> for MenuItemKind {
+    fn from(item: IconMenuItem) -> Self {
+        Self::Icon(item)
+    }
+}
+
+impl TryFrom<MenuItemKind> for IconMenuItem {
+    type Error = MenuItemKind;
+
+    fn try_from(kind: MenuItemKind) -> std::result::Result<Self, Self::Error> {
+        match kind {
+            MenuItemKind::Icon(item) => Ok(item),
+            kind => Err(kind),
+        }
+    }
+}
+
+// ---------------
+// Internal types
+// ---------------
+
+/// A thread-bound [`MenuItemKind`] stored inside otherwise thread-safe menu state.
+///
+/// [`MenuItemKind`] itself is not thread-safe because it contains `Rc` and platform values. This
+/// wrapper suppresses automatic destruction so it can cross a thread boundary as part of menu
+/// state. Access to the complete value through [`Self::borrow`], [`Self::clone`], or
+/// [`Self::unwrap`] is restricted to its originating thread.
+///
+/// The wrapped value must eventually be recovered with [`Self::unwrap`] and dropped on its
+/// originating thread. The thread-bound [`crate::Menu`] and [`Submenu`] implementations uphold that
+/// invariant.
+pub(crate) struct UnsafeMenuItemKind(std::mem::ManuallyDrop<MenuItemKind>);
+
+// SAFETY: `ManuallyDrop` prevents the wrapped `MenuItemKind` from being destroyed after this
+// wrapper crosses a thread boundary. Accessing, cloning, or recovering the complete value requires
+// an unsafe call whose originating-thread requirement is upheld by the thread-bound `Menu` and
+// `Submenu` implementations. When enabled, the snapshot projection wraps any platform handle it
+// captures and queues access and destruction on the platform thread.
+unsafe impl Send for UnsafeMenuItemKind {}
+
+impl UnsafeMenuItemKind {
+    pub(crate) fn new(local: MenuItemKind) -> Self {
+        Self(std::mem::ManuallyDrop::new(local))
+    }
+
+    /// Borrows the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread.
+    pub(crate) unsafe fn borrow(&self) -> &MenuItemKind {
+        &self.0
+    }
+
+    /// Clones the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread. The returned clone must remain
+    /// on that thread.
+    pub(crate) unsafe fn clone(&self) -> MenuItemKind {
+        unsafe { self.borrow() }.clone()
+    }
+
+    /// Recovers the complete thread-bound menu item.
+    ///
+    /// # Safety
+    ///
+    /// The caller must run on the thread where the wrapped [`MenuItemKind`] was created, with no
+    /// concurrent access to the wrapped value from another thread. The recovered value must remain
+    /// on that thread and be dropped there.
+    pub(crate) unsafe fn unwrap(mut self) -> MenuItemKind {
+        unsafe { std::mem::ManuallyDrop::take(&mut self.0) }
+    }
+
+    /// Creates a snapshot from thread-safe fields and wrapped platform handles.
+    #[cfg(feature = "snapshot")]
+    pub(crate) fn snapshot(&self) -> crate::MenuItemKindSnapshot {
+        // The `Send` implementation relies on this method reading only the immutable discriminant
+        // and wrapping thread-bound platform values before they cross a thread boundary. Wrapped
+        // platform values are accessed and destroyed only from the platform main thread.
+        crate::MenuItemKindSnapshot::from(&*self.0)
     }
 }
 

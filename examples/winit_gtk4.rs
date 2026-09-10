@@ -10,8 +10,8 @@ use gtk4::prelude::*;
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
     dpi::{PhysicalPosition, Position},
-    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
-    PredefinedMenuItem, Submenu,
+    AboutMetadata, CheckMenuItem, ContextMenu, ContextMenuGtk4Ext, IconMenuItem, Menu, MenuEvent,
+    MenuGtk4Ext, MenuItem, NativeIcon, PredefinedMenuItem, Submenu,
 };
 use winit_gtk4::{
     application::ApplicationHandler,

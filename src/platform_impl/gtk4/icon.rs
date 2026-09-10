@@ -6,7 +6,7 @@ use crate::icon::{BadIcon, RgbaIcon};
 
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
-pub struct PlatformIcon(gtk::gdk_pixbuf::Pixbuf);
+pub struct PlatformIcon(gtk4::gdk_pixbuf::Pixbuf);
 
 // Safety: `PlatformIcon` is used only on the same thread as the one created it
 unsafe impl Send for PlatformIcon {}
@@ -24,10 +24,10 @@ impl PlatformIcon {
             height,
         } = RgbaIcon::from_rgba(rgba, width, height)?;
 
-        let bytes = gtk::glib::Bytes::from_owned(rgba);
-        let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_bytes(
+        let bytes = gtk4::glib::Bytes::from_owned(rgba);
+        let pixbuf = gtk4::gdk_pixbuf::Pixbuf::from_bytes(
             &bytes,
-            gtk::gdk_pixbuf::Colorspace::Rgb,
+            gtk4::gdk_pixbuf::Colorspace::Rgb,
             true,
             8,
             width as i32,
@@ -38,7 +38,7 @@ impl PlatformIcon {
         Ok(Self(pixbuf))
     }
 
-    pub fn texture(&self) -> gtk::gdk::Texture {
-        gtk::gdk::Texture::for_pixbuf(&self.0)
+    pub fn texture(&self) -> gtk4::gdk::Texture {
+        gtk4::gdk::Texture::for_pixbuf(&self.0)
     }
 }

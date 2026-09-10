@@ -12,6 +12,10 @@ use muda::{
     PredefinedMenuItem, Submenu,
 };
 #[cfg(target_os = "macos")]
+use muda::{ContextMenuExtMacOS, MenuExtMacOS, SubmenuExtMacOS};
+#[cfg(target_os = "windows")]
+use muda::{ContextMenuExtWindows, MenuExtWindows};
+#[cfg(target_os = "macos")]
 use winit::platform::macos::{EventLoopBuilderExtMacOS, WindowExtMacOS};
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};

@@ -9,10 +9,27 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem, NativeIcon,
     PredefinedMenuItem, Submenu,
 };
+#[cfg(all(
+    feature = "gtk3",
+    not(feature = "gtk4"),
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
+))]
+use muda::ContextMenuGtkExt;
+#[cfg(target_os = "macos")]
+use muda::{ContextMenuExtMacOS, MenuExtMacOS, SubmenuExtMacOS};
+#[cfg(target_os = "windows")]
+use muda::{ContextMenuExtWindows, MenuExtWindows};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowExtMacOS;
 #[cfg(all(
     feature = "gtk3",
+    not(feature = "gtk4"),
     any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -234,6 +251,7 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
 
     #[cfg(all(
         feature = "gtk3",
+        not(feature = "gtk4"),
         any(
             target_os = "linux",
             target_os = "dragonfly",

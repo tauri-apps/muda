@@ -29,6 +29,17 @@ use crate::MenuSnapshotHandle;
 ))]
 use crate::dpi::Position;
 
+/// The window menu bar theme
+#[cfg(windows)]
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum MenuTheme {
+    Dark = 0,
+    Light = 1,
+    Auto = 2,
+}
+
 /// A root menu that can be added to a window on Windows, GTK 3, or GTK 4
 /// and used as the app global menu on macOS.
 #[derive(Clone)]
@@ -265,48 +276,190 @@ impl Menu {
             })
             .collect()
     }
+}
 
-    /// Adds this menu to a [`gtk::Window`].
+/// Windows-specific operations for a [`Menu`].
+#[cfg(target_os = "windows")]
+pub trait MenuExtWindows {
+    /// Adds this menu to a Win32 window.
     ///
-    /// With the `gtk3` feature this creates a `gtk::MenuBar`. With the `gtk4` feature this
-    /// creates a `gtk::PopoverMenuBar`.
+    /// # Safety
     ///
-    /// - `container`: this optional parameter specifies the container that receives the menu bar.
-    ///   Passing a container is highly recommended; otherwise the menu bar is added directly to the
-    ///   window, which is usually not the desired behavior. Supported containers are [`gtk::Box`],
-    ///   [`gtk::Fixed`], and [`gtk::Stack`].
+    /// `hwnd` must be a valid window handle.
+    unsafe fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()>;
+
+    /// Adds this menu to a Win32 window using the specified theme.
     ///
-    /// With the `gtk4` feature, the window must belong to a [`gtk::Application`].
+    /// The theme affects the menu bar itself, but not submenus or context menus.
     ///
-    /// ## Example:
-    /// ```no_run
-    /// # #[cfg(feature = "gtk4")]
-    /// # use gtk4 as gtk;
-    /// let window = gtk::Window::builder().build();
-    /// let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    /// let menu = muda::Menu::new();
-    /// // -- snip, add your menu items --
-    /// menu.init_for_gtk_window(&window, Some(&vbox));
-    /// // then proceed to add your widgets to the `vbox`
-    /// ```
+    /// # Safety
     ///
-    /// ## Panics:
+    /// `hwnd` must be a valid window handle.
+    unsafe fn init_for_hwnd_with_theme(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()>;
+
+    /// Sets the menu bar theme for a Win32 window.
     ///
-    /// Panics if the gtk event loop hasn't been initialized on the thread.
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
-    pub fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
+    /// # Safety
+    ///
+    /// `hwnd` must be a valid window handle.
+    unsafe fn set_theme_for_hwnd(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()>;
+
+    /// Gets the [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) associated with
+    /// this menu.
+    fn haccel(&self) -> isize;
+
+    /// Removes this menu from a Win32 window.
+    ///
+    /// # Safety
+    ///
+    /// `hwnd` must be a valid window handle.
+    unsafe fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()>;
+
+    /// Hides this menu on a Win32 window.
+    ///
+    /// # Safety
+    ///
+    /// `hwnd` must be a valid window handle.
+    unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()>;
+
+    /// Shows this menu on a Win32 window.
+    ///
+    /// # Safety
+    ///
+    /// `hwnd` must be a valid window handle.
+    unsafe fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()>;
+
+    /// Returns whether this menu is visible on a Win32 window.
+    ///
+    /// # Safety
+    ///
+    /// `hwnd` must be a valid window handle.
+    unsafe fn is_visible_on_hwnd(&self, hwnd: isize) -> bool;
+}
+
+#[cfg(target_os = "windows")]
+impl MenuExtWindows for Menu {
+    unsafe fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        unsafe { self.platform.borrow_mut().init_for_hwnd(hwnd) }
+    }
+
+    unsafe fn init_for_hwnd_with_theme(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()> {
+        unsafe {
+            self.platform
+                .borrow_mut()
+                .init_for_hwnd_with_theme(hwnd, theme)
+        }
+    }
+
+    unsafe fn set_theme_for_hwnd(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()> {
+        unsafe { self.platform.borrow().set_theme_for_hwnd(hwnd, theme) }
+    }
+
+    fn haccel(&self) -> isize {
+        self.platform.borrow().haccel()
+    }
+
+    unsafe fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        unsafe { self.platform.borrow_mut().remove_for_hwnd(hwnd) }
+    }
+
+    unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        unsafe { self.platform.borrow().hide_for_hwnd(hwnd) }
+    }
+
+    unsafe fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
+        unsafe { self.platform.borrow().show_for_hwnd(hwnd) }
+    }
+
+    unsafe fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
+        unsafe { self.platform.borrow().is_visible_on_hwnd(hwnd) }
+    }
+}
+
+/// macOS-specific operations for a [`Menu`].
+#[cfg(target_os = "macos")]
+pub trait MenuExtMacOS {
+    /// Adds this menu to `NSApp` as its main menu.
+    fn init_for_nsapp(&self);
+
+    /// Removes this menu from `NSApp`.
+    fn remove_for_nsapp(&self);
+}
+
+#[cfg(target_os = "macos")]
+impl MenuExtMacOS for Menu {
+    fn init_for_nsapp(&self) {
+        self.platform.borrow_mut().init_for_nsapp()
+    }
+
+    fn remove_for_nsapp(&self) {
+        self.platform.borrow_mut().remove_for_nsapp()
+    }
+}
+
+/// GTK 3-specific operations for a [`Menu`].
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    not(feature = "gtk4")
+))]
+pub trait MenuGtkExt {
+    /// Adds this menu to a GTK 3 window.
+    ///
+    /// `container` receives the menu bar and should normally be provided. Supported containers
+    /// are [`gtk::Box`], [`gtk::Fixed`], and [`gtk::Stack`].
+    fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Widget>,
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>,
+        C: gtk::prelude::IsA<gtk::Widget>;
+
+    /// Removes this menu from a GTK 3 window.
+    fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>;
+
+    /// Hides this menu on a GTK 3 window.
+    fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window>;
+
+    /// Shows this menu on a GTK 3 window.
+    fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window>;
+
+    /// Returns whether this menu is visible on a GTK 3 window.
+    fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
+    where
+        W: gtk::prelude::IsA<gtk::Window>;
+
+    /// Returns the GTK 3 menubar associated with this window, if one exists.
+    fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::Window>;
+}
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    not(feature = "gtk4")
+))]
+impl MenuGtkExt for Menu {
+    fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>,
         C: gtk::prelude::IsA<gtk::Widget>,
     {
         let children = self.items();
@@ -315,96 +468,9 @@ impl Menu {
             .init_for_gtk_window(&children, window, container)
     }
 
-    /// Adds this menu to a win32 window.
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    ///
-    /// ##  Note about accelerators:
-    ///
-    /// For accelerators to work, the event loop needs to call
-    /// [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
-    /// with the [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) returned from [`Menu::haccel`]
-    ///
-    /// #### Example:
-    /// ```no_run
-    /// # use muda::Menu;
-    /// # use windows_sys::Win32::UI::WindowsAndMessaging::{MSG, GetMessageW, TranslateMessage, DispatchMessageW, TranslateAcceleratorW};
-    /// let menu = Menu::new();
-    /// unsafe {
-    ///     let mut msg: MSG = std::mem::zeroed();
-    ///     while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) == 1 {
-    ///         let translated = TranslateAcceleratorW(msg.hwnd, menu.haccel() as _, &msg as *const _);
-    ///         if translated != 1{
-    ///             TranslateMessage(&msg);
-    ///             DispatchMessageW(&msg);
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    #[cfg(target_os = "windows")]
-    pub unsafe fn init_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.platform.borrow_mut().init_for_hwnd(hwnd)
-    }
-
-    /// Adds this menu to a win32 window using the specified theme.
-    ///
-    /// See [Menu::init_for_hwnd] for more info.
-    ///
-    /// Note that the theme only affects the menu bar itself and not submenus or context menu.
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn init_for_hwnd_with_theme(
-        &self,
-        hwnd: isize,
-        theme: MenuTheme,
-    ) -> crate::Result<()> {
-        self.platform
-            .borrow_mut()
-            .init_for_hwnd_with_theme(hwnd, theme)
-    }
-
-    /// Set a theme for the menu bar on this window.
-    ///
-    /// Note that the theme only affects the menu bar itself and not submenus or context menu.
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn set_theme_for_hwnd(&self, hwnd: isize, theme: MenuTheme) -> crate::Result<()> {
-        self.platform.borrow().set_theme_for_hwnd(hwnd, theme)
-    }
-
-    /// Returns The [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) associated with this menu
-    /// It can be used with [`TranslateAcceleratorW`](windows_sys::Win32::UI::WindowsAndMessaging::TranslateAcceleratorW)
-    /// in the event loop to enable accelerators
-    ///
-    /// The returned [`HACCEL`](windows_sys::Win32::UI::WindowsAndMessaging::HACCEL) is valid as long as the [Menu] is.
-    #[cfg(target_os = "windows")]
-    pub fn haccel(&self) -> isize {
-        self.platform.borrow().haccel()
-    }
-
-    /// Removes this menu from a [`gtk::Window`]
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
-    pub fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
-        W: gtk::prelude::IsA<gtk::Window>,
-        W: gtk::prelude::IsA<gtk::Widget>,
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>,
     {
         let children = self.items();
         self.platform
@@ -412,185 +478,158 @@ impl Menu {
             .remove_for_gtk_window(&children, window)
     }
 
-    /// Removes this menu from a win32 window
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn remove_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.platform.borrow_mut().remove_for_hwnd(hwnd)
-    }
-
-    /// Hides this menu from a [`gtk::Window`]
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
-    pub fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.platform.borrow_mut().hide_for_gtk_window(window)
     }
 
-    /// Hides this menu from a win32 window
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn hide_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.platform.borrow().hide_for_hwnd(hwnd)
-    }
-
-    /// Shows this menu on a [`gtk::Window`]
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
-    pub fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
     where
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.platform.borrow_mut().show_for_gtk_window(window)
     }
 
-    /// Shows this menu on a win32 window
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn show_for_hwnd(&self, hwnd: isize) -> crate::Result<()> {
-        self.platform.borrow().show_for_hwnd(hwnd)
-    }
-
-    /// Returns whether this menu visible on a [`gtk::Window`]
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
-    pub fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
+    fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
     where
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.platform.borrow().is_visible_on_gtk_window(window)
     }
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk3",
-        not(feature = "gtk4")
-    ))]
-    /// Returns the [`gtk::MenuBar`] that is associated with this window if it exists.
-    /// This is useful to get information about the menubar for example its height.
-    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::MenuBar>
+    fn gtk_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk::MenuBar>
     where
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.platform.borrow().gtk_menubar_for_gtk_window(window)
-    }
-
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk4"
-    ))]
-    /// Returns the [`gtk::PopoverMenuBar`] that is associated with this window if it exists.
-    /// This is useful to get information about the menubar for example its height.
-    pub fn gtk_menubar_for_gtk_window<W>(self, window: &W) -> Option<gtk::PopoverMenuBar>
-    where
-        W: gtk::prelude::IsA<gtk::Window>,
-    {
-        self.platform.borrow().gtk_menubar_for_gtk_window(window)
-    }
-
-    /// Returns whether this menu visible on a on a win32 window
-    ///
-    /// # Safety
-    ///
-    /// The `hwnd` must be a valid window HWND.
-    #[cfg(target_os = "windows")]
-    pub unsafe fn is_visible_on_hwnd(&self, hwnd: isize) -> bool {
-        self.platform.borrow().is_visible_on_hwnd(hwnd)
-    }
-
-    /// Adds this menu to an NSApp.
-    #[cfg(target_os = "macos")]
-    pub fn init_for_nsapp(&self) {
-        self.platform.borrow_mut().init_for_nsapp()
-    }
-
-    /// Removes this menu from an NSApp.
-    #[cfg(target_os = "macos")]
-    pub fn remove_for_nsapp(&self) {
-        self.platform.borrow_mut().remove_for_nsapp()
     }
 }
 
-impl crate::sealed::Sealed for Menu {}
-impl ContextMenu for Menu {
-    #[cfg(target_os = "windows")]
-    fn hpopupmenu(&self) -> isize {
-        self.platform.borrow().hpopupmenu()
+/// GTK 4-specific operations for a [`Menu`].
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+pub trait MenuGtk4Ext {
+    /// Adds this menu to a GTK 4 window.
+    ///
+    /// `container` receives the menu bar and should normally be provided. Supported containers
+    /// are [`gtk4::Box`], [`gtk4::Fixed`], and [`gtk4::Stack`]. The window must belong to a
+    /// [`gtk4::Application`].
+    fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window> + gtk4::prelude::IsA<gtk4::Widget>,
+        C: gtk4::prelude::IsA<gtk4::Widget>;
+
+    /// Removes this menu from a GTK 4 window.
+    fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window> + gtk4::prelude::IsA<gtk4::Widget>;
+
+    /// Hides this menu on a GTK 4 window.
+    fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>;
+
+    /// Shows this menu on a GTK 4 window.
+    fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>;
+
+    /// Returns whether this menu is visible on a GTK 4 window.
+    fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>;
+
+    /// Returns the GTK 4 menubar associated with this window, if one exists.
+    fn gtk_popover_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>;
+}
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+impl MenuGtk4Ext for Menu {
+    fn init_for_gtk_window<W, C>(&self, window: &W, container: Option<&C>) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window> + gtk4::prelude::IsA<gtk4::Widget>,
+        C: gtk4::prelude::IsA<gtk4::Widget>,
+    {
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .init_for_gtk_window(&children, window, container)
     }
 
-    #[cfg(target_os = "windows")]
-    unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
-        let selected = self.platform.borrow().show_context_menu(hwnd, position);
-        crate::platform_impl::dispatch_selection(hwnd, selected)
+    fn remove_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window> + gtk4::prelude::IsA<gtk4::Widget>,
+    {
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .remove_for_gtk_window(&children, window)
     }
 
-    #[cfg(target_os = "windows")]
-    unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
-        self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd)
+    fn hide_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>,
+    {
+        self.platform.borrow_mut().hide_for_gtk_window(window)
     }
 
-    #[cfg(target_os = "windows")]
-    unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
-        self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd)
+    fn show_for_gtk_window<W>(&self, window: &W) -> crate::Result<()>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>,
+    {
+        self.platform.borrow_mut().show_for_gtk_window(window)
     }
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        any(all(feature = "gtk3", not(feature = "gtk4")), feature = "gtk4")
-    ))]
+    fn is_visible_on_gtk_window<W>(&self, window: &W) -> bool
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>,
+    {
+        self.platform.borrow().is_visible_on_gtk_window(window)
+    }
+
+    fn gtk_popover_menubar_for_gtk_window<W>(&self, window: &W) -> Option<gtk4::PopoverMenuBar>
+    where
+        W: gtk4::prelude::IsA<gtk4::Window>,
+    {
+        self.platform
+            .borrow()
+            .gtk_popover_menubar_for_gtk_window(window)
+    }
+}
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    not(feature = "gtk4")
+))]
+impl crate::ContextMenuGtkExt for Menu {
     fn show_context_menu_for_gtk_window(
         &self,
         window: &gtk::Window,
@@ -602,55 +641,83 @@ impl ContextMenu for Menu {
             .show_context_menu_for_gtk_window(&children, window, position)
     }
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk3",
-        not(feature = "gtk4")
-    ))]
-    fn gtk_context_menu(&self) -> gtk::Menu {
+    fn gtk_menu(&self) -> gtk::Menu {
         let children = self.items();
-        self.platform.borrow_mut().gtk_context_menu(&children)
+        self.platform.borrow_mut().gtk_menu(&children)
+    }
+}
+
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk4"
+))]
+impl crate::ContextMenuGtk4Ext for Menu {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        window: &gtk4::Window,
+        position: Option<Position>,
+    ) -> bool {
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .show_context_menu_for_gtk_window(&children, window, position)
     }
 
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ),
-        feature = "gtk4"
-    ))]
-    fn gtk_context_menu(&self) -> gtk::PopoverMenu {
+    fn gtk_popover_menu(&self) -> gtk4::PopoverMenu {
         let children = self.items();
-        self.platform.borrow_mut().gtk_context_menu(&children)
+        self.platform.borrow_mut().gtk_popover_menu(&children)
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl crate::ContextMenuExtWindows for Menu {
+    fn hpopupmenu(&self) -> isize {
+        self.platform.borrow().hpopupmenu()
     }
 
-    #[cfg(target_os = "macos")]
+    unsafe fn show_context_menu_for_hwnd(&self, hwnd: isize, position: Option<Position>) -> bool {
+        let selected = unsafe { self.platform.borrow().show_context_menu(hwnd, position) };
+        crate::platform_impl::dispatch_selection(hwnd, selected)
+    }
+
+    unsafe fn attach_menu_subclass_for_hwnd(&self, hwnd: isize) {
+        unsafe { self.platform.borrow().attach_menu_subclass_for_hwnd(hwnd) }
+    }
+
+    unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize) {
+        unsafe { self.platform.borrow().detach_menu_subclass_from_hwnd(hwnd) }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl crate::ContextMenuExtMacOS for Menu {
     unsafe fn show_context_menu_for_nsview(
         &self,
         view: *const std::ffi::c_void,
         position: Option<Position>,
     ) -> bool {
-        self.platform
-            .borrow_mut()
-            .show_context_menu_for_nsview(view, position)
+        unsafe {
+            self.platform
+                .borrow_mut()
+                .show_context_menu_for_nsview(view, position)
+        }
     }
 
-    #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void {
         self.platform.borrow().ns_menu()
     }
+}
 
-    fn as_menu(&self) -> Option<&Menu> {
-        Some(self)
+impl crate::sealed::Sealed for Menu {}
+impl ContextMenu for Menu {
+    fn kind(&self) -> crate::MenuKind {
+        crate::MenuKind::Menu(self.clone())
     }
 
     #[cfg(feature = "snapshot")]
@@ -659,17 +726,7 @@ impl ContextMenu for Menu {
     }
 }
 
-/// The window menu bar theme
-#[cfg(windows)]
-#[repr(usize)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum MenuTheme {
-    Dark = 0,
-    Light = 1,
-    Auto = 2,
-}
-
+/// Returns the positions of the menu items with the specified `id` within the given `children` slice.
 pub(crate) fn positions_of(children: &[UnsafeMenuItemKind], id: &MenuId) -> Vec<usize> {
     children
         .iter()
