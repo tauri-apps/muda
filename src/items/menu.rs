@@ -406,8 +406,7 @@ impl MenuExtMacOS for Menu {
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk3",
-    not(feature = "gtk4")
+    feature = "gtk3"
 ))]
 pub trait MenuGtkExt {
     /// Adds this menu to a GTK 3 window.
@@ -504,6 +503,64 @@ impl MenuGtkExt for Menu {
         W: gtk::prelude::IsA<gtk::Window>,
     {
         self.platform.borrow().gtk_menubar_for_gtk_window(window)
+    }
+}
+
+// TODO: Remove once Tauri migrates to GTK 4 exclusively.
+/// GTK 3-specific operations for a [`Menu`] when both GTK 3 and GTK 4 features are enabled.
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    feature = "gtk4"
+))]
+impl MenuGtkExt for Menu {
+    fn init_for_gtk_window<W, C>(&self, _window: &W, _container: Option<&C>) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>,
+        C: gtk::prelude::IsA<gtk::Widget>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn remove_for_gtk_window<W>(&self, _window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window> + gtk::prelude::IsA<gtk::Widget>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn hide_for_gtk_window<W>(&self, _window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn show_for_gtk_window<W>(&self, _window: &W) -> crate::Result<()>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn is_visible_on_gtk_window<W>(&self, _window: &W) -> bool
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn gtk_menubar_for_gtk_window<W>(&self, _window: &W) -> Option<gtk::MenuBar>
+    where
+        W: gtk::prelude::IsA<gtk::Window>,
+    {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
     }
 }
 
@@ -644,6 +701,33 @@ impl crate::ContextMenuGtkExt for Menu {
     fn gtk_menu(&self) -> gtk::Menu {
         let children = self.items();
         self.platform.borrow_mut().gtk_menu(&children)
+    }
+}
+
+// TODO: Remove once Tauri migrates to GTK 4 exclusively.
+/// GTK 3-specific operations for a [`Menu`] when both GTK 3 and GTK 4 features are enabled.
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    feature = "gtk4"
+))]
+impl crate::ContextMenuGtkExt for Menu {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        _window: &gtk::Window,
+        _position: Option<Position>,
+    ) -> bool {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn gtk_menu(&self) -> gtk::Menu {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled");
     }
 }
 

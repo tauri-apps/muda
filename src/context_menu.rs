@@ -164,8 +164,7 @@ impl ContextMenuExtMacOS for dyn ContextMenu + '_ {
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk3",
-    not(feature = "gtk4")
+    feature = "gtk3"
 ))]
 pub trait ContextMenuGtkExt {
     /// Shows this menu as a context menu inside a GTK 3 window.
@@ -240,6 +239,33 @@ impl ContextMenuGtkExt for dyn ContextMenu + '_ {
             MenuKind::Menu(menu) => ContextMenuGtkExt::gtk_menu(&menu),
             MenuKind::Submenu(submenu) => ContextMenuGtkExt::gtk_menu(&submenu),
         }
+    }
+}
+
+// TODO: Remove once Tauri migrates to GTK 4 exclusively.
+/// GTK 3-specific operations for context menus when both GTK 3 and GTK 4 features are enabled.
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    feature = "gtk4"
+))]
+impl ContextMenuGtkExt for dyn ContextMenu + '_ {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        _window: &gtk::Window,
+        _position: Option<crate::dpi::Position>,
+    ) -> bool {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn gtk_menu(&self) -> gtk::Menu {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled");
     }
 }
 

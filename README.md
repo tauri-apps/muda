@@ -27,7 +27,7 @@ The Win32 and AppKit backends are always enabled on Windows and macOS, respectiv
 - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state to thread-safe synchronization.
 - `serde`: Enables de/serializing the dpi types.
 
-The `gtk3` and `gtk4` features are mutually exclusive.
+When both `gtk3` and `gtk4` features are enabled, Muda uses the GTK 4 backend.
 
 ## Dependencies (Linux/BSD)
 

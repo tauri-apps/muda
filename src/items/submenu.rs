@@ -443,6 +443,33 @@ impl crate::ContextMenuGtkExt for Submenu {
     }
 }
 
+// TODO: Remove once Tauri migrates to GTK 4 exclusively.
+/// GTK 3-specific operations for a [`Submenu`] when both GTK 3 and GTK 4 features are enabled.
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    feature = "gtk3",
+    feature = "gtk4"
+))]
+impl crate::ContextMenuGtkExt for Submenu {
+    fn show_context_menu_for_gtk_window(
+        &self,
+        _window: &gtk::Window,
+        _position: Option<Position>,
+    ) -> bool {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled")
+    }
+
+    fn gtk_menu(&self) -> gtk::Menu {
+        panic!("GTK 3 menu is unavailable when both GTK 3 and GTK 4 features are enabled");
+    }
+}
+
 #[cfg(all(
     any(
         target_os = "linux",

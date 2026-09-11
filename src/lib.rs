@@ -34,7 +34,7 @@
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
-//! The `gtk3` and `gtk4` features are mutually exclusive.
+//! When both `gtk3` and `gtk4` features are enabled, Muda uses the GTK 4 backend.
 //!
 //! # Dependencies (Linux/BSD)
 //!
@@ -259,9 +259,6 @@
 //! [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
-
-#[cfg(all(feature = "gtk3", feature = "gtk4"))]
-compile_error!("features `gtk3` and `gtk4` cannot be enabled together");
 
 pub mod about_metadata;
 pub mod accelerator;
