@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
-rust-version = "1.90"
+rust-version = "1.92"
 include = [
   "README.md",
   "build.rs",
