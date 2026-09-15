@@ -106,3 +106,11 @@ winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk
 [[example]]
 name = "winit_gtk4"
 required-features = ["gtk4"]
+
+[patch.crates-io]
+tao = { git = "https://github.com/tauri-apps/tao.git", branch = "gtk-0.19" }
+wry = { git = "https://github.com/tauri-apps/wry.git", branch = "gtk-0.19" }
+javascriptcore-rs = { git = "https://github.com/tauri-apps/javascriptcore-rs.git" }
+javascriptcore-rs-sys = { git = "https://github.com/tauri-apps/javascriptcore-rs.git" }
+webkit2gtk = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
+webkit2gtk-sys = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
