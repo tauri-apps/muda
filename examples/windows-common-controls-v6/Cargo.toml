@@ -12,12 +12,12 @@ gtk3 = ["muda/gtk3"]
 
 [dependencies]
 muda = { path = "../../", default-features = false, features = ["common-controls-v6"] }
-tao = "0.28"
-image = "0.25"
+tao = "0.37"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-version = "0.59"
+version = "0.61"
 features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"]
 
 [build-dependencies]
-embed-resource = "2"
+embed-resource = "3"
