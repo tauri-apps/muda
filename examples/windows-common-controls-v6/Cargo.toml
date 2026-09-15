@@ -21,3 +21,6 @@ features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"]
 
 [build-dependencies]
 embed-resource = "3"
+
+[patch.crates-io]
+tao = { git = "https://github.com/tauri-apps/tao.git", branch = "gtk-0.19" }
