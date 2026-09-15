@@ -16,9 +16,32 @@ pub(crate) fn app_name() -> Option<String> {
 ///
 /// `&` can be escaped as `&&` to prevent stripping, in which case a single `&` will be output.
 pub fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
-    string
-        .as_ref()
-        .replace("&&", "[~~]")
-        .replace('&', "")
-        .replace("[~~]", "&")
+    let string = string.as_ref();
+    let mut stripped = String::with_capacity(string.len());
+    let mut characters = string.chars().peekable();
+
+    while let Some(character) = characters.next() {
+        match character {
+            '&' if characters.peek() == Some(&'&') => {
+                characters.next();
+                stripped.push('&');
+            }
+            '&' => {}
+            _ => stripped.push(character),
+        }
+    }
+
+    stripped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_mnemonic;
+
+    #[test]
+    fn strips_mnemonics() {
+        assert_eq!(strip_mnemonic("H&ello"), "Hello");
+        assert_eq!(strip_mnemonic("H&&ello"), "H&ello");
+        assert_eq!(strip_mnemonic("H&&&ello"), "H&ello");
+    }
 }

@@ -341,16 +341,6 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
     }
 }
 
-impl UnsafeMenuItemKind {
-    /// Creates a snapshot from thread-safe fields and wrapped platform handles.
-    pub(crate) fn snapshot(&self) -> MenuItemKindSnapshot {
-        // The `Send` implementation relies on this method reading only the immutable discriminant
-        // and wrapping thread-bound platform values before they cross a thread boundary. Wrapped
-        // platform values are accessed and destroyed only from the platform main thread.
-        MenuItemKindSnapshot::from(&*self.0)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::thread;
@@ -365,7 +355,7 @@ mod tests {
     #[test]
     fn unsafe_menu_item_kind_is_send() {
         assert_send::<UnsafeMenuItemKind>();
-        assert_send_sync::<crate::StateCell<crate::menu::MenuState>>();
+        assert_send_sync::<crate::StateCell<crate::items::MenuState>>();
         assert_send_sync::<crate::MenuSnapshotHandle>();
         assert_send_sync::<MenuItemKindSnapshot>();
     }

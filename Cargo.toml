@@ -1,6 +1,6 @@
 [package]
 name = "muda"
-version = "0.19.3"
+version = "0.20.0"
 description = "Menu Utilities for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "menu"]
@@ -12,6 +12,7 @@ categories = ["gui"]
 rust-version = "1.90"
 include = [
   "README.md",
+  "build.rs",
   "src/**/*.rs",
   "Cargo.toml",
   "LICENSE-APACHE",
@@ -95,8 +96,8 @@ png = "0.18"
 
 [dev-dependencies]
 winit = "0.30"
-tao = "0.36"
-wry = "0.56"
+tao = "0.37"
+wry = "0.57"
 image = { version = "0.25", default-features = false, features = ["png"] }
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",

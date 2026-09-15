@@ -39,7 +39,8 @@ mod platform;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    feature = "gtk3"
+    feature = "gtk3",
+    not(feature = "gtk4")
 ))]
 #[path = "gtk/mod.rs"]
 mod platform;
