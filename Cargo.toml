@@ -20,6 +20,10 @@ include = [
   "LICENSE.spdx",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["libxdo", "gtk3"]
 libxdo = ["dep:libxdo"]

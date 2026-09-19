@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(clippy::uninlined_format_args)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! muda is a Menu Utilities library for Desktop Applications.
 //!
