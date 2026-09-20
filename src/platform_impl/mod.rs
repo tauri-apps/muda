@@ -88,6 +88,8 @@ pub(crate) struct PlatformAttachArgs {
     pub accelerator: Option<MenuAccelerator>,
     pub icon: Option<IconType>,
     #[cfg(target_os = "macos")]
+    pub icon_as_template: bool,
+    #[cfg(target_os = "macos")]
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
@@ -103,6 +105,8 @@ impl MenuItemKind {
                     accelerator: state.accelerator.clone(),
                     icon: None,
                     #[cfg(target_os = "macos")]
+                    icon_as_template: false,
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
@@ -114,6 +118,8 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: None,
                     icon: state.icon.clone(),
+                    #[cfg(target_os = "macos")]
+                    icon_as_template: false,
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
@@ -127,6 +133,8 @@ impl MenuItemKind {
                     accelerator: state.predefined_item_type.accelerator(),
                     icon: None,
                     #[cfg(target_os = "macos")]
+                    icon_as_template: false,
+                    #[cfg(target_os = "macos")]
                     styled_text: None,
                 }
             }
@@ -139,6 +147,8 @@ impl MenuItemKind {
                     accelerator: state.accelerator.clone(),
                     icon: None,
                     #[cfg(target_os = "macos")]
+                    icon_as_template: false,
+                    #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }
             }
@@ -150,6 +160,8 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: state.icon.clone(),
+                    #[cfg(target_os = "macos")]
+                    icon_as_template: state.icon_as_template,
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
                 }

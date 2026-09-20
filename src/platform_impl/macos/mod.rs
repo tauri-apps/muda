@@ -191,6 +191,7 @@ impl PlatformMenu {
 pub struct PlatformMenuItem {
     click: MenuItemAction,
     is_services_menu: bool,
+    icon_as_template: bool,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
     ns_menu: Option<NsMenuRef>,
@@ -202,6 +203,7 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
+            icon_as_template: false,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
             ns_menus: None,
@@ -218,6 +220,7 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
+            icon_as_template: false,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
                 menu.setAutoenablesItems(false);
@@ -371,11 +374,17 @@ impl PlatformMenuItem {
 /// IconMenuItem methods
 impl PlatformMenuItem {
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
+        let as_template = self.icon_as_template;
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                menuitem_set_icon_type(ns_item, icon);
+                menuitem_set_icon_type(ns_item, icon, as_template);
             }
         }
+    }
+
+    pub fn set_icon_as_template(&mut self, is_template: bool, icon: Option<&IconType>) {
+        self.icon_as_template = is_template;
+        self.set_icon(icon);
     }
 }
 
@@ -652,7 +661,7 @@ impl PlatformMenuItem {
             ns_submenu.setAutoenablesItems(false);
 
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), args.icon_as_template);
         }
 
         let id = COUNTER.next();
@@ -801,7 +810,7 @@ impl PlatformMenuItem {
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), args.icon_as_template);
         }
 
         ns_menu_item.ivars().replace(Some(owner));
@@ -1016,17 +1025,20 @@ impl MenuItemKind {
     }
 }
 
-fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>) {
+fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>, as_template: bool) {
     match icon {
-        Some(IconType::Custom(icon)) => menuitem_set_icon(menuitem, Some(icon)),
+        Some(IconType::Custom(icon)) => menuitem_set_icon(menuitem, Some(icon), as_template),
         Some(IconType::Native(icon)) => menuitem_set_native_icon(menuitem, Some(icon)),
         None => menuitem.setImage(None),
     }
 }
 
-fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>) {
+fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>, as_template: bool) {
     if let Some(icon) = icon {
         let nsimage = icon.inner.to_nsimage(Some(18.));
+        // Set before `setImage:` so the image is never displayed with the wrong
+        // template flag for a frame.
+        nsimage.setTemplate(as_template);
         menuitem.setImage(Some(&nsimage));
     } else {
         menuitem.setImage(None);

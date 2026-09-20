@@ -30,6 +30,7 @@ pub(crate) struct IconMenuItemState {
     pub text: String,
     pub enabled: bool,
     pub icon: Option<IconType>,
+    pub icon_as_template: bool,
     pub accelerator: Option<MenuAccelerator>,
     pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
@@ -178,6 +179,7 @@ impl IconMenuItem {
             text: text.to_string(),
             enabled,
             icon,
+            icon_as_template: false,
             accelerator,
             styled_text: None,
         };
@@ -313,6 +315,41 @@ impl IconMenuItem {
             state.icon.clone()
         };
         self.platform.borrow_mut().set_icon(icon.as_ref())
+    }
+
+    /// Whether this menu item's icon is treated as a template image.
+    ///
+    /// See [`IconMenuItem::set_icon_as_template`].
+    pub fn icon_as_template(&self) -> bool {
+        self.state.borrow().icon_as_template
+    }
+
+    /// Set whether this menu item's icon is treated as a template image.
+    ///
+    /// A template image is drawn using only its alpha channel, so the system
+    /// recolours it to match the menu, the way the built-in items do. Defaults
+    /// to `false`, which displays the icon as-is.
+    ///
+    /// This mirrors `TrayIcon::set_icon_as_template` in `tray-icon`. The flag is
+    /// applied together with the image rather than in a separate step, so it
+    /// cannot race with [`IconMenuItem::set_icon`] the way the tray icon's
+    /// separate setters once did.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Windows / Linux**: Unsupported, this is a no-op.
+    pub fn set_icon_as_template(&self, is_template: bool) {
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon_as_template = is_template;
+            state.icon.clone()
+        };
+        #[cfg(target_os = "macos")]
+        self.platform
+            .borrow_mut()
+            .set_icon_as_template(is_template, icon.as_ref());
+        #[cfg(not(target_os = "macos"))]
+        let _ = icon;
     }
 
     /// Convert this menu item into its menu ID.
