@@ -27,6 +27,8 @@ use std::{
 
 static COUNTER: Counter = Counter::new();
 
+const UBUNTU_NO_PROXY_PROPERTY: &str = "ubuntu-no-proxy";
+
 #[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
 where
@@ -131,6 +133,12 @@ impl PlatformMenu {
         // This is the first time this method has been called on this window
         // so we need to create the menubar and its parent box
         if let Entry::Vacant(e) = self.gtk_menubars.entry(id) {
+            // Ubuntu appmenu-gtk-module recursively realizes a GtkMenuBar while
+            // exporting it unless its proxy is disabled for the window.
+            if window.find_property(UBUNTU_NO_PROXY_PROPERTY).is_some() {
+                window.set_property(UBUNTU_NO_PROXY_PROPERTY, true);
+            }
+
             let menu_bar = gtk::MenuBar::new();
             e.insert(menu_bar);
             self.gtk_windows
