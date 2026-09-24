@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+mod edit_command;
 mod icon;
 mod icon_menu_item;
 mod mnemonic;
@@ -121,6 +122,7 @@ impl GtkMenuBar {
                 if let Some(window) = window.upgrade() {
                     window
                         .insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+                    edit_command::untrack_focus(&window);
                 }
             }
             GtkMenuBar::ContextMenu { widget, .. } => {
@@ -213,6 +215,8 @@ impl PlatformMenu {
         let action_group = action_group_from_app(&app);
         window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
+        edit_command::track_focus(window);
+
         for item in children {
             self.add_existing_item_to_instance(item, id)?;
         }
@@ -269,6 +273,7 @@ impl PlatformMenu {
         menu_bar.menu_bar().unparent();
 
         window.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
+        edit_command::untrack_focus(window);
 
         Ok(())
     }
@@ -327,6 +332,7 @@ impl PlatformMenu {
         };
 
         self.ensure_context_menu(app, children);
+        edit_command::track_focus(window);
 
         let (x, y) = match position {
             Some(p) => p.to_logical::<i32>(scale_factor(window)).into(),
@@ -1277,12 +1283,22 @@ fn remove_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>) {
     }
 }
 
+/// Runs the action of a predefined menu item. Must be called on the GTK main thread.
 fn run_predefined(app: &gtk::Application, predefined_item_type: &PredefinedMenuItemType) {
     let Some(window) = app.active_window() else {
         return;
     };
 
     match predefined_item_type {
+        PredefinedMenuItemType::Copy
+        | PredefinedMenuItemType::Cut
+        | PredefinedMenuItemType::Paste
+        | PredefinedMenuItemType::SelectAll
+        | PredefinedMenuItemType::Undo
+        | PredefinedMenuItemType::Redo => {
+            edit_command::send(&window, predefined_item_type);
+        }
+
         PredefinedMenuItemType::Minimize => window.minimize(),
         PredefinedMenuItemType::Maximize => window.maximize(),
         PredefinedMenuItemType::Fullscreen => {
