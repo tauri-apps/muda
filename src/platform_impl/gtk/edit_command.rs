@@ -45,15 +45,14 @@ pub(crate) fn send(item: &gtk::MenuItem, item_type: &PredefinedMenuItemType) {
 /// The key sequence GTK translates into the editing command of an edit menu item, if it is one.
 fn key_sequence(item_type: &PredefinedMenuItemType) -> Option<(u32, gdk::ModifierType)> {
     let control = gdk::ModifierType::CONTROL_MASK;
-    let shift = gdk::ModifierType::SHIFT_MASK;
 
     let (key, modifiers) = match item_type {
         PredefinedMenuItemType::Copy => (gdk::keys::constants::c, control),
         PredefinedMenuItemType::Cut => (gdk::keys::constants::x, control),
         PredefinedMenuItemType::Paste => (gdk::keys::constants::v, control),
         PredefinedMenuItemType::SelectAll => (gdk::keys::constants::a, control),
-        PredefinedMenuItemType::Undo => (gdk::keys::constants::z, control),
-        PredefinedMenuItemType::Redo => (gdk::keys::constants::z, control | shift),
+        // GTK 3 has no undo of its own, so there is no key sequence for it to translate. A web
+        // view is handled before this, through its own editing commands.
         _ => return None,
     };
 
@@ -75,8 +74,14 @@ fn focused_web_view(window: &gtk::Window) -> Option<gtk::Widget> {
 /// Returns the window the menu the item belongs to was opened from.
 ///
 /// An open menu has a window of its own that holds the keyboard focus, so the window is taken
-/// from what the menu is attached to rather than from whichever window is active.
+/// from what the menu is attached to rather than from whichever window is active. A menu handed
+/// to a status icon is attached to nothing, and falls back to the application's active window.
 fn menu_window(item: &gtk::MenuItem) -> Option<gtk::Window> {
+    attached_window(item).or_else(active_window)
+}
+
+/// Climbs out of the menus an item is nested in, to the window they were opened from.
+fn attached_window(item: &gtk::MenuItem) -> Option<gtk::Window> {
     let mut widget: gtk::Widget = item.clone().upcast();
 
     loop {
@@ -94,6 +99,16 @@ fn menu_window(item: &gtk::MenuItem) -> Option<gtk::Window> {
             Err(parent) => parent,
         };
     }
+}
+
+/// Returns the application's active window, for a menu that is attached to nothing.
+fn active_window() -> Option<gtk::Window> {
+    gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|widget| widget.downcast::<gtk::Window>().ok())
+        .find(|window| {
+            GtkWindowExt::type_(window) == gtk::WindowType::Toplevel && window.is_active()
+        })
 }
 
 /// Presses and releases `keyval` with `modifiers` held down, by handing GTK the key events its

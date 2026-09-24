@@ -35,7 +35,7 @@ pub(crate) fn send(window: &gtk::Window, item_type: &PredefinedMenuItemType) {
     };
 
     if let Some(widget) = edited_widget(window) {
-        // SAFETY: the widget was matched against the `WebKitWebView` type.
+        // SAFETY: the widget was matched against the `WebKitWebView` type, and outlives the call.
         let ran = web_view_ancestor(&widget).is_some_and(|web_view| unsafe {
             webkit::execute_editing_command(web_view.as_ptr() as *mut c_void, item_type)
         });
@@ -60,21 +60,28 @@ pub(crate) fn track_focus(window: &impl IsA<gtk::Window>) {
         return;
     }
 
-    let handler = window.connect_focus_widget_notify(|window| {
-        let Some(focus) = GtkWindowExt::focus(window) else {
-            return;
-        };
+    // A context menu starts tracking the window it is shown for as it is shown, so the widget
+    // the user was editing already has the focus and no change of it is coming.
+    remember_focus(window);
 
-        if is_menu_widget(&focus) {
-            return;
-        }
-
-        // SAFETY: the weak reference is read back as the same type, on this thread.
-        unsafe { window.set_data(EDIT_FOCUS_DATA_KEY, focus.downgrade()) };
-    });
+    let handler = window.connect_focus_widget_notify(remember_focus);
 
     // SAFETY: the handler is read back as the same type, on this thread.
     unsafe { window.set_data(EDIT_FOCUS_HANDLER_DATA_KEY, handler) };
+}
+
+/// Remembers the focused widget of `window`, unless a menu is what holds the focus.
+fn remember_focus(window: &gtk::Window) {
+    let Some(focus) = GtkWindowExt::focus(window) else {
+        return;
+    };
+
+    if is_menu_widget(&focus) {
+        return;
+    }
+
+    // SAFETY: the weak reference is read back as the same type, on this thread.
+    unsafe { window.set_data(EDIT_FOCUS_DATA_KEY, focus.downgrade()) };
 }
 
 /// Stops remembering the focus of `window`, for when its menu bar is removed.
@@ -105,11 +112,14 @@ fn edited_widget(window: &gtk::Window) -> Option<gtk::Widget> {
 }
 
 /// Returns whether `widget` is part of a menu rather than of the window's own content.
+///
+/// Only the menu popovers count: an application's own popover holds content the edit commands
+/// have to act on like any other.
 fn is_menu_widget(widget: &gtk::Widget) -> bool {
     std::iter::successors(Some(widget.clone()), |widget| widget.parent()).any(|widget| {
         matches!(
             widget.type_().name(),
-            "GtkPopoverMenuBar" | "GtkPopoverMenu" | "GtkPopover"
+            "GtkPopoverMenuBar" | "GtkPopoverMenu"
         )
     })
 }
