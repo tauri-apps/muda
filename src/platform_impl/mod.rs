@@ -16,6 +16,17 @@
     allow(dead_code)
 )]
 
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    any(feature = "gtk3", feature = "gtk4")
+))]
+pub(crate) mod gtk_common;
 #[cfg(target_os = "windows")]
 #[path = "windows/mod.rs"]
 mod platform;
