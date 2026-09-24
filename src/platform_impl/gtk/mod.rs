@@ -910,7 +910,7 @@ impl PlatformMenuItem {
                 self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
             }
 
-            item.connect_activate(move |item| run_predefined(item, &predefined_item_type));
+            item.connect_activate(move |item| run_predefined(Some(item), &predefined_item_type));
             item
         } else {
             // Render unsupported predefined menu items as disabled menu items
@@ -1183,8 +1183,15 @@ fn show_context_menu(
     }
 }
 
+/// Runs the action of a predefined menu item activated from a menu snapshot, which has no menu
+/// item of this process to take the window from. Must be called on the GTK main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(predefined_item_type: &PredefinedMenuItemType) {
+    run_predefined(None, predefined_item_type);
+}
+
 /// Runs the action of a predefined menu item. Must be called on the GTK main thread.
-fn run_predefined(item: &gtk::MenuItem, predefined_item_type: &PredefinedMenuItemType) {
+fn run_predefined(item: Option<&gtk::MenuItem>, predefined_item_type: &PredefinedMenuItemType) {
     match predefined_item_type {
         // GTK has no action for the edit commands, so the menu emulates them on the window it
         // belongs to.

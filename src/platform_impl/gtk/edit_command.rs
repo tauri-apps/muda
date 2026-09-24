@@ -16,15 +16,22 @@ use gtk::{
 
 use crate::{items::PredefinedMenuItemType, platform_impl::gtk_common::webkit};
 
-/// Runs an edit command on the window the menu belongs to.
-pub(crate) fn send(item: &gtk::MenuItem, item_type: &PredefinedMenuItemType) {
-    let Some(window) = menu_window(item) else {
+/// Runs an edit command on the window the menu belongs to, or on the application's active
+/// window for a menu that is not a widget of this process to climb out of, such as one shown
+/// from a menu snapshot.
+pub(crate) fn send(item: Option<&gtk::MenuItem>, item_type: &PredefinedMenuItemType) {
+    let Some(window) = item.map_or_else(active_window, menu_window) else {
         return;
     };
 
+    send_to_window(&window, item_type)
+}
+
+/// Runs an edit command on `window`.
+fn send_to_window(window: &gtk::Window, item_type: &PredefinedMenuItemType) {
     // GTK 3 has no undo key binding for a web view to translate, so its own editing commands
     // are used for every item rather than a key sequence.
-    if let Some(web_view) = focused_web_view(&window) {
+    if let Some(web_view) = focused_web_view(window) {
         // SAFETY: the widget was matched against the `WebKitWebView` type, and outlives the call.
         if unsafe { webkit::execute_editing_command(web_view.as_ptr() as *mut c_void, item_type) } {
             return;

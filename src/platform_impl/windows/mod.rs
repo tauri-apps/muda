@@ -50,6 +50,13 @@ where
     f();
 }
 
+/// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
+/// the main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuItemType) {
+    // TODO: run predefined actions from a snapshot on this platform.
+}
+
 /// The accelerator table for a menu, which is shared by all windows that have the menu attached.
 /// and also by all submenus and items of the menu so that they can add and remove their own accelerators.
 struct AcceleratorTable {

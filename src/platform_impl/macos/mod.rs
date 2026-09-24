@@ -51,6 +51,13 @@ where
     f();
 }
 
+/// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
+/// the main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuItemType) {
+    // TODO: run predefined actions from a snapshot on this platform.
+}
+
 /// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
 #[allow(non_upper_case_globals)]
 const NSAboutPanelOptionCopyright: &str = "Copyright";

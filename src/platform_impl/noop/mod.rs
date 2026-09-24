@@ -20,6 +20,13 @@ where
     f();
 }
 
+/// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
+/// the main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuItemType) {
+    // TODO: run predefined actions from a snapshot on this platform.
+}
+
 pub(crate) struct PlatformMenu;
 
 impl PlatformMenu {

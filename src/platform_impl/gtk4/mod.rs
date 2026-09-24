@@ -1284,6 +1284,13 @@ fn remove_custom_child(host: &gtk::Widget, child: &impl IsA<gtk::Widget>) {
     }
 }
 
+/// Runs the action of a predefined menu item activated from a menu snapshot, which has no menu
+/// of its own to take the application from. Must be called on the GTK main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(predefined_item_type: &PredefinedMenuItemType) {
+    run_predefined(&default_gtk_application(), predefined_item_type);
+}
+
 /// Runs the action of a predefined menu item. Must be called on the GTK main thread.
 fn run_predefined(app: &gtk::Application, predefined_item_type: &PredefinedMenuItemType) {
     let Some(window) = app.active_window() else {
