@@ -59,16 +59,37 @@ impl PredefinedMenuItem {
     }
 
     /// Copy menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Copy, text)
     }
 
     /// Cut menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Cut, text)
     }
 
     /// Paste menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
@@ -92,6 +113,13 @@ impl PredefinedMenuItem {
     }
 
     /// SelectAll menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::SelectAll, text)
     }

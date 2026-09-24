@@ -60,8 +60,8 @@ pub(crate) fn track_focus(window: &impl IsA<gtk::Window>) {
         return;
     }
 
-    // A context menu starts tracking the window it is shown for as it is shown, so the widget
-    // the user was editing already has the focus and no change of it is coming.
+    // A context menu starts tracking the window it is shown for as it is shown, by which time
+    // the widget the user was editing already has the focus and no change of it is coming.
     remember_focus(window);
 
     let handler = window.connect_focus_widget_notify(remember_focus);

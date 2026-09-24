@@ -616,6 +616,7 @@ impl PlatformMenuItem {
         };
 
         self.ensure_context_menu(app, children);
+        edit_command::track_focus(window);
 
         // SAFETY: it is guaranteed to exist due to ensure_context_menu.
         let menus = self.instances.get(&self.ctx_menu_id).unwrap();

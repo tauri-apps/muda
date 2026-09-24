@@ -22,8 +22,8 @@ pub(crate) fn send(item: &gtk::MenuItem, item_type: &PredefinedMenuItemType) {
         return;
     };
 
-    // A web view has no key binding for undo, because GTK 3 has none to translate, so its own
-    // editing commands are used for every item rather than a key sequence.
+    // GTK 3 has no undo key binding for a web view to translate, so its own editing commands
+    // are used for every item rather than a key sequence.
     if let Some(web_view) = focused_web_view(&window) {
         // SAFETY: the widget was matched against the `WebKitWebView` type, and outlives the call.
         if unsafe { webkit::execute_editing_command(web_view.as_ptr() as *mut c_void, item_type) } {

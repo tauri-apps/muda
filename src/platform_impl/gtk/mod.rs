@@ -891,11 +891,11 @@ impl PlatformMenuItem {
                     | PredefinedMenuItemType::Cut
                     | PredefinedMenuItemType::Paste
                     | PredefinedMenuItemType::SelectAll
-                    | PredefinedMenuItemType::Undo
-                    | PredefinedMenuItemType::Redo
             ) {
-                // These items do not need an accelerator as GTK automatically have them,
-                // but we need to set the accelerator label so that it is displayed in the menu.
+                // These items do not need an accelerator as GTK automatically have them, but we
+                // need to set the accelerator label so that it is displayed in the menu.
+                // Registering one would also make the key sequence the item sends re-activate
+                // it, without end. `Undo` and `Redo` send none, so they are registered below.
                 let (mods, key) = predefined_item_type
                     .accelerator()
                     .unwrap()
