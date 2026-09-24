@@ -97,10 +97,18 @@ impl PredefinedMenuItem {
     }
 
     /// Undo menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Only acts on a focused `WebKitWebView`, as GTK 3 has no undo of its own.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
     /// Redo menu item
+    ///
+    /// ## Platform-specific:
+    ///
+    /// - **GTK 3:** Only acts on a focused `WebKitWebView`, as GTK 3 has no redo of its own.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
