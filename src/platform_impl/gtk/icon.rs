@@ -4,7 +4,7 @@
 
 use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 
-use crate::icon::BadIcon;
+use crate::icon::{BadIcon, RgbaIcon};
 
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
@@ -32,9 +32,16 @@ impl From<PlatformIcon> for Pixbuf {
 impl PlatformIcon {
     /// Creates an `Icon` from 32bpp RGBA data.
     ///
-    /// The length of `rgba` must be divisible by 4, and `width * height` must equal
-    /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
+    /// The length of `rgba` must be divisible by 4, `width * height` must equal
+    /// `rgba.len() / 4`, and both `width` and `height` must be non-zero.
+    /// Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
+        let RgbaIcon {
+            rgba,
+            width,
+            height,
+        } = RgbaIcon::from_rgba(rgba, width, height)?;
+
         let row_stride =
             Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
         Ok(Self {

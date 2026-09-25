@@ -24,6 +24,8 @@ pub enum BadIcon {
     /// Produced when the length of the `rgba` argument isn't divisible by 4, thus `rgba` can't be
     /// safely interpreted as 32bpp RGBA pixels.
     ByteCountNotDivisibleBy4 { byte_count: usize },
+    /// Produced when `width` or `height` is zero.
+    ZeroSized { width: u32, height: u32 },
     /// Produced when the number of pixels (`rgba.len() / 4`) isn't equal to `width * height`.
     /// At least one of your arguments is incorrect.
     DimensionsVsPixelCount {
@@ -42,6 +44,10 @@ impl fmt::Display for BadIcon {
             BadIcon::ByteCountNotDivisibleBy4 { byte_count } => write!(f,
                 "The length of the `rgba` argument ({:?}) isn't divisible by 4, making it impossible to interpret as 32bpp RGBA pixels.",
                 byte_count,
+            ),
+            BadIcon::ZeroSized { width, height } => write!(f,
+                "The specified dimensions ({:?}x{:?}) are invalid, an icon's width and height must both be non-zero.",
+                width, height,
             ),
             BadIcon::DimensionsVsPixelCount {
                 width,
@@ -80,6 +86,9 @@ mod constructors {
 
     impl RgbaIcon {
         pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
+            if width == 0 || height == 0 {
+                return Err(BadIcon::ZeroSized { width, height });
+            }
             if !rgba.len().is_multiple_of(PIXEL_SIZE) {
                 return Err(BadIcon::ByteCountNotDivisibleBy4 {
                     byte_count: rgba.len(),
@@ -129,8 +138,9 @@ impl fmt::Debug for Icon {
 impl Icon {
     /// Creates an icon from 32bpp RGBA data.
     ///
-    /// The length of `rgba` must be divisible by 4, and `width * height` must equal
-    /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
+    /// The length of `rgba` must be divisible by 4, `width * height` must equal
+    /// `rgba.len() / 4`, and both `width` and `height` must be non-zero.
+    /// Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
         #[cfg(feature = "snapshot")]
         {
@@ -417,5 +427,26 @@ impl crate::NativeIcon {
             #[cfg(windows)]
             Self::Raw(_) => "unknown",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BadIcon, RgbaIcon};
+
+    #[test]
+    fn rejects_zero_sized_icons() {
+        assert!(matches!(
+            RgbaIcon::from_rgba(Vec::new(), 0, 0),
+            Err(BadIcon::ZeroSized { .. })
+        ));
+        assert!(matches!(
+            RgbaIcon::from_rgba(Vec::new(), 0, 10),
+            Err(BadIcon::ZeroSized { .. })
+        ));
+        assert!(matches!(
+            RgbaIcon::from_rgba(Vec::new(), 10, 0),
+            Err(BadIcon::ZeroSized { .. })
+        ));
     }
 }
