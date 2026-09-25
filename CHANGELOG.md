@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0]
+
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Support the predefined `Undo` and `Redo` menu items on the GTK 3 and GTK 4 backends. On GTK 4 they act on the application's focused widget; on GTK 3 they only act on a focused `WebKitWebView`, which is the only widget there with an undo stack.
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Support the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items on the GTK 4 backend.
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) **Breaking change** Remove the `libxdo` Cargo feature and the dependency on `libxdo`. The predefined `Copy`, `Cut`, `Paste` and `SelectAll` items now act on the application's focused widget with GTK itself.
+- [`4f4b276`](https://www.github.com/tauri-apps/muda/commit/4f4b276c4951ecf7ad4abf1652aeb4bc9103b2db) ([#418](https://www.github.com/tauri-apps/muda/pull/418) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add `PredefinedMenuItemSnapshot::activate`, which runs the item's predefined action from a menu snapshot: the about dialog, the edit commands, and on GTK 4 the window items. The ones that act on a window use the application's active one, as a snapshot has no menu of this process to take it from.
+
 ## [0.20.0]
 
 - [`ec834f6`](https://www.github.com/tauri-apps/muda/commit/ec834f6fbf114efebda2bd5716756b0f07a3f463) ([#385](https://www.github.com/tauri-apps/muda/pull/385)) **Breaking change** `Accelerator::new` and `KeyAccelerator::new` now take `Modifiers` directly instead of `Option<Modifiers>`, use `Modifiers::empty()` instead.
