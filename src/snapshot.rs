@@ -314,12 +314,14 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
                 state: item.state.clone(),
             }),
             MenuItemKind::Predefined(item) => {
-                let predefined_item_type = item.state.borrow().predefined_item_type.clone();
+                let state = item.state.clone();
 
                 Self::Predefined(PredefinedMenuItemSnapshot {
-                    state: item.state.clone(),
+                    state: state.clone(),
                     activate: Arc::new(move || {
-                        let predefined_item_type = predefined_item_type.clone();
+                        // The item type is read here instead of being captured, because it may
+                        // hold platform types that are `Send` but not `Sync`, like an icon handle.
+                        let predefined_item_type = state.borrow().predefined_item_type.clone();
                         platform_impl::dispatch_on_main_thread(move || {
                             platform_impl::run_predefined_action(&predefined_item_type)
                         });
