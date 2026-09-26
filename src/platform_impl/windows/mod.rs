@@ -17,7 +17,7 @@ use crate::{
     dpi::Position,
     items::{IconType, MenuItemAction, PredefinedMenuItemType},
     util::{AddOp, Counter},
-    AboutMetadata, MenuEvent, MenuTheme, NativeIcon,
+    AboutMetadata, MenuEvent, MenuTheme,
 };
 
 use std::{
@@ -28,11 +28,7 @@ use std::{
 use windows_sys::Win32::{
     Foundation::{FALSE, HWND, LPARAM, LRESULT, POINT, WPARAM},
     Graphics::Gdi::*,
-    UI::{
-        Input::KeyboardAndMouse::*,
-        Shell::{self as shell, *},
-        WindowsAndMessaging::*,
-    },
+    UI::{Input::KeyboardAndMouse::*, Shell::*, WindowsAndMessaging::*},
 };
 
 /// Type alias for a window handle (HWND) in Windows.
@@ -633,7 +629,11 @@ impl PlatformMenuItem {
     fn create_hbitmap(&self, icon: Option<&IconType>) -> Option<Owned<HBITMAP>> {
         let hbitmap = match icon {
             Some(IconType::Custom(icon)) => unsafe { icon.inner.to_hbitmap() },
-            Some(IconType::Native(icon)) => native_icon_hbitmap(icon),
+            // Unsupported native icons deliberately render as no icon
+            Some(IconType::Native(icon)) => match icon.to_hicon() {
+                Some(hicon) => unsafe { PlatformIcon::from_handle(hicon as _).to_hbitmap() },
+                None => std::ptr::null_mut(),
+            },
             None => std::ptr::null_mut(),
         };
 
@@ -948,63 +948,6 @@ fn create_icon_item_info(hbitmap: Option<HBITMAP>) -> MENUITEMINFOW {
     info.fMask = MIIM_BITMAP;
     info.hbmpItem = hbitmap.unwrap_or(std::ptr::null_mut());
     info
-}
-
-fn native_icon_hbitmap(icon: &NativeIcon) -> HBITMAP {
-    // Translate the public native icon to the shell stock icon ID expected by
-    // SHGetStockIconInfo. Unsupported variants deliberately render as no icon.
-    let Some(icon_id) = stock_icon_id(icon) else {
-        return std::ptr::null_mut();
-    };
-
-    let mut info = SHSTOCKICONINFO {
-        cbSize: std::mem::size_of::<SHSTOCKICONINFO>() as _,
-        ..Default::default()
-    };
-
-    let result = unsafe { SHGetStockIconInfo(icon_id, SHGSI_ICON | SHGSI_SMALLICON, &mut info) };
-
-    if result < 0 || info.hIcon.is_null() {
-        return std::ptr::null_mut();
-    }
-
-    let icon = PlatformIcon::from_handle(info.hIcon);
-    unsafe { icon.to_hbitmap() }
-}
-
-fn stock_icon_id(icon: &NativeIcon) -> Option<SHSTOCKICONID> {
-    let id = match icon {
-        NativeIcon::Advanced | NativeIcon::PreferencesGeneral => shell::SIID_SETTINGS,
-        NativeIcon::Caution => shell::SIID_WARNING,
-        NativeIcon::Computer => shell::SIID_DESKTOPPC,
-        NativeIcon::Everyone
-        | NativeIcon::User
-        | NativeIcon::UserAccounts
-        | NativeIcon::UserGroup
-        | NativeIcon::UserGuest => shell::SIID_USERS,
-        NativeIcon::Folder => shell::SIID_FOLDER,
-        NativeIcon::FolderBurnable => shell::SIID_STUFFEDFOLDER,
-        NativeIcon::FolderSmart => shell::SIID_FOLDER,
-        NativeIcon::FollowLinkFreestanding => shell::SIID_LINK,
-        NativeIcon::Home => shell::SIID_FOLDER,
-        NativeIcon::Info => shell::SIID_INFO,
-        NativeIcon::InvalidDataFreestanding => shell::SIID_ERROR,
-        NativeIcon::LockLocked => shell::SIID_LOCK,
-        NativeIcon::LockUnlocked => shell::SIID_KEY,
-        NativeIcon::MobileMe => shell::SIID_WORLD,
-        NativeIcon::MultipleDocuments => shell::SIID_MIXEDFILES,
-        NativeIcon::Network => shell::SIID_MYNETWORK,
-        NativeIcon::QuickLook => shell::SIID_FIND,
-        NativeIcon::Remove => shell::SIID_DELETE,
-        NativeIcon::RevealFreestanding => shell::SIID_FOLDEROPEN,
-        NativeIcon::Share => shell::SIID_SHARE,
-        NativeIcon::TrashEmpty => shell::SIID_RECYCLER,
-        NativeIcon::TrashFull => shell::SIID_RECYCLERFULL,
-        NativeIcon::Raw(id) => *id,
-        _ => return None,
-    };
-
-    (0..shell::SIID_MAX_ICONS).contains(&id).then_some(id)
 }
 
 const MENU_SUBCLASS_ID: usize = 200;
