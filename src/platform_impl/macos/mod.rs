@@ -22,7 +22,7 @@ use objc2_app_kit::{
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
     NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
     NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
-    NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
+    NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
 };
 use objc2_foundation::{
     ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
@@ -1060,75 +1060,6 @@ fn menuitem_set_native_icon(menuitem: &NSMenuItem, icon: Option<&NativeIcon>) {
         menuitem.setImage(Some(&nsimage));
     } else {
         menuitem.setImage(None);
-    }
-}
-
-impl NativeIcon {
-    unsafe fn named_img(&self) -> &'static NSImageName {
-        use objc2_app_kit as appkit;
-        match self {
-            NativeIcon::Add => appkit::NSImageNameAddTemplate,
-            NativeIcon::StatusAvailable => appkit::NSImageNameStatusAvailable,
-            NativeIcon::StatusUnavailable => appkit::NSImageNameStatusUnavailable,
-            NativeIcon::StatusPartiallyAvailable => appkit::NSImageNameStatusPartiallyAvailable,
-            NativeIcon::Advanced => appkit::NSImageNameAdvanced,
-            NativeIcon::Bluetooth => appkit::NSImageNameBluetoothTemplate,
-            NativeIcon::Bookmarks => appkit::NSImageNameBookmarksTemplate,
-            NativeIcon::Caution => appkit::NSImageNameCaution,
-            NativeIcon::ColorPanel => appkit::NSImageNameColorPanel,
-            NativeIcon::ColumnView => appkit::NSImageNameColumnViewTemplate,
-            NativeIcon::Computer => appkit::NSImageNameComputer,
-            NativeIcon::EnterFullScreen => appkit::NSImageNameEnterFullScreenTemplate,
-            NativeIcon::Everyone => appkit::NSImageNameEveryone,
-            NativeIcon::ExitFullScreen => appkit::NSImageNameExitFullScreenTemplate,
-            NativeIcon::FlowView => appkit::NSImageNameFlowViewTemplate,
-            NativeIcon::Folder => appkit::NSImageNameFolder,
-            NativeIcon::FolderBurnable => appkit::NSImageNameFolderBurnable,
-            NativeIcon::FolderSmart => appkit::NSImageNameFolderSmart,
-            NativeIcon::FollowLinkFreestanding => appkit::NSImageNameFollowLinkFreestandingTemplate,
-            NativeIcon::FontPanel => appkit::NSImageNameFontPanel,
-            NativeIcon::GoLeft => appkit::NSImageNameGoLeftTemplate,
-            NativeIcon::GoRight => appkit::NSImageNameGoRightTemplate,
-            NativeIcon::Home => appkit::NSImageNameHomeTemplate,
-            NativeIcon::IChatTheater => appkit::NSImageNameIChatTheaterTemplate,
-            NativeIcon::IconView => appkit::NSImageNameIconViewTemplate,
-            NativeIcon::Info => appkit::NSImageNameInfo,
-            NativeIcon::InvalidDataFreestanding => {
-                appkit::NSImageNameInvalidDataFreestandingTemplate
-            }
-            NativeIcon::LeftFacingTriangle => appkit::NSImageNameLeftFacingTriangleTemplate,
-            NativeIcon::ListView => appkit::NSImageNameListViewTemplate,
-            NativeIcon::LockLocked => appkit::NSImageNameLockLockedTemplate,
-            NativeIcon::LockUnlocked => appkit::NSImageNameLockUnlockedTemplate,
-            NativeIcon::MenuMixedState => appkit::NSImageNameMenuMixedStateTemplate,
-            NativeIcon::MenuOnState => appkit::NSImageNameMenuOnStateTemplate,
-            NativeIcon::MobileMe => appkit::NSImageNameMobileMe,
-            NativeIcon::MultipleDocuments => appkit::NSImageNameMultipleDocuments,
-            NativeIcon::Network => appkit::NSImageNameNetwork,
-            NativeIcon::Path => appkit::NSImageNamePathTemplate,
-            NativeIcon::PreferencesGeneral => appkit::NSImageNamePreferencesGeneral,
-            NativeIcon::QuickLook => appkit::NSImageNameQuickLookTemplate,
-            NativeIcon::RefreshFreestanding => appkit::NSImageNameRefreshFreestandingTemplate,
-            NativeIcon::Refresh => appkit::NSImageNameRefreshTemplate,
-            NativeIcon::Remove => appkit::NSImageNameRemoveTemplate,
-            NativeIcon::RevealFreestanding => appkit::NSImageNameRevealFreestandingTemplate,
-            NativeIcon::RightFacingTriangle => appkit::NSImageNameRightFacingTriangleTemplate,
-            NativeIcon::Share => appkit::NSImageNameShareTemplate,
-            NativeIcon::Slideshow => appkit::NSImageNameSlideshowTemplate,
-            NativeIcon::SmartBadge => appkit::NSImageNameSmartBadgeTemplate,
-            NativeIcon::StatusNone => appkit::NSImageNameStatusNone,
-            NativeIcon::StopProgressFreestanding => {
-                appkit::NSImageNameStopProgressFreestandingTemplate
-            }
-            NativeIcon::StopProgress => appkit::NSImageNameStopProgressTemplate,
-            NativeIcon::TrashEmpty => appkit::NSImageNameTrashEmpty,
-            NativeIcon::TrashFull => appkit::NSImageNameTrashFull,
-            NativeIcon::User => appkit::NSImageNameUser,
-            NativeIcon::UserAccounts => appkit::NSImageNameUserAccounts,
-            NativeIcon::UserGroup => appkit::NSImageNameUserGroup,
-            NativeIcon::UserGuest => appkit::NSImageNameUserGuest,
-            NativeIcon::Raw(_) => unreachable!("raw native icons are handled before named_img"),
-        }
     }
 }
 

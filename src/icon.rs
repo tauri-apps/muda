@@ -418,4 +418,151 @@ impl crate::NativeIcon {
             Self::Raw(_) => "unknown",
         }
     }
+
+    /// Returns the corresponding Windows [`SHSTOCKICONID`] value, or `None` if
+    /// this icon has no stock icon equivalent.
+    ///
+    /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
+    #[cfg(windows)]
+    pub fn stock_icon_id(&self) -> Option<i32> {
+        use windows_sys::Win32::UI::Shell as shell;
+
+        let id = match self {
+            NativeIcon::Advanced | NativeIcon::PreferencesGeneral => shell::SIID_SETTINGS,
+            NativeIcon::Caution => shell::SIID_WARNING,
+            NativeIcon::Computer => shell::SIID_DESKTOPPC,
+            NativeIcon::Everyone
+            | NativeIcon::User
+            | NativeIcon::UserAccounts
+            | NativeIcon::UserGroup
+            | NativeIcon::UserGuest => shell::SIID_USERS,
+            NativeIcon::Folder => shell::SIID_FOLDER,
+            NativeIcon::FolderBurnable => shell::SIID_STUFFEDFOLDER,
+            NativeIcon::FolderSmart => shell::SIID_FOLDER,
+            NativeIcon::FollowLinkFreestanding => shell::SIID_LINK,
+            NativeIcon::Home => shell::SIID_FOLDER,
+            NativeIcon::Info => shell::SIID_INFO,
+            NativeIcon::InvalidDataFreestanding => shell::SIID_ERROR,
+            NativeIcon::LockLocked => shell::SIID_LOCK,
+            NativeIcon::LockUnlocked => shell::SIID_KEY,
+            NativeIcon::MobileMe => shell::SIID_WORLD,
+            NativeIcon::MultipleDocuments => shell::SIID_MIXEDFILES,
+            NativeIcon::Network => shell::SIID_MYNETWORK,
+            NativeIcon::QuickLook => shell::SIID_FIND,
+            NativeIcon::Remove => shell::SIID_DELETE,
+            NativeIcon::RevealFreestanding => shell::SIID_FOLDEROPEN,
+            NativeIcon::Share => shell::SIID_SHARE,
+            NativeIcon::TrashEmpty => shell::SIID_RECYCLER,
+            NativeIcon::TrashFull => shell::SIID_RECYCLERFULL,
+            NativeIcon::Raw(id) => *id,
+            _ => return None,
+        };
+
+        (0..shell::SIID_MAX_ICONS).contains(&id).then_some(id)
+    }
+
+    /// Loads the small shell stock icon for this icon, see [`Self::stock_icon_id`].
+    ///
+    /// Returns the `HICON` handle, or `None` if this icon has no stock icon equivalent or
+    /// it failed to load. The caller owns the returned icon and must destroy it with
+    /// [`DestroyIcon`].
+    ///
+    /// [`DestroyIcon`]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroyicon
+    #[cfg(windows)]
+    pub fn to_hicon(&self) -> Option<isize> {
+        use windows_sys::Win32::UI::Shell::{
+            SHGetStockIconInfo, SHGSI_ICON, SHGSI_SMALLICON, SHSTOCKICONINFO,
+        };
+
+        let icon_id = self.stock_icon_id()?;
+
+        let mut info = SHSTOCKICONINFO {
+            cbSize: std::mem::size_of::<SHSTOCKICONINFO>() as _,
+            ..Default::default()
+        };
+
+        let result =
+            unsafe { SHGetStockIconInfo(icon_id, SHGSI_ICON | SHGSI_SMALLICON, &mut info) };
+
+        (result >= 0 && !info.hIcon.is_null()).then_some(info.hIcon as isize)
+    }
+
+    /// Returns the corresponding AppKit [`NSImage.Name`] string.
+    ///
+    /// [`NSImage.Name`]: https://developer.apple.com/documentation/appkit/nsimage/name
+    #[cfg(target_os = "macos")]
+    pub fn appkit_name(&self) -> String {
+        match self {
+            NativeIcon::Raw(name) => name.clone(),
+            _ => unsafe { self.named_img() }.to_string(),
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) unsafe fn named_img(&self) -> &'static objc2_app_kit::NSImageName {
+        use objc2_app_kit as appkit;
+        match self {
+            NativeIcon::Add => appkit::NSImageNameAddTemplate,
+            NativeIcon::StatusAvailable => appkit::NSImageNameStatusAvailable,
+            NativeIcon::StatusUnavailable => appkit::NSImageNameStatusUnavailable,
+            NativeIcon::StatusPartiallyAvailable => appkit::NSImageNameStatusPartiallyAvailable,
+            NativeIcon::Advanced => appkit::NSImageNameAdvanced,
+            NativeIcon::Bluetooth => appkit::NSImageNameBluetoothTemplate,
+            NativeIcon::Bookmarks => appkit::NSImageNameBookmarksTemplate,
+            NativeIcon::Caution => appkit::NSImageNameCaution,
+            NativeIcon::ColorPanel => appkit::NSImageNameColorPanel,
+            NativeIcon::ColumnView => appkit::NSImageNameColumnViewTemplate,
+            NativeIcon::Computer => appkit::NSImageNameComputer,
+            NativeIcon::EnterFullScreen => appkit::NSImageNameEnterFullScreenTemplate,
+            NativeIcon::Everyone => appkit::NSImageNameEveryone,
+            NativeIcon::ExitFullScreen => appkit::NSImageNameExitFullScreenTemplate,
+            NativeIcon::FlowView => appkit::NSImageNameFlowViewTemplate,
+            NativeIcon::Folder => appkit::NSImageNameFolder,
+            NativeIcon::FolderBurnable => appkit::NSImageNameFolderBurnable,
+            NativeIcon::FolderSmart => appkit::NSImageNameFolderSmart,
+            NativeIcon::FollowLinkFreestanding => appkit::NSImageNameFollowLinkFreestandingTemplate,
+            NativeIcon::FontPanel => appkit::NSImageNameFontPanel,
+            NativeIcon::GoLeft => appkit::NSImageNameGoLeftTemplate,
+            NativeIcon::GoRight => appkit::NSImageNameGoRightTemplate,
+            NativeIcon::Home => appkit::NSImageNameHomeTemplate,
+            NativeIcon::IChatTheater => appkit::NSImageNameIChatTheaterTemplate,
+            NativeIcon::IconView => appkit::NSImageNameIconViewTemplate,
+            NativeIcon::Info => appkit::NSImageNameInfo,
+            NativeIcon::InvalidDataFreestanding => {
+                appkit::NSImageNameInvalidDataFreestandingTemplate
+            }
+            NativeIcon::LeftFacingTriangle => appkit::NSImageNameLeftFacingTriangleTemplate,
+            NativeIcon::ListView => appkit::NSImageNameListViewTemplate,
+            NativeIcon::LockLocked => appkit::NSImageNameLockLockedTemplate,
+            NativeIcon::LockUnlocked => appkit::NSImageNameLockUnlockedTemplate,
+            NativeIcon::MenuMixedState => appkit::NSImageNameMenuMixedStateTemplate,
+            NativeIcon::MenuOnState => appkit::NSImageNameMenuOnStateTemplate,
+            NativeIcon::MobileMe => appkit::NSImageNameMobileMe,
+            NativeIcon::MultipleDocuments => appkit::NSImageNameMultipleDocuments,
+            NativeIcon::Network => appkit::NSImageNameNetwork,
+            NativeIcon::Path => appkit::NSImageNamePathTemplate,
+            NativeIcon::PreferencesGeneral => appkit::NSImageNamePreferencesGeneral,
+            NativeIcon::QuickLook => appkit::NSImageNameQuickLookTemplate,
+            NativeIcon::RefreshFreestanding => appkit::NSImageNameRefreshFreestandingTemplate,
+            NativeIcon::Refresh => appkit::NSImageNameRefreshTemplate,
+            NativeIcon::Remove => appkit::NSImageNameRemoveTemplate,
+            NativeIcon::RevealFreestanding => appkit::NSImageNameRevealFreestandingTemplate,
+            NativeIcon::RightFacingTriangle => appkit::NSImageNameRightFacingTriangleTemplate,
+            NativeIcon::Share => appkit::NSImageNameShareTemplate,
+            NativeIcon::Slideshow => appkit::NSImageNameSlideshowTemplate,
+            NativeIcon::SmartBadge => appkit::NSImageNameSmartBadgeTemplate,
+            NativeIcon::StatusNone => appkit::NSImageNameStatusNone,
+            NativeIcon::StopProgressFreestanding => {
+                appkit::NSImageNameStopProgressFreestandingTemplate
+            }
+            NativeIcon::StopProgress => appkit::NSImageNameStopProgressTemplate,
+            NativeIcon::TrashEmpty => appkit::NSImageNameTrashEmpty,
+            NativeIcon::TrashFull => appkit::NSImageNameTrashFull,
+            NativeIcon::User => appkit::NSImageNameUser,
+            NativeIcon::UserAccounts => appkit::NSImageNameUserAccounts,
+            NativeIcon::UserGroup => appkit::NSImageNameUserGroup,
+            NativeIcon::UserGuest => appkit::NSImageNameUserGuest,
+            NativeIcon::Raw(_) => unreachable!("raw native icons are handled before named_img"),
+        }
+    }
 }
