@@ -74,7 +74,6 @@ objc2-foundation = { version = "0.3.0", default-features = false, features = [
   "NSData",
   "NSDictionary",
   "NSGeometry",
-  "NSRange",
   "NSString",
   "NSThread",
 ] }
@@ -84,9 +83,7 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSApplication",
   "NSAttributedString",
   "NSCell",
-  "NSColor",
   "NSEvent",
-  "NSFont",
   "NSImage",
   "NSMenu",
   "NSMenuItem",

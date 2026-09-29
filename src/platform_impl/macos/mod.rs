@@ -15,18 +15,17 @@ use objc2::{
     define_class, msg_send,
     rc::Retained,
     runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel},
-    sel, AnyThread, DeclaredClass, MainThreadOnly, Message,
+    sel, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
-    NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
-    NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
-    NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
+    NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
+    NSImage, NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
-    NSMutableAttributedString, NSObject, NSPoint, NSRange, NSRect, NSSize, NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSCopying, NSDictionary, NSInteger, NSObject,
+    NSPoint, NSRect, NSSize, NSString,
 };
 
 use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
@@ -199,6 +198,7 @@ pub struct PlatformMenuItem {
     click: MenuItemAction,
     is_services_menu: bool,
     icon_as_template: bool,
+    attributed_title: Option<Retained<NSAttributedString>>,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
     ns_menu: Option<NsMenuRef>,
@@ -211,6 +211,7 @@ impl PlatformMenuItem {
             click,
             is_services_menu: false,
             icon_as_template: false,
+            attributed_title: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
             ns_menus: None,
@@ -228,6 +229,7 @@ impl PlatformMenuItem {
             click,
             is_services_menu: false,
             icon_as_template: false,
+            attributed_title: None,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
                 menu.setAutoenablesItems(false);
@@ -277,6 +279,7 @@ impl PlatformMenuItem {
 
     pub fn set_text(&mut self, text: &str, _accelerator: Option<&MenuAccelerator>) {
         let title = NSString::from_str(&strip_mnemonic(text));
+        self.attributed_title = None;
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setAttributedTitle(None);
@@ -288,33 +291,23 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn set_styled_text(
-        &mut self,
-        text: &str,
-        parts: &[(String, TextStyle)],
-        _accelerator: Option<&MenuAccelerator>,
-    ) {
-        let title = NSString::from_str(&strip_mnemonic(text));
-        let parts = parts
-            .iter()
-            .map(|(text, style)| (strip_mnemonic(text), *style))
-            .collect::<Vec<_>>();
-        let attributed = build_attributed_title(&parts);
-        for ns_items in self.ns_menu_items.values() {
-            for ns_item in ns_items {
-                ns_item.setAttributedTitle(Some(&attributed));
-                ns_item.setTitle(&title);
-                if let Some(submenu) = ns_item.submenu() {
-                    submenu.setTitle(&title);
-                }
-            }
-        }
-    }
-
     pub fn set_attributed_title(&mut self, title: Option<&NSAttributedString>) {
+        self.attributed_title = title.map(|title| title.copy());
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setAttributedTitle(title);
+                if let Some(submenu) = ns_item.submenu() {
+                    // A submenu row renders from this `NSMenuItem` everywhere except the menu
+                    // bar, where AppKit renders the child `NSMenu`'s plain `title` instead and
+                    // ignores the item's own title and attributed title. Keep it in step so a
+                    // top-level menu's bar label still follows the attributed one, minus the
+                    // attributes. Clearing falls back to the item's plain title.
+                    let title = match title {
+                        Some(title) => title.string(),
+                        None => ns_item.title(),
+                    };
+                    submenu.setTitle(&title);
+                }
             }
         }
     }
@@ -786,6 +779,11 @@ impl PlatformMenuItem {
             self.is_services_menu = true;
             // we have to assign an empty menu as the app's services menu, and macOS will populate it
             let services_menu = NSMenu::new(mtm);
+            // Name it like every other submenu is named at creation, and like `set_text` would
+            // name it later, so the menu does not read back blank in between. Purely for
+            // consistency: AppKit draws a registered services menu as its own glyph whatever
+            // the title says. The item's title is already mnemonic-stripped.
+            services_menu.setTitle(&ns_menu_item.title());
             NSApplication::sharedApplication(mtm).setServicesMenu(Some(&services_menu));
             ns_menu_item.setSubmenu(Some(&services_menu));
         }
@@ -999,36 +997,6 @@ impl PredefinedMenuItemType {
     }
 }
 
-fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
-    let combined: String = parts.iter().map(|(text, _)| text.as_str()).collect();
-    let ns_combined = NSString::from_str(&combined);
-    let attributed =
-        NSMutableAttributedString::initWithString(NSMutableAttributedString::alloc(), &ns_combined);
-    let font = NSFont::menuFontOfSize(0.0);
-    unsafe {
-        attributed.addAttribute_value_range(
-            NSFontAttributeName,
-            &font,
-            NSRange::new(0, ns_combined.length()),
-        );
-    }
-    let mut offset = 0;
-    for (text, style) in parts {
-        let len = text.encode_utf16().count();
-        if len > 0 && matches!(style, TextStyle::Secondary) {
-            unsafe {
-                attributed.addAttribute_value_range(
-                    NSForegroundColorAttributeName,
-                    &NSColor::secondaryLabelColor(),
-                    NSRange::new(offset, len),
-                );
-            }
-        }
-        offset += len;
-    }
-    attributed.into_super()
-}
-
 impl MenuItemKind {
     fn create_ns(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
         let args = self.platform_attach_args();
@@ -1051,15 +1019,12 @@ impl MenuItemKind {
             MenuItemKind::Icon(_) => item.create_ns_icon_item(&args, platform.clone(), menu_id),
         }?;
 
-        if let Some(parts) = &args.styled_text {
-            let parts = parts
-                .iter()
-                .map(|(text, style)| (strip_mnemonic(text), *style))
-                .collect::<Vec<_>>();
-            ns_item.setAttributedTitle(Some(&build_attributed_title(&parts)));
-        }
-        if let Some(title) = &args.attributed_title {
+        if let Some(title) = &item.attributed_title {
             ns_item.setAttributedTitle(Some(title));
+            if let Some(submenu) = ns_item.submenu() {
+                // See `set_attributed_title`: the menu bar renders this plain title, not ours.
+                submenu.setTitle(&title.string());
+            }
         }
         Ok(ns_item)
     }
