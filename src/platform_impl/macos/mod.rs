@@ -382,9 +382,31 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn set_icon_as_template(&mut self, is_template: bool, icon: Option<&IconType>) {
+    pub fn icon_as_template(&self) -> bool {
+        self.icon_as_template
+    }
+
+    pub fn set_icon_as_template(&mut self, is_template: bool) {
         self.icon_as_template = is_template;
-        self.set_icon(icon);
+        for ns_items in self.ns_menu_items.values() {
+            for ns_item in ns_items {
+                let Some(nsimage) = ns_item.image() else {
+                    continue;
+                };
+                // A native icon is a named image, i.e. a single instance shared with the
+                // whole process, so leave it be: retinting it here would follow every
+                // other use of it, and the system already draws the ones that are meant
+                // to be templates, like `NSAddTemplate`, as such.
+                if nsimage.name().is_some() {
+                    continue;
+                }
+                nsimage.setTemplate(is_template);
+                // Mutating `isTemplate` in place doesn't repaint what was already
+                // drawn, so hand the same image back to force it. Same fix as
+                // tauri-apps/tray-icon#130.
+                ns_item.setImage(Some(&nsimage));
+            }
+        }
     }
 }
 
@@ -661,7 +683,7 @@ impl PlatformMenuItem {
             ns_submenu.setAutoenablesItems(false);
 
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), args.icon_as_template);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_as_template);
         }
 
         let id = COUNTER.next();
@@ -810,7 +832,7 @@ impl PlatformMenuItem {
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), args.icon_as_template);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_as_template);
         }
 
         ns_menu_item.ivars().replace(Some(owner));
