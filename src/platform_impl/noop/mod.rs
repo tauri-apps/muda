@@ -7,7 +7,7 @@ use crate::{
     icon::NoIcon,
     items::{IconType, MenuItemAction},
     util::AddOp,
-    MenuItemKind, TextStyle,
+    MenuItemKind,
 };
 
 pub(crate) type PlatformIcon = NoIcon;
@@ -57,14 +57,6 @@ impl PlatformMenuItem {
     }
 
     pub(crate) fn set_text(&mut self, _text: &str, _accelerator: Option<&MenuAccelerator>) {}
-
-    pub(crate) fn set_styled_text(
-        &mut self,
-        _text: &str,
-        _parts: &[(String, TextStyle)],
-        _accelerator: Option<&MenuAccelerator>,
-    ) {
-    }
 
     pub(crate) fn is_enabled(&self) -> Option<bool> {
         None

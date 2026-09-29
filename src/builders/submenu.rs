@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu, TextStyle};
+use crate::{Icon, IsMenuItem, MenuId, NativeIcon, Submenu};
 
 /// A builder type for [`Submenu`]
 #[derive(Clone)]
@@ -13,7 +13,6 @@ pub struct SubmenuBuilder<'a> {
     items: Vec<&'a dyn IsMenuItem>,
     icon: Option<Icon>,
     native_icon: Option<NativeIcon>,
-    styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl Default for SubmenuBuilder<'_> {
@@ -25,7 +24,6 @@ impl Default for SubmenuBuilder<'_> {
             items: Vec::new(),
             icon: None,
             native_icon: None,
-            styled_text: None,
         }
     }
 }
@@ -111,25 +109,6 @@ impl<'a> SubmenuBuilder<'a> {
         self
     }
 
-    /// Set the text for this menu item as a sequence of styled text, so one part of the
-    /// label can be de-emphasized relative to the rest.
-    ///
-    /// Overrides any text set with [`.text()`](Self::text).
-    ///
-    /// See [`Submenu::set_styled_text`] for more info.
-    pub fn styled_text<S: Into<String>>(
-        mut self,
-        parts: impl IntoIterator<Item = (S, TextStyle)>,
-    ) -> Self {
-        self.styled_text = Some(
-            parts
-                .into_iter()
-                .map(|(text, style)| (text.into(), style))
-                .collect(),
-        );
-        self
-    }
-
     /// Build this submenu.
     pub fn build(self) -> crate::Result<Submenu> {
         let submenu = if let Some(id) = self.id {
@@ -144,10 +123,6 @@ impl<'a> SubmenuBuilder<'a> {
 
         if let Some(native_icon) = self.native_icon {
             submenu.set_native_icon(Some(native_icon));
-        }
-
-        if let Some(parts) = self.styled_text {
-            submenu.set_styled_text(parts);
         }
 
         Ok(submenu)
