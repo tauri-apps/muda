@@ -81,13 +81,6 @@ impl PlatformMenuItem {
 
     pub(crate) fn set_icon(&mut self, _icon: Option<&IconType>) {}
 
-    pub(crate) fn icon_as_template(&self) -> bool {
-        false
-    }
-
-    /// Template images are a macOS concept, so this is a no-op here.
-    pub(crate) fn set_icon_as_template(&mut self, _is_template: bool) {}
-
     pub(crate) fn attach(&mut self, _child: &MenuItemKind, _op: AddOp) -> crate::Result<()> {
         Ok(())
     }

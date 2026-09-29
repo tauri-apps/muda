@@ -1159,13 +1159,6 @@ impl PlatformMenuItem {
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
         self.for_each_custom_widget(|widget| widget.set_icon(icon));
     }
-
-    pub fn icon_as_template(&self) -> bool {
-        false
-    }
-
-    /// Template images are a macOS concept, so this is a no-op here.
-    pub fn set_icon_as_template(&mut self, _is_template: bool) {}
 }
 
 impl MenuItemKind {
