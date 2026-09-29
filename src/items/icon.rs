@@ -323,18 +323,23 @@ impl IconMenuItem {
         self.platform.borrow().icon_as_template()
     }
 
-    /// Set whether this menu item's icon is treated as a template image on macOS.
+    /// Change this menu item icon, or remove it, and draw it as a template image on macOS.
     ///
-    /// A template image is drawn using only its alpha channel, so the system
-    /// recolours it to match the menu, the way the built-in items do. Defaults
-    /// to `false`, which displays the icon as-is.
+    /// A template image is drawn using only its alpha channel, so the system recolours it to
+    /// match the menu, the way the built-in items do. [`IconMenuItem::set_icon`] draws the icon as-is
+    /// instead.
     ///
-    /// Only applies to icons set with [`IconMenuItem::set_icon`]. A native icon is left to the
-    /// system, which already draws the ones meant to be templates, like
-    /// [`NativeIcon::Add`], as such.
+    /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
     #[cfg(target_os = "macos")]
-    pub fn set_icon_as_template(&self, is_template: bool) {
-        self.platform.borrow_mut().set_icon_as_template(is_template)
+    pub fn set_icon_as_template(&self, icon: Option<Icon>) {
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Custom);
+            state.icon.clone()
+        };
+        self.platform
+            .borrow_mut()
+            .set_icon_as_template(icon.as_ref())
     }
 
     /// Convert this menu item into its menu ID.
