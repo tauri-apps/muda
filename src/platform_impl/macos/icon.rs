@@ -38,20 +38,24 @@ impl PlatformIcon {
         png
     }
 
-    pub fn to_nsimage(&self, fixed_height: Option<f64>) -> Retained<NSImage> {
+    /// Renders the icon as an [`NSImage`].
+    ///
+    /// `max_height` scales the image down to that many points if it is taller, keeping its
+    /// aspect ratio. An icon that already fits is left at its natural size rather than scaled
+    /// up.
+    pub fn to_nsimage(&self, max_height: Option<f64>) -> Retained<NSImage> {
         let (width, height) = self.get_size();
         let icon = self.to_png();
 
-        let (icon_width, icon_height) = match fixed_height {
-            Some(fixed_height) => {
-                let icon_height: CGFloat = fixed_height as CGFloat;
-                let icon_width: CGFloat = (width as CGFloat) / (height as CGFloat / icon_height);
+        let mut icon_width = width as CGFloat;
+        let mut icon_height = height as CGFloat;
 
-                (icon_width, icon_height)
+        if let Some(max_height) = max_height.map(|max_height| max_height as CGFloat) {
+            if icon_height > max_height {
+                icon_width /= icon_height / max_height;
+                icon_height = max_height;
             }
-
-            None => (width as CGFloat, height as CGFloat),
-        };
+        }
 
         let nsdata = NSData::with_bytes(&icon);
 

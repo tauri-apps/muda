@@ -25,7 +25,7 @@ use objc2_app_kit::{
     NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
+    ns_string, MainThreadMarker, NSAttributedString, NSCopying, NSDictionary, NSInteger,
     NSMutableAttributedString, NSObject, NSPoint, NSRange, NSRect, NSSize, NSString,
 };
 
@@ -381,37 +381,23 @@ impl PlatformMenuItem {
 /// IconMenuItem methods
 impl PlatformMenuItem {
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
-        let as_template = self.icon_as_template;
-        for ns_items in self.ns_menu_items.values() {
-            for ns_item in ns_items {
-                menuitem_set_icon_type(ns_item, icon, as_template);
-            }
-        }
+        self.set_icon_inner(icon, false)
+    }
+
+    pub fn set_icon_as_template(&mut self, icon: Option<&IconType>) {
+        self.set_icon_inner(icon, true)
     }
 
     pub fn icon_as_template(&self) -> bool {
         self.icon_as_template
     }
 
-    pub fn set_icon_as_template(&mut self, is_template: bool) {
+    fn set_icon_inner(&mut self, icon: Option<&IconType>, is_template: bool) {
         self.icon_as_template = is_template;
+
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                let Some(nsimage) = ns_item.image() else {
-                    continue;
-                };
-                // A native icon is a named image, i.e. a single instance shared with the
-                // whole process, so leave it be: retinting it here would follow every
-                // other use of it, and the system already draws the ones that are meant
-                // to be templates, like `NSAddTemplate`, as such.
-                if nsimage.name().is_some() {
-                    continue;
-                }
-                nsimage.setTemplate(is_template);
-                // Mutating `isTemplate` in place doesn't repaint what was already
-                // drawn, so hand the same image back to force it. Same fix as
-                // tauri-apps/tray-icon#130.
-                ns_item.setImage(Some(&nsimage));
+                menuitem_set_icon_type(ns_item, icon, is_template);
             }
         }
     }
@@ -1054,47 +1040,42 @@ impl MenuItemKind {
     }
 }
 
+/// The tallest a menu item icon may be drawn without growing the menu row, which keeps its
+/// natural height up to this point size at the default menu font. Picking a size that looks
+/// right below this cap is up to the caller.
+const MAX_ICON_HEIGHT: f64 = 18.0;
+
 fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>, as_template: bool) {
-    match icon {
-        Some(IconType::Custom(icon)) => menuitem_set_icon(menuitem, Some(icon), as_template),
-        Some(IconType::Native(icon)) => menuitem_set_native_icon(menuitem, Some(icon)),
-        None => menuitem.setImage(None),
-    }
-}
-
-fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>, as_template: bool) {
-    if let Some(icon) = icon {
-        let nsimage = icon.inner.to_nsimage(Some(18.));
-        // Set before `setImage:` so the image is never displayed with the wrong
-        // template flag for a frame.
-        nsimage.setTemplate(as_template);
-        menuitem.setImage(Some(&nsimage));
-    } else {
-        menuitem.setImage(None);
-    }
-}
-
-fn menuitem_set_native_icon(menuitem: &NSMenuItem, icon: Option<&NativeIcon>) {
-    let Some(icon) = icon else {
-        menuitem.setImage(None);
-        return;
-    };
-
     let nsimage = match icon {
-        NativeIcon::Raw(name) => {
-            let named_img = NSString::from_str(name);
-            NSImage::imageNamed(&named_img)
+        Some(IconType::Custom(icon)) => {
+            let nsimage = icon.inner.to_nsimage(Some(MAX_ICON_HEIGHT));
+            nsimage.setTemplate(as_template);
+            Some(nsimage)
         }
-        _ => unsafe { NSImage::imageNamed(icon.named_img()) },
+        Some(IconType::Native(icon)) => native_nsimage(icon),
+        None => None,
     };
 
-    if let Some(nsimage) = nsimage {
-        let size = NSSize::new(18.0, 18.0);
-        nsimage.setSize(size);
-        menuitem.setImage(Some(&nsimage));
-    } else {
-        menuitem.setImage(None);
+    menuitem.setImage(nsimage.as_deref());
+}
+
+/// Resolves a native icon to the [`NSImage`] to show in a menu.
+///
+/// `imageNamed:` hands back the one instance shared with the whole process, so we can't change its size,
+/// as it will follow every other use of it. Only the icons too tall
+/// for a menu row are resized, on a copy, keeping their aspect ratio.
+fn native_nsimage(icon: &NativeIcon) -> Option<Retained<NSImage>> {
+    let nsimage = unsafe { icon.to_nsimage() }?;
+
+    let size = nsimage.size();
+    if size.height <= MAX_ICON_HEIGHT {
+        return Some(nsimage);
     }
+
+    let resized = nsimage.copy();
+    let width = size.width / (size.height / MAX_ICON_HEIGHT);
+    resized.setSize(NSSize::new(width, MAX_ICON_HEIGHT));
+    Some(resized)
 }
 
 const SCREEN_EDGE_MARGIN: f64 = 4.0;
