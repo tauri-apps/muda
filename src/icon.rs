@@ -499,6 +499,17 @@ impl crate::NativeIcon {
     }
 
     #[cfg(target_os = "macos")]
+    pub(crate) unsafe fn to_nsimage(&self) -> Option<objc2::rc::Retained<objc2_app_kit::NSImage>> {
+        match self {
+            Self::Raw(name) => {
+                let named_img = objc2_foundation::NSString::from_str(name);
+                objc2_app_kit::NSImage::imageNamed(&named_img)
+            }
+            _ => unsafe { objc2_app_kit::NSImage::imageNamed(self.named_img()) },
+        }
+    }
+
+    #[cfg(target_os = "macos")]
     pub(crate) unsafe fn named_img(&self) -> &'static objc2_app_kit::NSImageName {
         use objc2_app_kit as appkit;
         match self {
