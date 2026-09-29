@@ -74,6 +74,11 @@ mod platform;
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(target_os = "macos")]
+use objc2::rc::Retained;
+#[cfg(target_os = "macos")]
+use objc2_foundation::NSAttributedString;
+
+#[cfg(target_os = "macos")]
 use crate::TextStyle;
 use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
 
@@ -100,6 +105,8 @@ pub(crate) struct PlatformAttachArgs {
     pub icon: Option<IconType>,
     #[cfg(target_os = "macos")]
     pub styled_text: Option<Vec<(String, TextStyle)>>,
+    #[cfg(target_os = "macos")]
+    pub attributed_title: Option<Retained<NSAttributedString>>,
 }
 
 impl MenuItemKind {
@@ -115,6 +122,8 @@ impl MenuItemKind {
                     icon: None,
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
+                    #[cfg(target_os = "macos")]
+                    attributed_title: state.attributed_title.clone(),
                 }
             }
             MenuItemKind::Submenu(item) => {
@@ -127,6 +136,8 @@ impl MenuItemKind {
                     icon: state.icon.clone(),
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
+                    #[cfg(target_os = "macos")]
+                    attributed_title: None,
                 }
             }
             MenuItemKind::Predefined(item) => {
@@ -139,6 +150,8 @@ impl MenuItemKind {
                     icon: None,
                     #[cfg(target_os = "macos")]
                     styled_text: None,
+                    #[cfg(target_os = "macos")]
+                    attributed_title: None,
                 }
             }
             MenuItemKind::Check(item) => {
@@ -151,6 +164,8 @@ impl MenuItemKind {
                     icon: None,
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
+                    #[cfg(target_os = "macos")]
+                    attributed_title: None,
                 }
             }
             MenuItemKind::Icon(item) => {
@@ -163,6 +178,8 @@ impl MenuItemKind {
                     icon: state.icon.clone(),
                     #[cfg(target_os = "macos")]
                     styled_text: state.styled_text.clone(),
+                    #[cfg(target_os = "macos")]
+                    attributed_title: None,
                 }
             }
         }
