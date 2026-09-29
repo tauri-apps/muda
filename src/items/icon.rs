@@ -315,6 +315,28 @@ impl IconMenuItem {
         self.platform.borrow_mut().set_icon(icon.as_ref())
     }
 
+    /// Whether this menu item's icon is treated as a template image on macOS.
+    ///
+    /// See [`IconMenuItem::set_icon_as_template`].
+    #[cfg(target_os = "macos")]
+    pub fn icon_as_template(&self) -> bool {
+        self.platform.borrow().icon_as_template()
+    }
+
+    /// Set whether this menu item's icon is treated as a template image on macOS.
+    ///
+    /// A template image is drawn using only its alpha channel, so the system
+    /// recolours it to match the menu, the way the built-in items do. Defaults
+    /// to `false`, which displays the icon as-is.
+    ///
+    /// Only applies to icons set with [`IconMenuItem::set_icon`]. A native icon is left to the
+    /// system, which already draws the ones meant to be templates, like
+    /// [`NativeIcon::Add`], as such.
+    #[cfg(target_os = "macos")]
+    pub fn set_icon_as_template(&self, is_template: bool) {
+        self.platform.borrow_mut().set_icon_as_template(is_template)
+    }
+
     /// Convert this menu item into its menu ID.
     pub fn into_id(mut self) -> MenuId {
         if let Some(id) = Arc::get_mut(&mut self.id) {
