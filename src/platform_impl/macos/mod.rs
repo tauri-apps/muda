@@ -33,7 +33,6 @@ use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
 use crate::{
     accelerator::MenuAccelerator,
     dpi::{LogicalPosition, Position},
-    icon::Icon,
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
