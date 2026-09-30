@@ -196,7 +196,7 @@ impl PlatformMenu {
 pub struct PlatformMenuItem {
     click: MenuItemAction,
     is_services_menu: bool,
-    icon_as_template: bool,
+    icon_is_template: bool,
     attributed_title: Option<Retained<NSAttributedString>>,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
@@ -209,7 +209,7 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
-            icon_as_template: false,
+            icon_is_template: false,
             attributed_title: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
@@ -227,7 +227,7 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
-            icon_as_template: false,
+            icon_is_template: false,
             attributed_title: None,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
@@ -384,16 +384,16 @@ impl PlatformMenuItem {
         self.set_icon_inner(icon, false)
     }
 
-    pub fn set_icon_as_template(&mut self, icon: Option<&IconType>) {
+    pub fn set_icon_templated(&mut self, icon: Option<&IconType>) {
         self.set_icon_inner(icon, true)
     }
 
-    pub fn icon_as_template(&self) -> bool {
-        self.icon_as_template
+    pub fn icon_is_template(&self) -> bool {
+        self.icon_is_template
     }
 
     fn set_icon_inner(&mut self, icon: Option<&IconType>, is_template: bool) {
-        self.icon_as_template = is_template;
+        self.icon_is_template = is_template;
 
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
@@ -676,7 +676,7 @@ impl PlatformMenuItem {
             ns_submenu.setAutoenablesItems(false);
 
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_as_template);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_is_template);
         }
 
         let id = COUNTER.next();
@@ -830,7 +830,7 @@ impl PlatformMenuItem {
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_as_template);
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_is_template);
         }
 
         ns_menu_item.ivars().replace(Some(owner));
