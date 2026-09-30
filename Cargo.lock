@@ -1517,8 +1517,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "javascriptcore-rs"
-version = "1.1.2"
-source = "git+https://github.com/tauri-apps/javascriptcore-rs.git#1e15afba6ed9ad56d3b499e58c36a5e222d84c5e"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3806310bf87dd1858b0cd99dad0c49efb06ee56d346e77385d89e7f8db04f5d0"
 dependencies = [
  "bitflags 2.13.1",
  "glib",
@@ -1527,8 +1528,9 @@ dependencies = [
 
 [[package]]
 name = "javascriptcore-rs-sys"
-version = "1.1.1"
-source = "git+https://github.com/tauri-apps/javascriptcore-rs.git#1e15afba6ed9ad56d3b499e58c36a5e222d84c5e"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2844fb472dd4f76e43a15ee27d2f140b9113adeab21403be084fb653d7a704f9"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3509,7 +3511,7 @@ dependencies = [
 [[package]]
 name = "webkit2gtk"
 version = "2.0.2"
-source = "git+https://github.com/tauri-apps/webkit2gtk-rs.git?branch=bump-gir#145fea6d054258ef0b7b5373edb4b80253f557f7"
+source = "git+https://github.com/tauri-apps/webkit2gtk-rs.git?branch=bump-gir#f5c3825c3f21c44ce346a5aa42e8c33a762f9f72"
 dependencies = [
  "bitflags 2.13.1",
  "cairo-rs",
@@ -3532,7 +3534,7 @@ dependencies = [
 [[package]]
 name = "webkit2gtk-sys"
 version = "2.0.2"
-source = "git+https://github.com/tauri-apps/webkit2gtk-rs.git?branch=bump-gir#145fea6d054258ef0b7b5373edb4b80253f557f7"
+source = "git+https://github.com/tauri-apps/webkit2gtk-rs.git?branch=bump-gir#f5c3825c3f21c44ce346a5aa42e8c33a762f9f72"
 dependencies = [
  "bitflags 2.13.1",
  "cairo-sys-rs",
@@ -4171,7 +4173,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 [[package]]
 name = "wry"
 version = "0.57.0"
-source = "git+https://github.com/tauri-apps/wry.git?branch=gtk-0.19#6888d196259e9ec43c7311b9a6208d3969647769"
+source = "git+https://github.com/tauri-apps/wry.git?branch=gtk-0.19#327242ae73301c5e34dcc158e31ae453e8afe837"
 dependencies = [
  "base64",
  "block2 0.6.2",
