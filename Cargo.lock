@@ -1895,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "crossbeam-channel",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
