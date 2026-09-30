@@ -431,10 +431,10 @@ impl Submenu {
 
     /// Whether this submenu's icon is treated as a template image on macOS.
     ///
-    /// See [`Submenu::set_icon_as_template`].
+    /// See [`Submenu::set_icon_templated`].
     #[cfg(target_os = "macos")]
-    pub fn icon_as_template(&self) -> bool {
-        self.platform.borrow().icon_as_template()
+    pub fn icon_is_template(&self) -> bool {
+        self.platform.borrow().icon_is_template()
     }
 
     /// Change this submenu item icon, or remove it, and draw it as a template image on macOS.
@@ -445,15 +445,13 @@ impl Submenu {
     ///
     /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
     #[cfg(target_os = "macos")]
-    pub fn set_icon_as_template(&self, icon: Option<Icon>) {
+    pub fn set_icon_templated(&self, icon: Option<Icon>) {
         let icon = {
             let mut state = self.state.borrow_mut();
             state.icon = icon.map(IconType::Custom);
             state.icon.clone()
         };
-        self.platform
-            .borrow_mut()
-            .set_icon_as_template(icon.as_ref())
+        self.platform.borrow_mut().set_icon_templated(icon.as_ref())
     }
 }
 
