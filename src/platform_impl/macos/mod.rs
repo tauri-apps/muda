@@ -15,25 +15,23 @@ use objc2::{
     define_class, msg_send,
     rc::Retained,
     runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel},
-    sel, AnyThread, DeclaredClass, MainThreadOnly, Message,
+    sel, DeclaredClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationIcon, NSAboutPanelOptionApplicationName,
     NSAboutPanelOptionApplicationVersion, NSAboutPanelOptionCredits, NSAboutPanelOptionVersion,
-    NSApplication, NSColor, NSControlStateValueOff, NSControlStateValueOn, NSEvent,
-    NSEventModifierFlags, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSImage,
-    NSImageName, NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
+    NSApplication, NSControlStateValueOff, NSControlStateValueOn, NSEvent, NSEventModifierFlags,
+    NSImage, NSMenu, NSMenuDelegate, NSMenuItem, NSView, NSWindow,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSAttributedString, NSDictionary, NSInteger,
-    NSMutableAttributedString, NSObject, NSPoint, NSRange, NSRect, NSSize, NSString,
+    ns_string, MainThreadMarker, NSAttributedString, NSCopying, NSDictionary, NSInteger, NSObject,
+    NSPoint, NSRect, NSSize, NSString,
 };
 
 use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
 use crate::{
     accelerator::MenuAccelerator,
     dpi::{LogicalPosition, Position},
-    icon::Icon,
     items::*,
     platform_impl::PlatformAttachArgs,
     util::{AddOp, Counter},
@@ -49,6 +47,13 @@ where
 {
     // TODO: Dispatch the callback to the macOS main thread instead of running it inline.
     f();
+}
+
+/// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
+/// the main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuItemType) {
+    // TODO: run predefined actions from a snapshot on this platform.
 }
 
 /// https://developer.apple.com/documentation/appkit/nsapplication/1428479-orderfrontstandardaboutpanelwith#discussion
@@ -191,6 +196,8 @@ impl PlatformMenu {
 pub struct PlatformMenuItem {
     click: MenuItemAction,
     is_services_menu: bool,
+    icon_is_template: bool,
+    attributed_title: Option<Retained<NSAttributedString>>,
     ns_menu_items: HashMap<u32, Vec<Retained<NSMenuItem>>>,
     ns_menus: Option<HashMap<u32, Vec<NsMenuRef>>>,
     ns_menu: Option<NsMenuRef>,
@@ -202,6 +209,8 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
+            icon_is_template: false,
+            attributed_title: None,
             ns_menu: None,
             ns_menu_items: HashMap::new(),
             ns_menus: None,
@@ -218,6 +227,8 @@ impl PlatformMenuItem {
         Self {
             click,
             is_services_menu: false,
+            icon_is_template: false,
+            attributed_title: None,
             ns_menu: Some({
                 let menu = NSMenu::new(mtm);
                 menu.setAutoenablesItems(false);
@@ -267,6 +278,7 @@ impl PlatformMenuItem {
 
     pub fn set_text(&mut self, text: &str, _accelerator: Option<&MenuAccelerator>) {
         let title = NSString::from_str(&strip_mnemonic(text));
+        self.attributed_title = None;
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
                 ns_item.setAttributedTitle(None);
@@ -278,23 +290,21 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn set_styled_text(
-        &mut self,
-        text: &str,
-        parts: &[(String, TextStyle)],
-        _accelerator: Option<&MenuAccelerator>,
-    ) {
-        let title = NSString::from_str(&strip_mnemonic(text));
-        let parts = parts
-            .iter()
-            .map(|(text, style)| (strip_mnemonic(text), *style))
-            .collect::<Vec<_>>();
-        let attributed = build_attributed_title(&parts);
+    pub fn set_attributed_title(&mut self, title: Option<&NSAttributedString>) {
+        self.attributed_title = title.map(|title| title.copy());
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                ns_item.setAttributedTitle(Some(&attributed));
-                ns_item.setTitle(&title);
+                ns_item.setAttributedTitle(title);
                 if let Some(submenu) = ns_item.submenu() {
+                    // A submenu row renders from this `NSMenuItem` everywhere except the menu
+                    // bar, where AppKit renders the child `NSMenu`'s plain `title` instead and
+                    // ignores the item's own title and attributed title. Keep it in step so a
+                    // top-level menu's bar label still follows the attributed one, minus the
+                    // attributes. Clearing falls back to the item's plain title.
+                    let title = match title {
+                        Some(title) => title.string(),
+                        None => ns_item.title(),
+                    };
                     submenu.setTitle(&title);
                 }
             }
@@ -371,9 +381,23 @@ impl PlatformMenuItem {
 /// IconMenuItem methods
 impl PlatformMenuItem {
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
+        self.set_icon_inner(icon, false)
+    }
+
+    pub fn set_icon_templated(&mut self, icon: Option<&IconType>) {
+        self.set_icon_inner(icon, true)
+    }
+
+    pub fn icon_is_template(&self) -> bool {
+        self.icon_is_template
+    }
+
+    fn set_icon_inner(&mut self, icon: Option<&IconType>, is_template: bool) {
+        self.icon_is_template = is_template;
+
         for ns_items in self.ns_menu_items.values() {
             for ns_item in ns_items {
-                menuitem_set_icon_type(ns_item, icon);
+                menuitem_set_icon_type(ns_item, icon, is_template);
             }
         }
     }
@@ -652,7 +676,7 @@ impl PlatformMenuItem {
             ns_submenu.setAutoenablesItems(false);
 
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_is_template);
         }
 
         let id = COUNTER.next();
@@ -740,6 +764,11 @@ impl PlatformMenuItem {
             self.is_services_menu = true;
             // we have to assign an empty menu as the app's services menu, and macOS will populate it
             let services_menu = NSMenu::new(mtm);
+            // Name it like every other submenu is named at creation, and like `set_text` would
+            // name it later, so the menu does not read back blank in between. Purely for
+            // consistency: AppKit draws a registered services menu as its own glyph whatever
+            // the title says. The item's title is already mnemonic-stripped.
+            services_menu.setTitle(&ns_menu_item.title());
             NSApplication::sharedApplication(mtm).setServicesMenu(Some(&services_menu));
             ns_menu_item.setSubmenu(Some(&services_menu));
         }
@@ -801,7 +830,7 @@ impl PlatformMenuItem {
         unsafe {
             ns_menu_item.setTarget(Some(&ns_menu_item));
             ns_menu_item.setEnabled(args.enabled);
-            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref());
+            menuitem_set_icon_type(&ns_menu_item, args.icon.as_ref(), self.icon_is_template);
         }
 
         ns_menu_item.ivars().replace(Some(owner));
@@ -953,36 +982,6 @@ impl PredefinedMenuItemType {
     }
 }
 
-fn build_attributed_title(parts: &[(String, TextStyle)]) -> Retained<NSAttributedString> {
-    let combined: String = parts.iter().map(|(text, _)| text.as_str()).collect();
-    let ns_combined = NSString::from_str(&combined);
-    let attributed =
-        NSMutableAttributedString::initWithString(NSMutableAttributedString::alloc(), &ns_combined);
-    let font = NSFont::menuFontOfSize(0.0);
-    unsafe {
-        attributed.addAttribute_value_range(
-            NSFontAttributeName,
-            &font,
-            NSRange::new(0, ns_combined.length()),
-        );
-    }
-    let mut offset = 0;
-    for (text, style) in parts {
-        let len = text.encode_utf16().count();
-        if len > 0 && matches!(style, TextStyle::Secondary) {
-            unsafe {
-                attributed.addAttribute_value_range(
-                    NSForegroundColorAttributeName,
-                    &NSColor::secondaryLabelColor(),
-                    NSRange::new(offset, len),
-                );
-            }
-        }
-        offset += len;
-    }
-    attributed.into_super()
-}
-
 impl MenuItemKind {
     fn create_ns(&self, menu_id: u32) -> crate::Result<Retained<NSMenuItem>> {
         let args = self.platform_attach_args();
@@ -1005,124 +1004,53 @@ impl MenuItemKind {
             MenuItemKind::Icon(_) => item.create_ns_icon_item(&args, platform.clone(), menu_id),
         }?;
 
-        if let Some(parts) = &args.styled_text {
-            let parts = parts
-                .iter()
-                .map(|(text, style)| (strip_mnemonic(text), *style))
-                .collect::<Vec<_>>();
-            ns_item.setAttributedTitle(Some(&build_attributed_title(&parts)));
+        if let Some(title) = &item.attributed_title {
+            ns_item.setAttributedTitle(Some(title));
+            if let Some(submenu) = ns_item.submenu() {
+                // See `set_attributed_title`: the menu bar renders this plain title, not ours.
+                submenu.setTitle(&title.string());
+            }
         }
         Ok(ns_item)
     }
 }
 
-fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>) {
-    match icon {
-        Some(IconType::Custom(icon)) => menuitem_set_icon(menuitem, Some(icon)),
-        Some(IconType::Native(icon)) => menuitem_set_native_icon(menuitem, Some(icon)),
-        None => menuitem.setImage(None),
-    }
-}
+/// The tallest a menu item icon may be drawn without growing the menu row, which keeps its
+/// natural height up to this point size at the default menu font. Picking a size that looks
+/// right below this cap is up to the caller.
+const MAX_ICON_HEIGHT: f64 = 18.0;
 
-fn menuitem_set_icon(menuitem: &NSMenuItem, icon: Option<&Icon>) {
-    if let Some(icon) = icon {
-        let nsimage = icon.inner.to_nsimage(Some(18.));
-        menuitem.setImage(Some(&nsimage));
-    } else {
-        menuitem.setImage(None);
-    }
-}
-
-fn menuitem_set_native_icon(menuitem: &NSMenuItem, icon: Option<&NativeIcon>) {
-    let Some(icon) = icon else {
-        menuitem.setImage(None);
-        return;
-    };
-
+fn menuitem_set_icon_type(menuitem: &NSMenuItem, icon: Option<&IconType>, as_template: bool) {
     let nsimage = match icon {
-        NativeIcon::Raw(name) => {
-            let named_img = NSString::from_str(name);
-            NSImage::imageNamed(&named_img)
+        Some(IconType::Custom(icon)) => {
+            let nsimage = icon.inner.to_nsimage(Some(MAX_ICON_HEIGHT));
+            nsimage.setTemplate(as_template);
+            Some(nsimage)
         }
-        _ => unsafe { NSImage::imageNamed(icon.named_img()) },
+        Some(IconType::Native(icon)) => native_nsimage(icon),
+        None => None,
     };
 
-    if let Some(nsimage) = nsimage {
-        let size = NSSize::new(18.0, 18.0);
-        nsimage.setSize(size);
-        menuitem.setImage(Some(&nsimage));
-    } else {
-        menuitem.setImage(None);
-    }
+    menuitem.setImage(nsimage.as_deref());
 }
 
-impl NativeIcon {
-    unsafe fn named_img(&self) -> &'static NSImageName {
-        use objc2_app_kit as appkit;
-        match self {
-            NativeIcon::Add => appkit::NSImageNameAddTemplate,
-            NativeIcon::StatusAvailable => appkit::NSImageNameStatusAvailable,
-            NativeIcon::StatusUnavailable => appkit::NSImageNameStatusUnavailable,
-            NativeIcon::StatusPartiallyAvailable => appkit::NSImageNameStatusPartiallyAvailable,
-            NativeIcon::Advanced => appkit::NSImageNameAdvanced,
-            NativeIcon::Bluetooth => appkit::NSImageNameBluetoothTemplate,
-            NativeIcon::Bookmarks => appkit::NSImageNameBookmarksTemplate,
-            NativeIcon::Caution => appkit::NSImageNameCaution,
-            NativeIcon::ColorPanel => appkit::NSImageNameColorPanel,
-            NativeIcon::ColumnView => appkit::NSImageNameColumnViewTemplate,
-            NativeIcon::Computer => appkit::NSImageNameComputer,
-            NativeIcon::EnterFullScreen => appkit::NSImageNameEnterFullScreenTemplate,
-            NativeIcon::Everyone => appkit::NSImageNameEveryone,
-            NativeIcon::ExitFullScreen => appkit::NSImageNameExitFullScreenTemplate,
-            NativeIcon::FlowView => appkit::NSImageNameFlowViewTemplate,
-            NativeIcon::Folder => appkit::NSImageNameFolder,
-            NativeIcon::FolderBurnable => appkit::NSImageNameFolderBurnable,
-            NativeIcon::FolderSmart => appkit::NSImageNameFolderSmart,
-            NativeIcon::FollowLinkFreestanding => appkit::NSImageNameFollowLinkFreestandingTemplate,
-            NativeIcon::FontPanel => appkit::NSImageNameFontPanel,
-            NativeIcon::GoLeft => appkit::NSImageNameGoLeftTemplate,
-            NativeIcon::GoRight => appkit::NSImageNameGoRightTemplate,
-            NativeIcon::Home => appkit::NSImageNameHomeTemplate,
-            NativeIcon::IChatTheater => appkit::NSImageNameIChatTheaterTemplate,
-            NativeIcon::IconView => appkit::NSImageNameIconViewTemplate,
-            NativeIcon::Info => appkit::NSImageNameInfo,
-            NativeIcon::InvalidDataFreestanding => {
-                appkit::NSImageNameInvalidDataFreestandingTemplate
-            }
-            NativeIcon::LeftFacingTriangle => appkit::NSImageNameLeftFacingTriangleTemplate,
-            NativeIcon::ListView => appkit::NSImageNameListViewTemplate,
-            NativeIcon::LockLocked => appkit::NSImageNameLockLockedTemplate,
-            NativeIcon::LockUnlocked => appkit::NSImageNameLockUnlockedTemplate,
-            NativeIcon::MenuMixedState => appkit::NSImageNameMenuMixedStateTemplate,
-            NativeIcon::MenuOnState => appkit::NSImageNameMenuOnStateTemplate,
-            NativeIcon::MobileMe => appkit::NSImageNameMobileMe,
-            NativeIcon::MultipleDocuments => appkit::NSImageNameMultipleDocuments,
-            NativeIcon::Network => appkit::NSImageNameNetwork,
-            NativeIcon::Path => appkit::NSImageNamePathTemplate,
-            NativeIcon::PreferencesGeneral => appkit::NSImageNamePreferencesGeneral,
-            NativeIcon::QuickLook => appkit::NSImageNameQuickLookTemplate,
-            NativeIcon::RefreshFreestanding => appkit::NSImageNameRefreshFreestandingTemplate,
-            NativeIcon::Refresh => appkit::NSImageNameRefreshTemplate,
-            NativeIcon::Remove => appkit::NSImageNameRemoveTemplate,
-            NativeIcon::RevealFreestanding => appkit::NSImageNameRevealFreestandingTemplate,
-            NativeIcon::RightFacingTriangle => appkit::NSImageNameRightFacingTriangleTemplate,
-            NativeIcon::Share => appkit::NSImageNameShareTemplate,
-            NativeIcon::Slideshow => appkit::NSImageNameSlideshowTemplate,
-            NativeIcon::SmartBadge => appkit::NSImageNameSmartBadgeTemplate,
-            NativeIcon::StatusNone => appkit::NSImageNameStatusNone,
-            NativeIcon::StopProgressFreestanding => {
-                appkit::NSImageNameStopProgressFreestandingTemplate
-            }
-            NativeIcon::StopProgress => appkit::NSImageNameStopProgressTemplate,
-            NativeIcon::TrashEmpty => appkit::NSImageNameTrashEmpty,
-            NativeIcon::TrashFull => appkit::NSImageNameTrashFull,
-            NativeIcon::User => appkit::NSImageNameUser,
-            NativeIcon::UserAccounts => appkit::NSImageNameUserAccounts,
-            NativeIcon::UserGroup => appkit::NSImageNameUserGroup,
-            NativeIcon::UserGuest => appkit::NSImageNameUserGuest,
-            NativeIcon::Raw(_) => unreachable!("raw native icons are handled before named_img"),
-        }
+/// Resolves a native icon to the [`NSImage`] to show in a menu.
+///
+/// `imageNamed:` hands back the one instance shared with the whole process, so we can't change its size,
+/// as it will follow every other use of it. Only the icons too tall
+/// for a menu row are resized, on a copy, keeping their aspect ratio.
+fn native_nsimage(icon: &NativeIcon) -> Option<Retained<NSImage>> {
+    let nsimage = unsafe { icon.to_nsimage() }?;
+
+    let size = nsimage.size();
+    if size.height <= MAX_ICON_HEIGHT {
+        return Some(nsimage);
     }
+
+    let resized = nsimage.copy();
+    let width = size.width / (size.height / MAX_ICON_HEIGHT);
+    resized.setSize(NSSize::new(width, MAX_ICON_HEIGHT));
+    Some(resized)
 }
 
 const SCREEN_EDGE_MARGIN: f64 = 4.0;

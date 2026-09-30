@@ -16,6 +16,17 @@
     allow(dead_code)
 )]
 
+#[cfg(all(
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ),
+    any(feature = "gtk3", feature = "gtk4")
+))]
+pub(crate) mod gtk_common;
 #[cfg(target_os = "windows")]
 #[path = "windows/mod.rs"]
 mod platform;
@@ -62,8 +73,6 @@ mod platform;
 
 use std::{cell::RefCell, rc::Rc};
 
-#[cfg(target_os = "macos")]
-use crate::TextStyle;
 use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
 
 pub(crate) use self::platform::*;
@@ -87,8 +96,6 @@ pub(crate) struct PlatformAttachArgs {
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
     pub icon: Option<IconType>,
-    #[cfg(target_os = "macos")]
-    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl MenuItemKind {
@@ -102,8 +109,6 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: None,
-                    #[cfg(target_os = "macos")]
-                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Submenu(item) => {
@@ -114,8 +119,6 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: None,
                     icon: state.icon.clone(),
-                    #[cfg(target_os = "macos")]
-                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Predefined(item) => {
@@ -126,8 +129,6 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.predefined_item_type.accelerator(),
                     icon: None,
-                    #[cfg(target_os = "macos")]
-                    styled_text: None,
                 }
             }
             MenuItemKind::Check(item) => {
@@ -138,8 +139,6 @@ impl MenuItemKind {
                     checked: state.checked,
                     accelerator: state.accelerator.clone(),
                     icon: None,
-                    #[cfg(target_os = "macos")]
-                    styled_text: state.styled_text.clone(),
                 }
             }
             MenuItemKind::Icon(item) => {
@@ -150,8 +149,6 @@ impl MenuItemKind {
                     checked: false,
                     accelerator: state.accelerator.clone(),
                     icon: state.icon.clone(),
-                    #[cfg(target_os = "macos")]
-                    styled_text: state.styled_text.clone(),
                 }
             }
         }

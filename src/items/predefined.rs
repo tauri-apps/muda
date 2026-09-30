@@ -62,8 +62,10 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3:** Requires the `libxdo` feature.
-    /// - **GTK 4:** Unsupported.
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn copy(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Copy, text)
     }
@@ -72,8 +74,10 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3:** Requires the `libxdo` feature.
-    /// - **GTK 4:** Unsupported.
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn cut(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Cut, text)
     }
@@ -82,8 +86,10 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3:** Requires the `libxdo` feature.
-    /// - **GTK 4:** Unsupported.
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn paste(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Paste, text)
     }
@@ -110,8 +116,10 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3:** Requires the `libxdo` feature.
-    /// - **GTK 4:** Unsupported.
+    /// - **GTK 3:** Acts on the focused widget of the window the menu belongs to. A menu shown
+    ///   by a status icon acts on the application's active window, and does nothing without one.
+    /// - **GTK 4:** Acts on the widget that had the focus before the menu was opened, and takes
+    ///   its accelerator over from that widget.
     pub fn select_all(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::SelectAll, text)
     }
@@ -120,7 +128,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3 / GTK 4:** Unsupported.
+    /// - **GTK 3:** Only acts on a focused `WebKitWebView`, as GTK 3 has no undo of its own.
     pub fn undo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Undo, text)
     }
@@ -128,7 +136,7 @@ impl PredefinedMenuItem {
     ///
     /// ## Platform-specific:
     ///
-    /// - **GTK 3 / GTK 4:** Unsupported.
+    /// - **GTK 3:** Only acts on a focused `WebKitWebView`, as GTK 3 has no redo of its own.
     pub fn redo(text: Option<&str>) -> PredefinedMenuItem {
         PredefinedMenuItem::new(PredefinedMenuItemType::Redo, text)
     }
@@ -543,6 +551,8 @@ impl PredefinedMenuItemType {
                 | PredefinedMenuItemType::Cut
                 | PredefinedMenuItemType::Paste
                 | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
                 | PredefinedMenuItemType::About(_)
         )
     }
@@ -561,6 +571,12 @@ impl PredefinedMenuItemType {
         matches!(
             self,
             PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
                 | PredefinedMenuItemType::Minimize
                 | PredefinedMenuItemType::Maximize
                 | PredefinedMenuItemType::Fullscreen

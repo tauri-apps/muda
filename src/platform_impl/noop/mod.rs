@@ -7,7 +7,7 @@ use crate::{
     icon::NoIcon,
     items::{IconType, MenuItemAction},
     util::AddOp,
-    MenuItemKind, TextStyle,
+    MenuItemKind,
 };
 
 pub(crate) type PlatformIcon = NoIcon;
@@ -18,6 +18,13 @@ where
     F: FnOnce() + Send + 'static,
 {
     f();
+}
+
+/// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
+/// the main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuItemType) {
+    // TODO: run predefined actions from a snapshot on this platform.
 }
 
 pub(crate) struct PlatformMenu;
@@ -50,14 +57,6 @@ impl PlatformMenuItem {
     }
 
     pub(crate) fn set_text(&mut self, _text: &str, _accelerator: Option<&MenuAccelerator>) {}
-
-    pub(crate) fn set_styled_text(
-        &mut self,
-        _text: &str,
-        _parts: &[(String, TextStyle)],
-        _accelerator: Option<&MenuAccelerator>,
-    ) {
-    }
 
     pub(crate) fn is_enabled(&self) -> Option<bool> {
         None

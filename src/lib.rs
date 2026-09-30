@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(clippy::uninlined_format_args)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! muda is a Menu Utilities library for Desktop Applications.
 //!
@@ -28,9 +29,6 @@
 //! - `gtk3`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
 //! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
 //!   enabling this feature because the defaults include `gtk3`.
-//! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
-//!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
-//!   by GTK 4.
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
@@ -38,16 +36,14 @@
 //!
 //! # Dependencies (Linux/BSD)
 //!
-//! The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
-//! only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll`
-//! menu items work when the `libxdo` feature is enabled. Be sure to install the packages for the
-//! GTK backend you enabled before building:
+//! The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. Be sure to
+//! install the packages for the GTK backend you enabled before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
 //! # GTK 3 backend
-//! pacman -S gtk3 xdotool
+//! pacman -S gtk3
 //!
 //! # GTK 4 backend
 //! pacman -S gtk4
@@ -57,7 +53,7 @@
 //!
 //! ```sh
 //! # GTK 3 backend
-//! sudo apt install libgtk-3-dev libxdo-dev
+//! sudo apt install libgtk-3-dev
 //!
 //! # GTK 4 backend
 //! sudo apt install libgtk-4-dev
@@ -67,7 +63,7 @@
 //!
 //! ```sh
 //! # GTK 3 backend
-//! pkg install -y rust glib pkgconf gtk3 xdotool
+//! pkg install -y rust glib pkgconf gtk3
 //!
 //! # GTK 4 backend
 //! pkg install -y rust glib pkgconf gtk4

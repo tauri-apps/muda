@@ -8,7 +8,7 @@ use crate::{
     platform_impl::PlatformMenuItem,
     util::{self, AddOp},
     ContextMenu, Icon, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, NativeIcon,
-    StateCell, SubmenuBuilder, TextStyle, UnsafeMenuItemKind,
+    StateCell, SubmenuBuilder, UnsafeMenuItemKind,
 };
 
 use super::menu::positions_of;
@@ -48,7 +48,6 @@ pub(crate) struct SubmenuState {
     pub enabled: bool,
     pub icon: Option<IconType>,
     pub children: Vec<UnsafeMenuItemKind>,
-    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl Drop for Submenu {
@@ -129,7 +128,6 @@ impl Submenu {
             enabled,
             icon: None,
             children: Vec::new(),
-            styled_text: None,
         };
         let click = MenuItemAction::Emit(id.clone());
         let platform = PlatformMenuItem::new_submenu(click);
@@ -296,27 +294,33 @@ impl Submenu {
     pub fn set_text<S: AsRef<str>>(&self, text: S) {
         let mut state = self.state.borrow_mut();
         state.text = text.as_ref().to_string();
-        state.styled_text = None;
         drop(state);
         // A submenu carries no accelerator: there is no `Submenu::set_accelerator`.
         self.platform.borrow_mut().set_text(text.as_ref(), None)
     }
 
-    /// Set the submenu label as styled parts. On Windows and Linux the parts render as plain text.
-    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
-        let parts = parts
-            .into_iter()
-            .map(|(text, style)| (text.as_ref().to_string(), style))
-            .collect::<Vec<_>>();
-        let text = {
-            let mut state = self.state.borrow_mut();
-            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
-            state.styled_text = Some(parts.clone());
-            state.text.clone()
-        };
-        self.platform
-            .borrow_mut()
-            .set_styled_text(&text, &parts, None)
+    /// Set the submenu's label to a fully custom
+    /// [`NSAttributedString`](objc2_foundation::NSAttributedString) (macOS only).
+    ///
+    /// This is an escape hatch for layouts and colors that plain
+    /// [`set_text`](Self::set_text) cannot express — for example a right-aligned trailing
+    /// segment (built with an `NSParagraphStyle` that has a right-aligned `NSTextTab` and
+    /// a `\t` separator, as the system battery menu does) or a custom
+    /// `NSForegroundColorAttributeName` used to tint a whole row. Because the caller
+    /// supplies raw attributes, it is the caller's responsibility to keep the label
+    /// legible in light and dark modes, under increased contrast, and when the system
+    /// menu font changes.
+    ///
+    /// This and [`set_text`](Self::set_text) write the same label, so the last one
+    /// called wins. Pass `None` to clear the custom title and fall back to the plain text.
+    ///
+    /// The attributes apply wherever the submenu is drawn as a row of another menu, which
+    /// covers nested submenus and context menus. A submenu placed directly in the menu bar
+    /// is the exception: AppKit draws those from the underlying `NSMenu`'s plain title, so
+    /// the bar shows the string without its attributes.
+    #[cfg(target_os = "macos")]
+    pub fn set_attributed_title(&self, title: Option<&objc2_foundation::NSAttributedString>) {
+        self.platform.borrow_mut().set_attributed_title(title)
     }
 
     /// Get whether this submenu is enabled or not.
@@ -423,6 +427,31 @@ impl Submenu {
             state.icon.clone()
         };
         self.platform.borrow_mut().set_icon(icon.as_ref())
+    }
+
+    /// Whether this submenu's icon is treated as a template image on macOS.
+    ///
+    /// See [`Submenu::set_icon_templated`].
+    #[cfg(target_os = "macos")]
+    pub fn icon_is_template(&self) -> bool {
+        self.platform.borrow().icon_is_template()
+    }
+
+    /// Change this submenu item icon, or remove it, and draw it as a template image on macOS.
+    ///
+    /// A template image is drawn using only its alpha channel, so the system recolours it to
+    /// match the menu, the way the built-in items do. [`Submenu::set_icon`] draws the icon as-is
+    /// instead.
+    ///
+    /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
+    #[cfg(target_os = "macos")]
+    pub fn set_icon_templated(&self, icon: Option<Icon>) {
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Custom);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon_templated(icon.as_ref())
     }
 }
 

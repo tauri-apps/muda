@@ -98,6 +98,21 @@ pub struct SubmenuSnapshot {
 #[derive(Clone)]
 pub struct PredefinedMenuItemSnapshot {
     pub(crate) state: StateCell<PredefinedMenuItemState>,
+    /// Runs the item's predefined action on the platform, e.g. showing the about dialog.
+    ///
+    /// The action is queued on the platform's main thread, so it runs once that thread's event
+    /// loop does. Items this platform has no action for are created disabled, see
+    /// [`Self::is_enabled`], and activating them does nothing.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - **Linux (GTK 3):** Shows the about dialog, and runs the edit commands on the
+    ///   application's active window.
+    /// - **Linux (GTK 4):** Shows the about dialog, and runs the edit commands and the window
+    ///   items (`Minimize`, `Maximize`, `Fullscreen`, `Hide`, `CloseWindow` and `Quit`) on the
+    ///   application's active window.
+    /// - **Linux (no GTK backend) / Windows / macOS:** Does nothing yet.
+    pub activate: Arc<dyn Fn() + Send + Sync>,
 }
 
 /// A thread-safe read projection and activation callback for a [`crate::CheckMenuItem`].
@@ -298,9 +313,21 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
             MenuItemKind::Submenu(item) => Self::Submenu(SubmenuSnapshot {
                 state: item.state.clone(),
             }),
-            MenuItemKind::Predefined(item) => Self::Predefined(PredefinedMenuItemSnapshot {
-                state: item.state.clone(),
-            }),
+            MenuItemKind::Predefined(item) => {
+                let state = item.state.clone();
+
+                Self::Predefined(PredefinedMenuItemSnapshot {
+                    state: state.clone(),
+                    activate: Arc::new(move || {
+                        // The item type is read here instead of being captured, because it may
+                        // hold platform types that are `Send` but not `Sync`, like an icon handle.
+                        let predefined_item_type = state.borrow().predefined_item_type.clone();
+                        platform_impl::dispatch_on_main_thread(move || {
+                            platform_impl::run_predefined_action(&predefined_item_type)
+                        });
+                    }),
+                })
+            }
             MenuItemKind::Check(item) => {
                 let id = Arc::clone(&item.id);
                 let state = item.state.clone();
