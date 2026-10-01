@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use once_cell::sync::{Lazy, OnceCell};
+use std::sync::{LazyLock, OnceLock};
 
 use crate::MenuId;
 
@@ -19,8 +19,8 @@ pub struct MenuEvent {
 pub type MenuEventReceiver = Receiver<MenuEvent>;
 type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 
-static MENU_CHANNEL: Lazy<(Sender<MenuEvent>, MenuEventReceiver)> = Lazy::new(unbounded);
-static MENU_EVENT_HANDLER: OnceCell<Option<MenuEventHandler>> = OnceCell::new();
+static MENU_CHANNEL: LazyLock<(Sender<MenuEvent>, MenuEventReceiver)> = LazyLock::new(unbounded);
+static MENU_EVENT_HANDLER: OnceLock<Option<MenuEventHandler>> = OnceLock::new();
 
 impl MenuEvent {
     /// Returns the id of the menu item which triggered this event

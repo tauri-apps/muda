@@ -8,7 +8,7 @@
 
 use std::cell::Cell;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use windows_sys::{
     s,
     Win32::{
@@ -271,22 +271,24 @@ pub fn should_use_dark_mode(hwnd: super::Hwnd) -> bool {
     should_apps_use_dark_mode() && !is_high_contrast() && is_dark_mode_allowed_for_window(hwnd as _)
 }
 
-static HUXTHEME: Lazy<isize> = Lazy::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")) as _ });
+static HUXTHEME: LazyLock<isize> =
+    LazyLock::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")) as _ });
 
 fn should_apps_use_dark_mode() -> bool {
     const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
     type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
-    static SHOULD_APPS_USE_DARK_MODE: Lazy<Option<ShouldAppsUseDarkMode>> = Lazy::new(|| unsafe {
-        if *HUXTHEME == 0 {
-            return None;
-        }
+    static SHOULD_APPS_USE_DARK_MODE: LazyLock<Option<ShouldAppsUseDarkMode>> =
+        LazyLock::new(|| unsafe {
+            if *HUXTHEME == 0 {
+                return None;
+            }
 
-        GetProcAddress(
-            (*HUXTHEME) as *mut _,
-            UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _,
-        )
-        .map(|handle| std::mem::transmute(handle))
-    });
+            GetProcAddress(
+                (*HUXTHEME) as *mut _,
+                UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _,
+            )
+            .map(|handle| std::mem::transmute(handle))
+        });
 
     SHOULD_APPS_USE_DARK_MODE
         .map(|should_apps_use_dark_mode| unsafe { (should_apps_use_dark_mode)() })
@@ -296,8 +298,8 @@ fn should_apps_use_dark_mode() -> bool {
 fn is_dark_mode_allowed_for_window(hwnd: HWND) -> bool {
     const UXTHEME_ISDARKMODEALLOWEDFORWINDOW_ORDINAL: u16 = 137;
     type IsDarkModeAllowedForWindow = unsafe extern "system" fn(HWND) -> bool;
-    static IS_DARK_MODE_ALLOWED_FOR_WINDOW: Lazy<Option<IsDarkModeAllowedForWindow>> =
-        Lazy::new(|| unsafe {
+    static IS_DARK_MODE_ALLOWED_FOR_WINDOW: LazyLock<Option<IsDarkModeAllowedForWindow>> =
+        LazyLock::new(|| unsafe {
             if *HUXTHEME == 0 {
                 return None;
             }
