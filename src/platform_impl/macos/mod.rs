@@ -582,7 +582,7 @@ impl PlatformMenuItem {
                 .any(|owned| std::ptr::eq(menu, &*owned.1))
         };
 
-        if app.windowsMenu().as_deref().is_some_and(&owns_menu) {
+        if app.windowsMenu().as_deref().is_some_and(owns_menu) {
             app.setWindowsMenu(None);
         }
         if app.helpMenu().as_deref().is_some_and(owns_menu) {
