@@ -16,14 +16,15 @@ use crate::{
     accelerator::MenuAccelerator,
     dpi::Position,
     items::{IconType, MenuItemAction, PredefinedMenuItemType},
-    util::{AddOp, Counter},
+    util::AddOp,
     AboutMetadata, MenuEvent, MenuTheme,
 };
 
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     rc::Rc,
+    sync::{Mutex, PoisonError},
 };
 use windows_sys::Win32::{
     Foundation::{FALSE, HWND, LPARAM, LRESULT, POINT, WPARAM},
@@ -35,7 +36,54 @@ use windows_sys::Win32::{
 type Hwnd = isize;
 
 /// Internal command ids. Used for the `WM_COMMAND` message to identify which menu item was clicked.
-static COUNTER: Counter = Counter::new_with_start(1000);
+static COMMAND_IDS: Mutex<CommandIds> = Mutex::new(CommandIds::new());
+
+/// `WM_COMMAND` and `ACCEL::cmd` carry only 16 bits, so an id above `u16::MAX` can never be
+/// matched. Ids of dropped items are therefore recycled, oldest first, once fresh ones run out.
+struct CommandIds {
+    next: u32,
+    free: VecDeque<u32>,
+}
+
+impl CommandIds {
+    const fn new() -> Self {
+        Self {
+            next: 1000,
+            free: VecDeque::new(),
+        }
+    }
+
+    fn next(&mut self) -> u32 {
+        if self.next > u16::MAX as u32 {
+            if let Some(id) = self.free.pop_front() {
+                return id;
+            }
+        }
+        let id = self.next;
+        self.next = self.next.saturating_add(1);
+        id
+    }
+
+    fn release(&mut self, id: u32) {
+        if id <= u16::MAX as u32 {
+            self.free.push_back(id);
+        }
+    }
+}
+
+fn next_command_id() -> u32 {
+    COMMAND_IDS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .next()
+}
+
+fn release_command_id(id: u32) {
+    COMMAND_IDS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .release(id);
+}
 
 #[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
@@ -180,6 +228,8 @@ impl Drop for PlatformMenu {
             DestroyMenu(self.hmenu);
             DestroyMenu(self.hpopupmenu);
         }
+
+        release_command_id(self.id);
     }
 }
 
@@ -237,12 +287,14 @@ impl Drop for PlatformMenuItem {
         for entry in self.accelerator_tables.values() {
             entry.table.borrow_mut().remove(id)
         }
+
+        release_command_id(self.id);
     }
 }
 
 impl PlatformMenu {
     pub fn new() -> Self {
-        let id = COUNTER.next();
+        let id = next_command_id();
         Self {
             id,
             hmenu: unsafe { CreateMenu() },
@@ -433,7 +485,7 @@ impl PlatformMenu {
 impl PlatformMenuItem {
     pub fn new(click: MenuItemAction) -> Self {
         Self {
-            id: COUNTER.next(),
+            id: next_command_id(),
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
@@ -448,7 +500,7 @@ impl PlatformMenuItem {
 
     pub fn new_submenu(click: MenuItemAction) -> Self {
         Self {
-            id: COUNTER.next(),
+            id: next_command_id(),
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
@@ -1274,5 +1326,33 @@ fn show_about_dialog(hwnd: Hwnd, metadata: &AboutMetadata) {
                 &mut pf_verification_flag_checked,
             )
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CommandIds;
+    use std::collections::{HashSet, VecDeque};
+
+    #[test]
+    fn command_ids_stay_unique_and_within_wm_command_range_under_churn() {
+        // Start just below the limit so the churn crosses it quickly (this also runs under Miri).
+        let mut ids = CommandIds {
+            next: u16::MAX as u32 - 100,
+            free: VecDeque::new(),
+        };
+        let mut live = VecDeque::new();
+        let mut live_set = HashSet::new();
+        for _ in 0..2_000 {
+            let id = ids.next();
+            assert!(id <= u16::MAX as u32, "{id} does not fit in WM_COMMAND");
+            assert!(live_set.insert(id), "{id} handed out while still live");
+            live.push_back(id);
+            if live.len() > 50 {
+                let released = live.pop_front().unwrap();
+                live_set.remove(&released);
+                ids.release(released);
+            }
+        }
     }
 }
