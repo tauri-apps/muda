@@ -28,7 +28,7 @@ use objc2_foundation::{
     NSPoint, NSRect, NSSize, NSString,
 };
 
-use self::{ns_menu_item::NsMenuItem, util::strip_mnemonic};
+use self::{ns_menu_item::MudaNSMenuItem, util::strip_mnemonic};
 use crate::{
     accelerator::MenuAccelerator,
     dpi::{LogicalPosition, Position},
@@ -64,7 +64,6 @@ define_class!(
     /// A delegate for NSMenu that stores the menu id as an instance variable,
     /// so that we can identify it later. Like when calling `set_as_windows_menu_for_nsapp`.
     #[unsafe(super(NSObject))]
-    #[name = "MudaMenuDelegate"]
     #[thread_kind = MainThreadOnly]
     #[ivars = u32]
     struct MudaMenuDelegate;
@@ -708,7 +707,7 @@ impl PlatformMenuItem {
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = NsMenuItem::create(
+        let ns_menu_item = MudaNSMenuItem::create(
             mtm,
             &args.text,
             Some(sel!(customAction:)),
@@ -747,7 +746,7 @@ impl PlatformMenuItem {
             _ => {
                 let selector = predefined_item_type.selector();
                 let ns_menu_item =
-                    NsMenuItem::create(mtm, &args.text, selector, &args.accelerator)?;
+                    MudaNSMenuItem::create(mtm, &args.text, selector, &args.accelerator)?;
 
                 if let PredefinedMenuItemType::About(_) = &predefined_item_type {
                     unsafe { ns_menu_item.setTarget(Some(&ns_menu_item)) };
@@ -788,7 +787,7 @@ impl PlatformMenuItem {
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = NsMenuItem::create(
+        let ns_menu_item = MudaNSMenuItem::create(
             mtm,
             &args.text,
             Some(sel!(customAction:)),
@@ -820,7 +819,7 @@ impl PlatformMenuItem {
         menu_id: u32,
     ) -> crate::Result<Retained<NSMenuItem>> {
         let mtm = MainThreadMarker::new().expect("can only create menu item on the main thread");
-        let ns_menu_item = NsMenuItem::create(
+        let ns_menu_item = MudaNSMenuItem::create(
             mtm,
             &args.text,
             Some(sel!(customAction:)),
@@ -844,7 +843,7 @@ impl PlatformMenuItem {
     }
 }
 
-impl NsMenuItem {
+impl MudaNSMenuItem {
     fn action(&self) {
         // SAFETY: The ivar is initialized before the menu item is exposed and is
         // never mutated afterward.

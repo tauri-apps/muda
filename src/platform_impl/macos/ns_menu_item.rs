@@ -21,12 +21,11 @@ use crate::accelerator::MenuAccelerator;
 
 define_class!(
     #[unsafe(super(NSMenuItem))]
-    #[name = "MudaMenuItem"]
     #[thread_kind = MainThreadOnly]
     #[ivars = Cell<Option<Rc<RefCell<PlatformMenuItem>>>>]
-    pub(super) struct NsMenuItem;
+    pub(super) struct MudaNSMenuItem;
 
-    impl NsMenuItem {
+    impl MudaNSMenuItem {
         #[unsafe(method(customAction:))]
         fn custom_action(&self, _sender: Option<&AnyObject>) {
             self.action();
@@ -39,7 +38,7 @@ define_class!(
     }
 );
 
-impl NsMenuItem {
+impl MudaNSMenuItem {
     fn new(
         mtm: MainThreadMarker,
         title: &NSString,
