@@ -97,6 +97,9 @@ impl CounterU16 {
     }
 
     pub fn next(&self) -> u16 {
+        // TODO: remove this deprecated allowance once we raise MSRV to 1.95
+        //       where we can use `try_update` instead.
+        #[allow(deprecated)]
         let previous = self
             .current
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
