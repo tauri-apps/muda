@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::sync::LazyLock;
+use std::sync::{
+    atomic::{AtomicU16, Ordering},
+    LazyLock,
+};
 use windows_sys::{
     core::HRESULT,
     Win32::{
@@ -70,6 +73,39 @@ impl Free for HBITMAP {
     unsafe fn free(&mut self) {
         if !self.is_null() {
             DeleteObject(*self);
+        }
+    }
+}
+
+/// A counter similar to [crate::util::Counter] but wraps around instead of leaving its range.
+pub struct CounterU16 {
+    start: u16,
+    end: u16,
+    current: AtomicU16,
+}
+
+impl CounterU16 {
+    /// Counts over `start..=end`, inclusive of both.
+    pub const fn new_with_range(start: u16, end: u16) -> Self {
+        assert!(start < end, "a counter needs a range of at least two ids");
+
+        Self {
+            start,
+            end,
+            current: AtomicU16::new(start),
+        }
+    }
+
+    pub fn next(&self) -> u16 {
+        let previous = self
+            .current
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+                Some(if id == self.end { self.start } else { id + 1 })
+            });
+
+        // The update closure always returns `Some`, so both arms hold the previous value.
+        match previous {
+            Ok(id) | Err(id) => id,
         }
     }
 }
