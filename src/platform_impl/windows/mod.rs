@@ -9,7 +9,7 @@ mod util;
 pub(crate) use self::icon::WinIcon as PlatformIcon;
 use self::{
     dark_menu_bar::{WM_UAHDRAWMENU, WM_UAHDRAWMENUITEM},
-    util::Owned,
+    util::{CounterU16, Owned},
 };
 
 use crate::{
@@ -34,8 +34,30 @@ use windows_sys::Win32::{
 /// Type alias for a window handle (HWND) in Windows.
 type Hwnd = isize;
 
-/// Internal command ids. Used for the `WM_COMMAND` message to identify which menu item was clicked.
-static COUNTER: Counter = Counter::new_with_start(1000);
+/// The first identifier Win32 reserves for window menu (system) commands.
+const FIRST_SYSTEM_COMMAND_ID: u16 = SC_SIZE as u16;
+
+/// Command ids, used for the `WM_COMMAND` message to identify which menu item was clicked. Only
+/// handed out to items `WM_COMMAND` can report.
+///
+/// The high end stops short of [`FIRST_SYSTEM_COMMAND_ID`]. A `WM_COMMAND` normally never carries
+/// an `SC_*` code, since the window menu reports through `WM_SYSCOMMAND` instead, but a host that
+/// tracks that menu itself with `TrackPopupMenu` does receive one as a `WM_COMMAND`, on the very
+/// window our subclass is watching. So we stay below the line to avoid conflicts with system commands.
+///
+/// The low end is only a courtesy: it keeps us off zero, which Win32 spends on a dismissed
+/// `TrackPopupMenu` and on every separator, see https://learn.microsoft.com/en-us/windows/win32/menurc/wm-command#menus
+static COMMAND_IDS: CounterU16 = CounterU16::new_with_range(1000, FIRST_SYSTEM_COMMAND_ID - 1);
+
+/// The id a submenu holds in place of a command id, Win32 addresses a submenu by the container it
+/// owns, and never reports one as a command. [`COMMAND_IDS`] starts above zero, so this can never
+/// collide with the id of an item that does take commands.
+const NO_COMMAND_ID: u16 = 0;
+
+/// Identities of root menus, used to key the accelerator table each item shares with the menus it
+/// is attached to. These never reach Win32, so unlike command ids they must not wrap: two live
+/// menus sharing an identity would corrupt that bookkeeping.
+static MENU_IDS: Counter = Counter::new_with_start(1);
 
 #[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
@@ -57,16 +79,17 @@ pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuIte
 /// and also by all submenus and items of the menu so that they can add and remove their own accelerators.
 struct AcceleratorTable {
     handle: HACCEL,
-    entries: HashMap<u32, ACCEL>,
+    /// Keyed by the command id in each entry's `ACCEL::cmd`.
+    entries: HashMap<u16, ACCEL>,
 }
 
 impl AcceleratorTable {
-    fn insert(&mut self, id: u32, accel: ACCEL) {
+    fn insert(&mut self, id: u16, accel: ACCEL) {
         self.entries.insert(id, accel);
         self.rebuild();
     }
 
-    fn remove(&mut self, id: u32) {
+    fn remove(&mut self, id: u16) {
         if self.entries.remove(&id).is_some() {
             self.rebuild();
         }
@@ -121,6 +144,7 @@ struct ParentMenu {
 
 /// A root menu bar that can be attached to a window.
 pub(crate) struct PlatformMenu {
+    /// Identity in the accelerator tables of this menu's items. Not a command id.
     id: u32,
     hmenu: HMENU,
     hpopupmenu: HMENU,
@@ -185,7 +209,8 @@ impl Drop for PlatformMenu {
 
 /// A menu item that can be attached to a menu or submenu.
 pub(crate) struct PlatformMenuItem {
-    id: u32,
+    /// The command id `WM_COMMAND` reports a click with, or [`NO_COMMAND_ID`] for a submenu.
+    command_id: u16,
     /// What a click does.
     click: MenuItemAction,
     parents: Vec<ParentMenu>,
@@ -233,16 +258,15 @@ impl Drop for PlatformMenuItem {
         }
 
         // 5. Remove the item from all accelerator tables it is in.
-        let id = self.id();
         for entry in self.accelerator_tables.values() {
-            entry.table.borrow_mut().remove(id)
+            entry.table.borrow_mut().remove(self.command_id)
         }
     }
 }
 
 impl PlatformMenu {
     pub fn new() -> Self {
-        let id = COUNTER.next();
+        let id = MENU_IDS.next();
         Self {
             id,
             hmenu: unsafe { CreateMenu() },
@@ -419,7 +443,7 @@ impl PlatformMenu {
         )])
     }
 
-    fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
+    fn find_by_id(&self, id: u16) -> Option<Rc<RefCell<PlatformMenuItem>>> {
         find_by_id(id, &self.children)
     }
 
@@ -433,7 +457,7 @@ impl PlatformMenu {
 impl PlatformMenuItem {
     pub fn new(click: MenuItemAction) -> Self {
         Self {
-            id: COUNTER.next(),
+            command_id: COMMAND_IDS.next(),
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
@@ -448,7 +472,8 @@ impl PlatformMenuItem {
 
     pub fn new_submenu(click: MenuItemAction) -> Self {
         Self {
-            id: COUNTER.next(),
+            // A submenu is never the target of a `WM_COMMAND`, so it takes no command id.
+            command_id: NO_COMMAND_ID,
             click,
             parents: Vec::new(),
             accelerator_tables: HashMap::new(),
@@ -467,7 +492,7 @@ impl PlatformMenuItem {
     /// what `MF_POPUP` inserts, so it is what `MF_BYCOMMAND` matches.
     fn id(&self) -> u32 {
         if self.hmenu.is_null() {
-            self.id
+            u32::from(self.command_id)
         } else {
             self.hmenu as u32
         }
@@ -571,10 +596,8 @@ impl PlatformMenuItem {
         text: &str,
         accelerator: Option<&MenuAccelerator>,
     ) -> crate::Result<()> {
-        let id = self.id();
-
         let accel = accelerator
-            .map(|accelerator| accelerator.to_accel(id as _))
+            .map(|accelerator| accelerator.to_accel(self.command_id))
             .transpose()?;
 
         self.set_text(text, accelerator);
@@ -584,8 +607,8 @@ impl PlatformMenuItem {
             let mut table = entry.table.borrow_mut();
 
             match accel {
-                Some(accel) => table.insert(id, accel),
-                None => table.remove(id),
+                Some(accel) => table.insert(self.command_id, accel),
+                None => table.remove(self.command_id),
             }
         }
 
@@ -673,7 +696,7 @@ impl PlatformMenuItem {
         unregister_accelerator_tables_from_subtree(&mut child, &self.accelerator_tables);
     }
 
-    fn find_by_id(&self, id: u32) -> Option<Rc<RefCell<PlatformMenuItem>>> {
+    fn find_by_id(&self, id: u16) -> Option<Rc<RefCell<PlatformMenuItem>>> {
         find_by_id(id, self.children.as_deref().unwrap_or_default())
     }
 
@@ -749,7 +772,7 @@ fn attach_item(
     let accel = args
         .accelerator
         .as_ref()
-        .map(|accelerator| accelerator.to_accel(id as _))
+        .map(|accelerator| accelerator.to_accel(child.command_id))
         .transpose()?;
 
     child.accel = accel;
@@ -810,7 +833,6 @@ fn register_accelerator_tables_for_subtree(
     child: &mut PlatformMenuItem,
     tables: &HashMap<u32, AcceleratorTableRef>,
 ) {
-    let id = child.id();
     let accel = child.accel;
 
     for (&menu_id, parent_entry) in tables {
@@ -822,6 +844,7 @@ fn register_accelerator_tables_for_subtree(
 
         if entry.count == 0 {
             if let Some(accel) = accel {
+                let id = child.command_id;
                 parent_entry.table.borrow_mut().insert(id, accel);
             }
         }
@@ -840,15 +863,13 @@ fn unregister_accelerator_tables_from_subtree(
     child: &mut PlatformMenuItem,
     tables: &HashMap<u32, AcceleratorTableRef>,
 ) {
-    let id = child.id();
-
     for (menu_id, parent_entry) in tables {
         if let Some(entry) = child.accelerator_tables.get_mut(menu_id) {
             entry.count = entry.count.saturating_sub(parent_entry.count);
 
             if entry.count == 0 {
                 let entry = child.accelerator_tables.remove(menu_id).unwrap();
-                entry.table.borrow_mut().remove(id);
+                entry.table.borrow_mut().remove(child.command_id);
             }
         }
     }
@@ -880,14 +901,19 @@ fn forget_one_parent(hmenu: HMENU, parents: &mut Vec<ParentMenu>) {
     }
 }
 
-/// Finds a menu item by its ID in the specified children and their descendants.
+/// Finds a menu item by its command id in the specified children and their descendants.
 fn find_by_id(
-    id: u32,
+    id: u16,
     children: &[Rc<RefCell<PlatformMenuItem>>],
 ) -> Option<Rc<RefCell<PlatformMenuItem>>> {
+    // Skip, see [`NO_COMMAND_ID`] for more details.
+    if id == NO_COMMAND_ID {
+        return None;
+    }
+
     for child in children {
         let item = child.borrow();
-        if item.id == id {
+        if item.command_id == id {
             return Some(child.clone());
         }
 
@@ -901,7 +927,7 @@ fn find_by_id(
 }
 
 /// Shows a context menu at the specified position, or at the current cursor position if no position is specified.
-unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>) -> Option<u32> {
+unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>) -> Option<u16> {
     let pt = if let Some(pos) = position {
         let dpi = util::hwnd_dpi(hwnd);
         let scale_factor = util::dpi_to_scale_factor(dpi);
@@ -930,6 +956,8 @@ unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, position: Option<Position>
         std::ptr::null(),
     );
 
+    // Zero is the documented return for a menu the user dismissed, and `TPM_RETURNCMD` hands back
+    // the full stored identifier, so anything a command id cannot hold is not one of ours.
     (result > 0).then_some(result.try_into().ok()).flatten()
 }
 
@@ -990,7 +1018,7 @@ unsafe extern "system" fn menu_subclass_proc(
         }
 
         WM_COMMAND => {
-            let id = util::LOWORD(wparam as _) as u32;
+            let id = util::LOWORD(wparam as _);
 
             let item = match uidsubclass {
                 MENU_SUBCLASS_ID => {
