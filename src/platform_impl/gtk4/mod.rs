@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 mod edit_command;
+mod global_menu;
 mod icon;
 mod icon_menu_item;
 mod mnemonic;
@@ -50,6 +51,7 @@ enum GtkMenuBar {
         menu: gio::Menu,
         app: gtk::Application,
         window: glib::WeakRef<gtk::Window>,
+        export: global_menu::Export,
     },
     ContextMenu {
         widget: gtk::PopoverMenu,
@@ -62,7 +64,9 @@ impl GtkMenuBar {
     fn new(app: gtk::Application, window: glib::WeakRef<gtk::Window>) -> Self {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenuBar::from_model(Some(&menu));
+        let export = global_menu::Export::new(&window.upgrade().unwrap(), &menu, &widget);
         Self::MenuBar {
+            export,
             widget,
             menu,
             app,
@@ -80,6 +84,13 @@ impl GtkMenuBar {
         match self {
             GtkMenuBar::MenuBar { app, .. } => app,
             GtkMenuBar::ContextMenu { app, .. } => app,
+        }
+    }
+
+    fn set_visible(&self, visible: bool) {
+        match self {
+            Self::MenuBar { export, .. } => export.set_visible(visible),
+            Self::ContextMenu { .. } => unreachable!("expected a menubar"),
         }
     }
 
@@ -213,8 +224,7 @@ impl PlatformMenu {
             self.add_existing_item_to_instance(item, id)?;
         }
 
-        let menu_bar = self.instances[&id].menu_bar();
-        menu_bar.set_visible(true);
+        self.instances[&id].set_visible(true);
 
         Ok(())
     }
@@ -277,7 +287,7 @@ impl PlatformMenu {
         let Some(menu_bar) = self.instances.get(&id) else {
             return Err(crate::Error::NotInitialized);
         };
-        menu_bar.menu_bar().set_visible(false);
+        menu_bar.set_visible(false);
         Ok(())
     }
 
@@ -289,7 +299,7 @@ impl PlatformMenu {
         let Some(menu_bar) = self.instances.get(&id) else {
             return Err(crate::Error::NotInitialized);
         };
-        menu_bar.menu_bar().set_visible(true);
+        menu_bar.set_visible(true);
         Ok(())
     }
 
@@ -458,8 +468,16 @@ impl GtkMenuChild {
     fn replace_parent_row(&self, item: &gio::MenuItem) {
         let parent_menu = self.parent_menu();
         if let Some(index) = find_row_index(parent_menu, self.id()) {
+            self.remove_custom_widget();
             parent_menu.remove(index);
             parent_menu.insert_item(index, item);
+            if let GtkMenuChild::Item {
+                widget: Some(custom),
+                ..
+            } = self
+            {
+                add_custom_child(&custom.host, &custom.widget, &self.id().to_string());
+            }
         }
     }
 
@@ -509,6 +527,7 @@ impl PlatformMenuItem {
         let detailed_action = self.detailed_action();
         let id = COUNTER.next() as GtkId;
         let item = gio_submenu(&args.text, &detailed_action, &menu, id);
+        item.set_attribute_value("icon", icon_attribute(args.icon.as_ref()).as_ref());
 
         self.ensure_submenu_action(context.app, args);
 
@@ -688,6 +707,7 @@ impl PlatformMenuItem {
             context
                 .app
                 .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -832,20 +852,14 @@ impl PlatformMenuItem {
     }
 
     fn gtk_item_for_instance(&self, instance: &GtkMenuChild, text: &str) -> Option<gio::MenuItem> {
-        let detailed_action = self.detailed_action();
-
-        match instance {
-            GtkMenuChild::Item {
-                widget: Some(_), ..
-            } => None,
-            GtkMenuChild::Item {
-                id, widget: None, ..
-            } => Some(gio_item(text, &detailed_action, *id)),
-            GtkMenuChild::Submenu { id, menu, .. } => {
-                Some(gio_submenu(text, &detailed_action, menu, *id))
-            }
-            _ => None,
+        if matches!(instance, GtkMenuChild::ContextMenu { .. }) {
+            return None;
         }
+        let parent = instance.parent_menu();
+        let index = find_row_index(parent, instance.id())?;
+        let item = gio::MenuItem::from_model(parent, index);
+        item.set_label(Some(&to_gtk_mnemonic(text)));
+        Some(item)
     }
 
     /// A logical menu item is alive while at least one GTK menu row still
@@ -961,6 +975,7 @@ impl PlatformMenuItem {
             context
                 .app
                 .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -1034,6 +1049,7 @@ impl PlatformMenuItem {
             context
                 .app
                 .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -1082,11 +1098,13 @@ impl PlatformMenuItem {
         let detailed_action = self.detailed_action();
         let id = COUNTER.next() as GtkId;
         let item = gio_custom_item(Some(&args.text), Some(&detailed_action), id);
+        item.set_attribute_value("icon", icon_attribute(args.icon.as_ref()).as_ref());
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
             context
                 .app
                 .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -1135,6 +1153,17 @@ impl PlatformMenuItem {
     }
 
     pub fn set_icon(&mut self, icon: Option<&IconType>) {
+        let value = icon_attribute(icon);
+        for instance in self.instances.values().flatten() {
+            if !matches!(instance, GtkMenuChild::ContextMenu { .. }) {
+                let parent = instance.parent_menu();
+                if let Some(index) = find_row_index(parent, instance.id()) {
+                    let item = gio::MenuItem::from_model(parent, index);
+                    item.set_attribute_value("icon", value.as_ref());
+                    instance.replace_parent_row(&item);
+                }
+            }
+        }
         self.for_each_custom_widget(|widget| widget.set_icon(icon));
     }
 }
@@ -1175,6 +1204,16 @@ impl MenuItemKind {
             Self::Predefined(_) => child.insert_gtk_predefined_item(&args, &click, &context, op),
         }
     }
+}
+
+fn icon_attribute(icon: Option<&IconType>) -> Option<glib::Variant> {
+    let icon: gio::Icon = match icon? {
+        IconType::Custom(icon) => {
+            gio::BytesIcon::new(&glib::Bytes::from_owned(icon.inner.menu_png().ok()?)).upcast()
+        }
+        IconType::Native(icon) => gio::ThemedIcon::new(icon.freedesktop_name()).upcast(),
+    };
+    icon.serialize()
 }
 
 fn gio_item(text: &str, detailed_action: &str, id: GtkId) -> gio::MenuItem {

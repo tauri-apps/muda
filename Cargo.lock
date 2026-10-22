@@ -1899,6 +1899,7 @@ version = "0.21.2"
 dependencies = [
  "crossbeam-channel",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gdk4-x11",
  "gtk",
  "gtk4",
  "image",

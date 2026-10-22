@@ -27,7 +27,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["gtk3"]
 gtk3 = ["dep:gtk", "dep:libc"]
-gtk4 = ["dep:gtk4", "dep:libc"]
+gtk4 = ["dep:gtk4", "dep:gdk4-x11", "dep:libc"]
 common-controls-v6 = []
 snapshot = []
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
@@ -58,6 +58,7 @@ features = [
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 gtk = { version = "0.18", optional = true }
 gtk4 = { version = "0.11", optional = true, features = ["v4_12"] }
+gdk4-x11 = { version = "0.11", optional = true }
 # Only to resolve WebKitGTK's editing commands at runtime; see `platform_impl::gtk_common::webkit`.
 libc = { version = "0.2", optional = true }
 
