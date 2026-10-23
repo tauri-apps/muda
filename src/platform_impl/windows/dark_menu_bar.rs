@@ -166,10 +166,10 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
             let pudmi = lparam as *mut UAHDRAWMENUITEM;
 
             // get the menu item string
-            let (label, cch) = {
+            let (label, cch, bitmap) = {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
-                info.fMask = MIIM_STRING;
+                info.fMask = MIIM_STRING | MIIM_BITMAP;
                 let ok = unsafe {
                     GetMenuItemInfoW(
                         (*pudmi).um.hmenu,
@@ -198,7 +198,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                     return;
                 }
 
-                (label, info.cch)
+                (label, info.cch, info.hbmpItem)
             };
 
             // get the item state for drawing
@@ -253,11 +253,66 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
 
                 SetBkMode((*pudmi).um.hdc, 0);
                 SetTextColor((*pudmi).um.hdc, text_brush);
+                let mut text_rect = (*pudmi).dis.rcItem;
+
+                // The custom background covers the native icon as well as the text.
+                // Draw the item's bitmap again, keeping its alpha channel intact.
+                let mut bm: BITMAP = std::mem::zeroed();
+                if !bitmap.is_null()
+                    && GetObjectW(
+                        bitmap,
+                        std::mem::size_of::<BITMAP>() as _,
+                        &mut bm as *mut _ as _,
+                    ) != 0
+                {
+                    let mut label_rect: RECT = std::mem::zeroed();
+                    DrawTextW(
+                        (*pudmi).um.hdc,
+                        label.as_ptr(),
+                        cch as _,
+                        &mut label_rect,
+                        dw_flags | DT_CALCRECT,
+                    );
+                    let gap = if cch == 0 { 0 } else { 4 };
+                    let width = bm.bmWidth + gap + label_rect.right - label_rect.left;
+                    let x = text_rect.left + (text_rect.right - text_rect.left - width) / 2;
+                    let y = text_rect.top + (text_rect.bottom - text_rect.top - bm.bmHeight) / 2;
+                    let source_dc = CreateCompatibleDC((*pudmi).um.hdc);
+                    if !source_dc.is_null() {
+                        let old_bitmap = SelectObject(source_dc, bitmap);
+                        AlphaBlend(
+                            (*pudmi).um.hdc,
+                            x,
+                            y,
+                            bm.bmWidth,
+                            bm.bmHeight,
+                            source_dc,
+                            0,
+                            0,
+                            bm.bmWidth,
+                            bm.bmHeight,
+                            BLENDFUNCTION {
+                                BlendOp: AC_SRC_OVER as _,
+                                BlendFlags: 0,
+                                SourceConstantAlpha: if i_text_state_id == MPI_DISABLED {
+                                    128
+                                } else {
+                                    255
+                                },
+                                AlphaFormat: AC_SRC_ALPHA as _,
+                            },
+                        );
+                        SelectObject(source_dc, old_bitmap);
+                        DeleteDC(source_dc);
+                    }
+                    text_rect.left = x + bm.bmWidth + gap;
+                    text_rect.right = text_rect.left + label_rect.right - label_rect.left;
+                }
                 DrawTextW(
                     (*pudmi).um.hdc,
                     label.as_ptr(),
                     cch as _,
-                    &mut (*pudmi).dis.rcItem,
+                    &mut text_rect,
                     dw_flags,
                 );
             }
@@ -269,6 +324,67 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
 
 pub fn should_use_dark_mode(hwnd: super::Hwnd) -> bool {
     should_apps_use_dark_mode() && !is_high_contrast() && is_dark_mode_allowed_for_window(hwnd as _)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dark_menu_bar_draws_item_bitmap() {
+        unsafe {
+            // A red icon with a transparent border makes missing icons and opaque
+            // copies distinguishable from correctly alpha-blended rendering.
+            let mut rgba = vec![0; 16 * 16 * 4];
+            for y in 4..12 {
+                for x in 4..12 {
+                    let offset = (y * 16 + x) * 4;
+                    rgba[offset] = 255;
+                    rgba[offset + 3] = 255;
+                }
+            }
+            let icon = super::super::icon::WinIcon::from_rgba(rgba, 16, 16).unwrap();
+            let bitmap = icon.to_hbitmap();
+            let menu = CreateMenu();
+            let mut label = [0u16];
+            let info = MENUITEMINFOW {
+                cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
+                fMask: MIIM_STRING | MIIM_BITMAP,
+                dwTypeData: label.as_mut_ptr(),
+                hbmpItem: bitmap,
+                ..std::mem::zeroed()
+            };
+            assert_ne!(InsertMenuItemW(menu, 0, 1, &info), 0);
+
+            let screen_dc = GetDC(std::ptr::null_mut());
+            let dc = CreateCompatibleDC(screen_dc);
+            let target = CreateCompatibleBitmap(screen_dc, 80, 24);
+            ReleaseDC(std::ptr::null_mut(), screen_dc);
+            let old_bitmap = SelectObject(dc, target);
+            let mut item: UAHDRAWMENUITEM = std::mem::zeroed();
+            item.um.hmenu = menu;
+            item.um.hdc = dc;
+            item.dis.rcItem = RECT {
+                left: 0,
+                top: 0,
+                right: 80,
+                bottom: 24,
+            };
+            draw(0, WM_UAHDRAWMENUITEM, 0, &mut item as *mut _ as _);
+            let center = GetPixel(dc, 40, 12);
+            let border = GetPixel(dc, 32, 4);
+            let background = GetPixel(dc, 0, 0);
+
+            SelectObject(dc, old_bitmap);
+            DeleteObject(target);
+            DeleteDC(dc);
+            DestroyMenu(menu);
+            DeleteObject(bitmap);
+
+            assert_eq!(center, 0x000000ff, "the icon should remain visible");
+            assert_eq!(border, background, "the icon border should be transparent");
+        }
+    }
 }
 
 static HUXTHEME: LazyLock<isize> =
