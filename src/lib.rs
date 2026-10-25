@@ -217,8 +217,8 @@
 //! ```
 //!
 //! Only one handler can be set at a time, for the whole process, so [`MenuEvent::set_event_handler`]
-//! returns an error if one is already set, for example by a framework you use. While a handler is
-//! set, the [`MenuEventReceiver`] doesn't receive any events.
+//! returns an error if one is already set. While a handler is set, the [`MenuEventReceiver`]
+//! doesn't receive any events.
 //!
 //! ### Note for multiple versions of muda:
 //!

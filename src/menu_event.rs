@@ -52,7 +52,7 @@ impl MenuEvent {
     /// ## Errors
     ///
     /// Returns [`Error::EventHandlerAlreadySet`] and keeps the current handler
-    /// if one is already set, for example by a framework.
+    /// if one is already set.
     ///
     /// ## Note
     ///
