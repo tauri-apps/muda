@@ -46,6 +46,8 @@ pub enum Error {
     AlreadyInitialized,
     #[error(transparent)]
     AcceleratorParseError(#[from] AcceleratorParseError),
+    #[error("A menu event handler has already been set")]
+    EventHandlerAlreadySet,
     #[cfg(all(
         any(
             target_os = "linux",

@@ -59,7 +59,8 @@ fn main() {
     let proxy = event_loop.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |event| {
         proxy.send_event(UserEvent::MenuEvent(event));
-    }));
+    }))
+    .unwrap();
 
     let window = WindowBuilder::new()
         .with_title("Window 1")

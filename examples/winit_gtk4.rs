@@ -35,7 +35,8 @@ fn main() {
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = menu_sender.send(event);
         proxy.wake_up();
-    }));
+    }))
+    .unwrap();
 
     event_loop
         .run_app(App {

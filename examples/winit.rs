@@ -55,7 +55,8 @@ fn main() {
     let proxy = event_loop.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |event| {
         proxy.send_event(AppEvent::MenuEvent(event));
-    }));
+    }))
+    .unwrap();
 
     let mut app = App {
         app_menu: AppMenu::new(menu_bar),
