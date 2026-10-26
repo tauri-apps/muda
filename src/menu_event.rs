@@ -3,11 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use std::ptr;
-use std::sync::{
-    atomic::{AtomicPtr, Ordering},
-    LazyLock,
-};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::MenuId;
 
@@ -21,11 +17,12 @@ pub struct MenuEvent {
 
 /// A receiver that could be used to listen to menu events.
 pub type MenuEventReceiver = Receiver<MenuEvent>;
-type MenuEventHandler = Box<dyn Fn(MenuEvent) + Send + Sync + 'static>;
+
+/// A handler for menu events, see [`MenuEvent::set_event_handler`].
+pub type MenuEventHandler = Arc<dyn Fn(MenuEvent) + Send + Sync + 'static>;
 
 static MENU_CHANNEL: LazyLock<(Sender<MenuEvent>, MenuEventReceiver)> = LazyLock::new(unbounded);
-// A published handler is never freed, as a `send` on this or another thread may still be running it.
-static MENU_EVENT_HANDLER: AtomicPtr<MenuEventHandler> = AtomicPtr::new(ptr::null_mut());
+static MENU_EVENT_HANDLER: Mutex<Option<MenuEventHandler>> = Mutex::new(None);
 
 impl MenuEvent {
     /// Returns the id of the menu item which triggered this event
@@ -43,16 +40,55 @@ impl MenuEvent {
         &MENU_CHANNEL.1
     }
 
-    /// Set a handler to be called for new events. Useful for implementing custom event sender.
+    /// Set a handler to be called for new events.
     ///
-    /// Only one handler can be set at a time. Calling this function with `None`
-    /// (`None::<fn(MenuEvent)>`) removes the current one, so a new handler can be set.
-    /// The removed handler is never dropped, so anything it captured stays alive.
+    /// This is intended for routing menu events through an event loop, using something like
+    /// winit's [`EventLoopProxy`], so that the event loop wakes up on each menu event.
     ///
-    /// ## Errors
+    /// Only one handler can be set at a time, so this replaces the current handler and returns it.
+    /// Passing the returned handler back to this function restores it. Calling this function with
+    /// `None` removes the current handler.
     ///
-    /// Returns [`Error::EventHandlerAlreadySet`] and keeps the current handler
-    /// if one is already set.
+    /// ## Examples
+    ///
+    /// Route menu events through a winit event loop:
+    ///
+    /// ```no_run
+    /// # use std::sync::Arc;
+    /// # use muda::MenuEvent;
+    /// # use winit::event_loop::EventLoop;
+    /// enum UserEvent {
+    ///     MenuEvent(MenuEvent),
+    /// }
+    ///
+    /// let event_loop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
+    ///
+    /// let proxy = event_loop.create_proxy();
+    /// MenuEvent::set_event_handler(Some(Arc::new(move |event| {
+    ///     proxy.send_event(UserEvent::MenuEvent(event));
+    /// })));
+    /// ```
+    ///
+    /// When this function is called more than once, only the handler from the last call receives
+    /// events. To have the replaced handler still receive the events that the new one doesn't
+    /// handle, pass them to it:
+    ///
+    /// ```no_run
+    /// # use std::sync::Arc;
+    /// # use muda::{MenuEvent, MenuItem};
+    /// let item = MenuItem::new("Item", true, None);
+    /// let item_id = item.id().clone();
+    ///
+    /// // Take the current handler first, so that the new one can call it.
+    /// let previous = MenuEvent::set_event_handler(None);
+    /// MenuEvent::set_event_handler(Some(Arc::new(move |event| {
+    ///     if event.id == item_id {
+    ///         println!("Item activated");
+    ///     } else if let Some(previous) = &previous {
+    ///         previous(event);
+    ///     }
+    /// })));
+    /// ```
     ///
     /// ## Note
     ///
@@ -60,28 +96,16 @@ impl MenuEvent {
     /// - The handler is only called for menus created by this version of muda, see
     ///   [multiple versions of muda](crate#note-for-multiple-versions-of-muda).
     ///
-    /// [`Error::EventHandlerAlreadySet`]: crate::Error::EventHandlerAlreadySet
-    pub fn set_event_handler<F: Fn(MenuEvent) + Send + Sync + 'static>(
-        f: Option<F>,
-    ) -> crate::Result<()> {
-        let Some(f) = f else {
-            MENU_EVENT_HANDLER.store(ptr::null_mut(), Ordering::Release);
-            return Ok(());
-        };
-        let new = Box::into_raw(Box::new(Box::new(f) as MenuEventHandler));
-        MENU_EVENT_HANDLER
-            .compare_exchange(ptr::null_mut(), new, Ordering::AcqRel, Ordering::Acquire)
-            .map(|_| ())
-            .map_err(|_| {
-                // SAFETY: `new` was never published, so nothing else can be using it.
-                drop(unsafe { Box::from_raw(new) });
-                crate::Error::EventHandlerAlreadySet
-            })
+    /// [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
+    pub fn set_event_handler(handler: Option<MenuEventHandler>) -> Option<MenuEventHandler> {
+        std::mem::replace(&mut *MENU_EVENT_HANDLER.lock().unwrap(), handler)
     }
 
     pub(crate) fn send(event: MenuEvent) {
-        // SAFETY: a published handler is never freed.
-        if let Some(handler) = unsafe { MENU_EVENT_HANDLER.load(Ordering::Acquire).as_ref() } {
+        // Don't hold the lock while running the handler,
+        // as it may set a new handler or send another event.
+        let handler = MENU_EVENT_HANDLER.lock().unwrap().clone();
+        if let Some(handler) = handler {
             handler(event);
         } else {
             let _ = MENU_CHANNEL.0.send(event);

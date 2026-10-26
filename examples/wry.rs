@@ -4,6 +4,7 @@
 
 #![allow(unused)]
 use std::rc::Rc;
+use std::sync::Arc;
 
 use muda::{
     accelerator::{Accelerator, Code, Key, KeyAccelerator, Modifiers},
@@ -65,10 +66,9 @@ fn main() -> wry::Result<()> {
 
     // set a menu event handler that wakes up the event loop
     let proxy = event_loop.create_proxy();
-    muda::MenuEvent::set_event_handler(Some(move |event| {
+    muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
         proxy.send_event(UserEvent::MenuEvent(event));
-    }))
-    .unwrap();
+    })));
 
     let window = WindowBuilder::new()
         .with_title("Window 1")

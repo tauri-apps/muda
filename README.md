@@ -146,15 +146,14 @@ enum UserEvent {
 let event_loop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
 
 let proxy = event_loop.create_proxy();
-muda::MenuEvent::set_event_handler(Some(move |event| {
+muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
     proxy.send_event(UserEvent::MenuEvent(event));
-}))
-.expect("a menu event handler has already been set");
+})));
 ```
 
 Only one handler can be set at a time, for the whole process, so `MenuEvent::set_event_handler`
-returns an error if one is already set. While a handler is set, the `MenuEventReceiver` doesn't
-receive any events.
+replaces the current handler and returns it. While a handler is set, the `MenuEventReceiver`
+doesn't receive any events.
 
 ### Note for multiple versions of muda:
 

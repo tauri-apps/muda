@@ -202,6 +202,7 @@
 //! so that the event loop is awakened on each menu event.
 //!
 //! ```no_run
+//! # use std::sync::Arc;
 //! # use tao::event_loop::EventLoopBuilder;
 //! enum UserEvent {
 //!   MenuEvent(muda::MenuEvent)
@@ -210,14 +211,13 @@
 //! let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
 //!
 //! let proxy = event_loop.create_proxy();
-//! muda::MenuEvent::set_event_handler(Some(move |event| {
+//! muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
 //!     proxy.send_event(UserEvent::MenuEvent(event));
-//! }))
-//! .expect("a menu event handler has already been set");
+//! })));
 //! ```
 //!
 //! Only one handler can be set at a time, for the whole process, so [`MenuEvent::set_event_handler`]
-//! returns an error if one is already set. While a handler is set, the [`MenuEventReceiver`]
+//! replaces the current handler and returns it. While a handler is set, the [`MenuEventReceiver`]
 //! doesn't receive any events.
 //!
 //! ### Note for multiple versions of muda:
@@ -267,7 +267,7 @@ pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
-pub use menu_event::{MenuEvent, MenuEventReceiver};
+pub use menu_event::{MenuEvent, MenuEventHandler, MenuEventReceiver};
 pub use menu_id::MenuId;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
