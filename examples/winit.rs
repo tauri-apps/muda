@@ -4,6 +4,7 @@
 
 #![allow(unused)]
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use muda::{
     accelerator::{Accelerator, Code, Modifiers},
@@ -53,9 +54,9 @@ fn main() {
 
     // set a menu event handler that wakes up the event loop
     let proxy = event_loop.create_proxy();
-    muda::MenuEvent::set_event_handler(Some(move |event| {
+    muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
         proxy.send_event(AppEvent::MenuEvent(event));
-    }));
+    })));
 
     let mut app = App {
         app_menu: AppMenu::new(menu_bar),

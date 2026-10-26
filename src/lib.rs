@@ -202,6 +202,7 @@
 //! so that the event loop is awakened on each menu event.
 //!
 //! ```no_run
+//! # use std::sync::Arc;
 //! # use tao::event_loop::EventLoopBuilder;
 //! enum UserEvent {
 //!   MenuEvent(muda::MenuEvent)
@@ -210,14 +211,26 @@
 //! let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
 //!
 //! let proxy = event_loop.create_proxy();
-//! muda::MenuEvent::set_event_handler(Some(move |event| {
+//! muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
 //!     proxy.send_event(UserEvent::MenuEvent(event));
-//! }));
+//! })));
 //! ```
+//!
+//! Only one handler can be set at a time, for the whole process, so [`MenuEvent::set_event_handler`]
+//! replaces the current handler and returns it. While a handler is set, the [`MenuEventReceiver`]
+//! doesn't receive any events.
+//!
+//! ### Note for multiple versions of muda:
+//!
+//! Each SemVer-incompatible version of muda has its own handler and receiver, and a menu only sends
+//! its events to those of the version that created it. So if your dependency tree has two versions,
+//! for example because [tray-icon] depends on another one, the menus created through one of them
+//! never send events to the handler or receiver of the other. Run `cargo tree --duplicates` to check.
 //!
 //! [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
+//! [tray-icon]: https://docs.rs/tray-icon
 
 #[cfg(all(
     any(
@@ -254,7 +267,7 @@ pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
-pub use menu_event::{MenuEvent, MenuEventReceiver};
+pub use menu_event::{MenuEvent, MenuEventHandler, MenuEventReceiver};
 pub use menu_id::MenuId;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
