@@ -19,6 +19,7 @@ use crate::MenuSnapshotHandle;
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",
+    target_os = "ios",
     all(
         any(
             target_os = "linux",
@@ -527,6 +528,20 @@ impl ContextMenu for Submenu {
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();
         self.platform.borrow_mut().gtk_context_menu(&children)
+    }
+
+    #[cfg(target_os = "ios")]
+    unsafe fn show_context_menu_for_uiview(
+        &self,
+        view: *const std::ffi::c_void,
+        position: Option<Position>,
+    ) -> bool {
+        crate::platform_impl::show_context_menu_for_uiview(
+            &self.items(),
+            self.is_enabled(),
+            view,
+            position,
+        )
     }
 
     #[cfg(target_os = "macos")]

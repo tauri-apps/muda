@@ -9,12 +9,16 @@ Menu Utilities library for Desktop Applications.
 - Windows
 - macOS
 - Linux/BSD with GTK 3 or GTK 4
+- iOS 26+ (the iPadOS menu bar)
 
 ## Platform-specific notes:
 
 - On Windows, accelerators don't work unless the win32 message loop calls
   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
+- On iOS, the menu is shown in the iPadOS menu bar once the app has finished launching.
+  Context menus are not supported.
+  See [`Menu::init_for_uiapp`](https://docs.rs/muda/latest/aarch64-apple-ios/muda/struct.Menu.html#method.init_for_uiapp) for more details
 
 ### Cargo Features
 
@@ -89,7 +93,7 @@ let submenu = Submenu::with_items("Submenu Outer", true,&[
 ```
 
 Then add your root menu to a window on Windows, GTK 3, or GTK 4
-or use it as your global app menu on macOS
+or use it as your global app menu on macOS and in the iPadOS menu bar
 
 ```rs
 // --snip--
@@ -99,6 +103,8 @@ unsafe { menu.init_for_hwnd(window.hwnd() as isize) };
 menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
 #[cfg(target_os = "macos")]
 menu.init_for_nsapp();
+#[cfg(target_os = "ios")]
+menu.init_for_uiapp();
 ```
 
 ## Context menus (Popup menus)

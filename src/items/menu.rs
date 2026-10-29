@@ -16,6 +16,7 @@ use crate::MenuSnapshotHandle;
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",
+    target_os = "ios",
     all(
         any(
             target_os = "linux",
@@ -556,6 +557,35 @@ impl Menu {
     pub fn remove_for_nsapp(&self) {
         self.platform.borrow_mut().remove_for_nsapp()
     }
+
+    /// Shows this menu in the iPadOS menu bar, replacing the system's menus.
+    ///
+    /// As on macOS, the first [`Submenu`] fills the application menu, the one titled with the
+    /// app name, and the others follow it in the menu bar. Separators turn into inline
+    /// sections. A [`PredefinedMenuItem`] reuses the system's command for that action, keeping
+    /// its localized title unless the item has a custom text, and is left out when the system
+    /// has no such command, except for the edit actions handled by the first responder.
+    ///
+    /// Changes to the menu and its items rebuild the menu bar.
+    ///
+    /// Must be called on the main thread once the application has finished launching.
+    ///
+    /// Requires iOS 26, and does nothing on earlier versions. It takes over the main menu
+    /// system's build handler, so `buildMenuWithBuilder:` overrides in the app stop being
+    /// called while it is in use.
+    ///
+    /// [`Submenu`]: crate::Submenu
+    /// [`PredefinedMenuItem`]: crate::PredefinedMenuItem
+    #[cfg(target_os = "ios")]
+    pub fn init_for_uiapp(&self) {
+        crate::platform_impl::set_app_menu(Some(self.clone()))
+    }
+
+    /// Removes this menu from the iPadOS menu bar, bringing back the system's menus.
+    #[cfg(target_os = "ios")]
+    pub fn remove_for_uiapp(&self) {
+        crate::platform_impl::remove_app_menu(self.id())
+    }
 }
 
 impl crate::sealed::Sealed for Menu {}
@@ -631,6 +661,15 @@ impl ContextMenu for Menu {
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();
         self.platform.borrow_mut().gtk_context_menu(&children)
+    }
+
+    #[cfg(target_os = "ios")]
+    unsafe fn show_context_menu_for_uiview(
+        &self,
+        view: *const std::ffi::c_void,
+        position: Option<Position>,
+    ) -> bool {
+        crate::platform_impl::show_context_menu_for_uiview(&self.items(), true, view, position)
     }
 
     #[cfg(target_os = "macos")]

@@ -409,6 +409,8 @@ pub(crate) enum PredefinedMenuItemType {
     ShowAll,
     CloseWindow,
     Quit,
+    // iOS has no about panel to show the metadata in.
+    #[cfg_attr(target_os = "ios", allow(dead_code))]
     About(Option<AboutMetadata>),
     Services,
     BringAllToFront,
@@ -432,9 +434,9 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Undo => "Undo",
             PredefinedMenuItemType::Redo => "Redo",
             PredefinedMenuItemType::Minimize => "&Minimize",
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::Maximize => "Zoom",
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             PredefinedMenuItemType::Maximize => "Ma&ximize",
             PredefinedMenuItemType::ActualSize => "Actual Size",
             PredefinedMenuItemType::ZoomIn => "Zoom In",
@@ -622,6 +624,16 @@ impl PredefinedMenuItemType {
         )
     }
 
+    /// The kinds that have a UIKit command to show in the iPadOS menu bar.
+    #[cfg(target_os = "ios")]
+    pub(crate) fn is_supported(&self) -> bool {
+        crate::platform_impl::predefined_source(self).is_some()
+            || matches!(
+                self,
+                PredefinedMenuItemType::Separator | PredefinedMenuItemType::SectionHeader
+            )
+    }
+
     /// Whether this kind should be enabled on the current platform.
     ///
     /// Section headers are supported on macOS 14+, but remain disabled because they are labels
@@ -635,35 +647,35 @@ impl PredefinedMenuItemType {
             PredefinedMenuItemType::Copy => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyC)),
             PredefinedMenuItemType::Cut => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyX)),
             PredefinedMenuItemType::Paste => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyV)),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::PasteAndMatchStyle => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::ALT | Modifiers::SHIFT,
                 Code::KeyV,
             )),
             PredefinedMenuItemType::Undo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyZ)),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::Redo => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::SHIFT,
                 Code::KeyZ,
             )),
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             PredefinedMenuItemType::Redo => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyY)),
             PredefinedMenuItemType::SelectAll => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::KeyA))
             }
             PredefinedMenuItemType::Minimize => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyM)),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::ActualSize => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::Digit0))
             }
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::ZoomIn => Some(physical_accelerator(
                 CMD_OR_CTRL | Modifiers::SHIFT,
                 Code::Equal,
             )),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::ZoomOut => Some(physical_accelerator(CMD_OR_CTRL, Code::Minus)),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::Fullscreen => Some(physical_accelerator(
                 Modifiers::META | Modifiers::CONTROL,
                 Code::KeyF,
@@ -673,17 +685,17 @@ impl PredefinedMenuItemType {
                 CMD_OR_CTRL | Modifiers::ALT,
                 Code::KeyH,
             )),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::CloseWindow => {
                 Some(physical_accelerator(CMD_OR_CTRL, Code::KeyW))
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             PredefinedMenuItemType::CloseWindow => {
                 Some(physical_accelerator(Modifiers::ALT, Code::F4))
             }
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::Quit => Some(physical_accelerator(CMD_OR_CTRL, Code::KeyQ)),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             PredefinedMenuItemType::EmojiAndSymbols => Some(physical_accelerator(
                 Modifiers::META | Modifiers::CONTROL,
                 Code::Space,

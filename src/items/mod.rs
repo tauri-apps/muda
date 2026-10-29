@@ -226,6 +226,8 @@ impl MenuItemKind {
 #[derive(Debug, Clone)]
 pub(crate) enum IconType {
     Custom(Icon),
+    // UIKit has none of the AppKit images `NativeIcon` names.
+    #[cfg_attr(target_os = "ios", allow(dead_code))]
     Native(NativeIcon),
 }
 
@@ -233,6 +235,8 @@ pub(crate) enum IconType {
 pub(crate) enum MenuItemAction {
     Emit(MenuId),
     Toggle(MenuId, WeakStateCell<CheckMenuItemState>),
+    // Predefined items run the system's own command on iOS.
+    #[cfg_attr(target_os = "ios", allow(dead_code))]
     Predefined(WeakStateCell<PredefinedMenuItemState>),
 }
 

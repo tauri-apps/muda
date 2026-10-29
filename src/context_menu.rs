@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{dpi, sealed, Menu, Submenu};
+use crate::dpi;
+use crate::{sealed, Menu, Submenu};
 
 #[cfg(feature = "snapshot")]
 use crate::MenuSnapshotHandle;
@@ -130,6 +131,27 @@ pub trait ContextMenu: sealed::Sealed {
     /// you need it to be alive for longer, retain it.
     #[cfg(target_os = "macos")]
     fn ns_menu(&self) -> *mut std::ffi::c_void;
+
+    /// Shows this menu as a context menu over a `UIView`.
+    ///
+    /// The menu is shown as an edit menu, the one menu UIKit can present at a point from code,
+    /// so it needs iOS 16. Items are shown without their accelerators, and the only predefined
+    /// items shown are the edit actions, such as copy and paste.
+    ///
+    /// - `position` is relative to the view top-left corner, if `None`, the center of the view is used.
+    ///
+    /// Returns `false`, the menu is shown asynchronously so no item has been picked when this
+    /// returns. Picked items are reported through [`crate::MenuEvent::receiver`].
+    ///
+    /// # Safety
+    ///
+    /// The view must be a pointer to a valid `UIView`. Does nothing when called off the main thread.
+    #[cfg(target_os = "ios")]
+    unsafe fn show_context_menu_for_uiview(
+        &self,
+        view: *const std::ffi::c_void,
+        position: Option<dpi::Position>,
+    ) -> bool;
 
     /// Cast this context menu to a [`Menu`], and returns `None` if it wasn't.
     fn as_menu(&self) -> Option<&Menu> {
