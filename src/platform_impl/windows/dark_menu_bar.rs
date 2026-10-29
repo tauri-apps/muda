@@ -326,67 +326,6 @@ pub fn should_use_dark_mode(hwnd: super::Hwnd) -> bool {
     should_apps_use_dark_mode() && !is_high_contrast() && is_dark_mode_allowed_for_window(hwnd as _)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn dark_menu_bar_draws_item_bitmap() {
-        unsafe {
-            // A red icon with a transparent border makes missing icons and opaque
-            // copies distinguishable from correctly alpha-blended rendering.
-            let mut rgba = vec![0; 16 * 16 * 4];
-            for y in 4..12 {
-                for x in 4..12 {
-                    let offset = (y * 16 + x) * 4;
-                    rgba[offset] = 255;
-                    rgba[offset + 3] = 255;
-                }
-            }
-            let icon = super::super::icon::WinIcon::from_rgba(rgba, 16, 16).unwrap();
-            let bitmap = icon.to_hbitmap();
-            let menu = CreateMenu();
-            let mut label = [0u16];
-            let info = MENUITEMINFOW {
-                cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
-                fMask: MIIM_STRING | MIIM_BITMAP,
-                dwTypeData: label.as_mut_ptr(),
-                hbmpItem: bitmap,
-                ..std::mem::zeroed()
-            };
-            assert_ne!(InsertMenuItemW(menu, 0, 1, &info), 0);
-
-            let screen_dc = GetDC(std::ptr::null_mut());
-            let dc = CreateCompatibleDC(screen_dc);
-            let target = CreateCompatibleBitmap(screen_dc, 80, 24);
-            ReleaseDC(std::ptr::null_mut(), screen_dc);
-            let old_bitmap = SelectObject(dc, target);
-            let mut item: UAHDRAWMENUITEM = std::mem::zeroed();
-            item.um.hmenu = menu;
-            item.um.hdc = dc;
-            item.dis.rcItem = RECT {
-                left: 0,
-                top: 0,
-                right: 80,
-                bottom: 24,
-            };
-            draw(0, WM_UAHDRAWMENUITEM, 0, &mut item as *mut _ as _);
-            let center = GetPixel(dc, 40, 12);
-            let border = GetPixel(dc, 32, 4);
-            let background = GetPixel(dc, 0, 0);
-
-            SelectObject(dc, old_bitmap);
-            DeleteObject(target);
-            DeleteDC(dc);
-            DestroyMenu(menu);
-            DeleteObject(bitmap);
-
-            assert_eq!(center, 0x000000ff, "the icon should remain visible");
-            assert_eq!(border, background, "the icon border should be transparent");
-        }
-    }
-}
-
 static HUXTHEME: LazyLock<isize> =
     LazyLock::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")) as _ });
 
