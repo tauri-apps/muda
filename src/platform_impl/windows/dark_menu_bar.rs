@@ -166,10 +166,10 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
             let pudmi = lparam as *mut UAHDRAWMENUITEM;
 
             // get the menu item string
-            let (label, cch) = {
+            let (label, cch, bitmap) = {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
-                info.fMask = MIIM_STRING;
+                info.fMask = MIIM_STRING | MIIM_BITMAP;
                 let ok = unsafe {
                     GetMenuItemInfoW(
                         (*pudmi).um.hmenu,
@@ -198,7 +198,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                     return;
                 }
 
-                (label, info.cch)
+                (label, info.cch, info.hbmpItem)
             };
 
             // get the item state for drawing
@@ -253,11 +253,66 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
 
                 SetBkMode((*pudmi).um.hdc, 0);
                 SetTextColor((*pudmi).um.hdc, text_brush);
+                let mut text_rect = (*pudmi).dis.rcItem;
+
+                // The custom background covers the native icon as well as the text.
+                // Draw the item's bitmap again, keeping its alpha channel intact.
+                let mut bm: BITMAP = std::mem::zeroed();
+                if !bitmap.is_null()
+                    && GetObjectW(
+                        bitmap,
+                        std::mem::size_of::<BITMAP>() as _,
+                        &mut bm as *mut _ as _,
+                    ) != 0
+                {
+                    let mut label_rect: RECT = std::mem::zeroed();
+                    DrawTextW(
+                        (*pudmi).um.hdc,
+                        label.as_ptr(),
+                        cch as _,
+                        &mut label_rect,
+                        dw_flags | DT_CALCRECT,
+                    );
+                    let gap = if cch == 0 { 0 } else { 4 };
+                    let width = bm.bmWidth + gap + label_rect.right - label_rect.left;
+                    let x = text_rect.left + (text_rect.right - text_rect.left - width) / 2;
+                    let y = text_rect.top + (text_rect.bottom - text_rect.top - bm.bmHeight) / 2;
+                    let source_dc = CreateCompatibleDC((*pudmi).um.hdc);
+                    if !source_dc.is_null() {
+                        let old_bitmap = SelectObject(source_dc, bitmap);
+                        AlphaBlend(
+                            (*pudmi).um.hdc,
+                            x,
+                            y,
+                            bm.bmWidth,
+                            bm.bmHeight,
+                            source_dc,
+                            0,
+                            0,
+                            bm.bmWidth,
+                            bm.bmHeight,
+                            BLENDFUNCTION {
+                                BlendOp: AC_SRC_OVER as _,
+                                BlendFlags: 0,
+                                SourceConstantAlpha: if i_text_state_id == MPI_DISABLED {
+                                    128
+                                } else {
+                                    255
+                                },
+                                AlphaFormat: AC_SRC_ALPHA as _,
+                            },
+                        );
+                        SelectObject(source_dc, old_bitmap);
+                        DeleteDC(source_dc);
+                    }
+                    text_rect.left = x + bm.bmWidth + gap;
+                    text_rect.right = text_rect.left + label_rect.right - label_rect.left;
+                }
                 DrawTextW(
                     (*pudmi).um.hdc,
                     label.as_ptr(),
                     cch as _,
-                    &mut (*pudmi).dis.rcItem,
+                    &mut text_rect,
                     dw_flags,
                 );
             }
