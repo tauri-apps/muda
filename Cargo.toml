@@ -103,9 +103,13 @@ objc2-core-foundation = { version = "0.3.0", default-features = false, features 
 ] }
 objc2-foundation = { version = "0.3.0", default-features = false, features = [
   "std",
+  "block2",
   "NSArray",
   "NSData",
   "NSEnumerator",
+  "NSNotification",
+  "NSOperation",
+  "NSSet",
   "NSString",
   "NSValue",
 ] }
@@ -114,8 +118,12 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "block2",
   "objc2-core-foundation",
   "UIAction",
+  "UIApplication",
   "UICommand",
   "UIEditMenuInteraction",
+  "UIEvent",
+  "UIGestureRecognizer",
+  "UIGestureRecognizerSubclass",
   "UIImage",
   "UIInteraction",
   "UIKeyCommand",
@@ -125,7 +133,11 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIMenuElement",
   "UIMenuSystem",
   "UIResponder",
+  "UIScene",
+  "UITouch",
   "UIView",
+  "UIWindow",
+  "UIWindowScene",
 ] }
 png = "0.18"
 

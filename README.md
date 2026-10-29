@@ -9,7 +9,7 @@ Menu Utilities library for Desktop Applications.
 - Windows
 - macOS
 - Linux/BSD with GTK 3 or GTK 4
-- iOS 26+ (the iPadOS menu bar)
+- iOS 13+ (the iPadOS 26 menu bar, and key commands on earlier versions)
 
 ## Platform-specific notes:
 

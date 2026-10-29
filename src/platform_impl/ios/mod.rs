@@ -4,6 +4,9 @@
 
 //! The iPadOS menu bar, built with the iPadOS 26 `UIMainMenuSystem`.
 //!
+//! Before iOS 26 there is no menu bar, but the main menu still drives the keyboard shortcuts
+//! list and key commands. The app delegate builds it then, from `buildMenuWithBuilder:`.
+//!
 //! UIKit menus are immutable and pulled by the system: it asks the app to fill a
 //! `UIMenuBuilder` whenever the menu bar needs rebuilding. This backend therefore keeps no
 //! native objects around. It reads the shared menu state when UIKit builds the menu bar, and
@@ -13,6 +16,7 @@
 //! a point from code.
 
 mod icon;
+mod touch_location;
 
 pub(crate) use icon::PlatformIcon;
 
@@ -30,17 +34,17 @@ use objc2::{
     define_class, msg_send,
     rc::Retained,
     runtime::{AnyClass, AnyObject, Imp, NSObject, NSObjectProtocol, ProtocolObject, Sel},
-    sel, DefinedClass, MainThreadMarker, MainThreadOnly, Message,
+    sel, ClassType, DefinedClass, MainThreadMarker, MainThreadOnly, Message,
 };
 use objc2_core_foundation::CGPoint;
 use objc2_foundation::{NSArray, NSCopying, NSNumber, NSString};
 use objc2_ui_kit::{
-    UIAction, UICommand, UIEditMenuConfiguration, UIEditMenuInteraction,
+    UIAction, UIApplication, UICommand, UIEditMenuConfiguration, UIEditMenuInteraction,
     UIEditMenuInteractionAnimating, UIEditMenuInteractionDelegate, UIImage, UIKeyCommand,
     UIMainMenuSystem, UIMainMenuSystemConfiguration, UIMenu, UIMenuAbout, UIMenuApplication,
     UIMenuBringAllToFront, UIMenuBuilder, UIMenuClose, UIMenuElement, UIMenuElementAttributes,
     UIMenuElementState, UIMenuFullscreen, UIMenuHide, UIMenuIdentifier, UIMenuMinimizeAndZoom,
-    UIMenuOptions, UIMenuQuit, UIMenuRoot, UIMenuServices, UIMenuSpeech, UIView,
+    UIMenuOptions, UIMenuQuit, UIMenuRoot, UIMenuServices, UIMenuSpeech, UIMenuSystem, UIView,
 };
 
 use crate::{
@@ -56,7 +60,7 @@ const MAX_ICON_HEIGHT: f64 = 18.0;
 thread_local! {
     /// The menu shown in the menu bar, see [`Menu::init_for_uiapp`].
     static APP_MENU: RefCell<Option<Menu>> = const { RefCell::new(None) };
-    /// Whether the build handler has been handed to the main menu system.
+    /// Whether the main menu system has been set up to build the app menu, see [`install`].
     static INSTALLED: Cell<bool> = const { Cell::new(false) };
     /// The items behind the commands of the latest menu bar build.
     static COMMANDS: RefCell<Commands> = RefCell::new(Commands::default());
@@ -104,12 +108,9 @@ pub(crate) fn set_app_menu(menu: Option<Menu>) {
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
-    if !objc2::available!(ios = 26.0) {
-        return;
-    }
 
     if INSTALLED.replace(true) {
-        UIMainMenuSystem::sharedSystem(mtm).setNeedsRebuild();
+        rebuild(mtm);
     } else {
         install(mtm);
     }
@@ -131,7 +132,15 @@ fn request_rebuild() {
         return;
     };
     if INSTALLED.get() && APP_MENU.with_borrow(Option::is_some) {
+        rebuild(mtm);
+    }
+}
+
+fn rebuild(mtm: MainThreadMarker) {
+    if objc2::available!(ios = 26.0) {
         UIMainMenuSystem::sharedSystem(mtm).setNeedsRebuild();
+    } else {
+        UIMenuSystem::mainSystem(mtm).setNeedsRebuild();
     }
 }
 
@@ -152,13 +161,64 @@ fn install(mtm: MainThreadMarker) {
         );
     }
 
-    let build_handler = RcBlock::new(|builder: NonNull<ProtocolObject<dyn UIMenuBuilder>>| {
-        // SAFETY: UIKit hands a valid builder to the build handler for the duration of the call.
-        build(unsafe { builder.as_ref() })
-    });
-    let configuration = UIMainMenuSystemConfiguration::new(mtm);
-    UIMainMenuSystem::sharedSystem(mtm)
-        .setBuildConfiguration_buildHandler(&configuration, Some(&build_handler));
+    if objc2::available!(ios = 26.0) {
+        let build_handler = RcBlock::new(|builder: NonNull<ProtocolObject<dyn UIMenuBuilder>>| {
+            // SAFETY: UIKit hands a valid builder to the build handler for the duration of the
+            // call.
+            build(unsafe { builder.as_ref() })
+        });
+        let configuration = UIMainMenuSystemConfiguration::new(mtm);
+        UIMainMenuSystem::sharedSystem(mtm)
+            .setBuildConfiguration_buildHandler(&configuration, Some(&build_handler));
+    } else {
+        install_build_menu_override(mtm);
+    }
+}
+
+/// Builds the main menu from the app delegate before iOS 26, which has no build handler.
+///
+/// UIKit asks the application and then its delegate to build the main menu, and the
+/// application's own implementation fills in the system menus, so the delegate is the one to
+/// take over. Does nothing when the delegate class already builds the menu itself.
+fn install_build_menu_override(mtm: MainThreadMarker) {
+    let application: Option<Retained<UIApplication>> =
+        unsafe { msg_send![UIApplication::class(), sharedApplication] };
+    let Some(delegate) = application.and_then(|application| unsafe { application.delegate() })
+    else {
+        return;
+    };
+
+    let class = AsRef::<AnyObject>::as_ref(&*delegate).class();
+
+    let types = c"v@:@";
+    let imp: unsafe extern "C-unwind" fn(&AnyObject, Sel, &ProtocolObject<dyn UIMenuBuilder>) =
+        build_menu_with_builder;
+    let added = unsafe {
+        objc2::ffi::class_addMethod(
+            class as *const AnyClass as *mut AnyClass,
+            sel!(buildMenuWithBuilder:),
+            std::mem::transmute::<
+                unsafe extern "C-unwind" fn(&AnyObject, Sel, &ProtocolObject<dyn UIMenuBuilder>),
+                Imp,
+            >(imp),
+            types.as_ptr(),
+        )
+    };
+    if added.as_bool() {
+        UIMenuSystem::mainSystem(mtm).setNeedsRebuild();
+    }
+}
+
+unsafe extern "C-unwind" fn build_menu_with_builder(
+    _this: &AnyObject,
+    _cmd: Sel,
+    builder: &ProtocolObject<dyn UIMenuBuilder>,
+) {
+    let mtm = MainThreadMarker::new().expect("UIKit builds menus on the main thread");
+    // The context menu system asks for its menus here too.
+    if std::ptr::eq(&*builder.system(), &*UIMenuSystem::mainSystem(mtm)) {
+        build(builder);
+    }
 }
 
 unsafe extern "C-unwind" fn perform_command(
@@ -552,8 +612,10 @@ fn new_command(
 fn image(icon: Option<&IconType>) -> Option<Retained<UIImage>> {
     match icon {
         Some(IconType::Custom(icon)) => icon.inner.to_uiimage(MAX_ICON_HEIGHT),
-        // `NativeIcon` names AppKit images, which UIKit doesn't have.
-        Some(IconType::Native(_)) | None => None,
+        Some(IconType::Native(icon)) => {
+            UIImage::systemImageNamed(&NSString::from_str(icon.sf_symbol_name()?))
+        }
+        None => None,
     }
 }
 
@@ -608,7 +670,8 @@ fn is_edit_action(predefined_item_type: &PredefinedMenuItemType) -> bool {
     )
 }
 
-/// Shows `items` as a context menu over `view`, at `position` in the view or at its center.
+/// Shows `items` as a context menu over `view`, at `position` in the view, or where the last
+/// touch in its window landed, or at its center.
 ///
 /// # Safety
 ///
@@ -627,6 +690,7 @@ pub(crate) unsafe fn show_context_menu_for_uiview(
     }
     // SAFETY: Caller verifies that the view is valid.
     let view: &UIView = unsafe { &*view.cast() };
+    touch_location::track_touches(mtm);
 
     let mut context = BuildContext {
         mtm,
@@ -651,13 +715,13 @@ pub(crate) unsafe fn show_context_menu_for_uiview(
             let position = position.to_logical::<f64>(view.contentScaleFactor());
             CGPoint::new(position.x, position.y)
         }
-        None => {
+        None => touch_location::last_touch_location(view).unwrap_or_else(|| {
             let bounds = view.bounds();
             CGPoint::new(
                 bounds.origin.x + bounds.size.width / 2.0,
                 bounds.origin.y + bounds.size.height / 2.0,
             )
-        }
+        }),
     };
 
     remove_context_menu();
@@ -754,6 +818,11 @@ pub(crate) struct PlatformMenu;
 
 impl PlatformMenu {
     pub(crate) fn new() -> Self {
+        // Context menus are usually shown on a tap, so start recording where taps land as soon
+        // as a menu exists.
+        if let Some(mtm) = MainThreadMarker::new() {
+            touch_location::track_touches(mtm);
+        }
         Self
     }
 
@@ -789,6 +858,9 @@ impl PlatformMenuItem {
     }
 
     pub(crate) fn new_submenu(click: MenuItemAction) -> Self {
+        if let Some(mtm) = MainThreadMarker::new() {
+            touch_location::track_touches(mtm);
+        }
         Self { click }
     }
 

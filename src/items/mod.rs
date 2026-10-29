@@ -226,8 +226,6 @@ impl MenuItemKind {
 #[derive(Debug, Clone)]
 pub(crate) enum IconType {
     Custom(Icon),
-    // UIKit has none of the AppKit images `NativeIcon` names.
-    #[cfg_attr(target_os = "ios", allow(dead_code))]
     Native(NativeIcon),
 }
 

@@ -560,6 +560,9 @@ impl Menu {
 
     /// Shows this menu in the iPadOS menu bar, replacing the system's menus.
     ///
+    /// Before iOS 26, which has no menu bar, the menu still provides the key commands and the
+    /// list of keyboard shortcuts shown while holding Command.
+    ///
     /// As on macOS, the first [`Submenu`] fills the application menu, the one titled with the
     /// app name, and the others follow it in the menu bar. Separators turn into inline
     /// sections. A [`PredefinedMenuItem`] reuses the system's command for that action, keeping
@@ -570,9 +573,10 @@ impl Menu {
     ///
     /// Must be called on the main thread once the application has finished launching.
     ///
-    /// Requires iOS 26, and does nothing on earlier versions. It takes over the main menu
-    /// system's build handler, so `buildMenuWithBuilder:` overrides in the app stop being
-    /// called while it is in use.
+    /// On iOS 26 and later it takes over the main menu system's build handler, so
+    /// `buildMenuWithBuilder:` overrides in the app stop being called while it is in use. On
+    /// earlier versions it adds `buildMenuWithBuilder:` to the app delegate class instead, and
+    /// does nothing if that class already implements it.
     ///
     /// [`Submenu`]: crate::Submenu
     /// [`PredefinedMenuItem`]: crate::PredefinedMenuItem

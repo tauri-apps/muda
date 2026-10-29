@@ -138,7 +138,8 @@ pub trait ContextMenu: sealed::Sealed {
     /// so it needs iOS 16. Items are shown without their accelerators, and the only predefined
     /// items shown are the edit actions, such as copy and paste.
     ///
-    /// - `position` is relative to the view top-left corner, if `None`, the center of the view is used.
+    /// - `position` is relative to the view top-left corner, if `None`, the location of the last
+    ///   touch in the view's window is used, or the center of the view when there is none.
     ///
     /// Returns `false`, the menu is shown asynchronously so no item has been picked when this
     /// returns. Picked items are reported through [`crate::MenuEvent::receiver`].
