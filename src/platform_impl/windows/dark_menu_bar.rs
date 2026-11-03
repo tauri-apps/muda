@@ -166,7 +166,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
             let pudmi = lparam as *mut UAHDRAWMENUITEM;
 
             // get the menu item string
-            let (label, cch) = {
+            let (label, cch, bitmap) = {
                 let mut info: MENUITEMINFOW = unsafe { std::mem::zeroed() };
                 info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as _;
                 info.fMask = MIIM_STRING;
@@ -185,6 +185,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                 info.cch += 1; // add 1 for null terminator
                 let mut label = vec![0u16; info.cch as usize];
                 info.dwTypeData = label.as_mut_ptr();
+                info.fMask |= MIIM_BITMAP;
 
                 let ok = unsafe {
                     GetMenuItemInfoW(
@@ -198,7 +199,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                     return;
                 }
 
-                (label, info.cch)
+                (label, info.cch, info.hbmpItem)
             };
 
             // get the item state for drawing
@@ -236,19 +237,84 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                     dw_flags |= DT_HIDEPREFIX;
                 }
 
+                // 1. Draw the item background.
                 let bg_brush = match i_background_state_id {
                     MPI_HOT => selected_background_brush(),
                     _ => background_brush(),
                 };
-
                 FillRect((*pudmi).um.hdc, &(*pudmi).dis.rcItem, bg_brush);
 
-                const TEXT_COLOR: u32 = 16777215;
-                const DISABLED_TEXT_COLOR: u32 = 7171437;
+                let mut text_rect = (*pudmi).dis.rcItem;
 
+                // 2. Draw the item icon if available.
+                if let Some(bitmap_info) = get_bitmap_info(bitmap) {
+                    // Measure the text rect.
+                    let mut label_rect: RECT = std::mem::zeroed();
+                    DrawTextW(
+                        (*pudmi).um.hdc,
+                        label.as_ptr(),
+                        cch as _,
+                        &mut label_rect,
+                        dw_flags | DT_CALCRECT,
+                    );
+
+                    // Calculate where to draw the icon, accounting for padding and centering
+                    // within the item rectangle allocated by Windows.
+                    //
+                    // The 4px gap was measured from Windows drawing a native menu in light mode;
+                    // we found no relevant MSDN documentation specifying this spacing.
+                    let gap = if cch == 0 { 0 } else { 4 };
+                    let label_width = label_rect.right - label_rect.left;
+                    let content_width = bitmap_info.bmWidth + gap + label_width;
+                    let item_width = text_rect.right - text_rect.left;
+                    let item_height = text_rect.bottom - text_rect.top;
+                    let left_padding = (item_width - content_width) / 2;
+                    let top_padding = (item_height - bitmap_info.bmHeight) / 2;
+                    let x = text_rect.left + left_padding;
+                    let y = text_rect.top + top_padding;
+
+                    let source_dc = CreateCompatibleDC((*pudmi).um.hdc);
+                    if !source_dc.is_null() {
+                        let old_bitmap = SelectObject(source_dc, bitmap);
+
+                        let blend_function = BLENDFUNCTION {
+                            BlendOp: AC_SRC_OVER as _,
+                            BlendFlags: 0,
+                            SourceConstantAlpha: if i_text_state_id == MPI_DISABLED {
+                                128
+                            } else {
+                                255
+                            },
+                            AlphaFormat: AC_SRC_ALPHA as _,
+                        };
+                        AlphaBlend(
+                            (*pudmi).um.hdc,
+                            x,
+                            y,
+                            bitmap_info.bmWidth,
+                            bitmap_info.bmHeight,
+                            source_dc,
+                            0,
+                            0,
+                            bitmap_info.bmWidth,
+                            bitmap_info.bmHeight,
+                            blend_function,
+                        );
+
+                        // Restore the previous bitmap and release the temporary drawing context.
+                        SelectObject(source_dc, old_bitmap);
+                        DeleteDC(source_dc);
+                    }
+
+                    // Position the text after the icon and gap, keeping its measured width.
+                    text_rect.left = x + bitmap_info.bmWidth + gap;
+                    text_rect.right = text_rect.left + label_width;
+                }
+
+                // 3. Draw the item text.
                 let text_brush = match i_text_state_id {
-                    MPI_DISABLED => DISABLED_TEXT_COLOR,
-                    _ => TEXT_COLOR,
+                    MPI_DISABLED => 7171437, // Gray.
+                    _ => 16777215,           // White.
                 };
 
                 SetBkMode((*pudmi).um.hdc, 0);
@@ -257,7 +323,7 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
                     (*pudmi).um.hdc,
                     label.as_ptr(),
                     cch as _,
-                    &mut (*pudmi).dis.rcItem,
+                    &mut text_rect,
                     dw_flags,
                 );
             }
@@ -265,6 +331,24 @@ pub fn draw(hwnd: super::Hwnd, msg: u32, _wparam: WPARAM, lparam: LPARAM) {
 
         _ => {}
     };
+}
+
+unsafe fn get_bitmap_info(bitmap: HBITMAP) -> Option<BITMAP> {
+    if bitmap.is_null() {
+        return None;
+    }
+
+    let mut info: BITMAP = std::mem::zeroed();
+    let bytes_copied = GetObjectW(
+        bitmap,
+        std::mem::size_of::<BITMAP>() as _,
+        &mut info as *mut _ as _,
+    );
+    if bytes_copied == 0 {
+        return None;
+    }
+
+    Some(info)
 }
 
 pub fn should_use_dark_mode(hwnd: super::Hwnd) -> bool {
