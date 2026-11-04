@@ -33,8 +33,6 @@ where
     glib::MainContext::default().invoke(f);
 }
 
-const DEFAULT_ACTION_GROUP: &str = "muda";
-const ACTION_GROUP_DATA_KEY: &str = "mudaActionGroup";
 const INTERNAL_ID_ATTRIBUTE: &str = "muda-internal-id";
 
 type GtkId = usize;
@@ -120,8 +118,6 @@ impl GtkMenuBar {
                     widget.unparent();
                 }
                 if let Some(window) = window.upgrade() {
-                    window
-                        .insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
                     edit_command::untrack_focus(&window);
                 }
             }
@@ -129,7 +125,6 @@ impl GtkMenuBar {
                 if widget.parent().is_some() {
                     widget.unparent();
                 }
-                widget.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
             }
         }
     }
@@ -212,9 +207,6 @@ impl PlatformMenu {
         Self::attach_menubar_to_window(window, container, menu_bar.menu_bar())?;
         self.instances.insert(id, menu_bar);
 
-        let action_group = action_group_from_app(&app);
-        window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
-
         edit_command::track_focus(window);
 
         for item in children {
@@ -272,7 +264,6 @@ impl PlatformMenu {
 
         menu_bar.menu_bar().unparent();
 
-        window.insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
         edit_command::untrack_focus(window);
 
         Ok(())
@@ -360,12 +351,7 @@ impl PlatformMenu {
             return;
         }
 
-        let action_group = action_group_from_app(&app);
-
         let menu = GtkMenuBar::new_context(app);
-
-        let widget = menu.context_menu();
-        widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
         self.instances.insert(self.ctx_menu_id, menu);
 
@@ -498,7 +484,7 @@ pub struct PlatformMenuItem {
 impl PlatformMenuItem {
     pub fn new(_click: MenuItemAction) -> Self {
         Self {
-            action_name: format!("item-{}", COUNTER.next()),
+            action_name: format!("muda-item-{}", COUNTER.next()),
             ctx_menu_id: 0,
             instances: HashMap::new(),
             action: None,
@@ -653,9 +639,6 @@ impl PlatformMenuItem {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
 
-        let action_group = action_group_from_app(&app);
-        widget.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
-
         let menu = GtkMenuChild::ContextMenu {
             id: self.ctx_menu_id,
             widget,
@@ -729,7 +712,7 @@ impl PlatformMenuItem {
     }
 
     fn detailed_action(&self) -> String {
-        format!("{DEFAULT_ACTION_GROUP}.{}", self.action_name)
+        format!("app.{}", self.action_name)
     }
 
     fn ensure_action(
@@ -783,7 +766,7 @@ impl PlatformMenuItem {
         };
 
         action.set_enabled(args.enabled);
-        action_group_from_app(app).add_action(&action);
+        app.add_action(&action);
         self.action = Some(action);
     }
 
@@ -794,7 +777,7 @@ impl PlatformMenuItem {
 
         let action = gio::SimpleAction::new(&self.action_name, None);
         action.set_enabled(args.enabled);
-        action_group_from_app(app).add_action(&action);
+        app.add_action(&action);
         self.action = Some(action);
     }
 
@@ -883,8 +866,7 @@ impl PlatformMenuItem {
 
         self.action.take();
 
-        let action_group = action_group_from_app(app);
-        action_group.remove_action(&self.action_name);
+        app.remove_action(&self.action_name);
     }
 
     fn remove_instance_for_parent_at_position(
@@ -942,8 +924,6 @@ impl PlatformMenuItem {
                     if widget.parent().is_some() {
                         widget.unparent();
                     }
-                    widget
-                        .insert_action_group(DEFAULT_ACTION_GROUP, None::<&gio::SimpleActionGroup>);
                 }
                 GtkMenuChild::Item { .. } | GtkMenuChild::Submenu { .. } => {
                     let parent_menu = instance.parent_menu();
@@ -1387,21 +1367,6 @@ fn default_gtk_application() -> gtk::Application {
     gio::Application::default()
         .and_then(|app| app.downcast::<gtk::Application>().ok())
         .unwrap_or_default()
-}
-
-/// Returns and creates the action group on this application if necessary.
-fn action_group_from_app(app: &gtk::Application) -> gio::SimpleActionGroup {
-    let action_group = unsafe { app.data::<gio::SimpleActionGroup>(ACTION_GROUP_DATA_KEY) };
-
-    let action_group = if let Some(action_group) = action_group {
-        unsafe { action_group.as_ref() }.clone()
-    } else {
-        let action_group = gio::SimpleActionGroup::new();
-        unsafe { app.set_data(ACTION_GROUP_DATA_KEY, action_group.clone()) };
-        action_group
-    };
-
-    action_group
 }
 
 fn get_cursor_pos(window: &gtk::Window) -> (i32, i32) {
