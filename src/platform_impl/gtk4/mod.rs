@@ -6,6 +6,7 @@ mod edit_command;
 mod icon;
 mod icon_menu_item;
 mod mnemonic;
+mod shortcuts;
 
 use std::{cell::Cell, collections::HashMap, rc::Rc};
 
@@ -50,11 +51,13 @@ enum GtkMenuBar {
         menu: gio::Menu,
         app: gtk::Application,
         window: glib::WeakRef<gtk::Window>,
+        _shortcuts: Rc<shortcuts::Shortcuts>,
     },
     ContextMenu {
         widget: gtk::PopoverMenu,
         menu: gio::Menu,
         app: gtk::Application,
+        _shortcuts: Rc<shortcuts::Shortcuts>,
     },
 }
 
@@ -62,7 +65,9 @@ impl GtkMenuBar {
     fn new(app: gtk::Application, window: glib::WeakRef<gtk::Window>) -> Self {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenuBar::from_model(Some(&menu));
+        let shortcuts = Rc::new(shortcuts::Shortcuts::new(&window.upgrade().unwrap(), &menu));
         Self::MenuBar {
+            _shortcuts: shortcuts,
             widget,
             menu,
             app,
@@ -73,7 +78,13 @@ impl GtkMenuBar {
     fn new_context(app: gtk::Application) -> Self {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
-        Self::ContextMenu { widget, menu, app }
+        let shortcuts = Rc::new(shortcuts::Shortcuts::new(&widget, &menu));
+        Self::ContextMenu {
+            widget,
+            menu,
+            app,
+            _shortcuts: shortcuts,
+        }
     }
 
     fn applicaiton(&self) -> &gtk::Application {
@@ -262,9 +273,7 @@ impl PlatformMenu {
 
         remove_children_instances_for_parent(id, children);
 
-        menu_bar.menu_bar().unparent();
-
-        edit_command::untrack_focus(window);
+        menu_bar.destroy();
 
         Ok(())
     }
@@ -400,6 +409,7 @@ enum GtkMenuChild {
         app: gtk::Application,
     },
     ContextMenu {
+        _shortcuts: Rc<shortcuts::Shortcuts>,
         id: GtkId,
         widget: gtk::PopoverMenu,
         menu: gio::Menu,
@@ -639,7 +649,9 @@ impl PlatformMenuItem {
         let menu = gio::Menu::new();
         let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
 
+        let shortcuts = Rc::new(shortcuts::Shortcuts::new(&widget, &menu));
         let menu = GtkMenuChild::ContextMenu {
+            _shortcuts: shortcuts,
             id: self.ctx_menu_id,
             widget,
             menu,
@@ -685,9 +697,7 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            context
-                .app
-                .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -805,16 +815,17 @@ impl PlatformMenuItem {
         _text: &str,
         accelerator: Option<&MenuAccelerator>,
     ) -> crate::Result<()> {
-        let detailed_action = self.detailed_action();
         let gtk_accelerator = accelerator.and_then(MenuAccelerator::to_gtk);
+        let attribute = gtk_accelerator.as_ref().map(|value| value.to_variant());
 
         for item in self.instances.values().flat_map(|v| v.iter()) {
-            let app = item.application();
-            match gtk_accelerator.as_ref() {
-                Some(accelerator) => {
-                    app.set_accels_for_action(&detailed_action, &[accelerator]);
+            if !matches!(item, GtkMenuChild::ContextMenu { .. }) {
+                let parent = item.parent_menu();
+                if let Some(index) = find_row_index(parent, item.id()) {
+                    let row = gio::MenuItem::from_model(parent, index);
+                    row.set_attribute_value("accel", attribute.as_ref());
+                    item.replace_parent_row(&row);
                 }
-                None => app.set_accels_for_action(&detailed_action, &[]),
             }
         }
 
@@ -832,20 +843,14 @@ impl PlatformMenuItem {
     }
 
     fn gtk_item_for_instance(&self, instance: &GtkMenuChild, text: &str) -> Option<gio::MenuItem> {
-        let detailed_action = self.detailed_action();
-
-        match instance {
-            GtkMenuChild::Item {
-                widget: Some(_), ..
-            } => None,
-            GtkMenuChild::Item {
-                id, widget: None, ..
-            } => Some(gio_item(text, &detailed_action, *id)),
-            GtkMenuChild::Submenu { id, menu, .. } => {
-                Some(gio_submenu(text, &detailed_action, menu, *id))
-            }
-            _ => None,
+        if matches!(instance, GtkMenuChild::ContextMenu { .. }) {
+            return None;
         }
+        let parent = instance.parent_menu();
+        let index = find_row_index(parent, instance.id())?;
+        let item = gio::MenuItem::from_model(parent, index);
+        item.set_label(Some(&to_gtk_mnemonic(text)));
+        Some(item)
     }
 
     /// A logical menu item is alive while at least one GTK menu row still
@@ -861,8 +866,6 @@ impl PlatformMenuItem {
         if self.is_alive() {
             return;
         }
-
-        app.set_accels_for_action(&self.detailed_action(), &[]);
 
         self.action.take();
 
@@ -958,9 +961,7 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            context
-                .app
-                .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -1031,9 +1032,7 @@ impl PlatformMenuItem {
         let item = gio_item(&args.text, &detailed_action, id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            context
-                .app
-                .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
@@ -1084,9 +1083,7 @@ impl PlatformMenuItem {
         let item = gio_custom_item(Some(&args.text), Some(&detailed_action), id);
 
         if let Some(accelerator) = args.accelerator.as_ref().and_then(|a| a.to_gtk()) {
-            context
-                .app
-                .set_accels_for_action(&detailed_action, &[&accelerator]);
+            item.set_attribute_value("accel", Some(&accelerator.to_variant()));
         }
 
         self.ensure_action(context.app, args, click);
