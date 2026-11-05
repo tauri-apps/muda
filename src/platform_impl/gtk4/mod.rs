@@ -418,6 +418,44 @@ enum GtkMenuChild {
 }
 
 impl GtkMenuChild {
+    fn new_item(
+        id: GtkId,
+        context: &GtkInsertContext<'_>,
+        widget: Option<GtkCustomWidget>,
+    ) -> Self {
+        Self::Item {
+            id,
+            parent_menu: context.parent_menu.clone(),
+            widget,
+            app: context.app.clone(),
+        }
+    }
+
+    fn new_submenu(id: GtkId, context: &GtkInsertContext<'_>, menu: gio::Menu) -> Self {
+        let widget = find_submenu_widget(context.parent_widget, &menu)
+            .expect("GTK did not create a PopoverMenu for submenu");
+        Self::Submenu {
+            id,
+            parent_menu: context.parent_menu.clone(),
+            menu,
+            widget,
+            app: context.app.clone(),
+        }
+    }
+
+    fn new_context(id: GtkId, app: gtk::Application) -> Self {
+        let menu = gio::Menu::new();
+        let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
+        let shortcuts = Rc::new(shortcuts::Shortcuts::new(&widget, &menu));
+        Self::ContextMenu {
+            _shortcuts: shortcuts,
+            id,
+            widget,
+            menu,
+            app,
+        }
+    }
+
     fn id(&self) -> GtkId {
         match self {
             GtkMenuChild::Item { id, .. } => *id,
@@ -533,16 +571,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let widget = find_submenu_widget(context.parent_widget, &menu)
-            .expect("GTK did not create a PopoverMenu for submenu");
-
-        let child = GtkMenuChild::Submenu {
-            parent_menu: context.parent_menu.clone(),
-            menu,
-            widget,
-            id,
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_submenu(id, context, menu);
 
         self.instances
             .entry(context.menu_id)
@@ -652,17 +681,7 @@ impl PlatformMenuItem {
             return;
         }
 
-        let menu = gio::Menu::new();
-        let widget = gtk::PopoverMenu::from_model_full(&menu, gtk::PopoverMenuFlags::NESTED);
-
-        let shortcuts = Rc::new(shortcuts::Shortcuts::new(&widget, &menu));
-        let menu = GtkMenuChild::ContextMenu {
-            _shortcuts: shortcuts,
-            id: self.ctx_menu_id,
-            widget,
-            menu,
-            app,
-        };
+        let menu = GtkMenuChild::new_context(self.ctx_menu_id, app);
 
         self.instances.insert(self.ctx_menu_id, vec![menu]);
 
@@ -713,12 +732,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::Item {
-            id,
-            parent_menu: context.parent_menu.clone(),
-            widget: None,
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_item(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -957,12 +971,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::Item {
-            id,
-            parent_menu: context.parent_menu.clone(),
-            widget: None,
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_item(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -990,12 +999,7 @@ impl PlatformMenuItem {
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
-        let child = GtkMenuChild::Item {
-            id,
-            parent_menu: context.parent_menu.clone(),
-            widget: Some(widget),
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_item(id, context, Some(widget));
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -1028,12 +1032,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::Item {
-            id,
-            parent_menu: context.parent_menu.clone(),
-            widget: None,
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_item(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -1089,12 +1088,7 @@ impl PlatformMenuItem {
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
-        let child = GtkMenuChild::Item {
-            id,
-            parent_menu: context.parent_menu.clone(),
-            widget: Some(widget),
-            app: context.app.clone(),
-        };
+        let child = GtkMenuChild::new_item(id, context, Some(widget));
         self.instances
             .entry(context.menu_id)
             .or_default()
