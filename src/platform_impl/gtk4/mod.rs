@@ -469,6 +469,7 @@ impl GtkMenuChild {
         if matches!(self, GtkMenuChild::ContextMenu { .. }) {
             return;
         }
+
         let parent_menu = self.parent_menu();
         if let Some(index) = find_row_index(parent_menu, self.id()) {
             let item = gio::MenuItem::from_model(parent_menu, index);
