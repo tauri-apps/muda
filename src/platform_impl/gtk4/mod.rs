@@ -418,11 +418,7 @@ enum GtkMenuChild {
 }
 
 impl GtkMenuChild {
-    fn new_item(
-        id: GtkId,
-        context: &GtkInsertContext<'_>,
-        widget: Option<GtkCustomWidget>,
-    ) -> Self {
+    fn new(id: GtkId, context: &GtkInsertContext<'_>, widget: Option<GtkCustomWidget>) -> Self {
         Self::Item {
             id,
             parent_menu: context.parent_menu.clone(),
@@ -732,7 +728,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::new_item(id, context, None);
+        let child = GtkMenuChild::new(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -971,7 +967,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::new_item(id, context, None);
+        let child = GtkMenuChild::new(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -999,7 +995,7 @@ impl PlatformMenuItem {
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
-        let child = GtkMenuChild::new_item(id, context, Some(widget));
+        let child = GtkMenuChild::new(id, context, Some(widget));
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -1032,7 +1028,7 @@ impl PlatformMenuItem {
             AddOp::Insert(position) => context.parent_menu.insert_item(position as i32, &item),
         }
 
-        let child = GtkMenuChild::new_item(id, context, None);
+        let child = GtkMenuChild::new(id, context, None);
         self.instances
             .entry(context.menu_id)
             .or_default()
@@ -1088,7 +1084,7 @@ impl PlatformMenuItem {
 
         add_custom_child(&widget.host, &widget.widget, &id.to_string());
 
-        let child = GtkMenuChild::new_item(id, context, Some(widget));
+        let child = GtkMenuChild::new(id, context, Some(widget));
         self.instances
             .entry(context.menu_id)
             .or_default()
