@@ -100,44 +100,44 @@
 //!             ],
 //!         ).unwrap(),
 //!     ],
-//! );
+//! ).unwrap();
+//! menu.append(&submenu).unwrap();
 //! ```
 //!
 //! Then add your root menu to a window on Windows, GTK 3, or GTK 4
 //! or use it as your global app menu on macOS
 //!
+//! The window handles and GTK widgets below come from your application's window setup.
+//! For GTK, use the same GTK version as the enabled Muda backend.
+//!
 //! ```no_run
+//! # let menu = muda::Menu::new();
+//! # #[cfg(target_os = "windows")]
+//! # {
+//! # let window_hwnd = 0;
+//! #[cfg(target_os = "windows")]
+//! unsafe { menu.init_for_hwnd(window_hwnd) }.unwrap();
+//! # }
+//!
+//! # #[cfg(all(
+//! #     any(
+//! #         target_os = "linux",
+//! #         target_os = "dragonfly",
+//! #         target_os = "freebsd",
+//! #         target_os = "netbsd",
+//! #         target_os = "openbsd"
+//! #     ),
+//! #     any(feature = "gtk3", feature = "gtk4")
+//! # ))]
+//! # {
 //! # #[cfg(feature = "gtk4")]
 //! # use gtk4 as gtk;
-//! # let menu = muda::Menu::new();
-//! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!         target_os = "dragonfly",
-//!         target_os = "freebsd",
-//!         target_os = "netbsd",
-//!         target_os = "openbsd"
-//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
-//! // --snip--
-//! #[cfg(target_os = "windows")]
-//! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
-//! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
+//! #[cfg(target_os = "linux")]
+//! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box)).unwrap();
+//! # }
+//!
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
 //! ```
@@ -145,37 +145,45 @@
 //! # Context menus (Popup menus)
 //!
 //! You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
+//! Use a valid window handle, GTK window, or `NSView` from your application.
 //!
 //! ```no_run
-//! # #[cfg(feature = "gtk4")]
-//! # use gtk4 as gtk;
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
-//! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
-//! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(target_os = "macos")]
-//! # let nsview = std::ptr::null();
-//! // --snip--
+//!
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
+//!
+//! # #[cfg(target_os = "windows")]
+//! # {
+//! # let window_hwnd = 0;
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
+//! # }
+//!
+//! # #[cfg(all(
+//! #     any(
+//! #         target_os = "linux",
+//! #         target_os = "dragonfly",
+//! #         target_os = "freebsd",
+//! #         target_os = "netbsd",
+//! #         target_os = "openbsd"
+//! #     ),
+//! #     any(feature = "gtk3", feature = "gtk4")
+//! # ))]
+//! # {
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
+//! # let gtk_window = gtk::Window::builder().build();
+//! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
+//! # }
+//!
+//! # #[cfg(target_os = "macos")]
+//! # {
+//! # let nsview = std::ptr::null();
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
+//! # }
 //! ```
 //! # Processing menu events
 //!
@@ -184,7 +192,7 @@
 //! ```no_run
 //! # use muda::MenuEvent;
 //! #
-//! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
+//! # let save_item = muda::MenuItem::new("Save", true, None);
 //! if let Ok(event) = MenuEvent::receiver().try_recv() {
 //!     match event.id {
 //!         id if id == save_item.id() => {
