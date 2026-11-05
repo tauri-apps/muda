@@ -465,11 +465,16 @@ impl GtkMenuChild {
         }
     }
 
-    fn replace_parent_row(&self, item: &gio::MenuItem) {
+    fn replace_row_in_parent(&self, update: impl FnOnce(&gio::MenuItem)) {
+        if matches!(self, GtkMenuChild::ContextMenu { .. }) {
+            return;
+        }
         let parent_menu = self.parent_menu();
         if let Some(index) = find_row_index(parent_menu, self.id()) {
+            let item = gio::MenuItem::from_model(parent_menu, index);
+            update(&item);
             parent_menu.remove(index);
-            parent_menu.insert_item(index, item);
+            parent_menu.insert_item(index, &item);
         }
     }
 
@@ -797,10 +802,9 @@ impl PlatformMenuItem {
 
     pub fn set_text(&mut self, text: &str, _accelerator: Option<&MenuAccelerator>) {
         for instance in self.instances.values().flatten() {
-            if let Some(item) = self.gtk_item_for_instance(instance) {
+            instance.replace_row_in_parent(|item| {
                 item.set_label(Some(&to_gtk_mnemonic(text)));
-                instance.replace_parent_row(&item);
-            }
+            });
         }
         self.for_each_custom_widget(|widget| widget.set_label(text));
     }
@@ -824,24 +828,14 @@ impl PlatformMenuItem {
         let attribute = gtk_accelerator.as_ref().map(|value| value.to_variant());
 
         for instance in self.instances.values().flatten() {
-            if let Some(item) = self.gtk_item_for_instance(instance) {
+            instance.replace_row_in_parent(|item| {
                 item.set_attribute_value("accel", attribute.as_ref());
-                instance.replace_parent_row(&item);
-            }
+            });
         }
 
         self.for_each_custom_widget(|widget| widget.set_accelerator(accelerator));
 
         Ok(())
-    }
-
-    fn gtk_item_for_instance(&self, instance: &GtkMenuChild) -> Option<gio::MenuItem> {
-        if matches!(instance, GtkMenuChild::ContextMenu { .. }) {
-            return None;
-        }
-        let parent = instance.parent_menu();
-        let index = find_row_index(parent, instance.id())?;
-        Some(gio::MenuItem::from_model(parent, index))
     }
 
     /// A logical menu item is alive while at least one GTK menu row still
