@@ -1899,6 +1899,8 @@ version = "0.21.2"
 dependencies = [
  "crossbeam-channel",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gdk4-wayland",
+ "gdk4-x11",
  "gtk",
  "gtk4",
  "image",
@@ -1912,6 +1914,8 @@ dependencies = [
  "serde",
  "tao",
  "thiserror 2.0.19",
+ "wayland-client",
+ "wayland-protocols-plasma",
  "windows-sys 0.61.2",
  "winit 0.30.13",
  "winit 0.31.0-beta.2",

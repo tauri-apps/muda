@@ -277,6 +277,9 @@ impl Menu {
     ///   [`gtk::Fixed`], and [`gtk::Stack`].
     ///
     /// With the `gtk4` feature, the window must belong to a [`gtk::Application`].
+    /// Native Wayland global menus require the compositor's AppMenu protocol and
+    /// a compatible DBusMenu consumer. Exporting a global menu does not automatically
+    /// hide the window's menubar.
     ///
     /// ## Example:
     /// ```no_run

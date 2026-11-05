@@ -38,6 +38,10 @@ impl PlatformIcon {
         Ok(Self(pixbuf))
     }
 
+    pub(crate) fn menu_png(&self) -> Result<Vec<u8>, gtk::glib::Error> {
+        self.0.save_to_bufferv("png", &[])
+    }
+
     pub fn texture(&self) -> gtk::gdk::Texture {
         gtk::gdk::Texture::for_pixbuf(&self.0)
     }
