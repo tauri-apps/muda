@@ -519,3 +519,173 @@ impl PlatformMenuItem {
         schedule_rebuild();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Logic that needs no `QApplication`: libtest runs tests on worker threads, where Qt is
+    //! never usable, so these also check that every entry point fails cleanly without it. The
+    //! Qt side is tested in `tests/qt.rs`.
+
+    use super::*;
+    use crate::{CheckMenuItem, IsMenuItem, MenuItem, PredefinedMenuItem, Submenu};
+
+    #[test]
+    fn html_escape_escapes_markup() {
+        assert_eq!(html_escape("plain"), "plain");
+        assert_eq!(html_escape("<b>&</b>"), "&lt;b&gt;&amp;&lt;/b&gt;");
+        // `&` first, so entities aren't escaped twice.
+        assert_eq!(html_escape("&lt;"), "&amp;lt;");
+    }
+
+    #[test]
+    fn standard_actions() {
+        use PredefinedMenuItemType as P;
+        let mapped = [
+            (P::Copy, StandardAction::Copy),
+            (P::Cut, StandardAction::Cut),
+            (P::Paste, StandardAction::Paste),
+            (P::SelectAll, StandardAction::SelectAll),
+            (P::Undo, StandardAction::Undo),
+            (P::Redo, StandardAction::Redo),
+            (P::Delete, StandardAction::Delete),
+            (P::Minimize, StandardAction::Minimize),
+            (P::Maximize, StandardAction::Maximize),
+            (P::Fullscreen, StandardAction::Fullscreen),
+            (P::Hide, StandardAction::Hide),
+            (P::CloseWindow, StandardAction::CloseWindow),
+            (P::Quit, StandardAction::Quit),
+        ];
+        for (t, action) in mapped {
+            assert_eq!(standard_action(&t), Some(action), "{t:?}");
+        }
+        for t in [
+            P::Separator,
+            P::SectionHeader,
+            P::PasteAndMatchStyle,
+            P::ActualSize,
+            P::ZoomIn,
+            P::ZoomOut,
+            P::HideOthers,
+            P::ShowAll,
+            P::About(None),
+            P::Services,
+            P::BringAllToFront,
+            P::StartSpeaking,
+            P::StopSpeaking,
+            P::StartDictation,
+            P::EmojiAndSymbols,
+        ] {
+            assert_eq!(standard_action(&t), None, "{t:?}");
+        }
+    }
+
+    #[test]
+    fn icon_of_custom_icons_only() {
+        assert!(icon_of(&None).is_none());
+        let icon = crate::Icon::from_rgba(vec![7; 2 * 3 * 4], 2, 3).unwrap();
+        let custom = Some(IconType::Custom(icon));
+        let i = icon_of(&custom).unwrap();
+        assert_eq!((i.width, i.height, i.rgba.len()), (2, 3, 24));
+        let native = Some(IconType::Native(crate::NativeIcon::Add));
+        assert!(icon_of(&native).is_none());
+    }
+
+    #[test]
+    fn rebuild_is_not_scheduled_without_qt() {
+        schedule_rebuild();
+        assert!(!REBUILD_PENDING.with(Cell::get));
+    }
+
+    #[test]
+    fn pointers_are_rejected_without_qt() {
+        for ptr in [
+            std::ptr::null_mut(),
+            std::ptr::dangling_mut::<u64>().cast(),
+            usize::MAX as *mut c_void,
+        ] {
+            assert!(matches!(
+                window_from_ptr(ptr),
+                Err(crate::Error::NotInitialized)
+            ));
+            let mut menu = PlatformMenu::new();
+            assert!(matches!(
+                menu.init_for_qt_window(&[], ptr),
+                Err(crate::Error::NotInitialized)
+            ));
+            assert!(menu.remove_for_qt_window(ptr).is_err());
+            assert!(menu.hide_for_qt_window(ptr).is_err());
+            assert!(menu.show_for_qt_window(ptr).is_err());
+            assert!(!menu.is_visible_on_qt_window(ptr));
+            assert!(!menu.show_context_menu_for_qt_window(&[], ptr, None));
+            assert!(!show_context_menu(&[], ptr, None));
+        }
+    }
+
+    #[test]
+    fn platform_menu_mirrors_children() {
+        let a = MenuItem::new("a", true, None).kind();
+        let b = CheckMenuItem::new("b", true, false, None).kind();
+        let c = Submenu::new("c", true).kind();
+        let d = PredefinedMenuItem::separator().kind();
+        let ids = |m: &PlatformMenu| -> Vec<String> {
+            m.children
+                .borrow()
+                .iter()
+                .map(|k| k.id().0.clone())
+                .collect()
+        };
+        let mut menu = PlatformMenu::new();
+        menu.attach(&a, AddOp::Append).unwrap();
+        menu.attach(&b, AddOp::Insert(0)).unwrap();
+        // Past the end: clamped to an append.
+        menu.attach(&c, AddOp::Insert(99)).unwrap();
+        menu.attach(&d, AddOp::Insert(1)).unwrap();
+        assert_eq!(
+            ids(&menu),
+            [b.id(), d.id(), a.id(), c.id()].map(|i| i.0.clone())
+        );
+        menu.remove_at(1, &d);
+        // Out of range: ignored.
+        menu.remove_at(10, &d);
+        assert_eq!(ids(&menu), [b.id(), a.id(), c.id()].map(|i| i.0.clone()));
+        // Dropping without Qt touches nothing.
+        drop(menu);
+    }
+
+    #[test]
+    fn platform_menu_item_is_stateless_without_qt() {
+        let mut item = PlatformMenuItem::new(MenuItemAction::Emit("x".into()));
+        let mut sub = PlatformMenuItem::new_submenu(MenuItemAction::Emit("s".into()));
+        let child = MenuItem::new("child", true, None).kind();
+        assert_eq!(item.text(), None);
+        assert_eq!(item.is_enabled(), None);
+        assert_eq!(item.is_checked(), None);
+        item.set_text("t", None);
+        item.set_styled_text("t", &[("t".into(), TextStyle::Secondary)], None);
+        item.set_enabled(false);
+        item.set_checked(true);
+        item.set_icon(None);
+        item.set_accelerator("t", None).unwrap();
+        sub.attach(&child, AddOp::Append).unwrap();
+        sub.remove_at(0, &child);
+        assert!(!REBUILD_PENDING.with(Cell::get));
+    }
+
+    #[test]
+    fn activate_without_qt() {
+        let id: crate::MenuId = "activate-without-qt".into();
+        activate(&MenuItemAction::Emit(id.clone()));
+        let check = CheckMenuItem::with_id("toggle-without-qt", "c", true, false, None);
+        activate(&check.kind().click_action());
+        assert!(check.is_checked());
+        // A predefined item whose state is gone does nothing.
+        let action = PredefinedMenuItem::copy(None).kind().click_action();
+        activate(&action);
+        let events: Vec<_> = MenuEvent::receiver()
+            .try_iter()
+            .map(|e| e.id().0.clone())
+            .collect();
+        assert!(events.contains(&id.0), "{events:?}");
+        assert!(events.contains(&"toggle-without-qt".to_string()));
+    }
+}

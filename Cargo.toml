@@ -102,10 +102,27 @@ winit = "0.30"
 tao = "0.36"
 wry = "0.56"
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+# GTK 4 is only needed by the `winit_gtk4` example; the Qt tests (`--cfg muda_qt_tests`) build
+# without it, so they don't need the GTK 4 dev packages.
+[target.'cfg(not(muda_qt_tests))'.dev-dependencies]
 winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk4", default-features = false, features = [
   "gtk4",
 ] }
 
+# Only for the Qt tests, so other backends' tests don't need Qt: `tests/qt.rs`.
+[target.'cfg(muda_qt_tests)'.dev-dependencies]
+qt-test-harness = { path = "../tauri-runtime-qt/crates/qt-test-harness" }
+qtshim = { path = "../tauri-runtime-qt/crates/qtshim", features = ["webengine"] }
+
 [[example]]
 name = "winit_gtk4"
 required-features = ["gtk4"]
+
+# Real Qt tests of the `qt` backend, one process per case (see `qt-test-harness`):
+# `RUSTFLAGS="--cfg muda_qt_tests" cargo test --no-default-features --features qt --test qt`
+[[test]]
+name = "qt"
+path = "tests/qt.rs"
+harness = false
+required-features = ["qt"]
