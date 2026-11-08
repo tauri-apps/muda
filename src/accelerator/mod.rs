@@ -63,6 +63,8 @@ pub(crate) mod gtk;
 pub(crate) mod gtk4;
 #[cfg(target_os = "macos")]
 pub(crate) mod macos;
+#[cfg(muda_qt)]
+pub(crate) mod qt;
 #[cfg(target_os = "windows")]
 pub(crate) mod windows;
 

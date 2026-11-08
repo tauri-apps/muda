@@ -235,6 +235,22 @@
 ))]
 extern crate gtk4 as gtk;
 
+#[cfg(all(
+    feature = "qt",
+    any(feature = "gtk3", feature = "gtk4"),
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
+))]
+compile_error!(
+    "muda: the `qt` feature can't be combined with `gtk3`/`gtk4` (GTK 3/4 and Qt menus are \
+     alternative Linux backends). Disable muda's default features when enabling `qt`."
+);
+
 pub mod about_metadata;
 pub mod accelerator;
 mod builders;

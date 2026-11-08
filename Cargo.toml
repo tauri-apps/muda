@@ -27,6 +27,8 @@ gtk3 = ["dep:gtk"]
 gtk4 = ["dep:gtk4"]
 common-controls-v6 = []
 snapshot = []
+# Qt Widgets backend (Linux/BSD). Requires Qt 6 development files; mutually exclusive with gtk3/gtk4.
+qt = ["dep:cc"]
 serde = ["dep:serde", "dpi/serde", "keyboard-types/serde"]
 
 [dependencies]
@@ -93,6 +95,9 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
   "NSWindow",
 ] }
 png = "0.18"
+
+[build-dependencies]
+cc = { version = "1", optional = true }
 
 [dev-dependencies]
 winit = "0.30"

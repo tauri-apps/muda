@@ -246,6 +246,7 @@ impl MenuItemKind {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(muda_qt, allow(dead_code))]
 pub(crate) enum IconType {
     Custom(Icon),
     Native(NativeIcon),

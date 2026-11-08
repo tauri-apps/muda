@@ -11,7 +11,7 @@
             target_os = "netbsd",
             target_os = "openbsd"
         ),
-        not(any(feature = "gtk3", feature = "gtk4"))
+        not(any(feature = "gtk3", feature = "gtk4", feature = "qt"))
     ),
     allow(dead_code)
 )]
@@ -52,9 +52,13 @@ mod platform;
         target_os = "netbsd",
         target_os = "openbsd"
     ),
-    not(any(feature = "gtk3", feature = "gtk4"))
+    not(any(feature = "gtk3", feature = "gtk4", feature = "qt"))
 ))]
 #[path = "noop/mod.rs"]
+mod platform;
+// `muda_qt` is only set without gtk3/gtk4 (that combination is a `compile_error!`, see lib.rs)
+#[cfg(muda_qt)]
+#[path = "qt/mod.rs"]
 mod platform;
 #[cfg(target_os = "macos")]
 #[path = "macos/mod.rs"]
@@ -69,6 +73,7 @@ use crate::{accelerator::MenuAccelerator, items::IconType, MenuItemKind};
 pub(crate) use self::platform::*;
 
 impl MenuItemKind {
+    #[cfg_attr(muda_qt, allow(dead_code))]
     pub(crate) fn platform(&self) -> Rc<RefCell<PlatformMenuItem>> {
         match self {
             Self::MenuItem(item) => item.platform.clone(),
