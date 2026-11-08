@@ -355,7 +355,8 @@ impl PlatformMenu {
         widget: *mut c_void,
     ) -> crate::Result<()> {
         let window = window_from_ptr(widget)?;
-        if self.position_of(&window).is_some() {
+        // A window has one muda menubar; another menu must be removed from it first.
+        if self.position_of(&window).is_some() || MenuBar::get(&window).is_some() {
             return Err(crate::Error::AlreadyInitialized);
         }
         *self.children.borrow_mut() = children.to_vec();
