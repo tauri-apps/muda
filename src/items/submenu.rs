@@ -502,7 +502,7 @@ impl ContextMenu for Submenu {
     }
 
     #[cfg(muda_qt)]
-    unsafe fn show_context_menu_for_qt_window(
+    fn show_context_menu_for_qt_window(
         &self,
         widget: *mut std::ffi::c_void,
         position: Option<Position>,

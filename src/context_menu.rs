@@ -61,14 +61,11 @@ pub trait ContextMenu: sealed::Sealed {
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is
     ///   used.
     ///
-    /// The menu is shown without blocking; returns `true` if it was shown.
-    ///
-    /// # Safety
-    ///
-    /// `widget` must be a valid `QWidget*` and this must be called on the thread that owns the
-    /// `QApplication`.
+    /// The menu is shown without blocking; returns `true` if it was shown, `false` if `widget`
+    /// isn't a live widget of the `QApplication` or this isn't its thread (the pointer is never
+    /// dereferenced then).
     #[cfg(muda_qt)]
-    unsafe fn show_context_menu_for_qt_window(
+    fn show_context_menu_for_qt_window(
         &self,
         widget: *mut std::ffi::c_void,
         position: Option<dpi::Position>,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Qt Widgets backend (`qt` feature).
+//! Qt Widgets backend (`qt` feature), built on [`qtshim::menu`].
 //!
 //! Instead of mirroring every incremental change into each Qt widget instance, this backend
 //! keeps the item tree that muda already owns as the source of truth: any change schedules a
@@ -10,16 +10,24 @@
 //! built on demand. Clicks reuse [`MenuItemAction`], so events, check toggling and predefined
 //! items behave like the other backends.
 //!
-//! The host application must have created a `QApplication` (e.g. a Qt-based Tauri runtime) and
-//! all calls must happen on its thread.
+//! The host application must have created a `QApplication` through `qtshim` (e.g. a Qt-based
+//! Tauri runtime). Window pointers passed in are validated with [`Widget::from_ptr`], and calls
+//! made off the Qt thread (or without a running application) fail instead of touching Qt.
 
 use std::{
     cell::{Cell, RefCell},
-    ffi::{c_int, c_void, CString},
+    ffi::c_void,
     rc::{Rc, Weak},
 };
 
 use dpi::Position;
+use qtshim::{
+    app,
+    menu::{
+        self, ActionOptions, Container, Icon, MenuBar, PopupMenu, PopupPosition, StandardAction,
+        Widget,
+    },
+};
 
 use crate::{
     accelerator::MenuAccelerator,
@@ -31,110 +39,24 @@ use crate::{
 
 pub(crate) type PlatformIcon = RgbaIcon;
 
-mod ffi {
-    use std::ffi::{c_char, c_int, c_void};
-
-    pub type MqFn = unsafe extern "C" fn(*mut c_void);
-
-    extern "C" {
-        pub fn mq_post(f: MqFn, ud: *mut c_void);
-        pub fn mq_track(widget: *mut c_void) -> *mut c_void;
-        pub fn mq_tracked(tracker: *mut c_void) -> *mut c_void;
-        pub fn mq_untrack(tracker: *mut c_void);
-        pub fn mq_menubar_for(widget: *mut c_void, create: c_int) -> *mut c_void;
-        pub fn mq_menubar_remove(widget: *mut c_void);
-        pub fn mq_menubar_set_visible(widget: *mut c_void, visible: c_int);
-        pub fn mq_menubar_is_visible(widget: *mut c_void) -> c_int;
-        pub fn mq_container_clear(container: *mut c_void);
-        pub fn mq_container_add_menu(
-            container: *mut c_void,
-            text: *const c_char,
-            enabled: c_int,
-            rgba: *const u8,
-            w: c_int,
-            h: c_int,
-        ) -> *mut c_void;
-        #[allow(clippy::too_many_arguments)]
-        pub fn mq_container_add_action(
-            container: *mut c_void,
-            text: *const c_char,
-            enabled: c_int,
-            checkable: c_int,
-            checked: c_int,
-            shortcut: *const c_char,
-            shortcut_hint: *const c_char,
-            rgba: *const u8,
-            w: c_int,
-            h: c_int,
-            on_click: Option<MqFn>,
-            ud: *mut c_void,
-            drop: Option<MqFn>,
-        );
-        pub fn mq_container_add_separator(container: *mut c_void);
-        pub fn mq_popup_menu_new(widget: *mut c_void) -> *mut c_void;
-        pub fn mq_popup_menu_show(
-            menu: *mut c_void,
-            widget: *mut c_void,
-            has_pos: c_int,
-            x: f64,
-            y: f64,
-            physical: c_int,
-        );
-        pub fn mq_run_predefined(kind: c_int);
-        pub fn mq_show_about(
-            title: *const c_char,
-            html: *const c_char,
-            rgba: *const u8,
-            w: c_int,
-            h: c_int,
-        );
-    }
-}
-
-fn cstring(s: &str) -> CString {
-    CString::new(s.replace('\0', "")).unwrap_or_default()
-}
-
-// -------------------------------------------------------------------------------------------
-// main-thread dispatch
-
-/// Run `f` on the Qt thread from the event loop.
-pub(crate) fn post<F: FnOnce() + 'static>(f: F) {
-    unsafe extern "C" fn tramp(ud: *mut c_void) {
-        let f = unsafe { Box::from_raw(ud as *mut Box<dyn FnOnce()>) };
-        f();
-    }
-    let f: Box<dyn FnOnce()> = Box::new(f);
-    unsafe { ffi::mq_post(tramp, Box::into_raw(Box::new(f)) as *mut c_void) }
-}
-
 #[cfg(feature = "snapshot")]
 pub(crate) fn dispatch_on_main_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    post(f);
+    // Called from other threads (e.g. by tray-icon), so this must be `dispatch`, not `post`.
+    app::dispatch(f);
 }
 
 // -------------------------------------------------------------------------------------------
 // attached menubars and coalesced rebuilds
 
-/// A `QPointer<QWidget>` owned by the [`PlatformMenu`] that attached a menubar to the widget.
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Tracker(*mut c_void);
+/// A menu's items, shared between the menu and the menubars showing it.
+type Children = Rc<RefCell<Vec<MenuItemKind>>>;
 
-impl Tracker {
-    fn new(widget: *mut c_void) -> Self {
-        Self(unsafe { ffi::mq_track(widget) })
-    }
-    /// The widget, or null once it has been destroyed.
-    fn widget(self) -> *mut c_void {
-        unsafe { ffi::mq_tracked(self.0) }
-    }
-}
-
+/// A menubar installed on a window: the window (gone once destroyed) and the menu's items.
 struct Attached {
-    tracker: Tracker,
+    window: Weak<Widget>,
     children: Weak<RefCell<Vec<MenuItemKind>>>,
 }
 
@@ -146,87 +68,68 @@ thread_local! {
 /// Rebuild every attached menubar once the current call stack has unwound. Deferring also means
 /// the rebuild reads the final item state, whatever order muda updated state and platform in.
 fn schedule_rebuild() {
-    if REBUILD_PENDING.with(|p| p.replace(true)) {
+    // Items can change before the application exists or after it's gone; nothing is shown then.
+    if !app::is_running() || REBUILD_PENDING.with(|p| p.replace(true)) {
         return;
     }
-    post(rebuild_all);
+    app::post(rebuild_all);
 }
 
 fn rebuild_all() {
     REBUILD_PENDING.with(|p| p.set(false));
-    let attached: Vec<(*mut c_void, Rc<RefCell<Vec<MenuItemKind>>>)> = ATTACHED.with(|a| {
-        a.borrow()
-            .iter()
-            .filter_map(|x| {
-                let widget = x.tracker.widget();
-                let children = x.children.upgrade()?;
-                (!widget.is_null()).then_some((widget, children))
-            })
+    let attached: Vec<(Rc<Widget>, Children)> = ATTACHED.with(|a| {
+        let mut a = a.borrow_mut();
+        a.retain(|x| x.window.strong_count() > 0 && x.children.strong_count() > 0);
+        a.iter()
+            .filter_map(|x| Some((x.window.upgrade()?, x.children.upgrade()?)))
             .collect()
     });
-    for (widget, children) in attached {
-        build_menubar(widget, &children.borrow());
+    for (window, children) in attached {
+        build_menubar(&window, &children.borrow());
     }
 }
 
-fn build_menubar(widget: *mut c_void, items: &[MenuItemKind]) {
-    let bar = unsafe { ffi::mq_menubar_for(widget, 1) };
-    if bar.is_null() {
+fn build_menubar(window: &Widget, items: &[MenuItemKind]) {
+    let Some(bar) = MenuBar::get_or_create(window) else {
         return;
-    }
-    unsafe { ffi::mq_container_clear(bar) };
-    build_items(bar, items, true);
+    };
+    bar.clear();
+    build_items(&bar, items, true);
 }
 
 // -------------------------------------------------------------------------------------------
 // building Qt menus from muda's item tree
 
-fn icon_of(icon: &Option<IconType>) -> Option<(Vec<u8>, i32, i32)> {
+fn icon_of(icon: &Option<IconType>) -> Option<Icon<'_>> {
     match icon {
-        Some(IconType::Custom(icon)) => Some((
-            icon.inner.rgba.clone(),
-            icon.inner.width as i32,
-            icon.inner.height as i32,
-        )),
+        Some(IconType::Custom(icon)) => Some(Icon {
+            rgba: &icon.inner.rgba,
+            width: icon.inner.width,
+            height: icon.inner.height,
+        }),
         _ => None,
     }
 }
 
-/// Predefined items the Qt backend can perform, as `mq_run_predefined` kinds.
-fn predefined_kind(t: &PredefinedMenuItemType) -> Option<c_int> {
-    use PredefinedMenuItemType::*;
+/// The Qt action for a predefined item, if the backend can perform it.
+fn standard_action(t: &PredefinedMenuItemType) -> Option<StandardAction> {
+    use PredefinedMenuItemType as P;
     Some(match t {
-        Copy => 1,
-        Cut => 2,
-        Paste => 3,
-        SelectAll => 4,
-        Undo => 5,
-        Redo => 6,
-        Delete => 7,
-        Minimize => 8,
-        Maximize => 9,
-        Fullscreen => 10,
-        Hide => 11,
-        CloseWindow => 12,
-        Quit => 13,
+        P::Copy => StandardAction::Copy,
+        P::Cut => StandardAction::Cut,
+        P::Paste => StandardAction::Paste,
+        P::SelectAll => StandardAction::SelectAll,
+        P::Undo => StandardAction::Undo,
+        P::Redo => StandardAction::Redo,
+        P::Delete => StandardAction::Delete,
+        P::Minimize => StandardAction::Minimize,
+        P::Maximize => StandardAction::Maximize,
+        P::Fullscreen => StandardAction::Fullscreen,
+        P::Hide => StandardAction::Hide,
+        P::CloseWindow => StandardAction::CloseWindow,
+        P::Quit => StandardAction::Quit,
         _ => return None,
     })
-}
-
-/// Editing items whose shortcut the focused widget (e.g. a web view) already handles: show the
-/// shortcut, but don't register it, or the menu would steal the key from the page.
-fn is_editing(t: &PredefinedMenuItemType) -> bool {
-    use PredefinedMenuItemType::*;
-    matches!(t, Copy | Cut | Paste | SelectAll | Undo | Redo | Delete)
-}
-
-unsafe extern "C" fn on_click(ud: *mut c_void) {
-    let action = unsafe { &*(ud as *const MenuItemAction) };
-    activate(action);
-}
-
-unsafe extern "C" fn drop_action(ud: *mut c_void) {
-    drop(unsafe { Box::from_raw(ud as *mut MenuItemAction) });
 }
 
 fn activate(action: &MenuItemAction) {
@@ -247,151 +150,96 @@ fn activate(action: &MenuItemAction) {
             else {
                 return;
             };
-            run_predefined(&t);
+            if let PredefinedMenuItemType::About(Some(metadata)) = &t {
+                show_about_dialog(metadata);
+            } else if let Some(action) = standard_action(&t) {
+                action.trigger();
+            }
         }
     }
 }
 
-fn run_predefined(t: &PredefinedMenuItemType) {
-    if let PredefinedMenuItemType::About(Some(metadata)) = t {
-        show_about_dialog(metadata);
-    } else if let Some(kind) = predefined_kind(t) {
-        unsafe { ffi::mq_run_predefined(kind) };
-    }
+fn on_click(action: MenuItemAction) -> Option<Box<dyn Fn()>> {
+    Some(Box::new(move || activate(&action)))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn add_action(
-    container: *mut c_void,
-    text: &str,
-    enabled: bool,
-    checkable: bool,
-    checked: bool,
-    shortcut: Option<&str>,
-    shortcut_hint: Option<&str>,
-    icon: Option<(Vec<u8>, i32, i32)>,
-    action: Option<MenuItemAction>,
-) {
-    let text = cstring(text);
-    let shortcut = shortcut.map(cstring);
-    let hint = shortcut_hint.map(cstring);
-    let (rgba, w, h) = icon.unwrap_or_default();
-    let ud = action.map(|a| Box::into_raw(Box::new(a)) as *mut c_void);
-    unsafe {
-        ffi::mq_container_add_action(
-            container,
-            text.as_ptr(),
-            enabled as c_int,
-            checkable as c_int,
-            checked as c_int,
-            shortcut.as_ref().map_or(std::ptr::null(), |s| s.as_ptr()),
-            hint.as_ref().map_or(std::ptr::null(), |s| s.as_ptr()),
-            if rgba.is_empty() {
-                std::ptr::null()
-            } else {
-                rgba.as_ptr()
-            },
-            w,
-            h,
-            ud.map(|_| on_click as ffi::MqFn),
-            ud.unwrap_or(std::ptr::null_mut()),
-            ud.map(|_| drop_action as ffi::MqFn),
-        )
-    }
-}
-
-/// Fill a `QMenuBar`/`QMenu` with `items`. Shortcuts are registered only in menubars
+/// Fill a menubar or menu with `items`. Shortcuts are registered only in menubars
 /// (`register_shortcuts`); context menus just display them.
-fn build_items(container: *mut c_void, items: &[MenuItemKind], register_shortcuts: bool) {
+fn build_items(container: &impl Container, items: &[MenuItemKind], register_shortcuts: bool) {
     for item in items {
         let args = item.platform_attach_args();
         let shortcut = args.accelerator.as_ref().and_then(MenuAccelerator::to_qt);
+        let (shortcut, shortcut_hint) = if register_shortcuts {
+            (shortcut.as_deref(), None)
+        } else {
+            (None, shortcut.as_deref())
+        };
         match item {
             MenuItemKind::Submenu(_) => {
-                let text = cstring(&args.text);
-                let (rgba, w, h) = icon_of(&args.icon).unwrap_or_default();
-                let menu = unsafe {
-                    ffi::mq_container_add_menu(
-                        container,
-                        text.as_ptr(),
-                        args.enabled as c_int,
-                        if rgba.is_empty() {
-                            std::ptr::null()
-                        } else {
-                            rgba.as_ptr()
-                        },
-                        w,
-                        h,
-                    )
-                };
-                build_items(menu, &item.items(), register_shortcuts);
+                if let Some(menu) =
+                    container.add_menu(&args.text, args.enabled, icon_of(&args.icon))
+                {
+                    build_items(&menu, &item.items(), register_shortcuts);
+                }
             }
             MenuItemKind::Predefined(p) => {
                 let t = p.state.borrow().predefined_item_type.clone();
-                match t {
-                    PredefinedMenuItemType::Separator => unsafe {
-                        ffi::mq_container_add_separator(container)
-                    },
-                    PredefinedMenuItemType::About(_) => add_action(
-                        container,
-                        &args.text,
-                        true,
-                        false,
-                        false,
-                        None,
-                        None,
-                        None,
-                        Some(item.click_action()),
+                match &t {
+                    PredefinedMenuItemType::Separator => container.add_separator(),
+                    PredefinedMenuItemType::About(_) => container.add_action(
+                        &ActionOptions {
+                            text: &args.text,
+                            ..ActionOptions::default()
+                        },
+                        on_click(item.click_action()),
                     ),
-                    ref t if predefined_kind(t).is_some() => {
-                        let display_only = is_editing(t) || !register_shortcuts;
-                        add_action(
-                            container,
-                            &args.text,
-                            true,
-                            false,
-                            false,
-                            if display_only {
-                                None
-                            } else {
-                                shortcut.as_deref()
+                    t => match standard_action(t) {
+                        // Editing items only display their shortcut: the focused widget (e.g.
+                        // a web view) handles the key itself.
+                        Some(action) => container.add_action(
+                            &ActionOptions {
+                                text: &args.text,
+                                shortcut: shortcut.filter(|_| !action.is_editing()),
+                                shortcut_hint: shortcut_hint
+                                    .or(shortcut.filter(|_| action.is_editing())),
+                                ..ActionOptions::default()
                             },
-                            if display_only {
-                                shortcut.as_deref()
-                            } else {
-                                None
+                            on_click(item.click_action()),
+                        ),
+                        // macOS-only items (Services, Show All, ...) render disabled, like on GTK.
+                        None => container.add_action(
+                            &ActionOptions {
+                                text: &args.text,
+                                enabled: false,
+                                ..ActionOptions::default()
                             },
                             None,
-                            Some(item.click_action()),
-                        )
-                    }
-                    // macOS-only items (Services, Show All, ...) render disabled, like on GTK.
-                    _ => add_action(
-                        container, &args.text, false, false, false, None, None, None, None,
-                    ),
+                        ),
+                    },
                 }
             }
-            MenuItemKind::Check(_) => add_action(
-                container,
-                &args.text,
-                args.enabled,
-                true,
-                args.checked,
-                shortcut.as_deref().filter(|_| register_shortcuts),
-                shortcut.as_deref().filter(|_| !register_shortcuts),
-                None,
-                Some(item.click_action()),
+            MenuItemKind::Check(_) => container.add_action(
+                &ActionOptions {
+                    text: &args.text,
+                    enabled: args.enabled,
+                    checkable: true,
+                    checked: args.checked,
+                    shortcut,
+                    shortcut_hint,
+                    icon: None,
+                },
+                on_click(item.click_action()),
             ),
-            MenuItemKind::MenuItem(_) | MenuItemKind::Icon(_) => add_action(
-                container,
-                &args.text,
-                args.enabled,
-                false,
-                false,
-                shortcut.as_deref().filter(|_| register_shortcuts),
-                shortcut.as_deref().filter(|_| !register_shortcuts),
-                icon_of(&args.icon),
-                Some(item.click_action()),
+            MenuItemKind::MenuItem(_) | MenuItemKind::Icon(_) => container.add_action(
+                &ActionOptions {
+                    text: &args.text,
+                    enabled: args.enabled,
+                    shortcut,
+                    shortcut_hint,
+                    icon: icon_of(&args.icon),
+                    ..ActionOptions::default()
+                },
+                on_click(item.click_action()),
             ),
         }
     }
@@ -432,18 +280,12 @@ fn show_about_dialog(metadata: &crate::AboutMetadata) {
     if let Some(license) = &metadata.license {
         html.push_str(&format!("<p>License: {}</p>", html_escape(license)));
     }
-    let title = cstring(&format!("About {name}"));
-    let html = cstring(&html);
-    let icon = metadata.icon.as_ref().map(|i| &i.inner);
-    unsafe {
-        ffi::mq_show_about(
-            title.as_ptr(),
-            html.as_ptr(),
-            icon.map_or(std::ptr::null(), |i| i.rgba.as_ptr()),
-            icon.map_or(0, |i| i.width as c_int),
-            icon.map_or(0, |i| i.height as c_int),
-        )
-    }
+    let icon = metadata.icon.as_ref().map(|i| Icon {
+        rgba: &i.inner.rgba,
+        width: i.inner.width,
+        height: i.inner.height,
+    });
+    menu::show_about(&format!("About {name}"), &html, icon);
 }
 
 // -------------------------------------------------------------------------------------------
@@ -451,44 +293,24 @@ fn show_about_dialog(metadata: &crate::AboutMetadata) {
 
 pub(crate) struct PlatformMenu {
     /// Mirror of the menu's children, kept in sync through `attach`/`remove_at`.
-    children: Rc<RefCell<Vec<MenuItemKind>>>,
-    /// Widgets this menu is installed on.
-    widgets: Vec<Tracker>,
+    children: Children,
+    /// The windows this menu is installed on.
+    windows: Vec<Rc<Widget>>,
 }
 
-impl PlatformMenu {
-    /// Forget widgets that have been destroyed.
-    fn prune(&mut self) {
-        let dead: Vec<Tracker> = self
-            .widgets
-            .iter()
-            .copied()
-            .filter(|t| t.widget().is_null())
-            .collect();
-        for t in dead {
-            self.forget(t);
-        }
+/// Validate a window pointer handed to the public API. Fails off the Qt thread too.
+fn window_from_ptr(widget: *mut c_void) -> crate::Result<Widget> {
+    if !app::is_running() {
+        return Err(crate::Error::NotInitialized);
     }
-
-    fn forget(&mut self, tracker: Tracker) {
-        self.widgets.retain(|t| *t != tracker);
-        ATTACHED.with(|a| a.borrow_mut().retain(|x| x.tracker != tracker));
-        unsafe { ffi::mq_untrack(tracker.0) };
-    }
-
-    fn tracker_for(&self, widget: *mut c_void) -> Option<Tracker> {
-        self.widgets
-            .iter()
-            .copied()
-            .find(|t| !widget.is_null() && t.widget() == widget)
-    }
+    Widget::from_ptr(widget).ok_or(crate::Error::NotInitialized)
 }
 
 impl PlatformMenu {
     pub(crate) fn new() -> Self {
         Self {
             children: Rc::new(RefCell::new(Vec::new())),
-            widgets: Vec::new(),
+            windows: Vec::new(),
         }
     }
 
@@ -499,11 +321,11 @@ impl PlatformMenu {
                 AddOp::Append => children.push(child.clone()),
                 AddOp::Insert(i) => {
                     let i = i.min(children.len());
-                    children.insert(i, child.clone())
+                    children.insert(i, child.clone());
                 }
             }
         }
-        if !self.widgets.is_empty() {
+        if !self.windows.is_empty() {
             schedule_rebuild();
         }
         Ok(())
@@ -516,9 +338,15 @@ impl PlatformMenu {
                 children.remove(index);
             }
         }
-        if !self.widgets.is_empty() {
+        if !self.windows.is_empty() {
             schedule_rebuild();
         }
+    }
+
+    /// Forget windows that have been destroyed, then find `window` among the others.
+    fn position_of(&mut self, window: &Widget) -> Option<usize> {
+        self.windows.retain(|w| w.is_alive());
+        self.windows.iter().position(|w| **w == *window)
     }
 
     pub(crate) fn init_for_qt_window(
@@ -526,53 +354,53 @@ impl PlatformMenu {
         children: &[MenuItemKind],
         widget: *mut c_void,
     ) -> crate::Result<()> {
-        if widget.is_null() {
-            return Err(crate::Error::NotInitialized);
-        }
-        self.prune();
-        if self.tracker_for(widget).is_some() {
+        let window = window_from_ptr(widget)?;
+        if self.position_of(&window).is_some() {
             return Err(crate::Error::AlreadyInitialized);
         }
         *self.children.borrow_mut() = children.to_vec();
-        let tracker = Tracker::new(widget);
-        self.widgets.push(tracker);
+        build_menubar(&window, children);
+        let window = Rc::new(window);
         ATTACHED.with(|a| {
             a.borrow_mut().push(Attached {
-                tracker,
+                window: Rc::downgrade(&window),
                 children: Rc::downgrade(&self.children),
             })
         });
-        build_menubar(widget, children);
+        self.windows.push(window);
         Ok(())
     }
 
     pub(crate) fn remove_for_qt_window(&mut self, widget: *mut c_void) -> crate::Result<()> {
-        let Some(tracker) = self.tracker_for(widget) else {
-            return Err(crate::Error::NotInitialized);
-        };
-        self.forget(tracker);
-        unsafe { ffi::mq_menubar_remove(widget) };
+        let window = window_from_ptr(widget)?;
+        let index = self
+            .position_of(&window)
+            .ok_or(crate::Error::NotInitialized)?;
+        self.windows.remove(index);
+        MenuBar::remove(&window);
         Ok(())
     }
 
     pub(crate) fn hide_for_qt_window(&mut self, widget: *mut c_void) -> crate::Result<()> {
-        if self.tracker_for(widget).is_none() {
-            return Err(crate::Error::NotInitialized);
-        }
-        unsafe { ffi::mq_menubar_set_visible(widget, 0) };
-        Ok(())
+        self.set_visible(widget, false)
     }
 
     pub(crate) fn show_for_qt_window(&mut self, widget: *mut c_void) -> crate::Result<()> {
-        if self.tracker_for(widget).is_none() {
-            return Err(crate::Error::NotInitialized);
-        }
-        unsafe { ffi::mq_menubar_set_visible(widget, 1) };
+        self.set_visible(widget, true)
+    }
+
+    fn set_visible(&mut self, widget: *mut c_void, visible: bool) -> crate::Result<()> {
+        let window = window_from_ptr(widget)?;
+        self.position_of(&window)
+            .ok_or(crate::Error::NotInitialized)?;
+        MenuBar::set_visible(&window, visible);
         Ok(())
     }
 
     pub(crate) fn is_visible_on_qt_window(&self, widget: *mut c_void) -> bool {
-        self.tracker_for(widget).is_some() && unsafe { ffi::mq_menubar_is_visible(widget) } != 0
+        window_from_ptr(widget).is_ok_and(|window| {
+            self.windows.iter().any(|w| **w == window) && MenuBar::is_visible(&window)
+        })
     }
 
     pub(crate) fn show_context_menu_for_qt_window(
@@ -587,32 +415,37 @@ impl PlatformMenu {
 
 impl Drop for PlatformMenu {
     fn drop(&mut self) {
-        for tracker in self.widgets.clone() {
-            let widget = tracker.widget();
-            if !widget.is_null() {
-                unsafe { ffi::mq_menubar_remove(widget) };
-            }
-            self.forget(tracker);
+        // After the application is gone its menubars are too.
+        if !app::is_running() {
+            return;
+        }
+        for window in self.windows.drain(..) {
+            MenuBar::remove(&window);
         }
     }
 }
 
+/// Show `children` as a context menu in the window `widget`. Returns `false` if `widget` isn't a
+/// live window or this isn't the Qt thread.
 pub(crate) fn show_context_menu(
     children: &[MenuItemKind],
     widget: *mut c_void,
     position: Option<Position>,
 ) -> bool {
-    if widget.is_null() {
+    let Some(menu) = window_from_ptr(widget)
+        .ok()
+        .and_then(|window| PopupMenu::new(&window))
+    else {
         return false;
-    }
-    let menu = unsafe { ffi::mq_popup_menu_new(widget) };
-    build_items(menu, children, false);
-    let (has_pos, x, y, physical) = match position {
-        Some(Position::Logical(p)) => (1, p.x, p.y, 0),
-        Some(Position::Physical(p)) => (1, p.x as f64, p.y as f64, 1),
-        None => (0, 0.0, 0.0, 0),
     };
-    unsafe { ffi::mq_popup_menu_show(menu, widget, has_pos, x, y, physical) };
+    build_items(&menu, children, false);
+    menu.show(position.map(|p| match p {
+        Position::Logical(p) => PopupPosition::Logical { x: p.x, y: p.y },
+        Position::Physical(p) => PopupPosition::Physical {
+            x: f64::from(p.x),
+            y: f64::from(p.y),
+        },
+    }));
     true
 }
 
