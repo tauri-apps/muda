@@ -56,7 +56,7 @@ features = [
 ]
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
-qtshim = { version = "0.1", path = "../tauri-runtime-qt/crates/qtshim", optional = true }
+qtshim = { version = "0.1", git = "https://github.com/KRTirtho/tauri-runtime-qt", branch = "main", optional = true }
 gtk = { version = "0.18", optional = true }
 gtk4 = { version = "0.11", optional = true, features = ["v4_12"] }
 libxdo = { version = "0.6.0", optional = true }
@@ -112,8 +112,8 @@ winit-gtk4 = { package = "winit", git = "https://github.com/tauri-apps/winit-gtk
 
 # Only for the Qt tests, so other backends' tests don't need Qt: `tests/qt.rs`.
 [target.'cfg(muda_qt_tests)'.dev-dependencies]
-qt-test-harness = { path = "../tauri-runtime-qt/crates/qt-test-harness" }
-qtshim = { path = "../tauri-runtime-qt/crates/qtshim", features = ["webengine"] }
+qt-test-harness = { git = "https://github.com/KRTirtho/tauri-runtime-qt", branch = "main" }
+qtshim = { git = "https://github.com/KRTirtho/tauri-runtime-qt", branch = "main", features = ["webengine"] }
 
 [[example]]
 name = "winit_gtk4"

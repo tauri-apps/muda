@@ -2861,6 +2861,7 @@ checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 [[package]]
 name = "qt-test-harness"
 version = "0.0.0"
+source = "git+https://github.com/KRTirtho/tauri-runtime-qt?branch=main#e259ca914765fe777cb69f89a3b215892b0724b3"
 dependencies = [
  "libtest-mimic",
 ]
@@ -2868,6 +2869,7 @@ dependencies = [
 [[package]]
 name = "qtshim"
 version = "0.1.0"
+source = "git+https://github.com/KRTirtho/tauri-runtime-qt?branch=main#e259ca914765fe777cb69f89a3b215892b0724b3"
 dependencies = [
  "http",
  "qtshim-sys",
@@ -2876,6 +2878,7 @@ dependencies = [
 [[package]]
 name = "qtshim-sys"
 version = "0.1.0"
+source = "git+https://github.com/KRTirtho/tauri-runtime-qt?branch=main#e259ca914765fe777cb69f89a3b215892b0724b3"
 dependencies = [
  "cc",
 ]
