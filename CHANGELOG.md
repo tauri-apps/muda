@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0]
+
+- [`3b69fc1`](https://www.github.com/tauri-apps/muda/commit/3b69fc1a61373ca769fa256dd7570218c3e0eea3) ([#438](https://www.github.com/tauri-apps/muda/pull/438)) **Breaking change** `MenuEvent::set_event_handler` now takes an `Option<MenuEventHandler>`, which is an `Arc<dyn Fn(MenuEvent) + Send + Sync>`, so wrap your closure in `Arc::new` and pass a plain `None` instead of `None::<fn(MenuEvent)>`. It also returns the handler it replaced, and passing that handler back restores it.
+- [`3b69fc1`](https://www.github.com/tauri-apps/muda/commit/3b69fc1a61373ca769fa256dd7570218c3e0eea3) ([#438](https://www.github.com/tauri-apps/muda/pull/438)) Fix `MenuEvent::set_event_handler` having no effect when called again, or after a menu event was already emitted. It now replaces the current handler, and passing `None` removes it, so events are sent to `MenuEvent::receiver` again.
+- [`1252e85`](https://www.github.com/tauri-apps/muda/commit/1252e856626f79d03c78612ce9992979f3338d38) ([#434](https://www.github.com/tauri-apps/muda/pull/434)) On Windows, Fix missing icons in menu bar when in dark mode.
+
 ## [0.21.2]
 
 - [`1802a0d`](https://www.github.com/tauri-apps/muda/commit/1802a0d7d3c2e2f951d8d8212fb2e6cd4fa54e69) ([#430](https://www.github.com/tauri-apps/muda/pull/430) by [@wonfen](https://www.github.com/tauri-apps/muda/../../wonfen)) On Windows, Fix menu items going dead after a process has created about 64.5k menus and items.
