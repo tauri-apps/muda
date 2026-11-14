@@ -18,7 +18,19 @@ fn main() {
         );
     }
 
-    // With gtk3/gtk4 also enabled, lib.rs emits a compile error instead.
+    // GTK and Qt menus are alternative backends: with gtk3/gtk4 also enabled (e.g. through
+    // feature unification, or `--all-features`), the GTK backend wins and `qt` only adds the
+    // unused `qtshim` dependency.
+    if gtk_platform
+        && std::env::var_os("CARGO_FEATURE_QT").is_some()
+        && (std::env::var_os("CARGO_FEATURE_GTK3").is_some()
+            || std::env::var_os("CARGO_FEATURE_GTK4").is_some())
+    {
+        println!(
+            "cargo::warning=features `qt` and `gtk3`/`gtk4` are enabled together; Muda will use the GTK backend"
+        );
+    }
+
     if gtk_platform
         && std::env::var_os("CARGO_FEATURE_QT").is_some()
         && std::env::var_os("CARGO_FEATURE_GTK3").is_none()

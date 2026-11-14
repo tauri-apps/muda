@@ -56,7 +56,7 @@ mod platform;
 ))]
 #[path = "noop/mod.rs"]
 mod platform;
-// `muda_qt` is only set without gtk3/gtk4 (that combination is a `compile_error!`, see lib.rs)
+// `muda_qt` is only set without gtk3/gtk4 (those take precedence, see build.rs)
 #[cfg(muda_qt)]
 #[path = "qt/mod.rs"]
 mod platform;
