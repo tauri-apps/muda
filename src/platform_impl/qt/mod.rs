@@ -34,7 +34,7 @@ use crate::{
     icon::RgbaIcon,
     items::{IconType, MenuItemAction, PredefinedMenuItemType},
     util::AddOp,
-    MenuEvent, MenuItemKind, TextStyle,
+    MenuEvent, MenuItemKind,
 };
 
 pub(crate) type PlatformIcon = RgbaIcon;
@@ -144,18 +144,23 @@ fn activate(action: &MenuItemAction) {
             schedule_rebuild();
         }
         MenuItemAction::Predefined(state) => {
-            let Some(t) = state
+            if let Some(t) = state
                 .upgrade()
                 .map(|s| s.borrow().predefined_item_type.clone())
-            else {
-                return;
-            };
-            if let PredefinedMenuItemType::About(Some(metadata)) = &t {
-                show_about_dialog(metadata);
-            } else if let Some(action) = standard_action(&t) {
-                action.trigger();
+            {
+                run_predefined_action(&t);
             }
         }
+    }
+}
+
+/// Runs what a predefined item does when it's clicked (also used by
+/// `PredefinedMenuItemSnapshot::activate`, on the main thread).
+pub(crate) fn run_predefined_action(predefined_item_type: &PredefinedMenuItemType) {
+    if let PredefinedMenuItemType::About(Some(metadata)) = predefined_item_type {
+        show_about_dialog(metadata);
+    } else if let Some(action) = standard_action(predefined_item_type) {
+        action.trigger();
     }
 }
 
@@ -472,15 +477,6 @@ impl PlatformMenuItem {
         schedule_rebuild();
     }
 
-    pub(crate) fn set_styled_text(
-        &mut self,
-        _text: &str,
-        _parts: &[(String, TextStyle)],
-        _accelerator: Option<&MenuAccelerator>,
-    ) {
-        schedule_rebuild();
-    }
-
     pub(crate) fn is_enabled(&self) -> Option<bool> {
         None
     }
@@ -661,7 +657,6 @@ mod tests {
         assert_eq!(item.is_enabled(), None);
         assert_eq!(item.is_checked(), None);
         item.set_text("t", None);
-        item.set_styled_text("t", &[("t".into(), TextStyle::Secondary)], None);
         item.set_enabled(false);
         item.set_checked(true);
         item.set_icon(None);

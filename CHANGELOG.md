@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.21.2]
+
+- [`1802a0d`](https://www.github.com/tauri-apps/muda/commit/1802a0d7d3c2e2f951d8d8212fb2e6cd4fa54e69) ([#430](https://www.github.com/tauri-apps/muda/pull/430) by [@wonfen](https://www.github.com/tauri-apps/muda/../../wonfen)) On Windows, Fix menu items going dead after a process has created about 64.5k menus and items.
+
+## [0.21.1]
+
+- [`1719dbf`](https://www.github.com/tauri-apps/muda/commit/1719dbf1e178cab70098adc7abc03a0b231b32d3) ([#429](https://www.github.com/tauri-apps/muda/pull/429) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On macOS, let `objc2` auto-generate the Objective-C runtime names for muda's internal classes (previously hardcoded as `MudaMenuItem` and `MudaMenuDelegate`). The generated names include the crate version, so two SemVer-incompatible versions of muda in the same binary no longer panic with `could not create new class MudaMenuItem. Perhaps a class with that name already exists?`.
+- [`9d35d84`](https://www.github.com/tauri-apps/muda/commit/9d35d84868665f68c61694a1966c697c2a89aa24) ([#424](https://www.github.com/tauri-apps/muda/pull/424) by [@FalkWoldmann](https://www.github.com/tauri-apps/muda/../../FalkWoldmann)) Replace the `once_cell` dependency with `std::sync::LazyLock` and `std::sync::OnceLock`.
+
+## [0.21.0]
+
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Support the predefined `Undo` and `Redo` menu items on the GTK 3 and GTK 4 backends. On GTK 4 they act on the application's focused widget; on GTK 3 they only act on a focused `WebKitWebView`, which is the only widget there with an undo stack.
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Support the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items on the GTK 4 backend.
+- [`ff4344f`](https://www.github.com/tauri-apps/muda/commit/ff4344f0dc15c9b6ce7889fdce13836448e3aa2a) ([#399](https://www.github.com/tauri-apps/muda/pull/399) by [@MattJackson](https://www.github.com/tauri-apps/muda/../../MattJackson)) On macOS, Add `set_attributed_title` to `MenuItem`, `CheckMenuItem`, `IconMenuItem`, and `Submenu` to set a fully custom `NSAttributedString`. Passing `None` clears it and falls back to the plain text.
+- [`8ef14fd`](https://www.github.com/tauri-apps/muda/commit/8ef14fd265299618e181d86d3b158fc617e60671) ([#413](https://www.github.com/tauri-apps/muda/pull/413) by [@minodisk](https://www.github.com/tauri-apps/muda/../../minodisk)) Add `IconMenuItem/Submenu::set_icon_templated` and `IconMenuItem/Submenu::icon_is_template` on macOS, to opt an
+    item's icon into being drawn as a template image, so the system recolours it to match
+    the menu the way the built-in items are.
+- [`9c46bc8`](https://www.github.com/tauri-apps/muda/commit/9c46bc8989fd91dae598c9ffa62decce00bab0d9) ([#419](https://www.github.com/tauri-apps/muda/pull/419) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add `NativeIcon::appkit_name` on macOS, and `NativeIcon::stock_icon_id` and `NativeIcon::to_hicon` on Windows, exposing the platform mappings already used for menu item icons.
+- [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) **Breaking change** Remove the `libxdo` Cargo feature and the dependency on `libxdo`. The predefined `Copy`, `Cut`, `Paste` and `SelectAll` items now act on the application's focused widget with GTK itself.
+- [`3324171`](https://www.github.com/tauri-apps/muda/commit/3324171355deac8c88e364b5351729520ac3474e) ([#422](https://www.github.com/tauri-apps/muda/pull/422) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) **Breaking change** Remove the `TextStyle` enum, `MenuItem/IconMenuItem/CheckMenuItem/Submenu::set_styled_text` and `MenuItemBuilder/IconMenuItemBuilder/CheckMenuItemBuilder/SubmenuBuilder::styled_text`. Use `set_attributed_title` on macOS to style a label; the styled parts rendered as plain text on the other platforms anyway.
+- [`4f4b276`](https://www.github.com/tauri-apps/muda/commit/4f4b276c4951ecf7ad4abf1652aeb4bc9103b2db) ([#418](https://www.github.com/tauri-apps/muda/pull/418) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Add `PredefinedMenuItemSnapshot::activate`, which runs the item's predefined action from a menu snapshot: the about dialog, the edit commands, and on GTK 4 the window items. The ones that act on a window use the application's active one, as a snapshot has no menu of this process to take it from.
+
 ## [0.20.0]
 
 - [`ec834f6`](https://www.github.com/tauri-apps/muda/commit/ec834f6fbf114efebda2bd5716756b0f07a3f463) ([#385](https://www.github.com/tauri-apps/muda/pull/385)) **Breaking change** `Accelerator::new` and `KeyAccelerator::new` now take `Modifiers` directly instead of `Option<Modifiers>`, use `Modifiers::empty()` instead.

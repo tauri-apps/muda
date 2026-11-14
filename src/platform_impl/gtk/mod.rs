@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+mod edit_command;
 mod icon;
 mod mnemonic;
 
@@ -441,15 +442,6 @@ impl PlatformMenuItem {
         }
     }
 
-    pub fn set_styled_text(
-        &mut self,
-        text: &str,
-        _parts: &[(String, crate::TextStyle)],
-        accelerator: Option<&MenuAccelerator>,
-    ) {
-        self.set_text(text, accelerator)
-    }
-
     pub fn is_enabled(&self) -> Option<bool> {
         match self
             .gtk_menu_items
@@ -881,7 +873,7 @@ impl PlatformMenuItem {
 
         let item = if matches!(&predefined_item_type, PredefinedMenuItemType::Separator) {
             gtk::SeparatorMenuItem::new().upcast::<gtk::MenuItem>()
-        } else if predefined_item_type.is_supported_on_gtk() {
+        } else if predefined_item_type.is_supported() {
             let item = make_item();
 
             if matches!(
@@ -891,8 +883,10 @@ impl PlatformMenuItem {
                     | PredefinedMenuItemType::Paste
                     | PredefinedMenuItemType::SelectAll
             ) {
-                // These items do not need an accelerator as GTK automatically have them,
-                // but we need to set the accelerator label so that it is displayed in the menu
+                // These items do not need an accelerator as GTK automatically have them, but we
+                // need to set the accelerator label so that it is displayed in the menu.
+                // Registering one would also make the key sequence the item sends re-activate
+                // it, without end. `Undo` and `Redo` send none, so they are registered below.
                 let (mods, key) = predefined_item_type
                     .accelerator()
                     .unwrap()
@@ -907,7 +901,7 @@ impl PlatformMenuItem {
                 self.register_accelerator(args, &item, menu_id, accel_group, add_to_cache)?;
             }
 
-            item.connect_activate(move |_| run_predefined(&predefined_item_type));
+            item.connect_activate(move |item| run_predefined(Some(item), &predefined_item_type));
             item
         } else {
             // Render unsupported predefined menu items as disabled menu items
@@ -1144,6 +1138,10 @@ fn show_context_menu(
         }
     }
 
+    // Attaching the menu is what lets its items find the window they were shown for. The menu is
+    // reused, and setting the property detaches it from the widget it was shown for before.
+    gtk_menu.set_property("attach-widget", widget.as_ref());
+
     let (tx, rx) = crossbeam_channel::unbounded();
     let tx_clone = tx.clone();
     let id = gtk_menu.connect_cancel(move |_| tx_clone.send(false).unwrap_or(()));
@@ -1176,46 +1174,30 @@ fn show_context_menu(
     }
 }
 
-impl PredefinedMenuItemType {
-    fn is_supported_on_gtk(&self) -> bool {
-        matches!(
-            self,
-            PredefinedMenuItemType::Separator
-                | PredefinedMenuItemType::Copy
-                | PredefinedMenuItemType::Cut
-                | PredefinedMenuItemType::Paste
-                | PredefinedMenuItemType::SelectAll
-                | PredefinedMenuItemType::About(_)
-        )
-    }
-
-    #[cfg(feature = "libxdo")]
-    fn xdo_keys(&self) -> &str {
-        match self {
-            PredefinedMenuItemType::Copy => "ctrl+c",
-            PredefinedMenuItemType::Cut => "ctrl+X",
-            PredefinedMenuItemType::Paste => "ctrl+v",
-            PredefinedMenuItemType::SelectAll => "ctrl+a",
-            _ => unreachable!(),
-        }
-    }
+/// Runs the action of a predefined menu item activated from a menu snapshot, which has no menu
+/// item of this process to take the window from. Must be called on the GTK main thread.
+#[cfg(feature = "snapshot")]
+pub(crate) fn run_predefined_action(predefined_item_type: &PredefinedMenuItemType) {
+    run_predefined(None, predefined_item_type);
 }
 
-fn run_predefined(predefined_item_type: &PredefinedMenuItemType) {
+/// Runs the action of a predefined menu item. Must be called on the GTK main thread.
+fn run_predefined(item: Option<&gtk::MenuItem>, predefined_item_type: &PredefinedMenuItemType) {
     match predefined_item_type {
+        // GTK has no action for the edit commands, so the menu emulates them on the window it
+        // belongs to.
         PredefinedMenuItemType::Copy
         | PredefinedMenuItemType::Cut
         | PredefinedMenuItemType::Paste
-        | PredefinedMenuItemType::SelectAll => {
-            // TODO: wayland
-            #[cfg(feature = "libxdo")]
-            if let Ok(xdo) = libxdo::XDo::new(None) {
-                let _ = xdo.send_keysequence(predefined_item_type.xdo_keys(), 0);
-            }
+        | PredefinedMenuItemType::SelectAll
+        | PredefinedMenuItemType::Undo
+        | PredefinedMenuItemType::Redo => {
+            edit_command::send(item, predefined_item_type);
         }
+
         PredefinedMenuItemType::About(Some(metadata)) => show_about_dialog(metadata),
-        PredefinedMenuItemType::About(None) => {}
-        _ => unreachable!("unsupported predefined item activated"),
+
+        _ => {}
     }
 }
 

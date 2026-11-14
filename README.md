@@ -23,7 +23,6 @@ The Win32 and AppKit backends are always enabled on Windows and macOS, respectiv
 - `gtk3`: Enables the GTK 3 backend on Linux or BSD platforms. This is enabled by default.
 - `gtk4`: Enables the GTK 4 backend on Linux or BSD platforms. Use `default-features = false` when enabling this feature because the default features include `gtk3`.
 - `common-controls-v6`: Use `TaskDialogIndirect` API from `ComCtl32.dll` v6 on Windows for showing the predefined `About` menu item dialog.
-- `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used by GTK 4.
 - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state to thread-safe synchronization.
 - `serde`: Enables de/serializing the dpi types.
 
@@ -31,7 +30,7 @@ When both `gtk3` and `gtk4` are enabled, Muda uses the GTK 4 backend and emits a
 
 ## Dependencies (Linux/BSD)
 
-The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work when the `libxdo` feature is enabled.
+The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus.
 
 Be sure to install the packages for the GTK backend you enabled before building:
 
@@ -39,7 +38,7 @@ Be sure to install the packages for the GTK backend you enabled before building:
 
 ```sh
 # GTK 3 backend
-pacman -S gtk3 xdotool
+pacman -S gtk3
 
 # GTK 4 backend
 pacman -S gtk4
@@ -49,7 +48,7 @@ pacman -S gtk4
 
 ```sh
 # GTK 3 backend
-sudo apt install libgtk-3-dev libxdo-dev
+sudo apt install libgtk-3-dev
 
 # GTK 4 backend
 sudo apt install libgtk-4-dev
@@ -61,7 +60,7 @@ Install these dependencies in order to compile `muda`. Instructions using `pkg`:
 
 ```sh
 # GTK 3 backend
-pkg install -y rust glib pkgconf gtk3 xdotool
+pkg install -y rust glib pkgconf gtk3
 
 # GTK 4 backend
 pkg install -y rust glib pkgconf gtk4
@@ -71,48 +70,70 @@ pkg install -y rust glib pkgconf gtk4
 
 Create the menu and add your items
 
-```rs
+```rust
+use muda::{Menu, Submenu, MenuItem, accelerator::{Code, Modifiers, Accelerator}, PredefinedMenuItem};
 let menu = Menu::new();
 let menu_item2 = MenuItem::new("Menu item #2", false, None);
-let submenu = Submenu::with_items("Submenu Outer", true,&[
-  &MenuItem::new("Menu item #1", true, Some(Accelerator::new(Modifiers::ALT, Code::KeyD))),
-  &PredefinedMenuItem::separator(),
-  &menu_item2,
-  &MenuItem::new("Menu item #3", true, None),
-  &PredefinedMenuItem::separator(),
-  &Submenu::with_items("Submenu Inner", true,&[
-    &MenuItem::new("Submenu item #1", true, None),
-    &PredefinedMenuItem::separator(),
-    &menu_item2,
-  ])
-]);
-
+let submenu = Submenu::with_items(
+    "Submenu Outer",
+    true,
+    &[
+        &MenuItem::new(
+            "Menu item #1",
+            true,
+            Some(Accelerator::new(Modifiers::ALT, Code::KeyD)),
+        ),
+        &PredefinedMenuItem::separator(),
+        &menu_item2,
+        &MenuItem::new("Menu item #3", true, None),
+        &PredefinedMenuItem::separator(),
+        &Submenu::with_items(
+            "Submenu Inner",
+            true,
+            &[
+                &MenuItem::new("Submenu item #1", true, None),
+                &PredefinedMenuItem::separator(),
+                &menu_item2,
+            ],
+        ).unwrap(),
+    ],
+).unwrap();
+menu.append(&submenu).unwrap();
 ```
 
 Then add your root menu to a window on Windows, GTK 3, or GTK 4
 or use it as your global app menu on macOS
 
-```rs
-// --snip--
+The window handles and GTK widgets below come from your application's window setup.
+For GTK, use the same GTK version as the enabled Muda backend.
+
+```rust
 #[cfg(target_os = "windows")]
-unsafe { menu.init_for_hwnd(window.hwnd() as isize) };
+unsafe { menu.init_for_hwnd(window_hwnd) }.unwrap();
+
 #[cfg(target_os = "linux")]
-menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
+menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box)).unwrap();
+
 #[cfg(target_os = "macos")]
 menu.init_for_nsapp();
 ```
 
 ## Context menus (Popup menus)
 
-You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
+You can also use a `Menu` or a `Submenu` to show a context menu.
+Use a valid window handle, GTK window, or `NSView` from your application.
 
-```rs
-// --snip--
+```rust
+use muda::ContextMenu;
+
 let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
+
 #[cfg(target_os = "windows")]
-unsafe { menu.show_context_menu_for_hwnd(window.hwnd() as isize, Some(position.into())) };
+unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
+
 #[cfg(target_os = "linux")]
 menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
+
 #[cfg(target_os = "macos")]
 unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
 ```
@@ -147,14 +168,26 @@ enum UserEvent {
 let event_loop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
 
 let proxy = event_loop.create_proxy();
-muda::MenuEvent::set_event_handler(Some(move |event| {
+muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
     proxy.send_event(UserEvent::MenuEvent(event));
-}));
+})));
 ```
+
+Only one handler can be set at a time, for the whole process, so `MenuEvent::set_event_handler`
+replaces the current handler and returns it. While a handler is set, the `MenuEventReceiver`
+doesn't receive any events.
+
+### Note for multiple versions of muda:
+
+Each SemVer-incompatible version of muda has its own handler and receiver, and a menu only sends
+its events to those of the version that created it. So if your dependency tree has two versions,
+for example because [tray-icon] depends on another one, the menus created through one of them
+never send events to the handler or receiver of the other. Run `cargo tree --duplicates` to check.
 
 [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 [winit]: https://docs.rs/winit
 [tao]: https://docs.rs/tao
+[tray-icon]: https://docs.rs/tray-icon
 
 ## License
 

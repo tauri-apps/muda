@@ -701,8 +701,6 @@ fn update_text() {
     w.wait_tree("renamed items", |t| {
         t == "Sub2\n  Item2 <Ctrl+I>\n  [ ] Check2\n  Icon2\n  Copy2 (Ctrl+C)\n"
     });
-    item.set_styled_text([("Styled", muda::TextStyle::Secondary)]);
-    w.wait_tree("styled text", |t| t.contains("  Styled <Ctrl+I>\n"));
 }
 
 fn update_enabled() {
@@ -851,6 +849,12 @@ fn click_cases() -> Vec<Case> {
         ),
         Case::pass("click: About shows a non-blocking dialog", click_about),
         Case::pass("click: Quit stops the event loop", click_quit).timeout(Duration::from_secs(30)),
+        #[cfg(feature = "snapshot")]
+        Case::pass(
+            "click: a predefined item's snapshot activates it from another thread",
+            snapshot_activate_quit,
+        )
+        .timeout(Duration::from_secs(30)),
         Case::pass(
             "click: window actions on the active window",
             click_window_actions,
@@ -992,6 +996,19 @@ fn click_quit() {
         assert!(debug::trigger_menu_item(&widget, "Quit"));
     });
     // Returns only because the item quit the loop.
+    assert_eq!(app::exec(), 0);
+}
+
+#[cfg(feature = "snapshot")]
+fn snapshot_activate_quit() {
+    use muda::IsMenuItem;
+    init();
+    let quit = PredefinedMenuItem::quit(None);
+    let muda::MenuItemKindSnapshot::Predefined(snapshot) = quit.kind().snapshot() else {
+        panic!("not a predefined item snapshot");
+    };
+    // Queued on the Qt loop from another thread; the loop then runs it, and Quit stops it.
+    thread::spawn(move || (snapshot.activate)()).join().unwrap();
     assert_eq!(app::exec(), 0);
 }
 

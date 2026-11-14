@@ -113,6 +113,8 @@ pub trait ContextMenu: sealed::Sealed {
     /// Get the underlying GTK 4 popover menu reserved for context menus.
     ///
     /// The returned [`gtk::PopoverMenu`] is valid as long as the `ContextMenu` is.
+    /// It must be parented to a [`gtk::ApplicationWindow`] or one of its descendants
+    /// so it can resolve the application's menu actions.
     #[cfg(all(
         any(
             target_os = "linux",

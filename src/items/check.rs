@@ -8,7 +8,6 @@ use crate::{
     accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     platform_impl::PlatformMenuItem,
     util, CheckMenuItemBuilder, IsMenuItem, MenuId, MenuItemAction, MenuItemKind, StateCell,
-    TextStyle,
 };
 
 /// A check menu item inside a [`Menu`] or [`Submenu`]
@@ -31,7 +30,6 @@ pub(crate) struct CheckMenuItemState {
     pub enabled: bool,
     pub checked: bool,
     pub accelerator: Option<MenuAccelerator>,
-    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl crate::sealed::Sealed for CheckMenuItem {}
@@ -107,7 +105,6 @@ impl CheckMenuItem {
             enabled,
             checked,
             accelerator,
-            styled_text: None,
         });
         // The click path flips `checked` through this handle rather than through the wrapper,
         // which it has no way to reach. It is weak so that state does not own the platform that
@@ -140,7 +137,6 @@ impl CheckMenuItem {
         let accelerator = {
             let mut state = self.state.borrow_mut();
             state.text = text.as_ref().to_string();
-            state.styled_text = None;
             state.accelerator.clone()
         };
 
@@ -149,21 +145,23 @@ impl CheckMenuItem {
             .set_text(text.as_ref(), accelerator.as_ref())
     }
 
-    /// Set the item's label as styled parts. On Windows and Linux the parts render as plain text.
-    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
-        let parts = parts
-            .into_iter()
-            .map(|(text, style)| (text.as_ref().to_string(), style))
-            .collect::<Vec<_>>();
-        let (text, accelerator) = {
-            let mut state = self.state.borrow_mut();
-            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
-            state.styled_text = Some(parts.clone());
-            (state.text.clone(), state.accelerator.clone())
-        };
-        self.platform
-            .borrow_mut()
-            .set_styled_text(&text, &parts, accelerator.as_ref())
+    /// Set the check menu item's label to a fully custom
+    /// [`NSAttributedString`](objc2_foundation::NSAttributedString) (macOS only).
+    ///
+    /// This is an escape hatch for layouts and colors that plain
+    /// [`set_text`](Self::set_text) cannot express — for example a right-aligned trailing
+    /// segment (built with an `NSParagraphStyle` that has a right-aligned `NSTextTab` and
+    /// a `\t` separator, as the system battery menu does) or a custom
+    /// `NSForegroundColorAttributeName` used to tint a whole row. Because the caller
+    /// supplies raw attributes, it is the caller's responsibility to keep the label
+    /// legible in light and dark modes, under increased contrast, and when the system
+    /// menu font changes.
+    ///
+    /// This and [`set_text`](Self::set_text) write the same label, so the last one
+    /// called wins. Pass `None` to clear the custom title and fall back to the plain text.
+    #[cfg(target_os = "macos")]
+    pub fn set_attributed_title(&self, title: Option<&objc2_foundation::NSAttributedString>) {
+        self.platform.borrow_mut().set_attributed_title(title)
     }
 
     /// Get whether this check menu item is enabled or not.

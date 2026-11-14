@@ -9,7 +9,7 @@ use crate::{
     icon::{Icon, NativeIcon},
     platform_impl::PlatformMenuItem,
     util, IconMenuItemBuilder, IconType, IsMenuItem, MenuId, MenuItemAction, MenuItemKind,
-    StateCell, TextStyle,
+    StateCell,
 };
 
 /// An icon menu item inside a [`Menu`] or [`Submenu`]
@@ -31,7 +31,6 @@ pub(crate) struct IconMenuItemState {
     pub enabled: bool,
     pub icon: Option<IconType>,
     pub accelerator: Option<MenuAccelerator>,
-    pub styled_text: Option<Vec<(String, TextStyle)>>,
 }
 
 impl crate::sealed::Sealed for IconMenuItem {}
@@ -179,7 +178,6 @@ impl IconMenuItem {
             enabled,
             icon,
             accelerator,
-            styled_text: None,
         };
 
         let click = MenuItemAction::Emit(id.clone());
@@ -210,7 +208,6 @@ impl IconMenuItem {
         let accelerator = {
             let mut state = self.state.borrow_mut();
             state.text = text.as_ref().to_string();
-            state.styled_text = None;
             state.accelerator.clone()
         };
 
@@ -219,21 +216,23 @@ impl IconMenuItem {
             .set_text(text.as_ref(), accelerator.as_ref())
     }
 
-    /// Set the item's label as styled parts. On Windows and Linux the parts render as plain text.
-    pub fn set_styled_text<S: AsRef<str>>(&self, parts: impl IntoIterator<Item = (S, TextStyle)>) {
-        let parts = parts
-            .into_iter()
-            .map(|(text, style)| (text.as_ref().to_string(), style))
-            .collect::<Vec<_>>();
-        let (text, accelerator) = {
-            let mut state = self.state.borrow_mut();
-            state.text = parts.iter().map(|(text, _)| text.as_str()).collect();
-            state.styled_text = Some(parts.clone());
-            (state.text.clone(), state.accelerator.clone())
-        };
-        self.platform
-            .borrow_mut()
-            .set_styled_text(&text, &parts, accelerator.as_ref())
+    /// Set the icon menu item's label to a fully custom
+    /// [`NSAttributedString`](objc2_foundation::NSAttributedString) (macOS only).
+    ///
+    /// This is an escape hatch for layouts and colors that plain
+    /// [`set_text`](Self::set_text) cannot express — for example a right-aligned trailing
+    /// segment (built with an `NSParagraphStyle` that has a right-aligned `NSTextTab` and
+    /// a `\t` separator, as the system battery menu does) or a custom
+    /// `NSForegroundColorAttributeName` used to tint a whole row. Because the caller
+    /// supplies raw attributes, it is the caller's responsibility to keep the label
+    /// legible in light and dark modes, under increased contrast, and when the system
+    /// menu font changes.
+    ///
+    /// This and [`set_text`](Self::set_text) write the same label, so the last one
+    /// called wins. Pass `None` to clear the custom title and fall back to the plain text.
+    #[cfg(target_os = "macos")]
+    pub fn set_attributed_title(&self, title: Option<&objc2_foundation::NSAttributedString>) {
+        self.platform.borrow_mut().set_attributed_title(title)
     }
 
     /// Get whether this check menu item is enabled or not.
@@ -313,6 +312,31 @@ impl IconMenuItem {
             state.icon.clone()
         };
         self.platform.borrow_mut().set_icon(icon.as_ref())
+    }
+
+    /// Whether this menu item's icon is treated as a template image on macOS.
+    ///
+    /// See [`IconMenuItem::set_icon_templated`].
+    #[cfg(target_os = "macos")]
+    pub fn icon_is_template(&self) -> bool {
+        self.platform.borrow().icon_is_template()
+    }
+
+    /// Change this menu item icon, or remove it, and draw it as a template image on macOS.
+    ///
+    /// A template image is drawn using only its alpha channel, so the system recolours it to
+    /// match the menu, the way the built-in items do. [`IconMenuItem::set_icon`] draws the icon as-is
+    /// instead.
+    ///
+    /// (Note that setting an icon will override any existing [.set_native_icon()](Self::set_native_icon))
+    #[cfg(target_os = "macos")]
+    pub fn set_icon_templated(&self, icon: Option<Icon>) {
+        let icon = {
+            let mut state = self.state.borrow_mut();
+            state.icon = icon.map(IconType::Custom);
+            state.icon.clone()
+        };
+        self.platform.borrow_mut().set_icon_templated(icon.as_ref())
     }
 
     /// Convert this menu item into its menu ID.

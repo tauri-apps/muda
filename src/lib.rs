@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(clippy::uninlined_format_args)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! muda is a Menu Utilities library for Desktop Applications.
 //!
@@ -28,9 +29,6 @@
 //! - `gtk3`: Enables the GTK 3 backend on Linux and BSD platforms. This is enabled by default.
 //! - `gtk4`: Enables the GTK 4 backend on Linux and BSD platforms. Disable default features when
 //!   enabling this feature because the defaults include `gtk3`.
-//! - `libxdo`: Enables linking to `libxdo` for the GTK 3 backend. This is used by the predefined
-//!   `Copy`, `Cut`, `Paste` and `SelectAll` menu items, and is enabled by default. It is not used
-//!   by GTK 4.
 //! - `snapshot`: Enables thread-safe menu snapshot types and methods, switching shared menu state
 //!   to thread-safe synchronization.
 //!
@@ -38,16 +36,14 @@
 //!
 //! # Dependencies (Linux/BSD)
 //!
-//! The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. `libxdo` is
-//! only used by the GTK 3 backend to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll`
-//! menu items work when the `libxdo` feature is enabled. Be sure to install the packages for the
-//! GTK backend you enabled before building:
+//! The `gtk3` feature uses GTK 3 for menus. The `gtk4` feature uses GTK 4 for menus. Be sure to
+//! install the packages for the GTK backend you enabled before building:
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
 //! # GTK 3 backend
-//! pacman -S gtk3 xdotool
+//! pacman -S gtk3
 //!
 //! # GTK 4 backend
 //! pacman -S gtk4
@@ -57,7 +53,7 @@
 //!
 //! ```sh
 //! # GTK 3 backend
-//! sudo apt install libgtk-3-dev libxdo-dev
+//! sudo apt install libgtk-3-dev
 //!
 //! # GTK 4 backend
 //! sudo apt install libgtk-4-dev
@@ -67,7 +63,7 @@
 //!
 //! ```sh
 //! # GTK 3 backend
-//! pkg install -y rust glib pkgconf gtk3 xdotool
+//! pkg install -y rust glib pkgconf gtk3
 //!
 //! # GTK 4 backend
 //! pkg install -y rust glib pkgconf gtk4
@@ -104,44 +100,44 @@
 //!             ],
 //!         ).unwrap(),
 //!     ],
-//! );
+//! ).unwrap();
+//! menu.append(&submenu).unwrap();
 //! ```
 //!
 //! Then add your root menu to a window on Windows, GTK 3, or GTK 4
 //! or use it as your global app menu on macOS
 //!
+//! The window handles and GTK widgets below come from your application's window setup.
+//! For GTK, use the same GTK version as the enabled Muda backend.
+//!
 //! ```no_run
+//! # let menu = muda::Menu::new();
+//! # #[cfg(target_os = "windows")]
+//! # {
+//! # let window_hwnd = 0;
+//! #[cfg(target_os = "windows")]
+//! unsafe { menu.init_for_hwnd(window_hwnd) }.unwrap();
+//! # }
+//!
+//! # #[cfg(all(
+//! #     any(
+//! #         target_os = "linux",
+//! #         target_os = "dragonfly",
+//! #         target_os = "freebsd",
+//! #         target_os = "netbsd",
+//! #         target_os = "openbsd"
+//! #     ),
+//! #     any(feature = "gtk3", feature = "gtk4")
+//! # ))]
+//! # {
 //! # #[cfg(feature = "gtk4")]
 //! # use gtk4 as gtk;
-//! # let menu = muda::Menu::new();
-//! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!         target_os = "dragonfly",
-//!         target_os = "freebsd",
-//!         target_os = "netbsd",
-//!         target_os = "openbsd"
-//! ))]
 //! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
 //! # let vertical_gtk_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
-//! // --snip--
-//! #[cfg(target_os = "windows")]
-//! unsafe { menu.init_for_hwnd(window_hwnd) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
-//! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box));
+//! #[cfg(target_os = "linux")]
+//! menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box)).unwrap();
+//! # }
+//!
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
 //! ```
@@ -149,37 +145,45 @@
 //! # Context menus (Popup menus)
 //!
 //! You can also use a [`Menu`] or a [`Submenu`] to show a context menu.
+//! Use a valid window handle, GTK window, or `NSView` from your application.
 //!
 //! ```no_run
-//! # #[cfg(feature = "gtk4")]
-//! # use gtk4 as gtk;
 //! use muda::ContextMenu;
 //! # let menu = muda::Menu::new();
-//! # let window_hwnd = 0;
-//! # #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
-//! # let gtk_window = gtk::Window::builder().build();
-//! # #[cfg(target_os = "macos")]
-//! # let nsview = std::ptr::null();
-//! // --snip--
+//!
 //! let position = muda::dpi::PhysicalPosition { x: 100., y: 120. };
+//!
+//! # #[cfg(target_os = "windows")]
+//! # {
+//! # let window_hwnd = 0;
 //! #[cfg(target_os = "windows")]
 //! unsafe { menu.show_context_menu_for_hwnd(window_hwnd, Some(position.into())) };
-//! #[cfg(any(
-//!     target_os = "linux",
-//!     target_os = "dragonfly",
-//!     target_os = "freebsd",
-//!     target_os = "netbsd",
-//!     target_os = "openbsd"
-//! ))]
+//! # }
+//!
+//! # #[cfg(all(
+//! #     any(
+//! #         target_os = "linux",
+//! #         target_os = "dragonfly",
+//! #         target_os = "freebsd",
+//! #         target_os = "netbsd",
+//! #         target_os = "openbsd"
+//! #     ),
+//! #     any(feature = "gtk3", feature = "gtk4")
+//! # ))]
+//! # {
+//! # #[cfg(feature = "gtk4")]
+//! # use gtk4 as gtk;
+//! # let gtk_window = gtk::Window::builder().build();
+//! #[cfg(target_os = "linux")]
 //! menu.show_context_menu_for_gtk_window(&gtk_window, Some(position.into()));
+//! # }
+//!
+//! # #[cfg(target_os = "macos")]
+//! # {
+//! # let nsview = std::ptr::null();
 //! #[cfg(target_os = "macos")]
 //! unsafe { menu.show_context_menu_for_nsview(nsview, Some(position.into())) };
+//! # }
 //! ```
 //! # Processing menu events
 //!
@@ -188,7 +192,7 @@
 //! ```no_run
 //! # use muda::MenuEvent;
 //! #
-//! # let save_item: muda::MenuItem = unsafe { std::mem::zeroed() };
+//! # let save_item = muda::MenuItem::new("Save", true, None);
 //! if let Ok(event) = MenuEvent::receiver().try_recv() {
 //!     match event.id {
 //!         id if id == save_item.id() => {
@@ -206,6 +210,7 @@
 //! so that the event loop is awakened on each menu event.
 //!
 //! ```no_run
+//! # use std::sync::Arc;
 //! # use tao::event_loop::EventLoopBuilder;
 //! enum UserEvent {
 //!   MenuEvent(muda::MenuEvent)
@@ -214,14 +219,26 @@
 //! let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
 //!
 //! let proxy = event_loop.create_proxy();
-//! muda::MenuEvent::set_event_handler(Some(move |event| {
+//! muda::MenuEvent::set_event_handler(Some(Arc::new(move |event| {
 //!     proxy.send_event(UserEvent::MenuEvent(event));
-//! }));
+//! })));
 //! ```
+//!
+//! Only one handler can be set at a time, for the whole process, so [`MenuEvent::set_event_handler`]
+//! replaces the current handler and returns it. While a handler is set, the [`MenuEventReceiver`]
+//! doesn't receive any events.
+//!
+//! ### Note for multiple versions of muda:
+//!
+//! Each SemVer-incompatible version of muda has its own handler and receiver, and a menu only sends
+//! its events to those of the version that created it. So if your dependency tree has two versions,
+//! for example because [tray-icon] depends on another one, the menus created through one of them
+//! never send events to the handler or receiver of the other. Run `cargo tree --duplicates` to check.
 //!
 //! [`EventLoopProxy`]: https://docs.rs/winit/latest/winit/event_loop/struct.EventLoopProxy.html
 //! [winit]: https://docs.rs/winit
 //! [tao]: https://docs.rs/tao
+//! [tray-icon]: https://docs.rs/tray-icon
 
 #[cfg(all(
     any(
@@ -258,7 +275,7 @@ pub use dpi;
 pub use error::*;
 pub use icon::{BadIcon, Icon, NativeIcon};
 pub use items::*;
-pub use menu_event::{MenuEvent, MenuEventReceiver};
+pub use menu_event::{MenuEvent, MenuEventHandler, MenuEventReceiver};
 pub use menu_id::MenuId;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;

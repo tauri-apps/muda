@@ -4,6 +4,7 @@
 
 #![allow(unused)]
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crossbeam_channel::{unbounded, Receiver};
 use gtk4::prelude::*;
@@ -32,10 +33,10 @@ fn main() {
 
     let (menu_sender, menu_receiver) = unbounded();
     let proxy = event_loop.create_proxy();
-    MenuEvent::set_event_handler(Some(move |event| {
+    MenuEvent::set_event_handler(Some(Arc::new(move |event| {
         let _ = menu_sender.send(event);
         proxy.wake_up();
-    }));
+    })));
 
     event_loop
         .run_app(App {
