@@ -93,7 +93,7 @@ fn attached_window(item: &gtk::MenuItem) -> Option<gtk::Window> {
 
     loop {
         if let Some(window) = widget.downcast_ref::<gtk::Window>() {
-            return (GtkWindowExt::type_(window) == gtk::WindowType::Toplevel)
+            return (GtkWindowExt::window_type(window) == gtk::WindowType::Toplevel)
                 .then(|| window.clone());
         }
 
@@ -114,7 +114,7 @@ fn active_window() -> Option<gtk::Window> {
         .into_iter()
         .filter_map(|widget| widget.downcast::<gtk::Window>().ok())
         .find(|window| {
-            GtkWindowExt::type_(window) == gtk::WindowType::Toplevel && window.is_active()
+            GtkWindowExt::window_type(window) == gtk::WindowType::Toplevel && window.is_active()
         })
 }
 
