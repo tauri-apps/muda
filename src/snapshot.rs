@@ -111,7 +111,9 @@ pub struct PredefinedMenuItemSnapshot {
     /// - **Linux (GTK 4):** Shows the about dialog, and runs the edit commands and the window
     ///   items (`Minimize`, `Maximize`, `Fullscreen`, `Hide`, `CloseWindow` and `Quit`) on the
     ///   application's active window.
-    /// - **Linux (no GTK backend) / Windows / macOS:** Does nothing yet.
+    /// - **Linux (Qt):** Does what clicking the item does: shows the about dialog, and runs the
+    ///   edit commands and the window items on the application's active window.
+    /// - **Linux (no GTK or Qt backend) / Windows / macOS:** Does nothing yet.
     pub activate: Arc<dyn Fn() + Send + Sync>,
 }
 

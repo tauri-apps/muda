@@ -16,6 +16,7 @@ use crate::MenuSnapshotHandle;
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",
+    muda_qt,
     all(
         any(
             target_os = "linux",
@@ -313,6 +314,49 @@ impl Menu {
         self.platform
             .borrow_mut()
             .init_for_gtk_window(&children, window, container)
+    }
+
+    /// Adds this menu as a `QMenuBar` to a Qt window (`qt` feature).
+    ///
+    /// `widget` is the window's `QWidget*`. The menubar goes into `QMainWindow::setMenuBar` or,
+    /// for other widgets, the top of the widget's layout (`QLayout::setMenuBar`); a
+    /// `QVBoxLayout` is created if the widget has none. Item shortcuts are active while the
+    /// window is.
+    ///
+    /// Must be called on the thread that owns the `QApplication`. Fails with
+    /// [`Error::NotInitialized`](crate::Error::NotInitialized) if `widget` isn't a live widget of
+    /// that application or this is another thread; the pointer is never dereferenced then.
+    #[cfg(muda_qt)]
+    pub fn init_for_qt_window(&self, widget: *mut std::ffi::c_void) -> crate::Result<()> {
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .init_for_qt_window(&children, widget)
+    }
+
+    /// Removes this menu from a Qt window (`qt` feature). See [`Menu::init_for_qt_window`].
+    #[cfg(muda_qt)]
+    pub fn remove_for_qt_window(&self, widget: *mut std::ffi::c_void) -> crate::Result<()> {
+        self.platform.borrow_mut().remove_for_qt_window(widget)
+    }
+
+    /// Hides this menu from a Qt window (`qt` feature). See [`Menu::init_for_qt_window`].
+    #[cfg(muda_qt)]
+    pub fn hide_for_qt_window(&self, widget: *mut std::ffi::c_void) -> crate::Result<()> {
+        self.platform.borrow_mut().hide_for_qt_window(widget)
+    }
+
+    /// Shows this menu on a Qt window (`qt` feature). See [`Menu::init_for_qt_window`].
+    #[cfg(muda_qt)]
+    pub fn show_for_qt_window(&self, widget: *mut std::ffi::c_void) -> crate::Result<()> {
+        self.platform.borrow_mut().show_for_qt_window(widget)
+    }
+
+    /// Returns whether this menu is visible on a Qt window (`qt` feature). See
+    /// [`Menu::init_for_qt_window`].
+    #[cfg(muda_qt)]
+    pub fn is_visible_on_qt_window(&self, widget: *mut std::ffi::c_void) -> bool {
+        self.platform.borrow().is_visible_on_qt_window(widget)
     }
 
     /// Adds this menu to a win32 window.
@@ -631,6 +675,18 @@ impl ContextMenu for Menu {
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();
         self.platform.borrow_mut().gtk_context_menu(&children)
+    }
+
+    #[cfg(muda_qt)]
+    fn show_context_menu_for_qt_window(
+        &self,
+        widget: *mut std::ffi::c_void,
+        position: Option<Position>,
+    ) -> bool {
+        let children = self.items();
+        self.platform
+            .borrow_mut()
+            .show_context_menu_for_qt_window(&children, widget, position)
     }
 
     #[cfg(target_os = "macos")]

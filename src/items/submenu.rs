@@ -19,6 +19,7 @@ use crate::MenuSnapshotHandle;
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",
+    muda_qt,
     all(
         any(
             target_os = "linux",
@@ -527,6 +528,16 @@ impl ContextMenu for Submenu {
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();
         self.platform.borrow_mut().gtk_context_menu(&children)
+    }
+
+    #[cfg(muda_qt)]
+    fn show_context_menu_for_qt_window(
+        &self,
+        widget: *mut std::ffi::c_void,
+        position: Option<Position>,
+    ) -> bool {
+        let children = self.items();
+        crate::platform_impl::show_context_menu(&children, widget, position)
     }
 
     #[cfg(target_os = "macos")]
