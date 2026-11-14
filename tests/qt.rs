@@ -4,13 +4,13 @@
 
 //! Tests of the Qt backend (`qt` feature) against a real Qt application, offscreen, one process
 //! per case (Qt allows one `QApplication` per process, on its main thread; see
-//! `qt-test-harness`).
+//! `qtshim::test_harness`).
 //!
 //! ```sh
 //! RUSTFLAGS="--cfg muda_qt_tests" cargo test --no-default-features --features qt --test qt
 //! ```
 //!
-//! The `muda_qt_tests` cfg pulls in the Qt dev-dependencies (`qtshim`, `qt-test-harness`) and
+//! The `muda_qt_tests` cfg pulls in the Qt dev-dependency (`qtshim` with `test-harness`) and
 //! leaves out the GTK 4 one, so other backends' tests don't need Qt and these don't need GTK 4.
 
 #![allow(unexpected_cfgs)]
@@ -36,7 +36,7 @@ use muda::{
     AboutMetadata, CheckMenuItem, ContextMenu, Error, Icon, IconMenuItem, Menu, MenuEvent,
     MenuItem, NativeIcon, PredefinedMenuItem, Submenu,
 };
-use qt_test_harness::Case;
+use qtshim::test_harness::Case;
 use qtshim::{
     app,
     menu::{debug, Widget},
@@ -51,7 +51,7 @@ fn main() {
     cases.extend(lifecycle_cases());
     cases.extend(invalid_cases());
     cases.extend(context_cases());
-    qt_test_harness::main(cases, teardown);
+    qtshim::test_harness::main(cases, teardown);
 }
 
 // -------------------------------------------------------------------------------------------
