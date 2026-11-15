@@ -32,6 +32,8 @@ pub enum BadIcon {
         width_x_height: usize,
         pixel_count: usize,
     },
+    /// Produced when `width` or `height` is zero.
+    ZeroSized { width: u32, height: u32 },
     /// Produced when underlying OS functionality failed to create the icon
     OsError(io::Error),
 }
@@ -51,6 +53,10 @@ impl fmt::Display for BadIcon {
             } => write!(f,
                 "The specified dimensions ({:?}x{:?}) don't match the number of pixels supplied by the `rgba` argument ({:?}). For those dimensions, the expected pixel count is {:?}.",
                 width, height, pixel_count, width_x_height,
+            ),
+            BadIcon::ZeroSized { width, height } => write!(f,
+                "The specified dimensions ({:?}x{:?}) are invalid, an icon must be at least 1x1.",
+                width, height,
             ),
             BadIcon::OsError(e) => write!(f, "OS error when instantiating the icon: {:?}", e),
         }
@@ -84,6 +90,9 @@ mod constructors {
                 return Err(BadIcon::ByteCountNotDivisibleBy4 {
                     byte_count: rgba.len(),
                 });
+            }
+            if width == 0 || height == 0 {
+                return Err(BadIcon::ZeroSized { width, height });
             }
             let pixel_count = rgba.len() / PIXEL_SIZE;
             if pixel_count != (width * height) as usize {
@@ -129,8 +138,8 @@ impl fmt::Debug for Icon {
 impl Icon {
     /// Creates an icon from 32bpp RGBA data.
     ///
-    /// The length of `rgba` must be divisible by 4, and `width * height` must equal
-    /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
+    /// The length of `rgba` must be divisible by 4, `width` and `height` must be non-zero, and
+    /// `width * height` must equal `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
         #[cfg(feature = "snapshot")]
         {
@@ -575,5 +584,21 @@ impl crate::NativeIcon {
             NativeIcon::UserGuest => appkit::NSImageNameUserGuest,
             NativeIcon::Raw(_) => unreachable!("raw native icons are handled before named_img"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rgba_icon_rejects_zero_dimensions() {
+        for (width, height) in [(0, 0), (0, 1), (1, 0)] {
+            assert!(matches!(
+                RgbaIcon::from_rgba(Vec::new(), width, height),
+                Err(BadIcon::ZeroSized { .. })
+            ));
+        }
+        assert!(RgbaIcon::from_rgba(vec![0; PIXEL_SIZE], 1, 1).is_ok());
     }
 }
