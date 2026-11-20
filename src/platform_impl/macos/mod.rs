@@ -28,13 +28,13 @@ use objc2_foundation::{
     NSPoint, NSRect, NSSize, NSString,
 };
 
-use self::{ns_menu_item::MudaNSMenuItem, util::strip_mnemonic};
+use self::ns_menu_item::MudaNSMenuItem;
 use crate::{
     accelerator::MenuAccelerator,
     dpi::{LogicalPosition, Position},
     items::*,
     platform_impl::PlatformAttachArgs,
-    util::{AddOp, Counter},
+    util::{strip_mnemonic, AddOp, Counter},
     MenuEvent, MenuItemAction, MenuItemKind, NativeIcon,
 };
 

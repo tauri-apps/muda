@@ -101,6 +101,8 @@ impl IconMenuItem {
     ///
     /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
     ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **iOS**: Known variants map to SF Symbols where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an SF Symbol name.
     /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
     ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
     /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
@@ -136,6 +138,8 @@ impl IconMenuItem {
     ///
     /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
     ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **iOS**: Known variants map to SF Symbols where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an SF Symbol name.
     /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
     ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
     /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use
@@ -291,6 +295,8 @@ impl IconMenuItem {
     ///
     /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
     ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **iOS**: Known variants map to SF Symbols where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an SF Symbol name.
     /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
     ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
     /// - **GTK 3 / GTK 4**: Known variants map to freedesktop-style icon theme names. Use

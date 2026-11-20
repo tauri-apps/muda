@@ -61,14 +61,16 @@ pub(crate) mod gtk;
     feature = "gtk4"
 ))]
 pub(crate) mod gtk4;
+#[cfg(target_os = "ios")]
+pub(crate) mod ios;
 #[cfg(target_os = "macos")]
 pub(crate) mod macos;
 #[cfg(target_os = "windows")]
 pub(crate) mod windows;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub const CMD_OR_CTRL: Modifiers = Modifiers::META;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 pub const CMD_OR_CTRL: Modifiers = Modifiers::CONTROL;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
@@ -250,9 +252,9 @@ fn parse_modifier(accelerator: &str, token: &str) -> Result<Modifiers, Accelerat
         "CONTROL" | "CTRL" => Modifiers::CONTROL,
         "COMMAND" | "CMD" | "SUPER" | "META" => Modifiers::META,
         "SHIFT" => Modifiers::SHIFT,
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => Modifiers::META,
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => Modifiers::CONTROL,
         _ => {
             return Err(AcceleratorParseError::InvalidFormat(
@@ -1067,9 +1069,9 @@ fn test_parse_accelerator() {
     assert_parse_accelerator!(
         "CmdOrCtrl+Space",
         Accelerator {
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             mods: Modifiers::META,
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             mods: Modifiers::CONTROL,
             key: Code::Space,
             id: 0,
@@ -1159,13 +1161,13 @@ fn test_parse_key_accelerator() {
         // Unicode character keys
         ("Ctrl+€", Modifiers::CONTROL, Key::Character("€".into())),
         // CmdOrCtrl works
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         (
             "CmdOrCtrl+Space",
             Modifiers::META,
             Key::Character(" ".into()),
         ),
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         (
             "CmdOrCtrl+Space",
             Modifiers::CONTROL,

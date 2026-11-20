@@ -12,10 +12,11 @@
 //! - Windows
 //! - macOS
 //! - Linux/BSD with GTK 3 or GTK 4
+//! - iOS 13+ (the iPadOS 26 menu bar, and key commands on earlier versions)
 //!
 //! # Platform-specific notes:
 //!
-//! - On macOS, menus can only be used from the main thread, and most
+//! - On macOS and iOS, menus can only be used from the main thread, and most
 //!   functionality will panic if you try to use it from any other thread.
 //!
 //! - On Windows, accelerators don't work unless the win32 message loop calls
@@ -140,6 +141,8 @@
 //!
 //! #[cfg(target_os = "macos")]
 //! menu.init_for_nsapp();
+//! #[cfg(target_os = "ios")]
+//! menu.init_for_uiapp();
 //! ```
 //!
 //! # Context menus (Popup menus)

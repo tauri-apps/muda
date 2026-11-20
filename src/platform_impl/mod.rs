@@ -70,6 +70,9 @@ mod platform;
 #[cfg(target_os = "macos")]
 #[path = "macos/mod.rs"]
 mod platform;
+#[cfg(target_os = "ios")]
+#[path = "ios/mod.rs"]
+mod platform;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -154,7 +157,10 @@ impl MenuItemKind {
         }
     }
 
-    #[cfg_attr(any(target_os = "windows", target_os = "macos"), allow(dead_code))]
+    #[cfg_attr(
+        any(target_os = "windows", target_os = "macos", target_os = "ios"),
+        allow(dead_code)
+    )]
     pub(crate) fn click_action(&self) -> crate::MenuItemAction {
         match self {
             Self::MenuItem(item) => crate::MenuItemAction::Emit((*item.id).clone()),
