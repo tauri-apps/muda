@@ -54,6 +54,23 @@ pub trait ContextMenu: sealed::Sealed {
     #[cfg(target_os = "windows")]
     unsafe fn detach_menu_subclass_from_hwnd(&self, hwnd: isize);
 
+    /// Shows this menu as a context menu inside a Qt window (`qt` feature).
+    ///
+    /// - `widget` is a `QWidget*`; the menu is parented to it, which places it correctly on
+    ///   Wayland.
+    /// - `position` is relative to the window top-left corner, if `None`, the cursor position is
+    ///   used.
+    ///
+    /// The menu is shown without blocking; returns `true` if it was shown, `false` if `widget`
+    /// isn't a live widget of the `QApplication` or this isn't its thread (the pointer is never
+    /// dereferenced then).
+    #[cfg(muda_qt)]
+    fn show_context_menu_for_qt_window(
+        &self,
+        widget: *mut std::ffi::c_void,
+        position: Option<dpi::Position>,
+    ) -> bool;
+
     /// Shows this menu as a context menu inside a [`gtk::Window`].
     ///
     /// - `position` is relative to the window top-left corner, if `None`, the cursor position is used.

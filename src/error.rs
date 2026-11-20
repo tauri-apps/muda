@@ -16,6 +16,7 @@ pub enum Error {
     WouldCreateCycle,
     #[cfg(any(
         windows,
+        muda_qt,
         all(
             any(
                 target_os = "linux",
@@ -31,6 +32,7 @@ pub enum Error {
     NotInitialized,
     #[cfg(any(
         windows,
+        muda_qt,
         all(
             any(
                 target_os = "linux",
