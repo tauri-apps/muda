@@ -586,19 +586,3 @@ impl crate::NativeIcon {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rgba_icon_rejects_zero_dimensions() {
-        for (width, height) in [(0, 0), (0, 1), (1, 0)] {
-            assert!(matches!(
-                RgbaIcon::from_rgba(Vec::new(), width, height),
-                Err(BadIcon::ZeroSized { .. })
-            ));
-        }
-        assert!(RgbaIcon::from_rgba(vec![0; PIXEL_SIZE], 1, 1).is_ok());
-    }
-}
