@@ -11,7 +11,7 @@ gtk3 = ["muda/gtk3"]
 
 [dependencies]
 muda = { path = "../../", default-features = false, features = ["common-controls-v6"] }
-tao = "0.37"
+tao = "0.38"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
