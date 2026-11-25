@@ -315,7 +315,8 @@ fn build_from_responder_chain(builder: &ProtocolObject<dyn UIMenuBuilder>, mtm: 
 ///
 /// UIKit asks the application and then its delegate to build the main menu, and the
 /// application's own implementation fills in the system menus, so the delegate is the one to
-/// take over. Does nothing when the delegate class already builds the menu itself.
+/// take over. Does nothing when the delegate class, or one of its superclasses, already builds the
+/// menu itself.
 ///
 /// Returns `false` when the application has no delegate yet.
 fn install_build_menu_override(mtm: MainThreadMarker) -> bool {
@@ -327,13 +328,26 @@ fn install_build_menu_override(mtm: MainThreadMarker) -> bool {
 
     let class = AsRef::<AnyObject>::as_ref(&*delegate).class();
 
+    // `class_addMethod` only fails when the class itself has the method, and adding it would
+    // hide one inherited from a superclass. `UIResponder`'s own implementation does nothing.
+    let selector = sel!(buildMenuWithBuilder:);
+    let responder_imp = AnyClass::get(c"UIResponder")
+        .and_then(|responder| responder.instance_method(selector))
+        .map(|method| method.implementation());
+    if let Some(method) = class.instance_method(selector) {
+        if !responder_imp.is_some_and(|imp| std::ptr::fn_addr_eq(imp, method.implementation())) {
+            // Nothing to install, and trying again would not change that.
+            return true;
+        }
+    }
+
     let types = c"v@:@";
     let imp: unsafe extern "C-unwind" fn(&AnyObject, Sel, &ProtocolObject<dyn UIMenuBuilder>) =
         build_menu_with_builder;
     let added = unsafe {
         objc2::ffi::class_addMethod(
             class as *const AnyClass as *mut AnyClass,
-            sel!(buildMenuWithBuilder:),
+            selector,
             std::mem::transmute::<
                 unsafe extern "C-unwind" fn(&AnyObject, Sel, &ProtocolObject<dyn UIMenuBuilder>),
                 Imp,

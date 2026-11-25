@@ -580,7 +580,8 @@ impl Menu {
     /// On iOS 26 and later it takes over the main menu system's build handler, so
     /// `buildMenuWithBuilder:` overrides in the app stop being called while it is in use. On
     /// earlier versions it adds `buildMenuWithBuilder:` to the app delegate class instead, and
-    /// does nothing if that class already implements it.
+    /// does nothing if that class or one of its superclasses (other than `UIResponder`) already
+    /// implements it.
     ///
     /// [`Submenu`]: crate::Submenu
     /// [`PredefinedMenuItem`]: crate::PredefinedMenuItem
