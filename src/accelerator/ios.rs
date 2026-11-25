@@ -5,19 +5,31 @@
 use keyboard_types::{Code, Key, Modifiers, NamedKey};
 use objc2::rc::Retained;
 use objc2_foundation::{NSCopying, NSString};
-use objc2_ui_kit::{
-    UIKeyInputDelete, UIKeyInputDownArrow, UIKeyInputEnd, UIKeyInputEscape, UIKeyInputF10,
-    UIKeyInputF11, UIKeyInputF12, UIKeyInputF2, UIKeyInputF3, UIKeyInputF4, UIKeyInputF5,
-    UIKeyInputF6, UIKeyInputF7, UIKeyInputF8, UIKeyInputF9, UIKeyInputHome, UIKeyInputLeftArrow,
-    UIKeyInputPageDown, UIKeyInputPageUp, UIKeyInputRightArrow, UIKeyInputUpArrow,
-    UIKeyModifierFlags,
-};
+use objc2_ui_kit::UIKeyModifierFlags;
+use std::ffi::{c_char, c_void, CStr};
 
 use crate::accelerator::{Accelerator, AcceleratorParseError, KeyAccelerator, MenuAccelerator};
 
 extern "C" {
-    // Missing from `objc2-ui-kit`, though UIKit exports it next to `UIKeyInputF2`.
-    static UIKeyInputF1: &'static NSString;
+    fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+}
+
+const RTLD_DEFAULT: *mut c_void = -2isize as *mut c_void;
+
+/// Look up a `UIKeyInput*` constant at runtime.
+///
+/// Linking the constants directly would make dyld refuse to launch the app on any iOS version
+/// older than the newest one we use (`UIKeyInputDelete` is iOS 15, `UIKeyInputHome`, `End` and
+/// `F1`-`F12` are iOS 13.4), even if no accelerator uses those keys.
+fn key_input_constant(name: &CStr) -> Result<Retained<NSString>, AcceleratorParseError> {
+    // The symbol is the address of the `NSString *const` variable.
+    let ptr = unsafe { dlsym(RTLD_DEFAULT, name.as_ptr()) } as *const &'static NSString;
+    if ptr.is_null() {
+        let name = name.to_string_lossy();
+        let name = name.strip_prefix("UIKeyInput").unwrap_or(&name);
+        return Err(AcceleratorParseError::UnsupportedKey(name.to_string()));
+    }
+    Ok(unsafe { *ptr }.copy())
 }
 
 impl MenuAccelerator {
@@ -145,28 +157,28 @@ fn code_key_input(code: &Code) -> Result<Retained<NSString>, AcceleratorParseErr
         NumpadHash => "#",
         NumpadParenLeft => "(",
         NumpadParenRight => ")",
-        Delete => return Ok(unsafe { UIKeyInputDelete }.copy()),
-        Home => return Ok(unsafe { UIKeyInputHome }.copy()),
-        End => return Ok(unsafe { UIKeyInputEnd }.copy()),
-        PageDown => return Ok(unsafe { UIKeyInputPageDown }.copy()),
-        PageUp => return Ok(unsafe { UIKeyInputPageUp }.copy()),
-        ArrowDown => return Ok(unsafe { UIKeyInputDownArrow }.copy()),
-        ArrowLeft => return Ok(unsafe { UIKeyInputLeftArrow }.copy()),
-        ArrowRight => return Ok(unsafe { UIKeyInputRightArrow }.copy()),
-        ArrowUp => return Ok(unsafe { UIKeyInputUpArrow }.copy()),
-        Escape => return Ok(unsafe { UIKeyInputEscape }.copy()),
-        F1 => return Ok(unsafe { UIKeyInputF1 }.copy()),
-        F2 => return Ok(unsafe { UIKeyInputF2 }.copy()),
-        F3 => return Ok(unsafe { UIKeyInputF3 }.copy()),
-        F4 => return Ok(unsafe { UIKeyInputF4 }.copy()),
-        F5 => return Ok(unsafe { UIKeyInputF5 }.copy()),
-        F6 => return Ok(unsafe { UIKeyInputF6 }.copy()),
-        F7 => return Ok(unsafe { UIKeyInputF7 }.copy()),
-        F8 => return Ok(unsafe { UIKeyInputF8 }.copy()),
-        F9 => return Ok(unsafe { UIKeyInputF9 }.copy()),
-        F10 => return Ok(unsafe { UIKeyInputF10 }.copy()),
-        F11 => return Ok(unsafe { UIKeyInputF11 }.copy()),
-        F12 => return Ok(unsafe { UIKeyInputF12 }.copy()),
+        Delete => return key_input_constant(c"UIKeyInputDelete"),
+        Home => return key_input_constant(c"UIKeyInputHome"),
+        End => return key_input_constant(c"UIKeyInputEnd"),
+        PageDown => return key_input_constant(c"UIKeyInputPageDown"),
+        PageUp => return key_input_constant(c"UIKeyInputPageUp"),
+        ArrowDown => return key_input_constant(c"UIKeyInputDownArrow"),
+        ArrowLeft => return key_input_constant(c"UIKeyInputLeftArrow"),
+        ArrowRight => return key_input_constant(c"UIKeyInputRightArrow"),
+        ArrowUp => return key_input_constant(c"UIKeyInputUpArrow"),
+        Escape => return key_input_constant(c"UIKeyInputEscape"),
+        F1 => return key_input_constant(c"UIKeyInputF1"),
+        F2 => return key_input_constant(c"UIKeyInputF2"),
+        F3 => return key_input_constant(c"UIKeyInputF3"),
+        F4 => return key_input_constant(c"UIKeyInputF4"),
+        F5 => return key_input_constant(c"UIKeyInputF5"),
+        F6 => return key_input_constant(c"UIKeyInputF6"),
+        F7 => return key_input_constant(c"UIKeyInputF7"),
+        F8 => return key_input_constant(c"UIKeyInputF8"),
+        F9 => return key_input_constant(c"UIKeyInputF9"),
+        F10 => return key_input_constant(c"UIKeyInputF10"),
+        F11 => return key_input_constant(c"UIKeyInputF11"),
+        F12 => return key_input_constant(c"UIKeyInputF12"),
         _ => return Err(AcceleratorParseError::UnsupportedKey(format!("{code:?}"))),
     };
 
@@ -180,28 +192,28 @@ fn named_key_input(key: &NamedKey) -> Result<Retained<NSString>, AcceleratorPars
         Enter => "\r",
         Tab => "\t",
         Backspace => "\u{0008}",
-        Delete => return Ok(unsafe { UIKeyInputDelete }.copy()),
-        Home => return Ok(unsafe { UIKeyInputHome }.copy()),
-        End => return Ok(unsafe { UIKeyInputEnd }.copy()),
-        PageDown => return Ok(unsafe { UIKeyInputPageDown }.copy()),
-        PageUp => return Ok(unsafe { UIKeyInputPageUp }.copy()),
-        ArrowDown => return Ok(unsafe { UIKeyInputDownArrow }.copy()),
-        ArrowLeft => return Ok(unsafe { UIKeyInputLeftArrow }.copy()),
-        ArrowRight => return Ok(unsafe { UIKeyInputRightArrow }.copy()),
-        ArrowUp => return Ok(unsafe { UIKeyInputUpArrow }.copy()),
-        Escape => return Ok(unsafe { UIKeyInputEscape }.copy()),
-        F1 => return Ok(unsafe { UIKeyInputF1 }.copy()),
-        F2 => return Ok(unsafe { UIKeyInputF2 }.copy()),
-        F3 => return Ok(unsafe { UIKeyInputF3 }.copy()),
-        F4 => return Ok(unsafe { UIKeyInputF4 }.copy()),
-        F5 => return Ok(unsafe { UIKeyInputF5 }.copy()),
-        F6 => return Ok(unsafe { UIKeyInputF6 }.copy()),
-        F7 => return Ok(unsafe { UIKeyInputF7 }.copy()),
-        F8 => return Ok(unsafe { UIKeyInputF8 }.copy()),
-        F9 => return Ok(unsafe { UIKeyInputF9 }.copy()),
-        F10 => return Ok(unsafe { UIKeyInputF10 }.copy()),
-        F11 => return Ok(unsafe { UIKeyInputF11 }.copy()),
-        F12 => return Ok(unsafe { UIKeyInputF12 }.copy()),
+        Delete => return key_input_constant(c"UIKeyInputDelete"),
+        Home => return key_input_constant(c"UIKeyInputHome"),
+        End => return key_input_constant(c"UIKeyInputEnd"),
+        PageDown => return key_input_constant(c"UIKeyInputPageDown"),
+        PageUp => return key_input_constant(c"UIKeyInputPageUp"),
+        ArrowDown => return key_input_constant(c"UIKeyInputDownArrow"),
+        ArrowLeft => return key_input_constant(c"UIKeyInputLeftArrow"),
+        ArrowRight => return key_input_constant(c"UIKeyInputRightArrow"),
+        ArrowUp => return key_input_constant(c"UIKeyInputUpArrow"),
+        Escape => return key_input_constant(c"UIKeyInputEscape"),
+        F1 => return key_input_constant(c"UIKeyInputF1"),
+        F2 => return key_input_constant(c"UIKeyInputF2"),
+        F3 => return key_input_constant(c"UIKeyInputF3"),
+        F4 => return key_input_constant(c"UIKeyInputF4"),
+        F5 => return key_input_constant(c"UIKeyInputF5"),
+        F6 => return key_input_constant(c"UIKeyInputF6"),
+        F7 => return key_input_constant(c"UIKeyInputF7"),
+        F8 => return key_input_constant(c"UIKeyInputF8"),
+        F9 => return key_input_constant(c"UIKeyInputF9"),
+        F10 => return key_input_constant(c"UIKeyInputF10"),
+        F11 => return key_input_constant(c"UIKeyInputF11"),
+        F12 => return key_input_constant(c"UIKeyInputF12"),
         _ => return Err(AcceleratorParseError::UnsupportedKey(format!("{key:?}"))),
     };
 
