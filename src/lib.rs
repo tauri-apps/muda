@@ -16,8 +16,13 @@
 //!
 //! # Platform-specific notes:
 //!
-//! - On macOS and iOS, menus can only be used from the main thread, and most
+//! - On macOS, menus can only be used from the main thread, and most
 //!   functionality will panic if you try to use it from any other thread.
+//!
+//! - On iOS, menus can only be used from the main thread too, but using them from
+//!   another thread does not panic: `Menu::init_for_uiapp`, `Menu::remove_for_uiapp`
+//!   and `show_context_menu_for_uiview` do nothing there, and changes made to items
+//!   there don't show in the menu bar until it is next rebuilt.
 //!
 //! - On Windows, accelerators don't work unless the win32 message loop calls
 //!   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).

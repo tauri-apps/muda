@@ -571,7 +571,8 @@ impl Menu {
     ///
     /// Changes to the menu and its items rebuild the menu bar.
     ///
-    /// Must be called on the main thread once the application has finished launching.
+    /// Must be called on the main thread once the application has finished launching. Does
+    /// nothing when called off the main thread.
     ///
     /// On iOS 26 and later it takes over the main menu system's build handler, so
     /// `buildMenuWithBuilder:` overrides in the app stop being called while it is in use. On
@@ -586,6 +587,8 @@ impl Menu {
     }
 
     /// Removes this menu from the iPadOS menu bar, bringing back the system's menus.
+    ///
+    /// Does nothing when called off the main thread.
     #[cfg(target_os = "ios")]
     pub fn remove_for_uiapp(&self) {
         crate::platform_impl::remove_app_menu(self.id())
