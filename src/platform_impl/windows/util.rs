@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use once_cell::sync::Lazy;
+use std::sync::{
+    atomic::{AtomicU16, Ordering},
+    LazyLock,
+};
 use windows_sys::{
     core::HRESULT,
     Win32::{
@@ -74,6 +77,42 @@ impl Free for HBITMAP {
     }
 }
 
+/// A counter similar to [crate::util::Counter] but wraps around instead of leaving its range.
+pub struct CounterU16 {
+    start: u16,
+    end: u16,
+    current: AtomicU16,
+}
+
+impl CounterU16 {
+    /// Counts over `start..=end`, inclusive of both.
+    pub const fn new_with_range(start: u16, end: u16) -> Self {
+        assert!(start < end, "a counter needs a range of at least two ids");
+
+        Self {
+            start,
+            end,
+            current: AtomicU16::new(start),
+        }
+    }
+
+    pub fn next(&self) -> u16 {
+        // TODO: remove this deprecated allowance once we raise MSRV to 1.95
+        //       where we can use `try_update` instead.
+        #[allow(deprecated)]
+        let previous = self
+            .current
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
+                Some(if id == self.end { self.start } else { id + 1 })
+            });
+
+        // The update closure always returns `Some`, so both arms hold the previous value.
+        match previous {
+            Ok(id) | Err(id) => id,
+        }
+    }
+}
+
 pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
     std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
         .chain(std::iter::once(0))
@@ -139,10 +178,10 @@ pub type GetDpiForMonitor = unsafe extern "system" fn(
     dpi_y: *mut u32,
 ) -> HRESULT;
 
-static GET_DPI_FOR_WINDOW: Lazy<Option<GetDpiForWindow>> =
-    Lazy::new(|| get_function!("user32.dll", GetDpiForWindow));
-static GET_DPI_FOR_MONITOR: Lazy<Option<GetDpiForMonitor>> =
-    Lazy::new(|| get_function!("shcore.dll", GetDpiForMonitor));
+static GET_DPI_FOR_WINDOW: LazyLock<Option<GetDpiForWindow>> =
+    LazyLock::new(|| get_function!("user32.dll", GetDpiForWindow));
+static GET_DPI_FOR_MONITOR: LazyLock<Option<GetDpiForMonitor>> =
+    LazyLock::new(|| get_function!("shcore.dll", GetDpiForMonitor));
 
 pub const BASE_DPI: u32 = 96;
 pub fn dpi_to_scale_factor(dpi: u32) -> f64 {

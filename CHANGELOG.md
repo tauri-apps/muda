@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.2]
+
+- [`1802a0d`](https://www.github.com/tauri-apps/muda/commit/1802a0d7d3c2e2f951d8d8212fb2e6cd4fa54e69) ([#430](https://www.github.com/tauri-apps/muda/pull/430) by [@wonfen](https://www.github.com/tauri-apps/muda/../../wonfen)) On Windows, Fix menu items going dead after a process has created about 64.5k menus and items.
+
+## [0.21.1]
+
+- [`1719dbf`](https://www.github.com/tauri-apps/muda/commit/1719dbf1e178cab70098adc7abc03a0b231b32d3) ([#429](https://www.github.com/tauri-apps/muda/pull/429) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) On macOS, let `objc2` auto-generate the Objective-C runtime names for muda's internal classes (previously hardcoded as `MudaMenuItem` and `MudaMenuDelegate`). The generated names include the crate version, so two SemVer-incompatible versions of muda in the same binary no longer panic with `could not create new class MudaMenuItem. Perhaps a class with that name already exists?`.
+- [`9d35d84`](https://www.github.com/tauri-apps/muda/commit/9d35d84868665f68c61694a1966c697c2a89aa24) ([#424](https://www.github.com/tauri-apps/muda/pull/424) by [@FalkWoldmann](https://www.github.com/tauri-apps/muda/../../FalkWoldmann)) Replace the `once_cell` dependency with `std::sync::LazyLock` and `std::sync::OnceLock`.
+
 ## [0.21.0]
 
 - [`544eb78`](https://www.github.com/tauri-apps/muda/commit/544eb78c9454dfe721d0d8df8a90a70f63ee1df3) ([#416](https://www.github.com/tauri-apps/muda/pull/416) by [@amrbashir](https://www.github.com/tauri-apps/muda/../../amrbashir)) Support the predefined `Undo` and `Redo` menu items on the GTK 3 and GTK 4 backends. On GTK 4 they act on the application's focused widget; on GTK 3 they only act on a focused `WebKitWebView`, which is the only widget there with an undo stack.

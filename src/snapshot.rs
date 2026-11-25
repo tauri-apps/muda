@@ -1,7 +1,7 @@
 use std::{cell::RefCell, mem::ManuallyDrop, rc::Rc, sync::Arc};
 
 use crossbeam_channel::{bounded, Receiver, Sender};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{
     items::{IconType, PredefinedMenuItemType},
@@ -17,8 +17,8 @@ pub struct MenuChangeEvent;
 /// A receiver for process-wide menu change notifications.
 pub type MenuChangeEventReceiver = Receiver<MenuChangeEvent>;
 
-static MENU_CHANGE_CHANNEL: Lazy<(Sender<MenuChangeEvent>, MenuChangeEventReceiver)> =
-    Lazy::new(|| bounded(1));
+static MENU_CHANGE_CHANNEL: LazyLock<(Sender<MenuChangeEvent>, MenuChangeEventReceiver)> =
+    LazyLock::new(|| bounded(1));
 
 impl MenuChangeEvent {
     /// Gets the process-wide menu change event receiver.
