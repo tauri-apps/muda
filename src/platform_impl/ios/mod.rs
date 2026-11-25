@@ -173,8 +173,23 @@ pub(crate) fn dispatch_on_main_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    // TODO: Dispatch the callback to the iOS main thread instead of running it inline.
-    f();
+    use objc2_foundation::NSOperationQueue;
+
+    if MainThreadMarker::new().is_some() {
+        f();
+        return;
+    }
+
+    // Queue the callback asynchronously, so a caller whose main thread is blocked waiting on it
+    // cannot deadlock. The main queue is serial, so callbacks run in the order they were queued.
+    let f = Cell::new(Some(f));
+    let block = RcBlock::new(move || {
+        if let Some(f) = f.take() {
+            f();
+        }
+    });
+    // SAFETY: the block only captures `f`, which is `Send`, and runs at most once.
+    unsafe { NSOperationQueue::mainQueue().addOperationWithBlock(&block) };
 }
 
 /// Runs the action of a predefined menu item activated from a menu snapshot. Must be called on
