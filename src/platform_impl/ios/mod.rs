@@ -843,6 +843,12 @@ pub(crate) unsafe fn show_context_menu_for_uiview(
         }
     }
 
+    // UIKit does not present an empty menu, or one over a view outside a window, and then
+    // never tells the delegate to clean up, which would leave the interaction on the view.
+    if children.is_empty() || view.window().is_none() {
+        return false;
+    }
+
     let delegate = ContextMenuDelegate::new(mtm, menu);
     let interaction = UIEditMenuInteraction::initWithDelegate(
         mtm.alloc(),
