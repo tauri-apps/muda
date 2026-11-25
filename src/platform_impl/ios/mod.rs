@@ -794,8 +794,8 @@ fn is_edit_action(predefined_item_type: &PredefinedMenuItemType) -> bool {
     )
 }
 
-/// Shows `items` as a context menu over `view`, at `position` in the view, or where the last
-/// touch in its window landed, or at its center.
+/// Shows `items` as a context menu over `view`, at `position` in the view, or where a recent
+/// touch inside it landed, or at its center.
 ///
 /// # Safety
 ///

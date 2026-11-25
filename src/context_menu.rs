@@ -141,7 +141,8 @@ pub trait ContextMenu: sealed::Sealed {
     /// items shown are the edit actions, such as copy and paste.
     ///
     /// - `position` is relative to the view top-left corner, if `None`, the location of the last
-    ///   touch in the view's window is used, or the center of the view when there is none.
+    ///   touch in the view's window is used if it is inside the view and the finger is still
+    ///   down or lifted in the last two seconds, or the center of the view otherwise.
     ///
     /// Returns `false`, the menu is shown asynchronously so no item has been picked when this
     /// returns. Picked items are reported through [`crate::MenuEvent::receiver`].

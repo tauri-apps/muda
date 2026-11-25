@@ -6,28 +6,40 @@
 //! where the user tapped, as it opens at the cursor on desktop. UIKit has no API to read the
 //! location of the current touch or pointer.
 
-use std::{cell::Cell, ptr::NonNull};
+use std::{cell::RefCell, ptr::NonNull};
 
 use block2::RcBlock;
 use objc2::{
-    define_class, msg_send, rc::Retained, runtime::NSObject, DefinedClass, MainThreadMarker,
-    MainThreadOnly,
+    define_class, msg_send,
+    rc::{Retained, Weak},
+    runtime::NSObject,
+    DefinedClass, MainThreadMarker, MainThreadOnly,
 };
 use objc2_core_foundation::CGPoint;
-use objc2_foundation::{NSNotification, NSNotificationCenter, NSSet};
+use objc2_foundation::{NSNotification, NSNotificationCenter, NSProcessInfo, NSSet};
 use objc2_ui_kit::{
-    UIApplication, UIEvent, UIGestureRecognizer, UIGestureRecognizerState, UITouch, UIView,
-    UIWindow, UIWindowDidBecomeVisibleNotification, UIWindowScene,
+    UIApplication, UIEvent, UIGestureRecognizer, UIGestureRecognizerState, UITouch, UITouchPhase,
+    UIView, UIWindow, UIWindowDidBecomeVisibleNotification, UIWindowScene,
 };
 
-define_class!(
-    /// Records where touches begin in its window, then fails so it never gets in the way of
-    /// other gestures.
+/// The last touch that began in a window.
+struct LastTouch {
+    /// The touch itself, while UIKit keeps it alive, to follow it as it moves and ends.
     ///
-    /// Holds the location of the last touch in its window, in window coordinates.
+    /// Only weak: a touch references its window, which owns the recorder holding this.
+    touch: Weak<UITouch>,
+    /// Where the touch began, in window coordinates.
+    location: CGPoint,
+    /// When the touch began, in seconds since system startup.
+    timestamp: f64,
+}
+
+define_class!(
+    /// Records the touches that begin in its window, then fails so it never gets in the way of
+    /// other gestures.
     #[unsafe(super(UIGestureRecognizer, NSObject))]
     #[thread_kind = MainThreadOnly]
-    #[ivars = Cell<Option<CGPoint>>]
+    #[ivars = RefCell<Option<LastTouch>>]
     struct TouchLocationRecorder;
 
     impl TouchLocationRecorder {
@@ -36,7 +48,11 @@ define_class!(
             let _: () = unsafe { msg_send![super(self), touchesBegan: touches, withEvent: event] };
 
             if let Some(touch) = touches.anyObject() {
-                self.ivars().set(Some(touch.locationInView(None)));
+                *self.ivars().borrow_mut() = Some(LastTouch {
+                    touch: Weak::from_retained(&touch),
+                    location: touch.locationInView(None),
+                    timestamp: touch.timestamp(),
+                });
             }
             self.setState(UIGestureRecognizerState::Failed);
         }
@@ -45,7 +61,7 @@ define_class!(
 
 impl TouchLocationRecorder {
     fn new(mtm: MainThreadMarker) -> Retained<Self> {
-        let this = Self::alloc(mtm).set_ivars(Cell::new(None));
+        let this = Self::alloc(mtm).set_ivars(RefCell::new(None));
         let this: Retained<Self> = unsafe { msg_send![super(this), init] };
         this.setCancelsTouchesInView(false);
         this.setDelaysTouchesEnded(false);
@@ -98,9 +114,42 @@ fn add_recorder(window: &UIWindow, mtm: MainThreadMarker) {
     }
 }
 
-/// The location in `view` of the last touch in the view's window.
+/// How long after a touch lifts it can still place a context menu, long enough for the menu
+/// request to go through a webview or IPC.
+const MAX_TOUCH_AGE: f64 = 2.0;
+
+/// The location in `view` of the last touch in the view's window, if the finger is still down
+/// or lifted recently, and it is inside the view.
 pub(super) fn last_touch_location(view: &UIView) -> Option<CGPoint> {
     let window = view.window()?;
-    let location = recorder(&window)?.ivars().get()?;
-    Some(view.convertPoint_fromView(location, None))
+    let recorder = recorder(&window)?;
+    let (location, timestamp) = {
+        let last = recorder.ivars().borrow();
+        let last = last.as_ref()?;
+        match last.touch.load() {
+            Some(touch) => {
+                let down = matches!(
+                    touch.phase(),
+                    UITouchPhase::Began | UITouchPhase::Moved | UITouchPhase::Stationary
+                );
+                // A finger still down is current however long it has been held, and the touch
+                // timestamp is when it last moved or lifted.
+                let timestamp = if down { None } else { Some(touch.timestamp()) };
+                (touch.locationInView(None), timestamp)
+            }
+            None => (last.location, Some(last.timestamp)),
+        }
+    };
+    if timestamp.is_some_and(|timestamp| {
+        NSProcessInfo::processInfo().systemUptime() - timestamp > MAX_TOUCH_AGE
+    }) {
+        return None;
+    }
+    let location = view.convertPoint_fromView(location, None);
+    let bounds = view.bounds();
+    let inside = location.x >= bounds.origin.x
+        && location.x <= bounds.origin.x + bounds.size.width
+        && location.y >= bounds.origin.y
+        && location.y <= bounds.origin.y + bounds.size.height;
+    inside.then_some(location)
 }
