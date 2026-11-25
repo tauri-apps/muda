@@ -230,6 +230,8 @@ pub(crate) fn remove_app_menu(id: &MenuId) {
         .is_some_and(|m| m.id() == id);
     if is_app_menu {
         set_app_menu(None);
+        // Release the items the commands of the last build hold on to.
+        app_menu.ivars().commands.borrow_mut().items.clear();
     }
 }
 
@@ -281,13 +283,29 @@ fn install(app_menu: &AppMenu, mtm: MainThreadMarker) {
             RcBlock::new(move |builder: NonNull<ProtocolObject<dyn UIMenuBuilder>>| {
                 // SAFETY: UIKit hands a valid builder to the build handler for the duration of
                 // the call.
-                build(&app_menu, unsafe { builder.as_ref() })
+                let builder = unsafe { builder.as_ref() };
+                if app_menu.ivars().menu.borrow().is_some() {
+                    build(&app_menu, builder);
+                } else {
+                    build_from_responder_chain(builder, mtm);
+                }
             });
         let configuration = UIMainMenuSystemConfiguration::new(mtm);
         UIMainMenuSystem::sharedSystem(mtm)
             .setBuildConfiguration_buildHandler(&configuration, Some(&build_handler));
     } else {
         install_build_menu_override(mtm);
+    }
+}
+
+/// Asks the application and the responders after it to build the main menu, as UIKit does
+/// without a build handler. Once set, the build handler can't be removed: UIKit keeps the
+/// previous one when given none.
+fn build_from_responder_chain(builder: &ProtocolObject<dyn UIMenuBuilder>, mtm: MainThreadMarker) {
+    let mut responder = shared_application(mtm).map(Retained::into_super);
+    while let Some(current) = responder {
+        current.buildMenuWithBuilder(builder);
+        responder = current.nextResponder();
     }
 }
 
