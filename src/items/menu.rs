@@ -568,6 +568,9 @@ impl Menu {
     /// sections. A [`PredefinedMenuItem`] reuses the system's command for that action, keeping
     /// its localized title unless the item has a custom text, and is left out when the system
     /// has no such command, except for the edit actions handled by the first responder.
+    /// The kinds the system only fills in when it shows the menu bar (About, Services, Hide,
+    /// Hide Others, Show All, Quit, Fullscreen, Minimize, Maximize, Bring All to Front and the
+    /// speech items) keep the system's title and enabled state.
     ///
     /// Changes to the menu and its items rebuild the menu bar.
     ///

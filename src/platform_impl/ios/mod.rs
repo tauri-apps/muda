@@ -687,9 +687,40 @@ impl BuildContext {
                 Retained::into_super(command)
             }
             // The system fills these in when it shows the menu bar, wherever they are placed.
+            // Only the commands they already hold, like Close, can take the custom text and
+            // enabled state.
             PredefinedSource::Menu(identifier) => {
                 let menu = self.system_menus.get(&identifier.to_string())?;
-                Retained::into_super(menu.clone())
+                let children = menu.children();
+                let title = (text != predefined_item_type.default_text(None)
+                    && children.len() == 1)
+                    .then(|| NSString::from_str(&strip_mnemonic(&text)));
+                let enabled = enabled && item.platform_attach_args().enabled;
+
+                if title.is_none() && enabled {
+                    Retained::into_super(menu.clone())
+                } else {
+                    let children: Vec<_> = children
+                        .iter()
+                        .map(|child| {
+                            let Some(command) = child.downcast_ref::<UICommand>() else {
+                                return child;
+                            };
+                            let command = command.copy();
+                            if let Some(title) = &title {
+                                command.setTitle(title);
+                            }
+                            if !enabled {
+                                command.setAttributes(
+                                    command.attributes() | UIMenuElementAttributes::Disabled,
+                                );
+                            }
+                            Retained::into_super(command)
+                        })
+                        .collect();
+                    let children = NSArray::from_retained_slice(&children);
+                    Retained::into_super(menu.menuByReplacingChildren(&children))
+                }
             }
         };
         self.used_sources.push(source);
