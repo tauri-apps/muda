@@ -627,11 +627,32 @@ impl PredefinedMenuItemType {
     /// The kinds that have a UIKit command to show in the iPadOS menu bar.
     #[cfg(target_os = "ios")]
     pub(crate) fn is_supported(&self) -> bool {
-        crate::platform_impl::predefined_source(self).is_some()
-            || matches!(
-                self,
-                PredefinedMenuItemType::Separator | PredefinedMenuItemType::SectionHeader
-            )
+        matches!(
+            self,
+            PredefinedMenuItemType::Separator
+                | PredefinedMenuItemType::SectionHeader
+                | PredefinedMenuItemType::Copy
+                | PredefinedMenuItemType::Cut
+                | PredefinedMenuItemType::Paste
+                | PredefinedMenuItemType::PasteAndMatchStyle
+                | PredefinedMenuItemType::Delete
+                | PredefinedMenuItemType::SelectAll
+                | PredefinedMenuItemType::Undo
+                | PredefinedMenuItemType::Redo
+                | PredefinedMenuItemType::Minimize
+                | PredefinedMenuItemType::Maximize
+                | PredefinedMenuItemType::Fullscreen
+                | PredefinedMenuItemType::Hide
+                | PredefinedMenuItemType::HideOthers
+                | PredefinedMenuItemType::ShowAll
+                | PredefinedMenuItemType::CloseWindow
+                | PredefinedMenuItemType::Quit
+                | PredefinedMenuItemType::About(_)
+                | PredefinedMenuItemType::Services
+                | PredefinedMenuItemType::BringAllToFront
+                | PredefinedMenuItemType::StartSpeaking
+                | PredefinedMenuItemType::StopSpeaking
+        )
     }
 
     /// Whether this kind should be enabled on the current platform.

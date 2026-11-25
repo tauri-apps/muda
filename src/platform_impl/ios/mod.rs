@@ -40,11 +40,12 @@ use objc2_core_foundation::CGPoint;
 use objc2_foundation::{NSArray, NSCopying, NSNumber, NSString};
 use objc2_ui_kit::{
     UIAction, UIApplication, UICommand, UIEditMenuConfiguration, UIEditMenuInteraction,
-    UIEditMenuInteractionAnimating, UIEditMenuInteractionDelegate, UIImage, UIKeyCommand,
-    UIMainMenuSystem, UIMainMenuSystemConfiguration, UIMenu, UIMenuAbout, UIMenuApplication,
-    UIMenuBringAllToFront, UIMenuBuilder, UIMenuClose, UIMenuElement, UIMenuElementAttributes,
-    UIMenuElementState, UIMenuFullscreen, UIMenuHide, UIMenuIdentifier, UIMenuMinimizeAndZoom,
-    UIMenuOptions, UIMenuQuit, UIMenuRoot, UIMenuServices, UIMenuSpeech, UIMenuSystem, UIView,
+    UIEditMenuInteractionAnimating, UIEditMenuInteractionDelegate, UIImage, UIInteraction,
+    UIKeyCommand, UIMainMenuSystem, UIMainMenuSystemConfiguration, UIMenu, UIMenuAbout,
+    UIMenuApplication, UIMenuBringAllToFront, UIMenuBuilder, UIMenuClose, UIMenuElement,
+    UIMenuElementAttributes, UIMenuElementState, UIMenuFullscreen, UIMenuHide, UIMenuIdentifier,
+    UIMenuMinimizeAndZoom, UIMenuOptions, UIMenuQuit, UIMenuRoot, UIMenuServices, UIMenuSpeech,
+    UIMenuSystem, UIView,
 };
 
 use crate::{
@@ -57,15 +58,97 @@ use crate::{
 /// The tallest a custom icon is drawn in a menu row, matching the macOS backend.
 const MAX_ICON_HEIGHT: f64 = 18.0;
 
-thread_local! {
+define_class!(
+    /// The menu state of the application, kept on it as an associated object so the callbacks
+    /// UIKit makes while building and running the menu bar can reach it.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[ivars = AppMenuState]
+    struct AppMenu;
+);
+
+#[derive(Default)]
+struct AppMenuState {
     /// The menu shown in the menu bar, see [`Menu::init_for_uiapp`].
-    static APP_MENU: RefCell<Option<Menu>> = const { RefCell::new(None) };
+    menu: RefCell<Option<Menu>>,
     /// Whether the main menu system has been set up to build the app menu, see [`install`].
-    static INSTALLED: Cell<bool> = const { Cell::new(false) };
+    installed: Cell<bool>,
     /// The items behind the commands of the latest menu bar build.
-    static COMMANDS: RefCell<Commands> = RefCell::new(Commands::default());
-    /// The context menu being shown, see [`show_context_menu_for_uiview`].
-    static CONTEXT_MENU: RefCell<Option<ContextMenuPresentation>> = const { RefCell::new(None) };
+    commands: RefCell<Commands>,
+    /// Whether the windows of the application record where touches land.
+    tracking_touches: Cell<bool>,
+}
+
+impl AppMenu {
+    /// The state of the shared application, if it has been created yet.
+    fn get(mtm: MainThreadMarker) -> Option<Retained<Self>> {
+        // SAFETY: Only `AppMenu` objects are stored under this key.
+        unsafe { associated_object(&*shared_application(mtm)?, sel!(mudaAppMenu)) }
+    }
+
+    /// The state of the shared application, created on first use. `None` before the
+    /// application is created.
+    fn get_or_create(mtm: MainThreadMarker) -> Option<Retained<Self>> {
+        let application = shared_application(mtm)?;
+        if let Some(this) = Self::get(mtm) {
+            return Some(this);
+        }
+        let this = Self::alloc(mtm).set_ivars(AppMenuState::default());
+        let this: Retained<Self> = unsafe { msg_send![super(this), init] };
+        set_associated_object(&*application, sel!(mudaAppMenu), &*this);
+        Some(this)
+    }
+}
+
+/// The shared application, or `None` before `UIApplicationMain` creates it.
+fn shared_application(_mtm: MainThreadMarker) -> Option<Retained<UIApplication>> {
+    unsafe { msg_send![UIApplication::class(), sharedApplication] }
+}
+
+/// Keeps `value` alive for as long as `object`, under `key`.
+fn set_associated_object<O: Message, V: Message>(object: &O, key: Sel, value: &V) {
+    let object: *const O = object;
+    let value: *const V = value;
+    unsafe {
+        objc2::ffi::objc_setAssociatedObject(
+            object.cast::<AnyObject>().cast_mut(),
+            associated_object_key(key),
+            value.cast::<AnyObject>().cast_mut(),
+            objc2::ffi::OBJC_ASSOCIATION_RETAIN_NONATOMIC,
+        );
+    }
+}
+
+/// The address of the selector name, which the runtime interns, so it is the same for every use
+/// of the selector.
+fn associated_object_key(key: Sel) -> *const c_void {
+    key.name().as_ptr().cast()
+}
+
+/// The object kept on `object` under `key` by [`set_associated_object`].
+///
+/// # Safety
+///
+/// The object stored under `key`, if any, must be a `T`.
+unsafe fn associated_object<T: Message, O: Message>(object: &O, key: Sel) -> Option<Retained<T>> {
+    let object: *const O = object;
+    let value =
+        unsafe { objc2::ffi::objc_getAssociatedObject(object.cast(), associated_object_key(key)) };
+    // SAFETY: Caller verifies that the value is a `T`.
+    unsafe { Retained::retain(value.cast::<T>().cast_mut()) }
+}
+
+/// Starts recording where touches land, so a context menu shown without a position opens where
+/// the user tapped.
+fn track_touches(mtm: MainThreadMarker) {
+    let Some(app_menu) = AppMenu::get_or_create(mtm) else {
+        return;
+    };
+    if !app_menu.ivars().tracking_touches.replace(true) {
+        if let Some(application) = shared_application(mtm) {
+            touch_location::track_touches(&application, mtm);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -102,22 +185,34 @@ pub(crate) fn run_predefined_action(_item_type: &crate::items::PredefinedMenuIte
 }
 
 pub(crate) fn set_app_menu(menu: Option<Menu>) {
-    let previous = APP_MENU.replace(menu);
-    drop(previous);
-
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
+    let Some(app_menu) = AppMenu::get_or_create(mtm) else {
+        return;
+    };
 
-    if INSTALLED.replace(true) {
+    let previous = app_menu.ivars().menu.replace(menu);
+    drop(previous);
+
+    if app_menu.ivars().installed.replace(true) {
         rebuild(mtm);
     } else {
-        install(mtm);
+        install(&app_menu, mtm);
     }
+    track_touches(mtm);
 }
 
 pub(crate) fn remove_app_menu(id: &MenuId) {
-    let is_app_menu = APP_MENU.with_borrow(|menu| menu.as_ref().is_some_and(|m| m.id() == id));
+    let Some(app_menu) = MainThreadMarker::new().and_then(AppMenu::get) else {
+        return;
+    };
+    let is_app_menu = app_menu
+        .ivars()
+        .menu
+        .borrow()
+        .as_ref()
+        .is_some_and(|m| m.id() == id);
     if is_app_menu {
         set_app_menu(None);
     }
@@ -131,7 +226,11 @@ fn request_rebuild() {
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
-    if INSTALLED.get() && APP_MENU.with_borrow(Option::is_some) {
+    let Some(app_menu) = AppMenu::get(mtm) else {
+        return;
+    };
+    let state = app_menu.ivars();
+    if state.installed.get() && state.menu.borrow().is_some() {
         rebuild(mtm);
     }
 }
@@ -144,7 +243,7 @@ fn rebuild(mtm: MainThreadMarker) {
     }
 }
 
-fn install(mtm: MainThreadMarker) {
+fn install(app_menu: &AppMenu, mtm: MainThreadMarker) {
     // Commands are nil-targeted, so their action has to be implemented by a responder in the
     // chain. The application is always in it, whatever the first responder is.
     let types = c"v@:@";
@@ -162,11 +261,13 @@ fn install(mtm: MainThreadMarker) {
     }
 
     if objc2::available!(ios = 26.0) {
-        let build_handler = RcBlock::new(|builder: NonNull<ProtocolObject<dyn UIMenuBuilder>>| {
-            // SAFETY: UIKit hands a valid builder to the build handler for the duration of the
-            // call.
-            build(unsafe { builder.as_ref() })
-        });
+        let app_menu = app_menu.retain();
+        let build_handler =
+            RcBlock::new(move |builder: NonNull<ProtocolObject<dyn UIMenuBuilder>>| {
+                // SAFETY: UIKit hands a valid builder to the build handler for the duration of
+                // the call.
+                build(&app_menu, unsafe { builder.as_ref() })
+            });
         let configuration = UIMainMenuSystemConfiguration::new(mtm);
         UIMainMenuSystem::sharedSystem(mtm)
             .setBuildConfiguration_buildHandler(&configuration, Some(&build_handler));
@@ -181,9 +282,8 @@ fn install(mtm: MainThreadMarker) {
 /// application's own implementation fills in the system menus, so the delegate is the one to
 /// take over. Does nothing when the delegate class already builds the menu itself.
 fn install_build_menu_override(mtm: MainThreadMarker) {
-    let application: Option<Retained<UIApplication>> =
-        unsafe { msg_send![UIApplication::class(), sharedApplication] };
-    let Some(delegate) = application.and_then(|application| unsafe { application.delegate() })
+    let Some(delegate) =
+        shared_application(mtm).and_then(|application| unsafe { application.delegate() })
     else {
         return;
     };
@@ -217,7 +317,9 @@ unsafe extern "C-unwind" fn build_menu_with_builder(
     let mtm = MainThreadMarker::new().expect("UIKit builds menus on the main thread");
     // The context menu system asks for its menus here too.
     if std::ptr::eq(&*builder.system(), &*UIMenuSystem::mainSystem(mtm)) {
-        build(builder);
+        if let Some(app_menu) = AppMenu::get(mtm) {
+            build(&app_menu, builder);
+        }
     }
 }
 
@@ -233,7 +335,11 @@ unsafe extern "C-unwind" fn perform_command(
             list.downcast_ref::<NSNumber>()
                 .map(|n| n.unsignedLongLongValue())
         });
-    if let Some(item) = key.and_then(|key| COMMANDS.with_borrow(|commands| commands.get(key))) {
+    let mtm = MainThreadMarker::new().expect("UIKit performs commands on the main thread");
+    let item = key
+        .zip(AppMenu::get(mtm))
+        .and_then(|(key, app_menu)| app_menu.ivars().commands.borrow().get(key));
+    if let Some(item) = item {
         activate(&item);
     }
 }
@@ -261,8 +367,8 @@ fn activate(item: &RefCell<PlatformMenuItem>) {
 ///
 /// The first submenu fills the application menu, the one titled with the app name, as it does
 /// on macOS. The other submenus replace the system's File, Edit, View, Window and Help menus.
-fn build(builder: &ProtocolObject<dyn UIMenuBuilder>) {
-    let Some(menu) = APP_MENU.with_borrow(Clone::clone) else {
+fn build(app_menu: &AppMenu, builder: &ProtocolObject<dyn UIMenuBuilder>) {
+    let Some(menu) = app_menu.ivars().menu.borrow().clone() else {
         return;
     };
     let mtm = MainThreadMarker::new().expect("UIKit builds the menu bar on the main thread");
@@ -274,7 +380,12 @@ fn build(builder: &ProtocolObject<dyn UIMenuBuilder>) {
         system_menus: HashMap::new(),
         used_sources: Vec::new(),
         commands: Commands {
-            generation: COMMANDS.with_borrow(|commands| commands.generation.wrapping_add(1)),
+            generation: app_menu
+                .ivars()
+                .commands
+                .borrow()
+                .generation
+                .wrapping_add(1),
             items: Vec::new(),
         },
     };
@@ -343,7 +454,7 @@ fn build(builder: &ProtocolObject<dyn UIMenuBuilder>) {
         anchor = Some(menu.identifier());
     }
 
-    COMMANDS.set(context.commands);
+    app_menu.ivars().commands.replace(context.commands);
 }
 
 /// What a [`BuildContext`] builds elements for.
@@ -621,7 +732,7 @@ fn image(icon: Option<&IconType>) -> Option<Retained<UIImage>> {
 
 /// Where the UIKit element of a predefined item comes from.
 #[derive(Clone, Copy, PartialEq)]
-pub(crate) enum PredefinedSource {
+enum PredefinedSource {
     /// A system command, found by its action.
     Action(Sel),
     /// A system menu, found by its identifier. On iPadOS, UIKit only fills these in when it
@@ -630,9 +741,7 @@ pub(crate) enum PredefinedSource {
 }
 
 /// The UIKit element of a predefined item, or `None` if the system has no such element.
-pub(crate) fn predefined_source(
-    predefined_item_type: &PredefinedMenuItemType,
-) -> Option<PredefinedSource> {
+fn predefined_source(predefined_item_type: &PredefinedMenuItemType) -> Option<PredefinedSource> {
     use PredefinedMenuItemType::*;
     use PredefinedSource::{Action, Menu};
 
@@ -690,7 +799,7 @@ pub(crate) unsafe fn show_context_menu_for_uiview(
     }
     // SAFETY: Caller verifies that the view is valid.
     let view: &UIView = unsafe { &*view.cast() };
-    touch_location::track_touches(mtm);
+    track_touches(mtm);
 
     let mut context = BuildContext {
         mtm,
@@ -724,43 +833,39 @@ pub(crate) unsafe fn show_context_menu_for_uiview(
         }),
     };
 
-    remove_context_menu();
+    // Replace the context menu this view is showing, if any.
+    for interaction in view.interactions().iter() {
+        let interaction: &AnyObject = (*interaction).as_ref();
+        if let Some(interaction) = interaction.downcast_ref::<UIEditMenuInteraction>() {
+            if ContextMenuDelegate::of(interaction).is_some() {
+                remove_context_menu(interaction);
+            }
+        }
+    }
 
     let delegate = ContextMenuDelegate::new(mtm, menu);
     let interaction = UIEditMenuInteraction::initWithDelegate(
         mtm.alloc(),
         Some(ProtocolObject::from_ref(&*delegate)),
     );
+    // The interaction only holds a weak reference to its delegate.
+    set_associated_object(&*interaction, sel!(mudaContextMenuDelegate), &*delegate);
     view.addInteraction(ProtocolObject::from_ref(&*interaction));
     let configuration = unsafe {
         UIEditMenuConfiguration::configurationWithIdentifier_sourcePoint(None, source_point, mtm)
     };
     interaction.presentEditMenuWithConfiguration(&configuration);
 
-    CONTEXT_MENU.set(Some(ContextMenuPresentation {
-        view: view.retain(),
-        interaction,
-        _delegate: delegate,
-    }));
-
     // The menu is shown asynchronously, so nothing has been picked yet.
     false
 }
 
-struct ContextMenuPresentation {
-    view: Retained<UIView>,
-    interaction: Retained<UIEditMenuInteraction>,
-    /// The interaction only holds a weak reference to its delegate.
-    _delegate: Retained<ContextMenuDelegate>,
-}
-
-/// Dismisses the context menu being shown, if any, and removes its interaction from its view.
-fn remove_context_menu() {
-    if let Some(presentation) = CONTEXT_MENU.take() {
-        presentation.interaction.dismissMenu();
-        presentation
-            .view
-            .removeInteraction(ProtocolObject::from_ref(&*presentation.interaction));
+/// Dismisses the context menu shown by `interaction` and removes it from its view, releasing
+/// it and its delegate.
+fn remove_context_menu(interaction: &UIEditMenuInteraction) {
+    interaction.dismissMenu();
+    if let Some(view) = interaction.view() {
+        view.removeInteraction(ProtocolObject::from_ref(interaction));
     }
 }
 
@@ -792,16 +897,7 @@ define_class!(
             animator: &ProtocolObject<dyn UIEditMenuInteractionAnimating>,
         ) {
             let interaction = interaction.retain();
-            let completion = RcBlock::new(move || {
-                let is_current = CONTEXT_MENU.with_borrow(|presentation| {
-                    presentation
-                        .as_ref()
-                        .is_some_and(|p| std::ptr::eq(&*p.interaction, &*interaction))
-                });
-                if is_current {
-                    remove_context_menu();
-                }
-            });
+            let completion = RcBlock::new(move || remove_context_menu(&interaction));
             animator.addCompletion(&completion);
         }
     }
@@ -812,6 +908,12 @@ impl ContextMenuDelegate {
         let this = Self::alloc(mtm).set_ivars(menu);
         unsafe { msg_send![super(this), init] }
     }
+
+    /// The delegate of `interaction`, if it shows a muda context menu.
+    fn of(interaction: &UIEditMenuInteraction) -> Option<Retained<Self>> {
+        // SAFETY: Only `ContextMenuDelegate` objects are stored under this key.
+        unsafe { associated_object(interaction, sel!(mudaContextMenuDelegate)) }
+    }
 }
 
 pub(crate) struct PlatformMenu;
@@ -821,7 +923,7 @@ impl PlatformMenu {
         // Context menus are usually shown on a tap, so start recording where taps land as soon
         // as a menu exists.
         if let Some(mtm) = MainThreadMarker::new() {
-            touch_location::track_touches(mtm);
+            track_touches(mtm);
         }
         Self
     }
@@ -859,7 +961,7 @@ impl PlatformMenuItem {
 
     pub(crate) fn new_submenu(click: MenuItemAction) -> Self {
         if let Some(mtm) = MainThreadMarker::new() {
-            touch_location::track_touches(mtm);
+            track_touches(mtm);
         }
         Self { click }
     }

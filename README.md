@@ -16,9 +16,6 @@ Menu Utilities library for Desktop Applications.
 - On Windows, accelerators don't work unless the win32 message loop calls
   [`TranslateAcceleratorW`](https://docs.rs/windows-sys/latest/windows_sys/Win32/UI/WindowsAndMessaging/fn.TranslateAcceleratorW.html).
   See [`Menu::init_for_hwnd`](https://docs.rs/muda/latest/x86_64-pc-windows-msvc/muda/struct.Menu.html#method.init_for_hwnd) for more details
-- On iOS, the menu is shown in the iPadOS menu bar once the app has finished launching.
-  Context menus are not supported.
-  See [`Menu::init_for_uiapp`](https://docs.rs/muda/latest/aarch64-apple-ios/muda/struct.Menu.html#method.init_for_uiapp) for more details
 
 ### Cargo Features
 
