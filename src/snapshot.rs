@@ -4,10 +4,11 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use std::sync::LazyLock;
 
 use crate::{
+    accelerator::{Accelerator, KeyAccelerator, MenuAccelerator},
     items::{IconType, PredefinedMenuItemType},
     platform_impl::{self, PlatformMenuItem},
-    CheckMenuItemState, IconMenuItemState, MenuEvent, MenuItemKind, MenuItemState, MenuState,
-    NativeIcon, PredefinedMenuItemState, StateCell, SubmenuState, UnsafeMenuItemKind,
+    CheckMenuItemState, IconMenuItemState, MenuEvent, MenuId, MenuItemKind, MenuItemState,
+    MenuState, NativeIcon, PredefinedMenuItemState, StateCell, SubmenuState, UnsafeMenuItemKind,
 };
 
 /// Notification emitted after a menu or menu item changes.
@@ -83,6 +84,7 @@ enum MenuSnapshotSource {
 /// A thread-safe read projection and activation callback for a [`crate::MenuItem`].
 #[derive(Clone)]
 pub struct MenuItemSnapshot {
+    pub(crate) id: Arc<MenuId>,
     pub(crate) state: StateCell<MenuItemState>,
     /// Activates the item and emits its [`crate::MenuEvent`].
     pub activate: Arc<dyn Fn() + Send + Sync>,
@@ -91,12 +93,14 @@ pub struct MenuItemSnapshot {
 /// A thread-safe handle to a read-only projection of a [`crate::Submenu`].
 #[derive(Clone)]
 pub struct SubmenuSnapshot {
+    pub(crate) id: Arc<MenuId>,
     pub(crate) state: StateCell<SubmenuState>,
 }
 
 /// A thread-safe handle to a read-only projection of a [`crate::PredefinedMenuItem`].
 #[derive(Clone)]
 pub struct PredefinedMenuItemSnapshot {
+    pub(crate) id: Arc<MenuId>,
     pub(crate) state: StateCell<PredefinedMenuItemState>,
     /// Runs the item's predefined action on the platform, e.g. showing the about dialog.
     ///
@@ -118,6 +122,7 @@ pub struct PredefinedMenuItemSnapshot {
 /// A thread-safe read projection and activation callback for a [`crate::CheckMenuItem`].
 #[derive(Clone)]
 pub struct CheckMenuItemSnapshot {
+    pub(crate) id: Arc<MenuId>,
     pub(crate) state: StateCell<CheckMenuItemState>,
     /// Toggles the item and emits its [`crate::MenuEvent`].
     pub activate: Arc<dyn Fn() + Send + Sync>,
@@ -126,6 +131,7 @@ pub struct CheckMenuItemSnapshot {
 /// A thread-safe read projection and activation callback for an [`crate::IconMenuItem`].
 #[derive(Clone)]
 pub struct IconMenuItemSnapshot {
+    pub(crate) id: Arc<MenuId>,
     pub(crate) state: StateCell<IconMenuItemState>,
     /// Activates the item and emits its [`crate::MenuEvent`].
     pub activate: Arc<dyn Fn() + Send + Sync>,
@@ -139,6 +145,24 @@ pub enum MenuItemKindSnapshot {
     Predefined(PredefinedMenuItemSnapshot),
     Check(CheckMenuItemSnapshot),
     Icon(IconMenuItemSnapshot),
+}
+
+/// A keyboard shortcut that can be read from a menu snapshot on any thread.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SnapshotAccelerator {
+    /// A shortcut on a physical key, see [`Accelerator`].
+    Physical(Accelerator),
+    /// A shortcut on a logical key, see [`KeyAccelerator`].
+    Logical(KeyAccelerator),
+}
+
+impl From<&MenuAccelerator> for SnapshotAccelerator {
+    fn from(accelerator: &MenuAccelerator) -> Self {
+        match accelerator {
+            MenuAccelerator::Physical(accelerator) => Self::Physical(*accelerator),
+            MenuAccelerator::Logical(accelerator) => Self::Logical(accelerator.clone()),
+        }
+    }
 }
 
 /// An icon value that can be read from a menu snapshot on any thread.
@@ -184,6 +208,16 @@ impl MenuSnapshotSource {
 }
 
 impl MenuItemSnapshot {
+    /// Returns the menu item's id, the one carried by its [`crate::MenuEvent`].
+    pub fn id(&self) -> &MenuId {
+        &self.id
+    }
+
+    /// Returns the menu item's keyboard shortcut.
+    pub fn accelerator(&self) -> Option<SnapshotAccelerator> {
+        self.state.borrow().accelerator.as_ref().map(Into::into)
+    }
+
     /// Returns the menu item's text.
     pub fn text(&self) -> String {
         self.state.borrow().text.clone()
@@ -196,6 +230,11 @@ impl MenuItemSnapshot {
 }
 
 impl SubmenuSnapshot {
+    /// Returns the submenu's id.
+    pub fn id(&self) -> &MenuId {
+        &self.id
+    }
+
     /// Returns the submenu's text.
     pub fn text(&self) -> String {
         self.state.borrow().text.clone()
@@ -223,6 +262,11 @@ impl SubmenuSnapshot {
 }
 
 impl PredefinedMenuItemSnapshot {
+    /// Returns the predefined menu item's id.
+    pub fn id(&self) -> &MenuId {
+        &self.id
+    }
+
     /// Returns the predefined menu item's text.
     pub fn text(&self) -> String {
         self.state.borrow().text.clone()
@@ -243,6 +287,16 @@ impl PredefinedMenuItemSnapshot {
 }
 
 impl CheckMenuItemSnapshot {
+    /// Returns the check menu item's id, the one carried by its [`crate::MenuEvent`].
+    pub fn id(&self) -> &MenuId {
+        &self.id
+    }
+
+    /// Returns the check menu item's keyboard shortcut.
+    pub fn accelerator(&self) -> Option<SnapshotAccelerator> {
+        self.state.borrow().accelerator.as_ref().map(Into::into)
+    }
+
     /// Returns the check menu item's text.
     pub fn text(&self) -> String {
         self.state.borrow().text.clone()
@@ -260,6 +314,16 @@ impl CheckMenuItemSnapshot {
 }
 
 impl IconMenuItemSnapshot {
+    /// Returns the icon menu item's id, the one carried by its [`crate::MenuEvent`].
+    pub fn id(&self) -> &MenuId {
+        &self.id
+    }
+
+    /// Returns the icon menu item's keyboard shortcut.
+    pub fn accelerator(&self) -> Option<SnapshotAccelerator> {
+        self.state.borrow().accelerator.as_ref().map(Into::into)
+    }
+
     /// Returns the icon menu item's text.
     pub fn text(&self) -> String {
         self.state.borrow().text.clone()
@@ -304,6 +368,7 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
             MenuItemKind::MenuItem(item) => {
                 let id = Arc::clone(&item.id);
                 Self::MenuItem(MenuItemSnapshot {
+                    id: Arc::clone(&id),
                     state: item.state.clone(),
                     activate: Arc::new(move || {
                         MenuEvent::send(MenuEvent { id: (*id).clone() });
@@ -311,12 +376,14 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
                 })
             }
             MenuItemKind::Submenu(item) => Self::Submenu(SubmenuSnapshot {
+                id: Arc::new((*item.id).clone()),
                 state: item.state.clone(),
             }),
             MenuItemKind::Predefined(item) => {
                 let state = item.state.clone();
 
                 Self::Predefined(PredefinedMenuItemSnapshot {
+                    id: Arc::new((*item.id).clone()),
                     state: state.clone(),
                     activate: Arc::new(move || {
                         // The item type is read here instead of being captured, because it may
@@ -334,6 +401,7 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
                 let platform = Arc::new(UnsafeSend::new(item.platform.clone()));
 
                 Self::Check(CheckMenuItemSnapshot {
+                    id: Arc::clone(&id),
                     state: state.clone(),
                     activate: Arc::new(move || {
                         {
@@ -358,6 +426,7 @@ impl From<&MenuItemKind> for MenuItemKindSnapshot {
             MenuItemKind::Icon(item) => {
                 let id = Arc::clone(&item.id);
                 Self::Icon(IconMenuItemSnapshot {
+                    id: Arc::clone(&id),
                     state: item.state.clone(),
                     activate: Arc::new(move || {
                         MenuEvent::send(MenuEvent { id: (*id).clone() });
@@ -374,7 +443,7 @@ mod tests {
 
     use crate::{IsMenuItem, MenuItem, UnsafeMenuItemKind};
 
-    use super::MenuItemKindSnapshot;
+    use super::{MenuItemKindSnapshot, SnapshotAccelerator};
 
     fn assert_send<T: Send>() {}
     fn assert_send_sync<T: Send + Sync>() {}
@@ -405,5 +474,55 @@ mod tests {
         // SAFETY: the wrapper has returned to the thread where its `MenuItemKind` was created.
         let recovered = unsafe { wrapped.unwrap() };
         assert_eq!(recovered.id(), item.id());
+    }
+
+    #[test]
+    fn snapshots_expose_ids_and_accelerators() {
+        use crate::{
+            accelerator::{Accelerator, Code, Modifiers},
+            CheckMenuItem, ContextMenu, Menu, PredefinedMenuItem, Submenu,
+        };
+
+        let save_accelerator = Accelerator::new(Modifiers::CONTROL, Code::KeyS);
+        let grid_accelerator = Accelerator::new(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyG);
+        let save = MenuItem::with_id("save", "Save", true, Some(save_accelerator));
+        let plain = MenuItem::with_id("plain", "Plain", true, None);
+        let grid = CheckMenuItem::with_id("grid", "Grid", true, false, Some(grid_accelerator));
+        let separator = PredefinedMenuItem::separator();
+        let sub = Submenu::with_id_and_items("sub", "Sub", true, &[&plain, &separator]).unwrap();
+        let menu = Menu::with_items(&[&save, &grid, &sub]).unwrap();
+
+        let items = menu.snapshot_handle().items();
+        let [MenuItemKindSnapshot::MenuItem(save_snapshot), MenuItemKindSnapshot::Check(grid_snapshot), MenuItemKindSnapshot::Submenu(sub_snapshot)] =
+            items.as_slice()
+        else {
+            panic!("unexpected snapshot kinds");
+        };
+
+        assert_eq!(save_snapshot.id(), save.id());
+        assert_eq!(
+            save_snapshot.accelerator(),
+            Some(SnapshotAccelerator::Physical(save_accelerator))
+        );
+        assert_eq!(grid_snapshot.id(), grid.id());
+        assert_eq!(
+            grid_snapshot.accelerator(),
+            Some(SnapshotAccelerator::Physical(grid_accelerator))
+        );
+        assert_eq!(sub_snapshot.id(), sub.id());
+
+        let children = sub_snapshot.items();
+        let [MenuItemKindSnapshot::MenuItem(plain_snapshot), MenuItemKindSnapshot::Predefined(separator_snapshot)] =
+            children.as_slice()
+        else {
+            panic!("unexpected child snapshot kinds");
+        };
+        assert_eq!(plain_snapshot.id(), plain.id());
+        assert_eq!(plain_snapshot.accelerator(), None);
+        assert_eq!(separator_snapshot.id(), separator.id());
+
+        // A change made after the snapshot was taken is visible through it.
+        save.set_accelerator(None).unwrap();
+        assert_eq!(save_snapshot.accelerator(), None);
     }
 }
