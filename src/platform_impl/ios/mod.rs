@@ -210,10 +210,10 @@ pub(crate) fn set_app_menu(menu: Option<Menu>) {
     let previous = app_menu.ivars().menu.replace(menu);
     drop(previous);
 
-    if app_menu.ivars().installed.replace(true) {
+    if app_menu.ivars().installed.get() {
         rebuild(mtm);
     } else {
-        install(&app_menu, mtm);
+        app_menu.ivars().installed.set(install(&app_menu, mtm));
     }
     track_touches(mtm);
 }
@@ -260,7 +260,8 @@ fn rebuild(mtm: MainThreadMarker) {
     }
 }
 
-fn install(app_menu: &AppMenu, mtm: MainThreadMarker) {
+/// Returns whether the main menu system was set up, so a later call can try again if not.
+fn install(app_menu: &AppMenu, mtm: MainThreadMarker) -> bool {
     // Commands are nil-targeted, so their action has to be implemented by a responder in the
     // chain. The application is always in it, whatever the first responder is.
     let types = c"v@:@";
@@ -293,8 +294,9 @@ fn install(app_menu: &AppMenu, mtm: MainThreadMarker) {
         let configuration = UIMainMenuSystemConfiguration::new(mtm);
         UIMainMenuSystem::sharedSystem(mtm)
             .setBuildConfiguration_buildHandler(&configuration, Some(&build_handler));
+        true
     } else {
-        install_build_menu_override(mtm);
+        install_build_menu_override(mtm)
     }
 }
 
@@ -314,11 +316,13 @@ fn build_from_responder_chain(builder: &ProtocolObject<dyn UIMenuBuilder>, mtm: 
 /// UIKit asks the application and then its delegate to build the main menu, and the
 /// application's own implementation fills in the system menus, so the delegate is the one to
 /// take over. Does nothing when the delegate class already builds the menu itself.
-fn install_build_menu_override(mtm: MainThreadMarker) {
+///
+/// Returns `false` when the application has no delegate yet.
+fn install_build_menu_override(mtm: MainThreadMarker) -> bool {
     let Some(delegate) =
         shared_application(mtm).and_then(|application| unsafe { application.delegate() })
     else {
-        return;
+        return false;
     };
 
     let class = AsRef::<AnyObject>::as_ref(&*delegate).class();
@@ -340,6 +344,7 @@ fn install_build_menu_override(mtm: MainThreadMarker) {
     if added.as_bool() {
         UIMenuSystem::mainSystem(mtm).setNeedsRebuild();
     }
+    true
 }
 
 unsafe extern "C-unwind" fn build_menu_with_builder(
