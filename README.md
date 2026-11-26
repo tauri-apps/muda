@@ -9,6 +9,7 @@ Menu Utilities library for Desktop Applications.
 - Windows
 - macOS
 - Linux/BSD with GTK 3 or GTK 4
+- iOS 13+ (the iPadOS 26 menu bar, and key commands on earlier versions)
 
 ## Platform-specific notes:
 
@@ -102,7 +103,7 @@ menu.append(&submenu).unwrap();
 ```
 
 Then add your root menu to a window on Windows, GTK 3, or GTK 4
-or use it as your global app menu on macOS
+or use it as your global app menu on macOS and in the iPadOS menu bar
 
 The window handles and GTK widgets below come from your application's window setup.
 For GTK, use the same GTK version as the enabled Muda backend.
@@ -116,6 +117,8 @@ menu.init_for_gtk_window(&gtk_window, Some(&vertical_gtk_box)).unwrap();
 
 #[cfg(target_os = "macos")]
 menu.init_for_nsapp();
+#[cfg(target_os = "ios")]
+menu.init_for_uiapp();
 ```
 
 ## Context menus (Popup menus)

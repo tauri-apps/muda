@@ -19,6 +19,7 @@ use crate::MenuSnapshotHandle;
 #[cfg(any(
     target_os = "windows",
     target_os = "macos",
+    target_os = "ios",
     all(
         any(
             target_os = "linux",
@@ -406,6 +407,8 @@ impl Submenu {
     ///
     /// - **macOS**: Known variants map to AppKit image names. Use [`NativeIcon::Raw`] or
     ///   `NativeIcon::from_name` to pass an AppKit [`NSImage.Name`] string.
+    /// - **iOS**: Known variants map to SF Symbols where an equivalent exists. Use
+    ///   [`NativeIcon::Raw`] or `NativeIcon::from_name` to pass an SF Symbol name.
     /// - **Windows**: Known variants map to stock shell icons where an equivalent exists. Use
     ///   [`NativeIcon::Raw`] or `NativeIcon::from_id` to pass a raw [`SHSTOCKICONID`] value.
     /// - **GTK 3**: Known variants map to freedesktop-style icon theme names. Use
@@ -527,6 +530,20 @@ impl ContextMenu for Submenu {
     fn gtk_context_menu(&self) -> gtk::PopoverMenu {
         let children = self.items();
         self.platform.borrow_mut().gtk_context_menu(&children)
+    }
+
+    #[cfg(target_os = "ios")]
+    unsafe fn show_context_menu_for_uiview(
+        &self,
+        view: *const std::ffi::c_void,
+        position: Option<Position>,
+    ) -> bool {
+        crate::platform_impl::show_context_menu_for_uiview(
+            &self.items(),
+            self.is_enabled(),
+            view,
+            position,
+        )
     }
 
     #[cfg(target_os = "macos")]

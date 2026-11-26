@@ -233,6 +233,8 @@ pub(crate) enum IconType {
 pub(crate) enum MenuItemAction {
     Emit(MenuId),
     Toggle(MenuId, WeakStateCell<CheckMenuItemState>),
+    // Predefined items run the system's own command on iOS unlike macOS that handles the About item manually.
+    #[cfg_attr(target_os = "ios", allow(dead_code))]
     Predefined(WeakStateCell<PredefinedMenuItemState>),
 }
 

@@ -202,6 +202,7 @@ impl Icon {
 /// Use [`NativeIcon::Raw`] for a platform-specific value:
 ///
 /// - **macOS / GTK 3 / GTK 4**: a native icon name string.
+/// - **iOS**: an SF Symbol name.
 /// - **Windows**: a [`SHSTOCKICONID`] value.
 ///
 /// [`SHSTOCKICONID`]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ne-shellapi-shstockiconid
@@ -505,6 +506,72 @@ impl crate::NativeIcon {
             NativeIcon::Raw(name) => name.clone(),
             _ => unsafe { self.named_img() }.to_string(),
         }
+    }
+
+    /// Returns the corresponding [SF Symbol] name, or `None` if this icon has no SF Symbol
+    /// equivalent.
+    ///
+    /// [SF Symbol]: https://developer.apple.com/sf-symbols/
+    #[cfg(target_os = "ios")]
+    pub fn sf_symbol_name(&self) -> Option<&str> {
+        let name = match self {
+            Self::Add => "plus",
+            Self::Advanced => "gearshape.2",
+            Self::Bluetooth => return None,
+            Self::Bookmarks => "book",
+            Self::Caution => "exclamationmark.triangle",
+            Self::ColorPanel => "paintpalette",
+            Self::ColumnView => "rectangle.split.3x1",
+            Self::Computer => "desktopcomputer",
+            Self::EnterFullScreen => "arrow.up.left.and.arrow.down.right",
+            Self::Everyone => "person.3",
+            Self::ExitFullScreen => "arrow.down.right.and.arrow.up.left",
+            Self::FlowView => "rectangle.stack",
+            Self::Folder => "folder",
+            Self::FolderBurnable => "opticaldisc",
+            Self::FolderSmart => "folder.badge.gearshape",
+            Self::FollowLinkFreestanding => "link",
+            Self::FontPanel => "textformat",
+            Self::GoLeft => "chevron.left",
+            Self::GoRight => "chevron.right",
+            Self::Home => "house",
+            Self::IChatTheater => "video",
+            Self::IconView => "square.grid.2x2",
+            Self::Info => "info.circle",
+            Self::InvalidDataFreestanding => "xmark.octagon",
+            Self::LeftFacingTriangle => "arrowtriangle.left.fill",
+            Self::ListView => "list.bullet",
+            Self::LockLocked => "lock",
+            Self::LockUnlocked => "lock.open",
+            Self::MenuMixedState => "minus",
+            Self::MenuOnState => "checkmark",
+            Self::MobileMe => "icloud",
+            Self::MultipleDocuments => "doc.on.doc",
+            Self::Network => "network",
+            Self::Path => "arrow.triangle.branch",
+            Self::PreferencesGeneral => "gearshape",
+            Self::QuickLook => "eye",
+            Self::RefreshFreestanding | Self::Refresh => "arrow.clockwise",
+            Self::Remove => "minus",
+            Self::RevealFreestanding => "arrow.right.circle",
+            Self::RightFacingTriangle => "arrowtriangle.right.fill",
+            Self::Share => "square.and.arrow.up",
+            Self::Slideshow => "play.rectangle",
+            Self::SmartBadge => "sparkles",
+            Self::StatusAvailable => "circle.fill",
+            Self::StatusNone => "circle",
+            Self::StatusPartiallyAvailable => "circle.lefthalf.fill",
+            Self::StatusUnavailable => "minus.circle.fill",
+            Self::StopProgressFreestanding | Self::StopProgress => "xmark",
+            Self::TrashEmpty => "trash",
+            Self::TrashFull => "trash.fill",
+            Self::User => "person",
+            Self::UserAccounts => "person.crop.circle",
+            Self::UserGroup => "person.2",
+            Self::UserGuest => "person.fill.questionmark",
+            Self::Raw(name) => name,
+        };
+        Some(name)
     }
 
     #[cfg(target_os = "macos")]

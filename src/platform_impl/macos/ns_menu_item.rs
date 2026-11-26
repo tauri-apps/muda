@@ -16,8 +16,8 @@ use objc2::{
 use objc2_app_kit::{NSEventModifierFlags, NSMenuItem};
 use objc2_foundation::{MainThreadMarker, NSString};
 
-use super::{util::strip_mnemonic, PlatformMenuItem};
-use crate::accelerator::MenuAccelerator;
+use super::PlatformMenuItem;
+use crate::{accelerator::MenuAccelerator, util::strip_mnemonic};
 
 define_class!(
     #[unsafe(super(NSMenuItem))]

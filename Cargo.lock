@@ -1778,6 +1778,7 @@ dependencies = [
 name = "muda"
 version = "0.22.0"
 dependencies = [
+ "block2 0.6.2",
  "crossbeam-channel",
  "dpi 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gtk",
@@ -1789,6 +1790,7 @@ dependencies = [
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
+ "objc2-ui-kit 0.3.2",
  "png",
  "serde",
  "tao",
